@@ -1912,13 +1912,33 @@ function showSettings(){
     '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
     (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th><th></th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
     '</div>'+
-    '<div class="aw-card" style="padding:24px;max-width:600px">'+
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
       '<h3 style="margin:0 0 14px">Change Password</h3>'+
       '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="tpwOld" type="password"></div>'+
       '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="tpwNew" type="password"></div>'+
       '<div class="aw-field"><label class="aw-label">Confirm</label><input class="aw-input" id="tpwNew2" type="password"></div>'+
       '<button class="aw-btn aw-btn-primary" id="tpwBtn">Update password</button>'+
+    '</div>'+
+    /* ── Reset Data panel ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;border:1.5px solid #FADCD9">'+
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'+
+        '<div style="width:38px;height:38px;border-radius:50%;background:#FEF2F2;display:grid;place-items:center;flex:0 0 auto;font-size:1.2rem">⚠️</div>'+
+        '<div><h3 style="margin:0;color:#B42318">Reset Toàn Bộ Dữ Liệu</h3>'+
+          '<p style="margin:3px 0 0;font-size:.82rem;color:var(--aw-ink-3)">Dùng trước khi chạy nghiên cứu chính thức để xoá dữ liệu thử nghiệm.</p></div>'+
+      '</div>'+
+      '<div style="background:#FEF2F2;border:1px solid #FADCD9;border-radius:10px;padding:12px 14px;font-size:.85rem;color:#7A271A;line-height:1.6;margin-bottom:14px">'+
+        '<b>Hành động này sẽ xoá toàn bộ:</b><br>'+
+        '• Bài viết (Free Writing, Homework, In-class Practice)<br>'+
+        '• Lịch sử bài nộp &amp; điểm số<br>'+
+        '• Phiên live observation &amp; annotation<br>'+
+        '• Assignments đã tạo<br>'+
+        '• Feedback queries<br><br>'+
+        '<b>Được GIỮ LẠI:</b> Danh sách sinh viên, giáo viên, lớp học, thư viện câu hỏi.<br>'+
+        'Các tab cũ sẽ được đổi tên thành <code>*_bak</code> — không mất hẳn, vẫn có thể khôi phục thủ công trong Google Sheets.'+
+      '</div>'+
+      '<button class="aw-btn" id="resetDataBtn" style="background:#B42318;color:#fff;padding:10px 20px;font-weight:700">🗑 Reset toàn bộ dữ liệu...</button>'+
     '</div>';
+
   document.getElementById('tpwBtn').onclick=function(){
     var o=document.getElementById('tpwOld').value, n=document.getElementById('tpwNew').value, n2=document.getElementById('tpwNew2').value;
     if(!o||!n){AW.toast('Please fill all fields.','err');return;}
@@ -1928,6 +1948,136 @@ function showSettings(){
       else AW.toast((res&&res.error)||'Failed','err');
     });
   };
+
+  document.getElementById('resetDataBtn').onclick = function(){ showResetModal(); };
+}
+
+/*═══════════ RESET DATA — 3-layer confirmation ═══════════
+  Layer 1: Warning modal — mô tả rõ hậu quả, nút "Tôi hiểu, tiếp tục"
+  Layer 2: Nhập tên email GV để xác nhận danh tính
+  Layer 3: Gõ cụm từ "RESET" để xác nhận hành động không thể hoàn tác
+═══════════════════════════════════════════════════════════*/
+function showResetModal(){
+  var bg = document.createElement('div');
+  bg.id = 'resetModalBg';
+  bg.style.cssText = 'position:fixed;inset:0;background:rgba(16,34,46,.65);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  function closeBg(){ bg.remove(); }
+
+  // Layer 1
+  function layer1(){
+    bg.innerHTML =
+      '<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">'+
+        '<div style="background:#B42318;color:#fff;padding:16px 20px;font-weight:800;font-size:1.05rem">⚠️ Bước 1 / 3 — Xác nhận hành động</div>'+
+        '<div style="padding:20px 22px">'+
+          '<p style="margin:0 0 12px;font-size:.95rem;font-weight:600;color:#10222E">Bạn sắp xoá toàn bộ dữ liệu bài làm của tất cả sinh viên.</p>'+
+          '<p style="margin:0 0 16px;font-size:.87rem;color:var(--aw-ink-2);line-height:1.6">'+
+            'Đây là thao tác <b>không thể hoàn tác</b> qua giao diện. '+
+            'Các tab cũ sẽ được đổi tên thành <b>*_bak</b> trong Google Sheets — '+
+            'bạn vẫn có thể khôi phục thủ công nếu cần nhưng việc này tốn nhiều thời gian.<br><br>'+
+            'Chỉ dùng chức năng này khi <b>giai đoạn thử nghiệm kết thúc</b> và bạn muốn bắt đầu thu thập dữ liệu NCKH thật sự.'+
+          '</p>'+
+          '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+            '<button id="r1Cancel" class="aw-btn aw-btn-ghost">Huỷ</button>'+
+            '<button id="r1Next" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700">Tôi hiểu — Tiếp tục →</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    document.getElementById('r1Cancel').onclick = closeBg;
+    document.getElementById('r1Next').onclick   = layer2;
+  }
+
+  // Layer 2 — xác nhận email GV
+  function layer2(){
+    bg.innerHTML =
+      '<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">'+
+        '<div style="background:#B42318;color:#fff;padding:16px 20px;font-weight:800;font-size:1.05rem">🔐 Bước 2 / 3 — Xác minh danh tính</div>'+
+        '<div style="padding:20px 22px">'+
+          '<p style="margin:0 0 14px;font-size:.87rem;color:var(--aw-ink-2)">'+
+            'Để đảm bảo không phải thao tác vô tình, hãy nhập <b>email giảng viên</b> của bạn:'+
+          '</p>'+
+          '<input id="r2Email" class="aw-input" type="email" placeholder="'+AW.esc(sess.email||'your@email.com')+'" style="margin-bottom:6px">'+
+          '<p id="r2Err" style="margin:4px 0 14px;font-size:.8rem;color:#B42318;display:none">Email không khớp. Nhập đúng email tài khoản đang đăng nhập.</p>'+
+          '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+            '<button id="r2Cancel" class="aw-btn aw-btn-ghost">Huỷ</button>'+
+            '<button id="r2Back" class="aw-btn aw-btn-ghost">← Quay lại</button>'+
+            '<button id="r2Next" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700">Tiếp tục →</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    document.getElementById('r2Cancel').onclick = closeBg;
+    document.getElementById('r2Back').onclick   = layer1;
+    document.getElementById('r2Next').onclick   = function(){
+      var entered = (document.getElementById('r2Email').value||'').trim().toLowerCase();
+      var expected= (sess.email||'').trim().toLowerCase();
+      if (!entered || entered !== expected){
+        document.getElementById('r2Err').style.display='';
+        return;
+      }
+      layer3();
+    };
+    setTimeout(function(){ document.getElementById('r2Email').focus(); }, 50);
+  }
+
+  // Layer 3 — gõ "RESET" để xác nhận
+  function layer3(){
+    var MAGIC = 'RESET';
+    bg.innerHTML =
+      '<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">'+
+        '<div style="background:#B42318;color:#fff;padding:16px 20px;font-weight:800;font-size:1.05rem">🗑 Bước 3 / 3 — Xác nhận cuối cùng</div>'+
+        '<div style="padding:20px 22px">'+
+          '<p style="margin:0 0 6px;font-size:.87rem;color:var(--aw-ink-2)">'+
+            'Đây là bước cuối. Gõ chính xác cụm <b style="font-family:monospace;font-size:1rem;color:#B42318;letter-spacing:.06em">RESET</b> vào ô bên dưới để xác nhận:'+
+          '</p>'+
+          '<input id="r3Word" class="aw-input" placeholder="Gõ RESET" autocomplete="off" '+
+            'style="font-family:monospace;font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin:10px 0 6px">'+
+          '<p id="r3Err" style="margin:4px 0 14px;font-size:.8rem;color:#B42318;display:none">Cụm từ không đúng. Gõ chính xác: RESET (viết hoa).</p>'+
+          '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+            '<button id="r3Cancel" class="aw-btn aw-btn-ghost">Huỷ — Không reset</button>'+
+            '<button id="r3Back" class="aw-btn aw-btn-ghost">← Quay lại</button>'+
+            '<button id="r3Go" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700" disabled>🗑 Xoá dữ liệu ngay</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    var inp = document.getElementById('r3Word');
+    var goBtn = document.getElementById('r3Go');
+    inp.addEventListener('input', function(){
+      goBtn.disabled = inp.value.trim().toUpperCase() !== MAGIC;
+    });
+    document.getElementById('r3Cancel').onclick = closeBg;
+    document.getElementById('r3Back').onclick   = layer2;
+    document.getElementById('r3Go').onclick     = function(){
+      if (inp.value.trim().toUpperCase() !== MAGIC){
+        document.getElementById('r3Err').style.display=''; return;
+      }
+      doReset(goBtn, closeBg);
+    };
+    setTimeout(function(){ inp.focus(); }, 50);
+  }
+
+  // Execute reset
+  function doReset(btn, done){
+    btn.disabled = true;
+    btn.innerHTML = '<span class="aw-spin"></span> Đang reset…';
+    AW.api('admin.resetTab', { tab:'all' }).then(function(res){
+      done();
+      if (res && res.success){
+        AW.toast('✓ Reset thành công. Tất cả tab dữ liệu đã được làm mới.','ok', 6000);
+        // clear local class selection so teacher picks fresh
+        setTimeout(function(){ location.reload(); }, 1800);
+      } else {
+        AW.toast((res&&res.error)||'Reset thất bại — kiểm tra lại GAS.','err', 6000);
+      }
+    }).catch(function(e){
+      done();
+      AW.toast('Lỗi kết nối: '+(e.message||''),'err', 5000);
+    });
+  }
+
+  document.body.appendChild(bg);
+  // click ngoài modal = huỷ (chỉ ở layer 1 để tránh vô tình dismiss giữa chừng)
+  bg.addEventListener('click', function(e){ if(e.target===bg) closeBg(); });
+  layer1();
 }
 window.archiveClass=function(classId,className){
   if(!confirm('Archive class "'+className+'"?\nStudents will no longer see it and it will be hidden from your dashboard. Data is preserved.'))return;
