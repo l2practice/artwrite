@@ -1190,6 +1190,7 @@ function showResults(){
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">'+
       '<select class="aw-select" id="fClass"><option value="">All classes</option></select>'+
       '<select class="aw-select" id="fTopic"><option value="">All topics</option></select>'+
+      '<select class="aw-select" id="fTaskType"><option value="">All task types</option><option value="task1">Task 1</option><option value="task2">Task 2</option></select>'+
       '<div class="aw-search" style="flex:1;min-width:200px">'+AW.icon('search')+'<input id="resSearch" placeholder="Name / Student ID…"></div>'+
       '<select class="aw-select" id="fSort">'+
         '<option value="latest">Sort: Ngày nộp</option>'+
@@ -1212,6 +1213,7 @@ function showResults(){
   document.getElementById('resSearch').oninput=function(){ renderResults(); };
   document.getElementById('fClass').onchange=function(){ renderResults(); };
   document.getElementById('fTopic').onchange=function(){ renderResults(); };
+  document.getElementById('fTaskType').onchange=function(){ renderResults(); };
   var selSort=document.getElementById('fSort');
   selSort.value=resultsSort.key;
   selSort.onchange=function(){ resultsSort.key=this.value; resultsSort.dir=resDefaultDir(this.value); renderResults(); };
@@ -1221,6 +1223,7 @@ function showResults(){
     document.getElementById('resSearch').value='';
     document.getElementById('fClass').value='';
     document.getElementById('fTopic').value='';
+    document.getElementById('fTaskType').value='';
     renderResults();
   };
   document.getElementById('exportResults').onclick=function(){
@@ -1275,9 +1278,11 @@ function renderResults(){
   var q=(document.getElementById('resSearch')?document.getElementById('resSearch').value:'').toLowerCase();
   var fClass=document.getElementById('fClass')?document.getElementById('fClass').value:'';
   var fTopic=document.getElementById('fTopic')?document.getElementById('fTopic').value:'';
+  var fTaskType=document.getElementById('fTaskType')?document.getElementById('fTaskType').value:'';
   var rows=resultsData.filter(function(g){
     if(fClass && (g.className||g.class)!==fClass) return false;
     if(fTopic && g.topic!==fTopic) return false;
+    if(fTaskType && (g.taskType||'task2')!==fTaskType) return false;
     if(q && (g.name+' '+g.studentId).toLowerCase().indexOf(q)===-1) return false;
     return true;
   });
@@ -1334,7 +1339,7 @@ function renderResults(){
       '<div style="margin-bottom:6px"><b>'+w.length+'/3</b> attempts · AI best <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
       '<div style="font-weight:600;margin-bottom:3px;color:var(--aw-ink-2)">Teacher scoring:</div>'+
       '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:5px">'+
-        '<input class="ms-in" data-f="tr" placeholder="TR" value="'+AW.esc(ts.tr||'')+'" title="Task Response">'+
+        '<input class="ms-in" data-f="tr" placeholder="'+(g.taskType==='task1'?'TA':'TR')+'" value="'+AW.esc(ts.tr||'')+'" title="'+(g.taskType==='task1'?'Task Achievement':'Task Response')+'">'+'
         '<input class="ms-in" data-f="cc" placeholder="CC" value="'+AW.esc(ts.cc||'')+'" title="Coherence">'+
         '<input class="ms-in" data-f="lr" placeholder="LR" value="'+AW.esc(ts.lr||'')+'" title="Lexical">'+
         '<input class="ms-in" data-f="gra" placeholder="GR" value="'+AW.esc(ts.gra||'')+'" title="Grammar">'+
@@ -1346,7 +1351,10 @@ function renderResults(){
       '</div>'+
       (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
     '</div>';
-    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:110px;max-width:140px"><b>'+AW.esc(g.topic||'')+'</b></td>';
+    var taskBadge = (g.taskType==='task1')
+      ? '<span class="aw-task-badge t1" style="display:inline-block;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
+      : '<span class="aw-task-badge t2" style="display:inline-block;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;margin-left:5px;vertical-align:middle">T2</span>';
+    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:110px;max-width:140px"><b>'+AW.esc(g.topic||'')+'</b>'+taskBadge+'</td>';
     var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
     var promptCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>';
     // Flag anything handed in within the last 24h that this teacher has not
