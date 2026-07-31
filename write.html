@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- App icon: SVG data URI — no file, no extra request, no 404 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#0A6EBD">
+<title>Write · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  .aw-write-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);overflow:hidden;box-shadow:var(--aw-shadow)}
+  @media(max-width:960px){.aw-write-grid{grid-template-columns:1fr}}
+  .aw-prompt-box{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:18px 20px;margin-bottom:16px}
+  .aw-prompt-box h4{margin:0 0 6px;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:var(--aw-primary);font-weight:700}
+  .aw-prompt-text{color:var(--aw-ink);line-height:1.6;font-size:.95rem;white-space:pre-wrap}
+  .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r) var(--aw-r) 0 0;background:var(--aw-surface-2);flex-wrap:wrap}
+  .aw-tb-btn{width:32px;height:32px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
+  .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-hl-btn{width:24px;height:24px;border:1.5px solid rgba(0,0,0,.12);border-radius:6px;cursor:pointer;margin:0 2px;padding:0;transition:transform .1s}
+  .aw-hl-btn:hover{transform:scale(1.15)}
+  .aw-hl-clear{background:#fff !important;color:var(--aw-ink-3);font-size:.7rem;display:grid;place-items:center}
+  .aw-grade-ov{position:fixed;inset:0;background:rgba(16,34,46,.55);backdrop-filter:blur(3px);z-index:700;display:none;align-items:center;justify-content:center}
+  .aw-grade-ov.show{display:flex}
+  .aw-grade-card{background:#fff;border-radius:20px;padding:38px 44px;box-shadow:0 24px 70px rgba(0,0,0,.3);text-align:center;max-width:420px;width:90%}
+  .aw-grade-card h3{font-family:var(--aw-font-display);font-size:1.15rem;margin:18px 0 16px;color:var(--aw-primary);min-height:1.4em;transition:opacity .2s}
+  .aw-grade-spin{width:52px;height:52px;border:4px solid var(--aw-primary-lt);border-top-color:var(--aw-primary);border-radius:50%;margin:0 auto;animation:awspin .8s linear infinite}
+  @keyframes awspin{to{transform:rotate(360deg)}}
+  .aw-grade-bar{height:8px;background:var(--aw-surface-2);border-radius:5px;overflow:hidden;margin:6px 0}
+  .aw-grade-fill{height:100%;width:0;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:5px;transition:width .6s ease}
+  .aw-grade-sub{font-size:.82rem;color:var(--aw-ink-3);margin:12px 0 0}
+  .aw-editor{min-height:calc(100vh - 300px);border:none;border-top:1px solid var(--aw-border);padding:20px 24px;font-family:var(--aw-font-body);font-size:1rem;line-height:1.8;color:var(--aw-ink);background:var(--aw-surface);outline:none;overflow-y:auto;resize:none}
+  .aw-editor:focus{border-color:var(--aw-primary);box-shadow:inset 0 0 0 1px var(--aw-primary)}
+  .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
+  .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
+  .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:var(--aw-primary)}
+  .aw-side-panel{background:var(--aw-surface-2);border-left:1px solid var(--aw-border-2);padding:22px;height:calc(100vh - 140px);overflow-y:auto;position:sticky;top:0}
+  .aw-side-panel h3{margin:0 0 14px;font-size:1rem}
+  .aw-band{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  .aw-band-circ{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto}
+  .aw-band-num{font-size:1.7rem;font-weight:800;color:#fff;line-height:1;font-family:var(--aw-font-display)}
+  .aw-band-lbl{font-size:.5rem;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:.1em}
+  .aw-crit{margin-bottom:12px}
+  .aw-crit-top{display:flex;justify-content:space-between;font-size:.84rem;margin-bottom:4px}
+  .aw-crit-name{color:var(--aw-ink-2);font-weight:500}
+  .aw-crit-val{font-weight:700;color:var(--aw-ink)}
+  .aw-bar{height:7px;background:var(--aw-border-2);border-radius:4px;overflow:hidden}
+  .aw-bar-fill{height:100%;background:linear-gradient(90deg,var(--aw-primary),#0A93BD);border-radius:4px;width:0;transition:width .5s ease}
+  .aw-fb-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
+  .aw-fb-block h4{margin:0 0 8px;font-size:.82rem;color:var(--aw-primary);text-transform:uppercase;letter-spacing:.04em}
+  .aw-voc-stack{display:flex;height:14px;border-radius:7px;overflow:hidden;margin-bottom:16px;background:var(--aw-surface-2)}
+  .aw-voc-stack>div{transition:width .5s ease}
+  .aw-voc-rows{margin-bottom:14px}
+  .aw-voc-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .aw-voc-name{width:112px;flex:0 0 auto;display:flex;flex-direction:column;line-height:1.25}
+  .aw-voc-name b{font-size:.84rem}
+  .aw-voc-name span{font-size:.68rem;color:var(--aw-ink-3)}
+  .aw-voc-track{flex:1;height:14px;background:var(--aw-surface-2);border-radius:7px;overflow:hidden}
+  .aw-voc-fill{height:100%;width:0;border-radius:7px;min-width:3px;transition:width .6s ease}
+  .aw-voc-val{width:46px;flex:0 0 auto;text-align:right;font-size:.8rem;font-weight:700}
+  .aw-voc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .aw-voc-kpi{background:var(--aw-surface-2);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column}
+  .aw-voc-kpi b{font-size:1.15rem;font-family:var(--aw-font-display)}
+  .aw-voc-kpi span{font-size:.7rem;color:var(--aw-ink-3)}
+  .aw-voc-note{margin-top:12px;font-size:.74rem;line-height:1.55}
+  .aw-voc-note p{margin:0 0 6px}
+  .aw-voc-words{margin-top:14px;padding-top:12px;border-top:1px solid var(--aw-border-2)}
+  .aw-voc-whead{font-size:.82rem;font-weight:700;color:var(--aw-ink);margin-bottom:10px}
+  .aw-voc-wgroup{margin-bottom:10px}
+  .aw-voc-wlabel{font-size:.76rem;font-weight:700;margin-bottom:5px}
+  .aw-voc-wlabel span{font-weight:400;opacity:.7}
+  .aw-voc-chips{display:flex;flex-wrap:wrap;gap:5px}
+  .aw-voc-chip{font-size:.78rem;border:1px solid;border-radius:12px;padding:2px 10px;background:#fff;line-height:1.4}
+  .aw-fb-item{font-size:.86rem;line-height:1.5;color:var(--aw-ink-2);margin-bottom:8px;padding-left:10px;border-left:2px solid var(--aw-border)}
+  .aw-fb-item b{color:var(--aw-ink)}
+  .err-mark{color:var(--aw-danger);text-decoration:line-through}
+  .fix-mark{color:var(--aw-writing);font-weight:600}
+  .aw-revs{display:flex;flex-direction:column;gap:8px}
+  .aw-rev{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px 12px;font-size:.84rem}
+  .aw-rev-top{display:flex;justify-content:space-between;font-weight:600;color:var(--aw-ink);margin-bottom:3px}
+  .aw-rev-note{color:var(--aw-ink-3);font-size:.78rem}
+  .aw-keybar{display:flex;gap:8px;align-items:center;background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:10px 12px;margin-bottom:16px;font-size:.85rem;color:#7A5A0A}
+  .aw-keybar input{flex:1;border:1px solid #E8C566;border-radius:6px;padding:6px 10px;font-family:var(--aw-font-body)}
+  .aw-key-link{font-size:.78rem;color:#0A6EBD;text-decoration:none;font-weight:600;white-space:nowrap}
+  .aw-key-link:hover{text-decoration:underline}
+  .aw-tutor-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4)}
+  .aw-tutor-fab:hover{transform:translateY(-2px)}
+  .aw-ask-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(46,147,103,.4)}
+  .aw-ask-fab:hover{transform:translateY(-2px)}
+  .aw-hand-fab{position:fixed;bottom:78px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3)}
+  .aw-hand-fab:hover{transform:translateY(-2px)}
+  .aw-board-fab{position:fixed;bottom:132px;right:24px;z-index:400;background:#fff;color:#5B3FD6;border:2px solid #5B3FD6;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(91,63,214,.3)}
+  .aw-board-fab:hover{transform:translateY(-2px)}
+  .aw-board-ov{position:fixed;inset:0;background:rgba(16,34,46,.7);z-index:700;display:none;flex-direction:column}
+  .aw-board-ov.show{display:flex}
+  .aw-board-ov-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff}
+  .aw-board-ov iframe{flex:1;border:none;width:100%;background:#fff}
+  /* teacher's inline marks, mirrored from the teacher dashboard */
+  .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
+  .aw-sug-ins{color:var(--aw-writing);font-weight:600}
+  .aw-hl{background:#FFF1A8;border-radius:2px;padding:0 1px}
+  .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help}
+  .aw-tfb-fab{position:fixed;bottom:186px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3);display:none}
+  .aw-tfb-fab.show{display:block}
+  .aw-tfb-bg{position:fixed;inset:0;background:rgba(16,34,46,.6);z-index:800;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-tfb-bg.show{display:flex}
+  .aw-tfb-modal{background:#fff;border-radius:18px;max-width:820px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 30px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
+  .aw-tfb-body{font-size:1rem;line-height:1.9;white-space:pre-wrap;border:1px solid var(--aw-border-2);border-radius:10px;padding:18px;margin-top:14px}
+  .aw-ask-head{background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .aw-tutor-panel{position:fixed;bottom:24px;right:24px;z-index:401;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 48px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden}
+  .aw-tutor-panel.show{display:flex}
+  .aw-tutor-head{background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .aw-tutor-badge{display:inline-block;background:rgba(255,255,255,.2);font-size:.66rem;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle}
+  .aw-tutor-warn{background:#FFF6E5;color:#7A5A0A;font-size:.76rem;padding:9px 14px;line-height:1.4;border-bottom:1px solid #F5D98A}
+  .aw-tutor-keybar{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--aw-border-2)}
+  .aw-tutor-keybar input{flex:1;border:1px solid var(--aw-border);border-radius:6px;padding:6px 10px;font-size:.85rem}
+  .aw-tutor-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .aw-tutor-msg{max-width:85%;padding:9px 13px;border-radius:14px;font-size:.88rem;line-height:1.45;white-space:pre-wrap}
+  .aw-tutor-msg.bot{background:var(--aw-surface-2);color:var(--aw-ink);align-self:flex-start;border-bottom-left-radius:4px}
+  .aw-tutor-msg.user{background:var(--aw-primary);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+  .aw-tutor-input{display:flex;gap:6px;padding:12px;border-top:1px solid var(--aw-border-2)}
+  .aw-tutor-input input{flex:1;border:1px solid var(--aw-border);border-radius:20px;padding:9px 14px;font-size:.88rem}
+  /* ── Task 1 chart viewer ── */
+  .aw-chart-viewer{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:12px 14px;margin-bottom:14px}
+  .aw-chart-viewer-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .aw-chart-viewer-head span{font-size:.78rem;font-weight:700;text-transform:uppercase;color:#1A9E5C;letter-spacing:.04em}
+  .aw-chart-controls{display:flex;align-items:center;gap:4px;margin-left:auto}
+  .aw-chart-controls button{width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem;font-weight:700;color:var(--aw-ink-2);display:grid;place-items:center}
+  .aw-chart-controls button:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-chart-pct{font-size:.75rem;font-weight:600;color:var(--aw-ink-3);min-width:38px;text-align:center}
+  .aw-chart-img-wrap{overflow:auto;max-height:480px;border-radius:6px;background:#fff;border:1px solid var(--aw-border-2);padding:4px;text-align:center}
+  .aw-chart-img-wrap img{display:block;margin:0 auto;transition:width .2s}
+  /* Task type badge in prompt header */
+  .aw-task1-badge{display:inline-flex;align-items:center;gap:5px;background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;border-radius:12px;font-size:.72rem;font-weight:700;padding:2px 10px;margin-left:8px;vertical-align:middle;letter-spacing:.02em}
+  .aw-task2-badge{display:inline-flex;align-items:center;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;border-radius:12px;font-size:.72rem;font-weight:700;padding:2px 10px;margin-left:8px;vertical-align:middle}
+  /* word count warning colours */
+  .wc-warn{color:#E0A32E!important;font-weight:700}
+  .wc-ok{color:#1A9E5C!important;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="aw-common.js"></script>
+<script src="aw-cefr.js"></script>
+<script src="aw-grader.js"></script>
+<script>
+// Safety shim: if aw-common.js is an older cached copy without groqKey,
+// define it here so a missing helper can never blank the page.
+if (window.AW && !AW.groqKey) {
+  AW.groqKey = {
+    get: function(){ return localStorage.getItem('aw_groq_key') || ''; },
+    set: function(k){ localStorage.setItem('aw_groq_key', k || ''); }
+  };
+}
+</script>
+<script>
+if (typeof AW === 'undefined') {
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  throw new Error('aw-common.js not loaded');
+}
+
+/*──────── session + params ────────*/
+var sess = AW.session.require('student');
+if (!sess) throw 'redirect';
+
+var qp = new URLSearchParams(location.search);
+var MODE = qp.get('mode') || 'free';               // free | homework | inclass
+var TOPIC = qp.get('topic') || 'Free Writing';
+var PROMPT = qp.get('prompt') || 'Write about your opinion on the given topic.';
+var AI_NOTES = '';  // teacher's grading rules for this task (context)
+var TASK_TYPE    = qp.get('type') || 'task2';   // 'task1' | 'task2'
+var CHART_IMAGE_ID = '';                         // Drive fileId for Task 1 chart
+var MIN_WORDS    = TASK_TYPE === 'task1' ? 150 : 250;  // recalculated after prompt load
+var TOPIC_ID = qp.get('topicId') || ('T' + Date.now().toString(36));
+var RETRY = qp.get('retry') === '1';
+var DURATION_MIN = parseInt(qp.get('duration') || '0', 10);
+// Homework is capped at 60 minutes so a student can't leave a draft open for
+// hours. In-class keeps whatever the teacher set; Free Writing stays untimed.
+if (MODE === 'homework' && !DURATION_MIN) DURATION_MIN = 60;
+
+var MODE_LABEL = { free:'Free Writing', homework:'Homework', inclass:'In-class Practice' }[MODE] || 'Free Writing';
+
+var nav = [
+  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
+  { id:'library', label:'Library', icon:'library', href:'library.html' },
+  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
+  { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
+];
+
+var content = AW.renderShell({
+  mount:'app', nav:nav, eyebrow:'Student Interface', title:MODE_LABEL
+});
+
+var startTime = new Date();
+var attempt = 1;
+
+// If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
+// fetch the official prompt from the backend so the student sees the real đề bài.
+var hasRealTopic = qp.get('topicId') && MODE !== 'free';
+if (hasRealTopic) {
+  AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
+    if (res && res.success) {
+      if (res.data.prompt && !qp.get('prompt')) {
+        PROMPT = res.data.prompt;
+        var pt = document.querySelector('.aw-prompt-text');
+        if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
+      }
+      AI_NOTES = res.data.aiNotes || '';
+      // Task type from server overrides URL param (more reliable)
+      if (res.data.taskType) {
+        TASK_TYPE = res.data.taskType;
+        MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
+        // Update badge in prompt box header
+        var badge = document.getElementById('taskTypeBadge');
+        if (badge) {
+          if (TASK_TYPE === 'task1') {
+            badge.className = 'aw-task1-badge'; badge.textContent = 'Task 1';
+          } else {
+            badge.className = 'aw-task2-badge'; badge.textContent = 'Task 2';
+          }
+        }
+      }
+      // Task 1: load chart image if provided
+      if (res.data.chartImageId && TASK_TYPE === 'task1') {
+        CHART_IMAGE_ID = res.data.chartImageId;
+        renderChartViewer(CHART_IMAGE_ID);
+      }
+    }
+  });
+}
+
+/*── Chart viewer (Task 1) ──
+   Injected above the prompt box after getPrompt resolves.
+   Student can zoom ±20% steps. Image hosted on Drive (public link).  */
+function renderChartViewer(fileId){
+  var existing = document.getElementById('chartViewerBox');
+  if (existing) return;  // already rendered
+  var url = 'https://drive.google.com/uc?export=view&id=' + fileId;
+  var box = document.createElement('div');
+  box.id = 'chartViewerBox';
+  box.className = 'aw-chart-viewer';
+  box.innerHTML =
+    '<div class="aw-chart-viewer-head">'+
+      '<span>📊 Chart / Diagram</span>'+
+      '<span style="font-size:.72rem;color:var(--aw-ink-3);font-weight:400;margin-left:4px">— refer to this while writing</span>'+
+      '<div class="aw-chart-controls">'+
+        '<button id="chartZoomOut" title="Thu nhỏ">−</button>'+
+        '<span class="aw-chart-pct" id="chartPct">100%</span>'+
+        '<button id="chartZoomIn" title="Phóng to">+</button>'+
+        '<button id="chartFull" title="Xem toàn màn hình" style="width:auto;padding:0 8px;font-size:.72rem;font-weight:600">⛶ Full</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="aw-chart-img-wrap" id="chartImgWrap">'+
+      '<img id="chartImg" src="'+url+'" alt="Chart" style="width:100%;max-width:600px" '+
+        'onerror="this.alt=\'⚠ Không tải được ảnh — kiểm tra kết nối mạng.\';this.style.padding=\'20px\';this.removeAttribute(\'src\')">'+
+    '</div>';
+  // insert before prompt box
+  var promptBox = document.querySelector('.aw-prompt-box');
+  if (promptBox) promptBox.parentNode.insertBefore(box, promptBox);
+  else { var firstChild = document.querySelector('.aw-write-grid > div'); if(firstChild) firstChild.insertBefore(box, firstChild.firstChild); }
+
+  // zoom controls
+  var img = document.getElementById('chartImg');
+  var pctEl = document.getElementById('chartPct');
+  var curPct = 100;
+  function setZoom(p){
+    curPct = Math.max(40, Math.min(200, p));
+    img.style.width = curPct + '%';
+    img.style.maxWidth = 'none';
+    pctEl.textContent = curPct + '%';
+  }
+  document.getElementById('chartZoomIn').onclick  = function(){ setZoom(curPct + 20); };
+  document.getElementById('chartZoomOut').onclick = function(){ setZoom(curPct - 20); };
+  document.getElementById('chartFull').onclick = function(){
+    var w = window.open('', '_blank');
+    w.document.write('<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="'+url+'" style="max-width:100%;max-height:100vh"></body></html>');
+    w.document.close();
+  };
+}
+
+/* Experimental class (AI on) vs control class (AI off). Read the cached value
+   synchronously so the correct buttons render on the first paint; the async
+   check below corrects it if this device has never looked the class up. */
+var AW_AI_ON = AW.classAICached(sess.class);
+if (AW_AI_ON === null) AW_AI_ON = true;
+
+content.innerHTML =
+  ((!AW_AI_ON || AW.geminiKey.get()) ? '' :
+    '<div class="aw-keybar"><span>🔑 Enter your Gemini API key (stored on your device) to grade essays:</span>' +
+    '<input id="keyInput" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-accent" id="keySave" style="padding:6px 14px">Save</button>' +
+    '<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="aw-key-link">→ Get a free key</a></div>') +
+  '<div class="aw-write-grid">' +
+    '<div>' +
+      (function(){
+        var isFreeNoPrompt = (MODE==='free' && !qp.get('prompt'));
+        if (isFreeNoPrompt) {
+          return '<div class="aw-prompt-box" style="border:1.5px dashed var(--aw-primary-lt)"><h4>✍️ Your prompt (đề bài)</h4>' +
+            '<textarea id="freePrompt" placeholder="Paste or type the IELTS Task 2 question you want to practice… The AI will grade your essay against this prompt." ' +
+            'style="width:100%;min-height:70px;border:1px solid var(--aw-border);border-radius:8px;padding:10px;font-size:.92rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box"></textarea>' +
+            '<p style="margin:8px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 No prompt? You can still write freely — the AI will assess general Task 2 quality.</p></div>';
+        }
+        var ttBadge = TASK_TYPE === 'task1'
+          ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
+          : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
+        return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt'+ttBadge+'</h4>' +
+          '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>';
+      })() +
+      '<div class="aw-editor-toolbar">' +
+        '<button class="aw-tb-btn" data-cmd="bold"><b>B</b></button>' +
+        '<button class="aw-tb-btn" data-cmd="italic"><i>I</i></button>' +
+        '<button class="aw-tb-btn" data-cmd="underline"><u>U</u></button>' +
+        '<button class="aw-tb-btn" data-cmd="insertUnorderedList">•</button>' +
+        '<span style="width:1px;height:20px;background:var(--aw-border);margin:0 6px"></span>' +
+        '<button class="aw-tb-btn" id="fontDown" title="Smaller font">A−</button>' +
+        '<button class="aw-tb-btn" id="fontUp" title="Larger font (up to 120px)" style="font-size:1.05rem">A+</button>' +
+        '<button class="aw-tb-btn" id="clearFmt" title="Clear formatting" style="font-size:.78rem;width:auto;padding:0 8px">✕ Clear</button>' +
+        '<span style="width:1px;height:20px;background:var(--aw-border);margin:0 6px"></span>' +
+        '<span style="font-size:.75rem;color:var(--aw-ink-3);align-self:center;margin-right:4px">Highlight:</span>' +
+        '<button class="aw-hl-btn" data-hl="#FFF3A3" style="background:#FFF3A3" title="Yellow"></button>' +
+        '<button class="aw-hl-btn" data-hl="#B6F0C2" style="background:#B6F0C2" title="Green"></button>' +
+        '<button class="aw-hl-btn" data-hl="#BFE0FF" style="background:#BFE0FF" title="Blue"></button>' +
+        '<button class="aw-hl-btn" data-hl="#FFC9D6" style="background:#FFC9D6" title="Pink"></button>' +
+        '<button class="aw-hl-btn" data-hl="#E0C9FF" style="background:#E0C9FF" title="Purple"></button>' +
+        '<button class="aw-hl-btn aw-hl-clear" data-hl="clear" title="Remove highlight">✕</button>' +
+      '</div>' +
+      '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
+      '<div class="aw-write-meta"><span id="wc">0 words</span>' +
+        (DURATION_MIN ? '<span class="aw-timer" id="timer">⏱ '+DURATION_MIN+':00</span>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<button class="aw-btn aw-btn-ghost" id="pauseBtn" style="flex:0 0 auto;padding:12px 18px" title="Save your draft and continue later">⏸ Pause &amp; Save</button>' +
+        '<button class="aw-btn aw-btn-primary" id="gradeBtn" style="flex:1">'+(AW_AI_ON?'Get AI Feedback':'Nộp bài')+'</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="aw-side-panel" id="side">' +
+      '<h3>'+(!AW_AI_ON?'Bài nộp':(MODE==='free'?'AI Feedback':'Revision History'))+'</h3>' +
+      '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">'+
+        (AW_AI_ON ? 'When finished, click <b>Get AI Feedback</b> to get your score and feedback.'
+                  : 'Viết xong thì bấm <b>Nộp bài</b>. Giáo viên sẽ chấm và trả kết quả trong <b>My Progress</b>.')+
+      '</p></div>' +
+      '<div id="submitStatus" style="margin-top:14px;text-align:center;display:none"><span style="color:var(--aw-writing);font-weight:600">✓ Submitted</span></div>' +
+    '</div>' +
+  '</div>' +
+  ((MODE==='free' && AW_AI_ON) ?
+    '<button class="aw-board-fab" id="boardFab" onclick="openBoardView()" style="bottom:78px">📋 Board</button>' +
+    '<button class="aw-tutor-fab" id="tutorFab" title="Ask the AI writing tutor">💬 AI Tutor</button>' +
+    '<div class="aw-tutor-panel" id="tutorPanel">' +
+      '<div class="aw-tutor-head">' +
+        '<div><b>AI Writing Tutor</b><span class="aw-tutor-badge">Free Writing only</span></div>' +
+        '<button id="tutorClose" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">×</button>' +
+      '</div>' +
+      '<div class="aw-tutor-warn">⚠️ This chat is <b>not saved</b>. The tutor explains grammar, vocabulary & logic — it will <b>not</b> write, rewrite or polish text for you.</div>' +
+      (AW.groqKey.get() ? '' :
+        '<div class="aw-tutor-keybar" style="flex-wrap:wrap"><input id="groqKeyInput" type="password" placeholder="Paste your Groq API key…"><button class="aw-btn aw-btn-accent" id="groqKeySave" style="padding:6px 12px">Save</button>' +
+        '<a href="https://console.groq.com/keys" target="_blank" rel="noopener" class="aw-key-link" style="width:100%;margin-top:4px">→ Get a free Groq key</a></div>') +
+      '<div class="aw-tutor-msgs" id="tutorMsgs"><div class="aw-tutor-msg bot">Hi! Ask me about grammar, vocabulary, collocations or how to structure your ideas. I won\'t write sentences for you — but I\'ll help you write them yourself. 🙂</div></div>' +
+      '<div class="aw-tutor-input"><input id="tutorInput" placeholder="Ask about grammar, a word, structure…"><button class="aw-btn aw-btn-primary" id="tutorSend" style="padding:8px 14px">Send</button></div>' +
+    '</div>'
+  : // inclass + homework: ask the real teacher
+    (MODE==='inclass'?'<button class="aw-hand-fab" id="raiseHandBtn" onclick="toggleRaiseHand()">✋ Raise hand</button>':'') +
+    '<button class="aw-board-fab" id="boardFab" onclick="openBoardView()" style="bottom:'+(MODE==='inclass'?'132px':'78px')+'">📋 Board</button>' +
+    '<button class="aw-ask-fab" id="askFab" title="Ask your teacher a question">🙋 Ask Teacher</button>' +
+    '<div class="aw-tutor-panel" id="askPanel">' +
+      '<div class="aw-ask-head">' +
+        '<div><b>Ask your teacher</b><span class="aw-tutor-badge">'+(MODE==='inclass'?'Live — during class':'Homework')+'</span></div>' +
+        '<button id="askClose" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">×</button>' +
+      '</div>' +
+      '<div class="aw-tutor-warn" style="background:#EAF2FB;color:#0A4A7A;border-color:#B8D4F0">💡 Your teacher will see your question'+(MODE==='inclass'?' live in class':'')+' and answer it. You\'ll find the reply in <b>Q&A with Teacher</b>.</div>' +
+      '<div class="aw-tutor-msgs" id="askMsgs"></div>' +
+      '<div class="aw-tutor-input"><input id="askInput" placeholder="Type your question to the teacher…"><button class="aw-btn aw-btn-primary" id="askSend" style="padding:8px 14px">Send</button></div>' +
+    '</div>');
+
+/*──────── key bar ────────*/
+if (AW_AI_ON && !AW.geminiKey.get()) {
+  document.getElementById('keySave').onclick = function(){
+    var k = document.getElementById('keyInput').value.trim();
+    if (k) { AW.geminiKey.set(k); AW.toast('Đã lưu API key','ok'); document.querySelector('.aw-keybar').style.display='none'; }
+  };
+}
+
+/*──────── editor toolbar ────────*/
+var editor = document.getElementById('editor');
+AW.els('.aw-tb-btn').forEach(function(b){
+  if(!b.dataset.cmd) return; // skip font/clear buttons handled below
+  b.onclick = function(){ document.execCommand(b.dataset.cmd, false, null); editor.focus(); };
+});
+// font size (real px, up to 120) + clear formatting
+function editorChangeFont(dir){
+  var sizes=[14,16,18,20,24,28,32,40,48,64,80,100,120];
+  var sel=window.getSelection();
+  if(!sel.rangeCount || sel.isCollapsed){ AW.toast('Select some text first','err'); return; }
+  var node=sel.anchorNode; node=node.nodeType===3?node.parentNode:node;
+  var cur=parseInt(window.getComputedStyle(node).fontSize,10)||16;
+  var i=0,best=1e9; sizes.forEach(function(s,si){var d=Math.abs(s-cur);if(d<best){best=d;i=si;}});
+  i=Math.max(0,Math.min(sizes.length-1,i+(dir>0?1:-1)));
+  var px=sizes[i];
+  var range=sel.getRangeAt(0), span=document.createElement('span');
+  span.style.fontSize=px+'px';
+  try{
+    span.appendChild(range.extractContents()); range.insertNode(span);
+    sel.removeAllRanges(); var nr=document.createRange(); nr.selectNodeContents(span); sel.addRange(nr);
+  }catch(e){ document.execCommand('fontSize',false,dir>0?'5':'3'); }
+  AW.toast('Font size: '+px+'px'+(px===120?' (max)':''),'ok',1000);
+  editor.focus();
+}
+document.getElementById('fontUp').onclick=function(){ editorChangeFont(1); };
+document.getElementById('fontDown').onclick=function(){ editorChangeFont(-1); };
+document.getElementById('clearFmt').onclick=function(){
+  document.execCommand('removeFormat', false, null);
+  // removeFormat doesn't clear font-size spans or highlights → strip them manually in selection
+  var sel=window.getSelection();
+  if(sel.rangeCount && !sel.isCollapsed){
+    document.execCommand('hiliteColor', false, 'transparent');
+    document.execCommand('backColor', false, 'transparent');
+    // unwrap font-size spans within selection
+    var frag=sel.getRangeAt(0).cloneContents();
+    var tmp=document.createElement('div'); tmp.appendChild(frag);
+    tmp.querySelectorAll('span[style]').forEach(function(sp){ sp.removeAttribute('style'); });
+    var r=sel.getRangeAt(0); r.deleteContents();
+    var nodes=document.createRange().createContextualFragment(tmp.innerHTML);
+    r.insertNode(nodes);
+  }
+  AW.toast('Formatting cleared','ok',1000);
+  editor.focus();
+};
+AW.els('.aw-hl-btn').forEach(function(b){
+  b.onclick = function(){
+    var hl=b.dataset.hl;
+    if(hl==='clear'){
+      document.execCommand('hiliteColor', false, 'transparent');
+      document.execCommand('backColor', false, 'transparent');
+    } else {
+      // hiliteColor works in most browsers; backColor is the fallback
+      if(!document.execCommand('hiliteColor', false, hl)) document.execCommand('backColor', false, hl);
+    }
+    editor.focus();
+  };
+});
+var wc = document.getElementById('wc');
+var DRAFT_KEY = 'aw_draft_' + MODE + '_' + TOPIC_ID;
+function updateWordCount(){
+  var n = AW.wordCount(editor.innerText);
+  var minW = MIN_WORDS; // 150 for Task 1, 250 for Task 2
+  var label = n + ' / ' + minW + ' words';
+  wc.textContent = label;
+  wc.className = n >= minW ? 'wc-ok' : (n >= minW * 0.8 ? 'wc-warn' : '');
+}
+editor.addEventListener('input', function(){
+  updateWordCount();
+  if (!RETRY) { try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){} }
+});
+updateWordCount();
+
+// restore a saved draft if present (so leaving & returning doesn't lose work)
+if (!RETRY) {
+  var saved = localStorage.getItem(DRAFT_KEY);
+  if (saved && saved.trim() && saved.replace(/<[^>]*>/g,'').trim()) {
+    editor.innerHTML = saved;
+    wc.textContent = AW.wordCount(editor.innerText) + ' words';
+    AW.toast('Restored your saved draft','ok');
+  }
+}
+window.pauseWriting = function(){
+  try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
+  AW.toast('Draft saved. You can leave and come back anytime.','ok',3000);
+};
+// clear draft after successful submission
+window.clearDraft = function(){ try { localStorage.removeItem(DRAFT_KEY); } catch(e){} };
+setTimeout(function(){ var pb=document.getElementById('pauseBtn'); if(pb) pb.onclick=pauseWriting; }, 0);
+
+/*──────── retry: start FRESH with an empty editor ────────*/
+if (RETRY) {
+  localStorage.removeItem(DRAFT_KEY);
+  editor.innerText = '';
+  wc.textContent = '0 words';
+  AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE }).then(function(res){
+    if (res && res.success && res.data.count >= 3 && MODE !== 'free') {
+      lockEditorFull();
+    } else {
+      AW.toast('New attempt — write a fresh essay','ok');
+    }
+  });
+}
+function lockEditorFull(){
+  editor.setAttribute('contenteditable','false');
+  editor.style.background='var(--aw-surface-2)';
+  editor.innerHTML='<span style="color:var(--aw-ink-3)">This task is locked — you have used all 3 attempts.</span>';
+  var gb=document.getElementById('gradeBtn');
+  if(gb){ gb.textContent='🔒 All 3 attempts used'; gb.disabled=true; }
+  // banner suggesting Free Writing
+  var box=document.querySelector('.aw-write-grid');
+  if(box){
+    var banner=document.createElement('div');
+    banner.style.cssText='grid-column:1/-1;background:#FFF8EC;border:1px solid #F0D9A0;border-radius:12px;padding:18px 20px;margin-bottom:16px';
+    banner.innerHTML='<b style="color:#B8860B">🔒 You have completed all 3 attempts for this task.</b>'+
+      '<p style="margin:8px 0 12px;color:var(--aw-ink-2);font-size:.9rem">Further revisions for this assignment are closed. To keep practising and improving your writing, try <b>Free Writing</b> mode — you can write unlimited essays on any topic and get instant AI feedback.</p>'+
+      '<button class="aw-btn aw-btn-primary" onclick="location.href=\'write.html?mode=free&topic='+encodeURIComponent('Free Writing')+'\'">✍️ Go to Free Writing</button>';
+    box.insertBefore(banner, box.firstChild);
+  }
+}
+
+/*──────── timer ────────*/
+if (DURATION_MIN) {
+  var remain = DURATION_MIN*60;
+  var tEl = document.getElementById('timer');
+  var timeUp = false;
+  var tick = setInterval(function(){
+    remain--;
+    if (remain<=0){
+      clearInterval(tick);
+      if (tEl) tEl.textContent = '0:00';
+      if (!timeUp){
+        timeUp = true;
+        // time's up → auto-submit whatever is written, then lock the editor
+        AW.toast('Hết giờ! Bài của bạn đang được nộp tự động…','err',5000);
+        autoSubmitOnTimeout();
+      }
+      return;
+    }
+    var m=Math.floor(remain/60), s=remain%60;
+    if (tEl){
+      tEl.textContent = '⏱ '+m+':'+(s<10?'0':'')+s;
+      if (remain<=300) tEl.style.color = '#D93025';   // last 5 min: red
+    }
+  },1000);
+}
+
+/* Fired once when the countdown reaches zero. Reuses the normal grade/submit
+   path so the attempt is saved exactly like a manual submission, then blocks
+   further editing. */
+function autoSubmitOnTimeout(){
+  var gb = document.getElementById('gradeBtn');
+  var text = editor ? editor.innerText.trim() : '';
+  if (AW.wordCount(text) < 20){
+    // too little to grade — just lock so they can't keep working past time
+    if (gb){ gb.disabled = true; }
+    lockEditor('Hết giờ làm bài. Bạn không nộp kịp bài lần này.');
+    return;
+  }
+  if (gb && !gb.disabled){
+    gb.click();   // runs the same submit/grade flow (AI class = grade, control = plain submit)
+  }
+}
+
+/*──────── heartbeat (live observation) ────────*/
+var lastStatus='Writing', idleTimer=null;
+function sendHeartbeat(status, raiseHand){
+  var payload = {
+    studentId: sess.studentId, name: sess.name, class: sess.class,
+    topicId: TOPIC_ID, topic: TOPIC, mode: MODE,
+    status: status || 'Writing', wordCount: AW.wordCount(editor.innerText),
+    snapshot: editor.innerText.slice(0,8000)
+  };
+  if (raiseHand != null) payload.raiseHand = raiseHand;
+  AW.api('write.heartbeat', payload);
+}
+var handRaised=false;
+window.toggleRaiseHand=function(){
+  handRaised=!handRaised;
+  AW.api('write.raiseHand',{
+    studentId:sess.studentId, name:sess.name, class:sess.class,
+    topic:TOPIC, mode:MODE, status:lastStatus, raised:handRaised
+  });
+  var b=document.getElementById('raiseHandBtn');
+  if(b){ b.textContent=handRaised?'✋ Hand raised':'✋ Raise hand';
+    b.style.background=handRaised?'#E0A32E':''; b.style.color=handRaised?'#fff':''; }
+  AW.toast(handRaised?'Teacher notified you raised your hand':'Hand lowered','ok');
+};
+window.openBoardView=function(){
+  var ov=document.getElementById('boardOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='boardOverlay'; ov.className='aw-board-ov';
+    ov.innerHTML='<div class="aw-board-ov-bar"><b style="font-family:var(--aw-font-display)">📋 Interactive Board</b>'+
+      '<button class="aw-btn" style="background:#E5484D;color:#fff;font-weight:600;padding:6px 18px" onclick="document.getElementById(\'boardOverlay\').classList.remove(\'show\')">✕ Close</button></div>'+
+      '<iframe src="board.html"></iframe>';
+    document.body.appendChild(ov);
+  }
+  ov.classList.add('show');
+};
+// send every 10s while on page; mark idle after 45s no typing
+setInterval(function(){ sendHeartbeat(lastStatus); }, 10000);
+editor.addEventListener('input', function(){
+  lastStatus='Writing';
+  clearTimeout(idleTimer);
+  idleTimer=setTimeout(function(){ lastStatus='Idle'; }, 45000);
+});
+sendHeartbeat('Writing'); // initial ping
+
+/*──────── plain submission (control classes, no AI) ────────
+   Same storage path as a graded attempt, minus every AI field, so the teacher
+   marks it by hand in Results and the export keeps AI and teacher scores apart. */
+function submitWithoutAI(btn, text){
+  if(!confirm('Nộp bài này cho giáo viên?\n\nBạn vẫn có thể viết lại và nộp thêm (tối đa 3 lần). Giáo viên sẽ chấm BẢN NỘP MỚI NHẤT.')) return;
+  var orig=btn.textContent; btn.disabled=true;
+  btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
+  AW.api('write.saveResult', {
+    studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+    startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+    duration:Math.round((Date.now()-startTime)/1000),
+    tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
+    essay:text, class:(sess.class||''), feedback:''
+  }).then(function(res){
+    if (res && res.locked) { AW.toast(res.error||'Bài này đã khoá.','err',4000); lockEditor(res.error||'Bài này đã khoá.'); return; }
+    if (!res || !res.success) { AW.toast((res&&res.error)||'Nộp bài thất bại','err'); btn.disabled=false; btn.textContent=orig; return; }
+    attempt = (res.data.attempt||attempt)+1;
+    var used = attempt-1;
+    if(window.clearDraft) window.clearDraft();
+    AW.toast('Đã nộp bài (lần '+used+'/3)','ok');
+    document.getElementById('sideBody').innerHTML =
+      '<div style="text-align:center;padding:18px 6px">' +
+        '<div style="font-size:2.2rem;line-height:1">✅</div>' +
+        '<h4 style="margin:8px 0 6px;font-family:var(--aw-font-display)">Đã nộp — chờ giáo viên chấm</h4>' +
+        '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 10px">Điểm và nhận xét sẽ hiện trong <b>My Progress</b> sau khi giáo viên chấm xong.</p>' +
+        '<p style="color:var(--aw-ink-3);font-size:.8rem;margin:0">Lần nộp: <b>'+used+'/3</b>. Giáo viên chấm bản nộp mới nhất.</p>' +
+      '</div>';
+    editor.setAttribute('contenteditable','false');
+    editor.style.background='var(--aw-surface-2)';
+    if(used>=3){
+      lockEditor('Bạn đã dùng hết 3 lần nộp cho bài này.');
+    } else {
+      btn.textContent='Đã nộp lần '+used+'/3 — viết lại từ My Progress';
+      btn.disabled=true;
+    }
+    if(MODE!=='free') sendHeartbeat('Submitted');
+  }).catch(function(e){
+    AW.toast(e.message||'Nộp bài thất bại','err');
+    btn.disabled=false; btn.textContent=orig;
+  });
+}
+
+/*──────── grading ────────*/
+var lastResult=null;
+document.getElementById('gradeBtn').onclick = function(){
+  var text = editor.innerText.trim();
+  var wCount = AW.wordCount(text);
+  // Soft warn if below minimum but still allow submit (students may not know the limit yet)
+  if (wCount < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
+  if (wCount < MIN_WORDS) {
+    var minLabel = TASK_TYPE === 'task1' ? '150 words (Task 1 minimum)' : '250 words (Task 2 minimum)';
+    if (!confirm('Your essay is only '+wCount+' words — IELTS requires at least '+minLabel+'.\n\nSubmit anyway?')) return;
+  }
+  // Control class: plain submission, graded by the teacher by hand
+  if (!AW_AI_ON) { submitWithoutAI(this, text); return; }
+  var key = AW.geminiKey.get();
+  if (!key) { AW.toast('Please enter your Gemini API key first.','err'); return; }
+
+  // free-writing: use the prompt the student typed (if any)
+  var fp = document.getElementById('freePrompt');
+  if (fp && fp.value.trim()) { PROMPT = fp.value.trim(); TOPIC = fp.value.trim().slice(0,60); }
+
+  var btn=this; btn.disabled=true; var orig=btn.textContent;
+  if (typeof AW.grade !== 'function') {
+    AW.toast('Lỗi tải bộ chấm (aw-grader.js). Hãy tải lại trang; nếu vẫn lỗi, báo giáo viên.', 'err', 6000);
+    btn.disabled=false; btn.textContent=orig;
+    return;
+  }
+  btn.innerHTML='<span class="aw-spin"></span> Grading…';
+  // Update overlay steps for Task 1 (TA instead of TR)
+  showGradingOverlay(TASK_TYPE);
+
+  // Measure vocabulary against the CEFR list (client-side, free).
+  var vocabSummary = '';
+  try {
+    if (window.AW && AW.analyseVocabulary) {
+      lastVocabProfile = AW.analyseVocabulary(text);
+      vocabSummary = AW.cefrSummary(lastVocabProfile);
+    }
+  } catch(e) { lastVocabProfile = null; }
+
+  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES,
+             vocabSummary:vocabSummary, taskType:TASK_TYPE }, key)
+    .then(function(result){
+      lastResult=result;
+      renderFeedback(result);
+      return AW.api('write.saveResult', {
+        studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+        taskType:TASK_TYPE,
+        startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+        duration:Math.round((Date.now()-startTime)/1000),
+        tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
+        aiGrading:result.overall, teacherGrading:'', essay:text, class:(sess.class||''),
+        feedback: JSON.stringify(result)
+      });
+    })
+    .then(function(saveRes){
+      if (saveRes && saveRes.locked) {
+        // hit 3-attempt cap or past deadline
+        AW.toast(saveRes.error||'This task is locked.','err',4000);
+        lockEditor(saveRes.error||'This task is locked.');
+        return;
+      }
+      if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
+      var done = (attempt-1) >= 3;
+      AW.toast('Graded & saved (attempt '+(attempt-1)+'/3)','ok');
+      if(window.clearDraft) window.clearDraft();
+      if(MODE!=='free'){
+        if(done){
+          lockEditor('You have completed all 3 attempts for this task.');
+        } else {
+          editor.setAttribute('contenteditable','false');
+          editor.style.background='var(--aw-surface-2)';
+          var gb=document.getElementById('gradeBtn');
+          if(gb){gb.textContent='Saved attempt '+(attempt-1)+'/3 – Re-try from My Progress';gb.disabled=true;}
+          var ss2=document.getElementById('submitStatus');
+          if(ss2)ss2.style.display='';
+        }
+        sendHeartbeat('Submitted');
+      }
+    })
+    .catch(function(e){ AW.toast(e.message||'Grading error','err'); })
+    .finally(function(){ hideGradingOverlay(); btn.disabled=false; btn.textContent=orig; });
+};
+
+/*──────── fake grading progress overlay ────────*/
+var _gradeTimers=[];
+function showGradingOverlay(taskType){
+  var ov=document.getElementById('gradeOverlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='gradeOverlay';
+    ov.className='aw-grade-ov';
+    document.body.appendChild(ov);
+  }
+  var isT1 = (taskType === 'task1');
+  var steps=[
+    {t:'Reading your essay…', d:0},
+    {t: isT1 ? 'Assessing Task Achievement…' : 'Assessing Task Response…', d:1400},
+    {t:'Analysing Coherence & Cohesion…', d:3000},
+    {t:'Checking Lexical Resource…', d:4600},
+    {t:'Reviewing Grammatical Range & Accuracy…', d:6200},
+    {t:'Writing personalised feedback…', d:8000},
+    {t:'Almost done…', d:10500}
+  ];
+  ov.innerHTML='<div class="aw-grade-card">'+
+    '<div class="aw-grade-spin"></div>'+
+    '<h3 id="gradeStep">Reading your essay…</h3>'+
+    '<div class="aw-grade-bar"><div class="aw-grade-fill" id="gradeFill"></div></div>'+
+    '<p class="aw-grade-sub">AI is grading your writing across all 4 IELTS criteria</p>'+
+  '</div>';
+  ov.classList.add('show');
+  _gradeTimers.forEach(clearTimeout); _gradeTimers=[];
+  steps.forEach(function(s,i){
+    _gradeTimers.push(setTimeout(function(){
+      var el=document.getElementById('gradeStep'); if(el)el.textContent=s.t;
+      var f=document.getElementById('gradeFill'); if(f)f.style.width=Math.round((i+1)/steps.length*92)+'%';
+    }, s.d));
+  });
+}
+function hideGradingOverlay(){
+  _gradeTimers.forEach(clearTimeout); _gradeTimers=[];
+  var ov=document.getElementById('gradeOverlay');
+  if(ov){
+    var f=document.getElementById('gradeFill'); if(f)f.style.width='100%';
+    setTimeout(function(){ ov.classList.remove('show'); }, 300);
+  }
+}
+
+// Grade button handles both grading and saving (submit=grade)
+function lockEditor(msg){
+  editor.setAttribute('contenteditable','false');
+  editor.style.background='var(--aw-surface-2)';
+  var gb=document.getElementById('gradeBtn');
+  if(gb){gb.textContent='🔒 '+(msg||'Task locked');gb.disabled=true;}
+  var ss2=document.getElementById('submitStatus');
+  if(ss2){ss2.style.display='';ss2.innerHTML='<span style="color:var(--aw-danger);font-weight:600">🔒 '+AW.esc(msg||'Task locked')+'</span>';}
+}
+
+/*──────── render feedback (indirect→direct by attempt) ────────*/
+function renderFeedback(r){
+  var s=r.scores||{};
+  // Annotate essay on left (error marks inline) — always
+  if(r.corrected_text || (r.gra_errors && r.gra_errors.length) || (r.lr_issues && r.lr_issues.length)){
+    // Keep the student's original paragraph structure. innerText flattens
+    // paragraphs into one block, so start from the real HTML and only
+    // wrap error phrases inside it (text nodes only, never inside tags).
+    var annotated = editor.innerHTML;
+    function markPhrase(html, phrase, wrapOpen, wrapClose){
+      if(!phrase) return html;
+      var esc = phrase.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      // only match outside of tags: split on tags, replace within text chunks
+      return html.replace(/(<[^>]+>)|([^<]+)/g, function(m, tag, textChunk){
+        if(tag) return tag;
+        return textChunk.replace(new RegExp(esc,'g'), wrapOpen + AW.esc(phrase) + wrapClose);
+      });
+    }
+    if(r.gra_errors) r.gra_errors.slice(0,10).forEach(function(e){
+      if(e.wrong && e.correct){
+        annotated = markPhrase(annotated, e.wrong,
+          '<span class="err-mark">', '</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
+      }
+    });
+    if(r.lr_issues) r.lr_issues.slice(0,6).forEach(function(e){
+      if(e.original && e.better){
+        annotated = markPhrase(annotated, e.original,
+          '<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">',
+          '<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
+      }
+    });
+    editor.innerHTML=annotated;
+    editor.setAttribute('contenteditable','false');
+    editor.style.background='#FAFBFC';
+    editor.style.whiteSpace='pre-wrap';   // keep line breaks even if the essay was plain text
+  }
+  var c1label = (TASK_TYPE === 'task1') ? 'Task Achievement' : 'Task Response';
+  var html =
+    '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">BAND</div></div>' +
+      '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b><p style="margin:4px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+AW.esc((r.overall_feedback_vi||'').slice(0,90))+'</p></div></div>' +
+    crit(c1label, s.TR) + crit('Coherence & Cohesion', s.CC) +
+    crit('Lexical Resource', s.LR) + crit('Grammar', s.GRA);
+
+  // For attempt 2-3: highlight whether old mistakes were repeated
+  if (attempt >= 2 && r.repeated_errors_vi) {
+    html += '<div class="aw-fb-block" style="border-left:3px solid var(--aw-accent);background:#FFF8EC"><h4>⚠ Repeated errors from last attempt</h4><div class="aw-fb-item">'+AW.esc(r.repeated_errors_vi)+'</div></div>';
+  }
+
+  // Overall feedback — always full
+  if(r.overall_feedback_vi){
+    html += '<div class="aw-fb-block"><h4>Overall Assessment</h4><div class="aw-fb-item">'+AW.esc(r.overall_feedback_vi)+'</div></div>';
+  }
+  // Task Response detail — show bold paragraph label; quote only a single flagged sentence
+  if(r.tr_comments && r.tr_comments.length){
+    html += '<div class="aw-fb-block"><h4>Task Response</h4>'+r.tr_comments.slice(0,6).map(function(c){
+      var label = c.paragraph_role ? '<b style="color:var(--aw-primary)">'+AW.esc(c.paragraph_role)+'</b><br>' : '';
+      var quote = c.quote ? '<i style="color:var(--aw-ink-2)">"'+AW.esc(c.quote)+'"</i><br>' : '';
+      return '<div class="aw-fb-item">'+label+quote+AW.esc(c.assessment_vi||'')+
+        (c.suggestion_en?'<br><span style="color:var(--aw-primary);font-size:.85rem">→ '+AW.esc(c.suggestion_en)+'</span>':'')+'</div>';
+    }).join('')+'</div>';
+  }
+  // Coherence
+  if(r.cc_feedback && r.cc_feedback.assessment_vi){
+    html += '<div class="aw-fb-block"><h4>Coherence & Cohesion</h4><div class="aw-fb-item">'+AW.esc(r.cc_feedback.assessment_vi)+
+      ((r.cc_feedback.suggestions&&r.cc_feedback.suggestions.length)?'<br><span style="font-size:.85rem;color:var(--aw-primary)">→ '+AW.esc([].concat(r.cc_feedback.suggestions).join('; '))+'</span>':'')+'</div></div>';
+  }
+  // Grammar — full detail always
+  if((r.gra_errors||[]).length){
+    html+='<div class="aw-fb-block"><h4>Grammar ('+r.gra_errors.length+' issues)</h4>'+r.gra_errors.slice(0,8).map(function(e){
+      return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.wrong)+'</span> → <span class="fix-mark">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
+    }).join('')+'</div>';
+  }
+  // Lexical — full detail always
+  if((r.lr_issues||[]).length){
+    html+='<div class="aw-fb-block"><h4>Lexical Resource ('+r.lr_issues.length+' suggestions)</h4>'+r.lr_issues.slice(0,6).map(function(e){
+      return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
+    }).join('')+'</div>';
+  }
+  // Vocabulary Profile (CEFR) — students only see it in an AI class; the
+  // teacher can still view it for every essay from the Results screen.
+  if (AW_AI_ON && window.AW && AW.analyseVocabulary && lastVocabProfile) {
+    html += renderVocabProfile(lastVocabProfile);
+  }
+  document.getElementById('sideBody').innerHTML=html;
+  setTimeout(function(){
+    AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});
+    // grow vocab bars from zero for a small reveal
+    AW.els('.aw-voc-fill').forEach(function(b){ b.style.width=b.dataset.w; });
+  },50);
+}
+function crit(name,val){
+  var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
+  return '<div class="aw-crit"><div class="aw-crit-top"><span class="aw-crit-name">'+name+'</span><span class="aw-crit-val">'+(val||'—')+'</span></div>'+
+    '<div class="aw-bar"><div class="aw-bar-fill" data-w="'+pct+'%"></div></div></div>';
+}
+
+/*──────── Vocabulary Profile diagram (CEFR, client-side) ────────*/
+var lastVocabProfile = null;
+/* Difficulty ramp: green (easy) → blue → yellow → orange → red (hardest),
+   so the colour alone tells the student how demanding the vocabulary is. */
+var CEFR_BANDS = [
+  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',          color:'#2E9367' },
+  { key:'B1',   label:'B1',    sub:'Trung cấp',       color:'#0A6EBD' },
+  { key:'B2',   label:'B2',    sub:'Trên trung cấp',  color:'#E0A32E' },
+  { key:'C1',   label:'C1',    sub:'Nâng cao',        color:'#E8730C' },
+  { key:'C2',   label:'C2',    sub:'Thành thạo',      color:'#D93025' }
+];
+function vocabBandPct(p){
+  return {
+    A1A2: Math.round((p.pctByLevel.A1 + p.pctByLevel.A2) * 10) / 10,
+    B1: p.pctByLevel.B1, B2: p.pctByLevel.B2,
+    C1: p.pctByLevel.C1, C2: p.pctByLevel.C2
+  };
+}
+/* List the actual higher-level words the student used (B1 and up), grouped by
+   level with the same colour ramp — so they can see and reuse their strong
+   vocabulary instead of only reading a percentage. */
+function renderVocabWords(p){
+  if(!p.wordsByLevel) return '';
+  var bands=[
+    {key:'C2',label:'C2 · Thành thạo',color:'#D93025'},
+    {key:'C1',label:'C1 · Nâng cao',color:'#E8730C'},
+    {key:'B2',label:'B2 · Trên trung cấp',color:'#E0A32E'},
+    {key:'B1',label:'B1 · Trung cấp',color:'#0A6EBD'}
+  ];
+  var blocks=bands.map(function(b){
+    var words=p.wordsByLevel[b.key]||[];
+    if(!words.length) return '';
+    var chips=words.map(function(w){
+      return '<span class="aw-voc-chip" style="border-color:'+b.color+';color:'+b.color+'">'+AW.esc(w)+'</span>';
+    }).join('');
+    return '<div class="aw-voc-wgroup">'+
+      '<div class="aw-voc-wlabel" style="color:'+b.color+'">'+b.label+' <span>('+words.length+')</span></div>'+
+      '<div class="aw-voc-chips">'+chips+'</div></div>';
+  }).join('');
+  if(!blocks) {
+    return '<div class="aw-voc-words"><div class="aw-voc-whead">💡 Từ vựng nổi bật (B1+)</div>'+
+      '<p style="font-size:.8rem;color:var(--aw-ink-3);margin:4px 0 0">Bài này chưa có từ vựng bậc B1 trở lên được ghi nhận. Hãy thử dùng nhiều từ học thuật hơn để nâng band Lexical Resource.</p></div>';
+  }
+  return '<div class="aw-voc-words">'+
+    '<div class="aw-voc-whead">💡 Từ vựng nổi bật bạn đã dùng (B1+) — hãy phát huy!</div>'+
+    blocks+'</div>';
+}
+
+function renderVocabProfile(p){
+  var pct = vocabBandPct(p);
+  var segs = CEFR_BANDS.map(function(b){
+    var w = pct[b.key];
+    if (w <= 0) return '';
+    return '<div title="'+b.label+': '+w+'%" style="width:'+w+'%;background:'+b.color+'"></div>';
+  }).join('');
+  // horizontal rows — width is the real share of the essay, so it reads honestly
+  var rows = CEFR_BANDS.map(function(b){
+    var w = pct[b.key];
+    return '<div class="aw-voc-row">'+
+      '<div class="aw-voc-name"><b style="color:'+b.color+'">'+b.label+'</b><span>'+b.sub+'</span></div>'+
+      '<div class="aw-voc-track"><div class="aw-voc-fill" data-w="'+w+'%" style="background:'+b.color+'"></div></div>'+
+      '<div class="aw-voc-val">'+w+'%</div></div>';
+  }).join('');
+
+  return '<div class="aw-fb-block aw-voc">'+
+    '<h4>📊 Vocabulary Profile</h4>'+
+    '<p style="font-size:.78rem;color:var(--aw-ink-3);margin:0 0 12px">Phân bố cấp độ từ vựng trong bài viết của bạn.</p>'+
+    '<div class="aw-voc-stack">'+segs+'</div>'+
+    '<div class="aw-voc-rows">'+rows+'</div>'+
+    '<div class="aw-voc-kpis">'+
+      '<div class="aw-voc-kpi"><b style="color:#E8730C">'+p.pctAdvanced+'%</b><span>C1 trở lên</span></div>'+
+      '<div class="aw-voc-kpi"><b style="color:#E0A32E">'+p.pctUpperMid+'%</b><span>B2 trở lên</span></div>'+
+      '<div class="aw-voc-kpi"><b>'+p.diversity+'%</b><span>Độ đa dạng</span></div>'+
+      '<div class="aw-voc-kpi"><b>'+p.uniqueLemmas+'</b><span>Số từ khác nhau</span></div>'+
+    '</div>'+
+    renderVocabWords(p)+
+    '<div class="aw-voc-note">'+
+      '<p><b>Độ đa dạng</b> — bạn dùng bao nhiêu từ khác nhau trên tổng số từ. Càng cao nghĩa là càng ít lặp từ; càng thấp nghĩa là một số từ được dùng đi dùng lại nhiều.</p>'+
+      '<p><b>Số từ khác nhau</b> — đếm theo từ gốc, nên <i>facilitate / facilitates / facilitated</i> chỉ tính là 1 từ.</p>'+
+      '<p style="color:var(--aw-ink-3)">'+p.listed+'/'+p.totalWords+' từ nằm trong thang CEFR. Tên riêng, từ chuyên ngành hiếm và từ sai chính tả không được xếp cấp.</p>'+
+    '</div>'+
+  '</div>';
+}
+
+/*──────── Gemini grading (adapted from original ArticuWrite) ────────*/
+/* Scores are used exactly as the examiner model returns them.
+   (A previous +1 "boost" was removed: it silently cancelled every hard cap —
+   a rule capping LR at Band 5 was landing on the student's report as 6.) */
+
+/*──────── AI Writing Tutor (Groq) — Free Writing only ────────*/
+if (MODE === 'free') {
+  (function(){
+    var fab=document.getElementById('tutorFab'), panel=document.getElementById('tutorPanel');
+    var msgs=document.getElementById('tutorMsgs'), input=document.getElementById('tutorInput');
+    var history=[];  // in-memory only; never persisted or sent to server
+    if(fab) fab.onclick=function(){ panel.classList.add('show'); fab.style.display='none'; input && input.focus(); };
+    var closeBtn=document.getElementById('tutorClose');
+    if(closeBtn) closeBtn.onclick=function(){ panel.classList.remove('show'); fab.style.display=''; };
+    var ks=document.getElementById('groqKeySave');
+    if(ks) ks.onclick=function(){
+      var k=document.getElementById('groqKeyInput').value.trim();
+      if(k){ AW.groqKey.set(k); AW.toast('Groq key saved','ok'); document.querySelector('.aw-tutor-keybar').style.display='none'; }
+    };
+    function addMsg(text,who){
+      var d=document.createElement('div'); d.className='aw-tutor-msg '+who; d.textContent=text;
+      msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
+    }
+    function send(){
+      var q=(input.value||'').trim(); if(!q)return;
+      var key=AW.groqKey.get();
+      if(!key){ AW.toast('Enter your Groq API key first','err'); return; }
+      addMsg(q,'user'); input.value='';
+      history.push({role:'user',content:q});
+      var thinking=addMsg('…','bot');
+      askGroq(history,key).then(function(reply){
+        thinking.textContent=reply;
+        history.push({role:'assistant',content:reply});
+      }).catch(function(e){ thinking.textContent='⚠️ '+(e.message||'Error contacting Groq.'); });
+    }
+    if(input) input.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); send(); } };
+    var sendBtn=document.getElementById('tutorSend'); if(sendBtn) sendBtn.onclick=send;
+    // warn on leaving that chat isn't saved (only if the tutor was used)
+    window.addEventListener('beforeunload', function(e){
+      if(history.length){ e.preventDefault(); e.returnValue=''; }
+    });
+  })();
+}
+
+async function askGroq(history, key){
+  var SYSTEM = "You are an IELTS writing TUTOR for a Vietnamese student practising Free Writing. "+
+    "STRICT RULES you must always follow:\n"+
+    "1. You ONLY explain: grammar, vocabulary, collocations, word choice, logic, coherence, essay structure, and general writing concepts.\n"+
+    "2. You NEVER write, rewrite, paraphrase, 'polish', improve, or produce full sentences/paragraphs/essays for the student. NEVER give a ready-made sentence they could copy into their essay.\n"+
+    "3. If the student asks you to write/rewrite/fix/polish their text, politely REFUSE and instead guide them with questions and principles so they write it themselves.\n"+
+    "4. You may give short illustrative examples on NEUTRAL topics unrelated to their essay, to teach a concept — never on their actual essay content.\n"+
+    "5. Keep answers concise and encouraging. You may answer in Vietnamese if the student writes in Vietnamese.\n"+
+    "Stay strictly within a teaching role.";
+  var messages=[{role:'system',content:SYSTEM}].concat(history.slice(-10));
+  var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify({ model:'llama-3.3-70b-versatile', messages:messages, temperature:0.4, max_tokens:600 })
+  });
+  if(!res.ok){ var t=await res.text(); throw new Error('Groq error: '+res.status+(t?' '+t.slice(0,120):'')); }
+  var data=await res.json();
+  var reply=(((data.choices||[])[0]||{}).message||{}).content||'';
+  return reply.trim() || '(no response)';
+}
+
+/*──────── Ask Teacher (In-class + Homework) ────────*/
+if (MODE === 'inclass' || MODE === 'homework') {
+  (function(){
+    var fab=document.getElementById('askFab'), panel=document.getElementById('askPanel');
+    var msgs=document.getElementById('askMsgs'), input=document.getElementById('askInput');
+    if(fab) fab.onclick=function(){ panel.classList.add('show'); fab.style.display='none'; input&&input.focus(); loadMyAsks(); };
+    var cb=document.getElementById('askClose');
+    if(cb) cb.onclick=function(){ panel.classList.remove('show'); fab.style.display=''; };
+    function bubble(text,who,answer){
+      var d=document.createElement('div'); d.className='aw-tutor-msg '+who;
+      d.textContent=text; msgs.appendChild(d);
+      if(answer){ var a=document.createElement('div'); a.className='aw-tutor-msg bot';
+        a.innerHTML='<b style="color:#1E7E42">Teacher:</b> '+AW.esc(answer); msgs.appendChild(a); }
+      msgs.scrollTop=msgs.scrollHeight;
+    }
+    function loadMyAsks(){
+      AW.api('query.listForStudent',{studentId:sess.studentId,class:sess.class}).then(function(res){
+        var rows=((res&&res.data)||[]).filter(function(q){return String(q.topicId)===String(TOPIC_ID);});
+        msgs.innerHTML='';
+        if(!rows.length){ msgs.innerHTML='<div class="aw-tutor-msg bot">No questions yet for this task. Ask your teacher anything about it.</div>'; return; }
+        rows.slice().reverse().forEach(function(q){ bubble(q.question,'user',q.answer); });
+      });
+    }
+    function send(){
+      var q=(input.value||'').trim(); if(!q)return;
+      input.value='';
+      bubble(q,'user');
+      AW.api('query.create',{
+        class:sess.class, studentId:sess.studentId, studentName:sess.name,
+        mode:MODE, topic:TOPIC||PROMPT.slice(0,60), topicId:TOPIC_ID, attempt:attempt,
+        question:q, phase:'live'
+      }).then(function(res){
+        if(res&&res.success){ AW.toast('Sent to your teacher','ok'); }
+        else AW.toast('Failed to send','err');
+      });
+    }
+    if(input) input.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); send(); } };
+    var sb=document.getElementById('askSend'); if(sb) sb.onclick=send;
+    // refresh answers periodically while panel open (in-class real-time-ish)
+    setInterval(function(){ if(panel.classList.contains('show')) loadMyAsks(); }, 12000);
+  })();
+}
+
+/*──────── Teacher feedback pushed from Live Observation ────────
+  The teacher marks up a snapshot of the essay and clicks "Push to Student".
+  We show it read-only in a modal — never write it into the editor, which
+  would clobber whatever the student has typed since the snapshot. */
+if (MODE === 'inclass' || MODE === 'homework') {
+  (function(){
+    var lastSeen = null, primed = false;
+    function ensureUi(){
+      if(document.getElementById('tfbFab')) return;
+      var fab=document.createElement('button');
+      fab.id='tfbFab'; fab.className='aw-tfb-fab';
+      fab.textContent='\ud83d\udce9 Teacher feedback';
+      fab.onclick=openTeacherFeedback;
+      document.body.appendChild(fab);
+      var bg=document.createElement('div');
+      bg.id='tfbBg'; bg.className='aw-tfb-bg';
+      bg.innerHTML='<div class="aw-tfb-modal" id="tfbModal"></div>';
+      bg.onclick=function(e){ if(e.target===bg) bg.classList.remove('show'); };
+      document.body.appendChild(bg);
+    }
+    window._tfbData = null;
+    window.openTeacherFeedback = function(){
+      var d=window._tfbData; if(!d) return;
+      document.getElementById('tfbModal').innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
+          '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem">\ud83d\udce9 Your teacher\'s feedback</h2>'+
+          '<button class="aw-btn" style="background:#E5484D;color:#fff;font-weight:600;padding:6px 18px" '+
+            'onclick="document.getElementById(\'tfbBg\').classList.remove(\'show\')">\u2715 Close</button>'+
+        '</div>'+
+        '<p style="margin:8px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+
+          (d.teacher?AW.esc(d.teacher)+' \u00b7 ':'')+new Date(d.timestamp).toLocaleString('vi-VN')+
+          ' \u00b7 <span style="color:var(--aw-danger)">red strike = error</span>, '+
+          '<span style="color:var(--aw-writing)">green = suggested fix</span>, yellow = highlight</p>'+
+        '<p style="margin:6px 0 0;font-size:.82rem;color:var(--aw-ink-3)">This is a snapshot of your essay when your teacher reviewed it \u2014 your current text is untouched.</p>'+
+        '<div class="aw-tfb-body">'+d.annotatedHtml+'</div>';
+      document.getElementById('tfbBg').classList.add('show');
+    };
+    function poll(){
+      AW.api('write.getAnnotation',{studentId:sess.studentId, topicId:TOPIC_ID}).then(function(res){
+        if(!res||!res.success||!res.data) return;
+        var d=res.data;
+        if(d.timestamp===lastSeen) return;
+        lastSeen=d.timestamp;
+        window._tfbData=d;
+        ensureUi();
+        document.getElementById('tfbFab').classList.add('show');
+        if(primed){ AW.toast('Your teacher sent you feedback','ok',5000); openTeacherFeedback(); }
+        primed=true;  // don't auto-open feedback that already existed on load
+      });
+    }
+    setInterval(poll, 10000);
+    setTimeout(poll, 2000);
+  })();
+}
+
+/*──────── confirm the class mode against the server ────────
+   The first paint uses the cached flag. This re-checks it, so a student who
+   opens write.html directly (or after the teacher flips the switch) still gets
+   the right screen instead of the one their device happened to remember. */
+AW.loadClassAI(sess.class, function(on){
+  if (on === AW_AI_ON) return;      // nothing changed
+  AW_AI_ON = on;
+  if (!on) {
+    // downgrade to control mode without a reload
+    var kb = document.querySelector('.aw-keybar'); if (kb) kb.remove();
+    var tf = document.getElementById('tutorFab'); if (tf) tf.remove();
+    var tp = document.getElementById('tutorPanel'); if (tp) tp.remove();
+    var gb = document.getElementById('gradeBtn');
+    if (gb && !gb.disabled) gb.textContent = 'Nộp bài';
+    if (MODE === 'free') {
+      lockEditor('Free Writing không khả dụng cho lớp của bạn.');
+      AW.toast('Mục này không khả dụng cho lớp của bạn.','err',5000);
+    }
+  } else {
+    location.reload();              // upgrade needs the AI controls back
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- App icon: SVG data URI — no file, no extra request, no 404 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#0A6EBD">
+<title>ArticuWrite</title></head>
+<body><script>
+// Route to the right dashboard, but ONLY for a session that is still valid.
+// Expired or legacy sessions are cleared so nobody lands in someone else's account.
+(function(){
+  var SKEY='aw_session';
+  function clear(){ try{localStorage.removeItem(SKEY);}catch(e){} try{sessionStorage.removeItem(SKEY);}catch(e){} }
+  var raw=null;
+  try{ raw=sessionStorage.getItem(SKEY)||localStorage.getItem(SKEY); }catch(e){}
+  if(!raw){ location.replace('login.html'); return; }
+  try{
+    var o=JSON.parse(raw);
+    // legacy format (no expiry) → force a fresh login
+    if(!o||!o.data||!o.exp||Date.now()>o.exp){ clear(); location.replace('login.html'); return; }
+    location.replace(o.data.role==='teacher'?'teacher.html':'student.html');
+  }catch(e){ clear(); location.replace('login.html'); }
+})();
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=login.html"></noscript>
+</body></html>

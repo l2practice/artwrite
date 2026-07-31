@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- App icon: SVG data URI — no file, no extra request, no 404 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#0A6EBD">
+<title>Library · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-modal-bg.show{display:flex}
+  .aw-modal2{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:720px;max-height:88vh;overflow-y:auto;box-shadow:var(--aw-shadow-lg);padding:28px}
+  .aw-modal2 h2{font-family:var(--aw-font-display);margin:0 0 4px;font-size:1.3rem}
+  .aw-outline-para{background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:16px 18px;margin-top:14px}
+  .aw-outline-para h4{margin:0 0 10px;color:var(--aw-primary);font-size:.95rem}
+  .aw-mp{border-left:3px solid var(--aw-primary);padding-left:12px;margin-bottom:12px}
+  .aw-mp-row{font-size:.88rem;line-height:1.5;margin-bottom:3px}
+  .aw-mp-row b{color:var(--aw-ink);font-weight:600}
+  .aw-lock-note{background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:14px;color:#7A5A0A;font-size:.88rem;margin-top:14px}
+  .aw-toggle{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.82rem;font-weight:600}
+  .aw-toggle input{display:none}
+  .aw-toggle .track{width:40px;height:22px;background:var(--aw-border);border-radius:12px;transition:background .2s;position:relative}
+  .aw-toggle .track:after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:var(--aw-shadow-sm)}
+  .aw-toggle input:checked+.track{background:var(--aw-writing)}
+  .aw-toggle input:checked+.track:after{transform:translateX(18px)}
+  .aw-lock-badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:var(--aw-r-pill)}
+  .aw-lock-open{background:#E4F5EA;color:#1E7E42}
+  .aw-lock-closed{background:#F0F1F3;color:#6B7683}
+  .ac-box{background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:14px 16px;margin:14px 0}
+  .ac-chip{border:1px solid var(--aw-border);border-radius:var(--aw-r-pill);padding:5px 12px;font-size:.78rem;font-weight:600;cursor:pointer;margin:0 4px 4px 0;background:#fff;transition:all .15s}
+  .ac-chip.ac-open{background:#E4F5EA;color:#1E7E42;border-color:#9FD9B4}
+  .ac-chip.ac-locked{background:#FDEAEA;color:#C0392B;border-color:#F0B0AB}
+  .ac-chip.ac-none{background:#fff;color:var(--aw-ink-2)}
+  .ac-chip:hover{filter:brightness(.96)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="aw-modal-bg" id="modalBg"><div class="aw-modal2" id="modalBody"></div></div>
+
+<script src="aw-common.js"></script>
+<script>
+if (typeof AW === 'undefined') {
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i c&aacute;c file HTML tr&ecirc;n GitHub. H&atilde;y upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  throw new Error('aw-common.js not loaded');
+}
+
+var sess = AW.session.require();
+if (!sess) throw 'redirect';
+var isTeacher = sess.role === 'teacher';
+
+var nav = isTeacher ? [
+  { id:'overview', label:'Class Overview', icon:'overview', href:'teacher.html' },
+  { id:'live',     label:'Live Observation', icon:'live', href:'teacher.html#live' },
+  { id:'assignments', label:'Assignments', icon:'modes', href:'teacher.html#assignments' },
+  { id:'results',  label:'Results', icon:'results', href:'teacher.html#results' },
+  { id:'board',    label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'library',  label:'Library', icon:'library', active:true },
+] : [
+  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
+  { id:'board',   label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'library', label:'Library', icon:'library', active:true },
+  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
+];
+
+var content = AW.renderShell({
+  mount:'app', nav:nav,
+  eyebrow:(isTeacher?'Teacher':'Student')+' Interface', title:'Library'
+});
+
+content.innerHTML =
+  (isTeacher ? '<div style="display:flex;align-items:center;gap:14px;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:12px 18px;margin-bottom:16px;box-shadow:var(--aw-shadow-sm)">'+
+    '<span style="font-weight:600;font-size:.9rem">Master outline control:</span>'+
+    '<button class="aw-btn aw-btn-ghost" id="lockAllBtn" style="padding:7px 14px">🔒 Lock all</button>'+
+    '<button class="aw-btn aw-btn-accent" id="openAllBtn" style="padding:7px 14px">🔓 Open all</button>'+
+    '<span style="font-size:.82rem;color:var(--aw-ink-3);margin-left:auto">Then open individual prompts below.</span>'+
+  '</div>' : '') +
+  '<div class="aw-toolbar">' +
+    '<div class="aw-search">'+AW.icon('search')+'<input id="q" placeholder="Search questions, topics, keywords…"></div>' +
+    '<select class="aw-select" id="fTopic"><option value="">By topic</option></select>' +
+    '<select class="aw-select" id="fType"><option value="">Task type</option></select>' +
+  '</div>' +
+  '<div id="grid" class="aw-grid"></div>' +
+  '<div id="empty" class="aw-empty" style="display:none">'+AW.icon('library')+'<p>No prompts found.</p></div>';
+
+if (isTeacher) {
+  document.getElementById('lockAllBtn').onclick=function(){ masterLock(false); };
+  document.getElementById('openAllBtn').onclick=function(){ masterLock(true); };
+}
+function masterLock(open){
+  AW.toast(open?'Đang mở tất cả…':'Đang khoá tất cả…');
+  AW.api('library.lockAll',{open:open}).then(function(res){
+    if(res&&res.success){
+      flat.forEach(function(q){ q.outlineUnlocked=open; });
+      AW.toast(open?'Đã mở dàn ý toàn bộ':'Đã khoá dàn ý toàn bộ','ok');
+      applyFilters();
+    } else AW.toast('Không đổi được','err');
+  });
+}
+
+var flat=[], grid=document.getElementById('grid'), empty=document.getElementById('empty');
+grid.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p>Loading library…</p></div>';
+
+var myClasses=[], classRosters={};
+if(isTeacher){
+  AW.api('class.list',{teacherEmail:sess.email}).then(function(r){ myClasses=(r&&r.data)||[]; });
+}
+
+var libCtx = isTeacher ? {} : { studentId:sess.studentId, class:sess.class };
+AW.api('write.getLibrary',libCtx).then(function(res){
+  if(!res||!res.success){grid.innerHTML='';empty.style.display='';return;}
+  var lib=res.data||[];
+  var topics={}, types={};
+  lib.forEach(function(t){
+    topics[t.topic]=1;
+    (t.questions||[]).forEach(function(q){
+      q.topic=t.topic; if(q.taskType)types[q.taskType]=1; flat.push(q);
+    });
+  });
+  var fTopic=document.getElementById('fTopic');
+  Object.keys(topics).forEach(function(tp){var o=document.createElement('option');o.value=tp;o.textContent=tp;fTopic.appendChild(o);});
+  var fType=document.getElementById('fType');
+  Object.keys(types).forEach(function(ty){var o=document.createElement('option');o.value=ty;o.textContent=ty;fType.appendChild(o);});
+  render(flat);
+}).catch(function(){grid.innerHTML='';empty.style.display='';});
+
+function render(list){
+  if(!list.length){grid.innerHTML='';empty.style.display='';return;}
+  empty.style.display='none';
+  grid.innerHTML=list.map(function(q,i){
+    var lockBadge = isTeacher
+      ? '<span class="aw-lock-badge '+(q.outlineUnlocked?'aw-lock-open':'aw-lock-closed')+'">'+(q.outlineUnlocked?'Outline: Open':'Outline: Locked')+'</span>'
+      : '';
+    return '<div class="aw-lib-card" data-i="'+i+'">' +
+      '<h3 class="aw-lib-title">'+AW.esc(q.question||q.topic)+'</h3>' +
+      (q.taskType?'<span class="aw-tag aw-tag-type">'+AW.esc(q.taskType)+'</span> ':'') +
+      lockBadge +
+      '<p class="aw-lib-desc">'+AW.esc(q.keywords||q.topic)+'</p>' +
+    '</div>';
+  }).join('');
+  AW.els('.aw-lib-card').forEach(function(card){
+    card.onclick=function(){ openDetail(list[+card.dataset.i]); };
+  });
+}
+
+function applyFilters(){
+  var v=(document.getElementById('q').value||'').toLowerCase();
+  var tp=document.getElementById('fTopic').value, ty=document.getElementById('fType').value;
+  render(flat.filter(function(q){
+    if(tp&&q.topic!==tp)return false;
+    if(ty&&q.taskType!==ty)return false;
+    if(v){var hay=(q.question+' '+q.topic+' '+q.keywords+' '+q.taskType).toLowerCase();if(hay.indexOf(v)===-1)return false;}
+    return true;
+  }));
+}
+document.getElementById('q').oninput=applyFilters;
+document.getElementById('fTopic').onchange=applyFilters;
+document.getElementById('fType').onchange=applyFilters;
+
+function mpBlock(label,mp){
+  if(!mp || (!mp.mp&&!mp.why&&!mp.example&&!mp.result)) return '';
+  return '<div class="aw-mp">'+
+    (mp.mp?'<div class="aw-mp-row"><b>'+label+' — Main point:</b> '+AW.esc(mp.mp)+'</div>':'')+
+    (mp.why?'<div class="aw-mp-row"><b>Why:</b> '+AW.esc(mp.why)+'</div>':'')+
+    (mp.example?'<div class="aw-mp-row"><b>Example:</b> '+AW.esc(mp.example)+'</div>':'')+
+    (mp.result?'<div class="aw-mp-row"><b>Result:</b> '+AW.esc(mp.result)+'</div>':'')+
+  '</div>';
+}
+function outlineHtml(q){
+  var b1=mpBlock('MP1',q.body1.mp1)+mpBlock('MP2',q.body1.mp2);
+  var b2=mpBlock('MP1',q.body2.mp1)+mpBlock('MP2',q.body2.mp2);
+  var html='';
+  if(b1) html+='<div class="aw-outline-para"><h4>Body Paragraph 1</h4>'+b1+'</div>';
+  if(b2) html+='<div class="aw-outline-para"><h4>Body Paragraph 2</h4>'+b2+'</div>';
+  return html || '<p style="color:var(--aw-ink-3)">No model outline for this prompt yet.</p>';
+}
+
+function accessManagerHtml(q){
+  // current rules for this prompt
+  var rules = q.accessRules || [];
+  function ruleState(scope,target){
+    var r=rules.filter(function(x){return x.scope===scope && String(x.target)===String(target);})[0];
+    return r?r.state:'';
+  }
+  var allState = ruleState('all','') || (q.globalOpen?'Open':'');
+  var classChips = myClasses.map(function(c){
+    var st=ruleState('class',c.classId);
+    var cls = st==='Open'?'ac-open':(st==='Locked'?'ac-locked':'ac-none');
+    return '<button class="ac-chip '+cls+'" data-scope="class" data-target="'+AW.esc(c.classId)+'" data-q="'+AW.esc(q.question)+'">'+
+      AW.esc(c.className)+(st?' · '+st:'')+'</button>';
+  }).join('');
+  return '<div class="ac-box">'+
+    '<h4 style="margin:0 0 8px;font-size:.85rem;text-transform:uppercase;color:var(--aw-primary)">🔓 Assign outline access</h4>'+
+    '<div style="margin-bottom:10px"><b style="font-size:.82rem">Everyone:</b> '+
+      '<button class="ac-chip '+(allState==='Open'?'ac-open':'ac-none')+'" data-scope="all" data-target="" data-q="'+AW.esc(q.question)+'" data-state="Open">Open for all</button>'+
+      '<button class="ac-chip '+(allState==='Locked'?'ac-locked':'ac-none')+'" data-scope="all" data-target="" data-q="'+AW.esc(q.question)+'" data-state="Locked">Lock for all</button>'+
+    '</div>'+
+    (myClasses.length?'<div style="margin-bottom:10px"><b style="font-size:.82rem">By class</b> (click to cycle Open→Lock→default):<br><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">'+classChips+'</div></div>':'')+
+    '<div><b style="font-size:.82rem">By student:</b> '+
+      '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">'+
+        '<input class="aw-input" id="acStuId" placeholder="Student ID" style="width:150px;padding:6px 10px">'+
+        '<button class="ac-chip ac-open" data-scope="student" data-state="Open" data-q="'+AW.esc(q.question)+'" id="acStuOpen">Open for student</button>'+
+        '<button class="ac-chip ac-locked" data-scope="student" data-state="Locked" data-q="'+AW.esc(q.question)+'" id="acStuLock">Lock for student</button>'+
+      '</div>'+
+      (rules.filter(function(x){return x.scope==='student';}).length?
+        '<div style="margin-top:8px;font-size:.8rem;color:var(--aw-ink-2)">Student rules: '+
+        rules.filter(function(x){return x.scope==='student';}).map(function(x){return AW.esc(x.target)+' ('+x.state+')';}).join(', ')+'</div>':'')+
+    '</div>'+
+  '</div>';
+}
+
+function openDetail(q){
+  var body=document.getElementById('modalBody');
+  var showOutline = isTeacher || q.outlineUnlocked;
+  body.innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:start;gap:12px">'+
+      '<div><div class="aw-eyebrow">'+AW.esc(q.topic)+(q.taskType?' · '+AW.esc(q.taskType):'')+'</div>'+
+      '<h2>'+AW.esc(q.question)+'</h2></div>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeDetail()">Close</button>'+
+    '</div>'+
+    (q.keywords?'<p style="color:var(--aw-ink-2);font-size:.9rem"><b>Keywords:</b> '+AW.esc(q.keywords)+'</p>':'')+
+    (isTeacher?accessManagerHtml(q):'')+
+    (showOutline
+      ? '<h3 style="font-family:var(--aw-font-display);margin:18px 0 0">Suggested Outline</h3>'+outlineHtml(q)
+      : '<div class="aw-lock-note">🔒 The model outline for this prompt is locked. Your teacher will open it when appropriate. You can still practice this prompt now.</div>')+
+    '<div style="margin-top:20px;display:flex;gap:10px">'+
+      (isTeacher?'':'<button class="aw-btn aw-btn-primary" id="writeBtn">Write this prompt</button>')+
+    '</div>';
+  document.getElementById('modalBg').classList.add('show');
+
+  if(isTeacher){
+    wireAccessButtons(q);
+  } else {
+    var wb=document.getElementById('writeBtn');
+    if(wb) wb.onclick=function(){
+      var p=new URLSearchParams({mode:'free',topic:q.topic,prompt:q.question,type:q.taskType||'IELTS Task 2'});
+      location.href='write.html?'+p.toString();
+    };
+  }
+}
+
+function setAccess(question,scope,target,state,cb){
+  AW.api('library.setAccess',{question:question,scope:scope,target:target,state:state}).then(function(res){
+    if(res&&res.success){ AW.toast('Access updated','ok'); cb&&cb(); }
+    else AW.toast((res&&res.error)||'Failed','err');
+  });
+}
+function wireAccessButtons(q){
+  // all + student explicit-state buttons
+  AW.els('.ac-chip[data-state]').forEach(function(btn){
+    if(btn.dataset.scope==='class')return; // class handled separately (cycle)
+    btn.onclick=function(){
+      var scope=btn.dataset.scope, state=btn.dataset.state, target='';
+      if(scope==='student'){
+        target=(document.getElementById('acStuId').value||'').trim();
+        if(!target){AW.toast('Enter a Student ID','err');return;}
+      }
+      setAccess(q.question,scope,target,state,function(){ refreshLibrary(); });
+    };
+  });
+  // class chips cycle: none → Open → Locked → (remove)
+  AW.els('.ac-chip[data-scope="class"]').forEach(function(btn){
+    btn.onclick=function(){
+      var target=btn.dataset.target;
+      var cur = btn.classList.contains('ac-open')?'Open':(btn.classList.contains('ac-locked')?'Locked':'none');
+      if(cur==='none'){ setAccess(q.question,'class',target,'Open',refreshLibrary); }
+      else if(cur==='Open'){ setAccess(q.question,'class',target,'Locked',refreshLibrary); }
+      else { // Locked → remove rule (back to default)
+        AW.api('library.removeAccess',{question:q.question,scope:'class',target:target}).then(function(){ AW.toast('Rule removed','ok'); refreshLibrary(); });
+      }
+    };
+  });
+}
+function refreshLibrary(){
+  AW.api('write.getLibrary',libCtx).then(function(res){
+    if(!res||!res.success)return;
+    flat.length=0;
+    (res.data||[]).forEach(function(t){ (t.questions||[]).forEach(function(qq){ qq.topic=t.topic; flat.push(qq); }); });
+    applyFilters();
+    // re-open the same prompt to show updated rules
+    var open=flat.filter(function(x){return x.question===lastOpenQ;})[0];
+    if(open) openDetail(open);
+  });
+}
+var lastOpenQ='';
+var _origOpenDetail=openDetail;
+openDetail=function(q){ lastOpenQ=q.question; _origOpenDetail(q); };
+window.closeDetail=function(){document.getElementById('modalBg').classList.remove('show');};
+</script>
+</body>
+</html>

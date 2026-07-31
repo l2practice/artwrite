@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- App icon: SVG data URI — no file, no extra request, no 404 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#0A6EBD">
+<title>Teacher · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  /* live observation grid */
+  .aw-live-wrap{display:grid;grid-template-columns:1fr 250px;gap:18px}
+  @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
+  .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  @keyframes awSlideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .aw-recreate-bg{position:fixed;inset:0;background:rgba(15,23,32,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
+  .aw-recreate-box{background:#fff;border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:awPop .16s ease}
+  @keyframes awPop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+  .aw-recreate-head{background:#FEF2F2;color:#B42318;font-weight:800;font-size:1.05rem;padding:16px 20px;border-bottom:1px solid #FADCD9}
+  .aw-recreate-body{padding:18px 20px}
+  .aw-recreate-body p{margin:0 0 12px;font-size:.92rem;line-height:1.5}
+  .aw-recreate-danger{background:#FEF2F2;border:1px solid #FADCD9;color:#B42318;border-radius:10px;padding:11px 13px;font-size:.9rem;line-height:1.5;margin-bottom:12px}
+  .aw-recreate-foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
+  .res-sortable{cursor:pointer;user-select:none;white-space:nowrap}
+  .res-sortable:hover{filter:brightness(1.12)}
+  .res-sortable.on .res-caret{opacity:1}
+  .res-caret{opacity:.55;font-size:.7em}
+  .res-new{display:inline-block;background:var(--aw-writing);color:#fff;font-size:.6rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
+  .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
+  .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
+    border-radius:18px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
+  .aw-ai-toggle.on{border-color:#2E9367;background:#EAF7F0;color:#1E7E42}
+  .aw-ai-toggle .aw-ai-dot{width:8px;height:8px;border-radius:50%;background:#E0A32E}
+  .aw-ai-toggle.on .aw-ai-dot{background:#2E9367}
+  .aw-ai-toggle .aw-ai-sub{font-weight:500;opacity:.8;font-size:.72rem;padding-left:6px;border-left:1px solid currentColor}
+  .aw-ai-toggle:hover{filter:brightness(.97)}
+  .aw-notifs{position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:340px}
+  .aw-notif{background:var(--aw-primary-dk,#0A4A7A);color:#fff;border-radius:12px;padding:13px 14px;box-shadow:0 10px 30px rgba(0,0,0,.28);display:flex;gap:10px;align-items:flex-start;font-size:.88rem;line-height:1.4;cursor:pointer;animation:awNotifIn .25s ease}
+  .aw-notif.hand{background:linear-gradient(135deg,#E0A32E,#C8891A)}
+  .aw-notif.out{opacity:0;transform:translateX(20px);transition:opacity .3s,transform .3s}
+  .aw-notif-x{background:none;border:none;color:rgba(255,255,255,.75);font-size:1.1rem;cursor:pointer;line-height:1;padding:0 0 0 4px;flex:0 0 auto}
+  .aw-notif-x:hover{color:#fff}
+  @keyframes awNotifIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+  .aw-nav-badge{margin-left:auto;background:#E5484D;color:#fff;font-size:.68rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+  .aw-live-list{display:flex;flex-direction:column;gap:6px}
+  .aw-live-row{display:flex;align-items:center;gap:12px;padding:9px 14px;border:1px solid var(--aw-border-2);border-radius:10px;cursor:pointer;background:var(--aw-surface)}
+  .aw-live-row:hover{background:var(--aw-surface-2)}
+  .aw-live-row.sel{border-color:var(--aw-primary);box-shadow:0 0 0 2px var(--aw-primary-lt)}
+  .aw-live-av.sm{width:32px;height:32px;font-size:.8rem}
+  .aw-lower-hand{background:#FFF8EC;border:1px solid #E0A32E;color:#B8860B;border-radius:16px;padding:4px 11px;font-size:.74rem;font-weight:600;cursor:pointer;white-space:nowrap}
+  .aw-lower-hand:hover{background:#E0A32E;color:#fff}
+  .aw-live-cell .aw-lower-hand{margin-top:8px;width:100%}
+  .aw-live-cell.hand,.aw-live-row.hand{border-color:#E0A32E;background:#FFFCF5}
+  .aw-live-cell{background:var(--aw-surface);border:1.5px solid var(--aw-border-2);border-radius:var(--aw-r);padding:12px 10px;text-align:center;cursor:pointer;transition:transform .12s,border-color .14s,box-shadow .14s}
+  .aw-live-cell:hover{transform:translateY(-2px);border-color:var(--aw-primary);box-shadow:var(--aw-shadow)}
+  .aw-live-cell.sel{border-color:var(--aw-primary);box-shadow:var(--aw-ring)}
+  .aw-live-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.85rem;margin:0 auto 8px}
+  .aw-live-name{font-size:.8rem;font-weight:600;color:var(--aw-ink);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .aw-live-status{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;color:var(--aw-ink-2)}
+  .aw-live-fb{font-size:.72rem;font-weight:600;border:1px solid var(--aw-writing);background:var(--aw-writing);color:#fff;
+    border-radius:8px;padding:3px 10px;cursor:pointer;margin:6px 0;transition:filter .14s}
+  .aw-live-fb:hover{filter:brightness(1.08)}
+  .aw-live-cell .aw-live-fb{width:100%}
+  .aw-fbrev-bg{position:fixed;inset:0;background:rgba(15,23,32,.55);z-index:1900;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-fbrev-bg.show{display:flex}
+  .aw-fbrev-box{background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .aw-fbrev-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--aw-border-2)}
+  .aw-fbrev-head h2{margin:0;font-family:var(--aw-font-display);font-size:1.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .aw-fbrev-body{padding:16px 20px;overflow-y:auto}
+  .aw-fbrev-content{font-size:.9rem;line-height:1.7;background:var(--aw-surface-2);padding:12px;border-radius:8px}
+  .aw-live-side{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:16px;box-shadow:var(--aw-shadow-sm);align-self:start}
+  .aw-live-side h4{margin:0 0 12px;font-size:.95rem}
+  .aw-stat-row{display:flex;justify-content:space-between;font-size:.86rem;padding:6px 0;color:var(--aw-ink-2)}
+  .aw-stat-row b{color:var(--aw-ink)}
+  /* annotation modal */
+  .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-modal-bg.show{display:flex}
+  .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:80vw;max-width:1400px;height:80vh;max-height:80vh;overflow:hidden;display:grid;grid-template-columns:1fr 320px;box-shadow:var(--aw-shadow-lg)}
+  .aw-modal .aw-modal-doc{overflow-y:auto}
+  .aw-modal .aw-doc-text{min-height:60vh}
+  @media(max-width:800px){.aw-modal{grid-template-columns:1fr;width:95vw;height:90vh}}
+  .aw-modal-doc{padding:24px;overflow-y:auto;max-height:90vh}
+  .aw-modal-doc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .aw-doc-text{font-size:1rem;line-height:1.9;color:var(--aw-ink);white-space:pre-wrap;user-select:text;outline:none;min-height:200px;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:16px}
+  .aw-doc-text:focus{border-color:var(--aw-primary)}
+  .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
+  .aw-sug-ins{color:var(--aw-writing);font-weight:600}
+  .aw-hl{background:#FFF1A8;border-radius:2px;padding:0 1px}
+  .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help}
+  .aw-modal-side{background:var(--aw-surface-2);padding:20px;border-left:1px solid var(--aw-border-2);overflow-y:auto;max-height:90vh}
+  .aw-modal-side h4{margin:0 0 12px;font-size:.95rem}
+  .aw-suggest-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .aw-suggest{background:#FFF;border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px;font-size:.82rem}
+  .aw-suggest .orig{color:var(--aw-danger);text-decoration:line-through}
+  .aw-suggest .sug{color:var(--aw-writing);font-weight:600}
+  .aw-score-input{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .aw-score-input label{width:40px;font-weight:600;font-size:.85rem}
+  .aw-score-input input{width:60px;padding:6px 8px;border:1.5px solid var(--aw-border);border-radius:6px;text-align:center}
+  .aw-sel-pop{position:fixed;z-index:600;background:var(--aw-primary-dk);border-radius:8px;padding:4px;display:none;gap:2px;box-shadow:var(--aw-shadow-lg)}
+  .aw-sel-pop.show{display:flex}
+  .aw-sel-pop button{background:none;border:none;color:#fff;padding:6px 10px;font-size:.8rem;cursor:pointer;border-radius:5px;font-family:var(--aw-font-body)}
+  .aw-sel-pop button:hover{background:rgba(255,255,255,.15)}
+  /* recent activity */
+  .aw-two-col{display:grid;grid-template-columns:1fr 300px;gap:18px}
+  @media(max-width:900px){.aw-two-col{grid-template-columns:1fr}}
+  .aw-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:20px;box-shadow:var(--aw-shadow-sm)}
+  .aw-tabs{display:flex;gap:4px;border-bottom:2px solid var(--aw-border-2);margin-bottom:18px}
+  .aw-tab{padding:10px 18px;border:none;background:none;font-family:var(--aw-font-body);font-weight:600;font-size:.92rem;color:var(--aw-ink-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
+  .aw-tab.active{color:var(--aw-primary);border-bottom-color:var(--aw-primary)}
+  /* assignment modal */
+  .aw-amodal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:var(--aw-shadow-lg);padding:30px}
+  .aw-amodal h2{font-family:var(--aw-font-display);margin:0 0 4px;font-size:1.4rem}
+  .aw-editor-mini-tb{display:flex;gap:2px;padding:6px 8px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r-sm) var(--aw-r-sm) 0 0;background:var(--aw-surface-2)}
+  .aw-editor-mini-tb button{width:30px;height:30px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700}
+  .aw-editor-mini-tb button:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-prompt-edit{min-height:120px;border:1px solid var(--aw-border);border-radius:0 0 var(--aw-r-sm) var(--aw-r-sm);padding:12px 14px;font-family:var(--aw-font-body);font-size:.95rem;line-height:1.6;outline:none;overflow-y:auto}
+  .aw-prompt-edit:focus{border-color:var(--aw-primary)}
+  /* wide results table */
+  .aw-res-wrap{border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(10,58,93,.08);border:1px solid var(--aw-border-2)}
+  .aw-res-table{width:100%;border-collapse:collapse;font-size:.85rem;white-space:nowrap}
+  .aw-res-table th,.aw-res-table td{border:1px solid #EEF2F6;padding:9px 11px;text-align:center}
+  .aw-res-table thead tr:first-child th{background:linear-gradient(135deg,#0A6EBD,#1A5F9E);color:#fff;font-family:var(--aw-font-display);font-size:.82rem;padding:12px 11px}
+  .aw-res-table thead tr:nth-child(2) th{font-size:.7rem;font-weight:700;letter-spacing:.02em}
+  /* colored column groups */
+  .grp-1{background:#EAF2FB}   /* First - blue */
+  .grp-2{background:#EEEBFA}   /* Second - purple */
+  .grp-3{background:#E9F5EE}   /* Third - green */
+  .grp-best{background:#FEF6E3} /* Best - amber */
+  .hd-1{background:#3E7CC4 !important} .hd-2{background:#6B5FC4 !important}
+  .hd-3{background:#3EA96B !important} .hd-best{background:#E0A32E !important}
+  .aw-res-table td.sticky,.aw-res-table th.sticky{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
+  .aw-res-table thead th.sticky{background:linear-gradient(135deg,#0A6EBD,#1A5F9E)}
+  .aw-res-table tbody tr:hover td{filter:brightness(.98)}
+  .ms-in{width:100%;padding:3px 2px;border:1px solid var(--aw-border);border-radius:4px;text-align:center;font-size:.72rem}
+  .ms-in:focus{border-color:var(--aw-primary);outline:none}
+  .ms-note{padding:3px 6px;border:1px solid var(--aw-border);border-radius:4px;font-size:.72rem}
+  .ms-note:focus{border-color:var(--aw-primary);outline:none}
+  .aw-view-hd{background:#EA4B5E;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;letter-spacing:.02em}
+  .aw-view-hd:hover{background:#d13a4c}
+  .aw-res-table td{position:relative}
+  .aw-res-table td:hover{z-index:200}
+  .aw-res-overall{font-weight:800;cursor:pointer;position:relative;display:inline-block;padding:6px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:1rem}
+  .aw-res-overall small{display:block;font-size:.6rem;color:var(--aw-ink-3);font-weight:600}
+  .aw-res-overall:hover{box-shadow:0 2px 10px rgba(10,110,189,.3)}
+  .aw-res-overall:hover .aw-res-pop{display:block}
+  .aw-res-pop{display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--aw-primary-dk);color:#fff;padding:8px 12px;border-radius:8px;font-size:.72rem;font-weight:500;white-space:nowrap;z-index:500;box-shadow:var(--aw-shadow-lg);pointer-events:none}
+  .aw-res-pop:after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:var(--aw-primary-dk)}
+  .aw-view-btn{background:var(--aw-primary-lt);color:var(--aw-primary);border:none;border-radius:8px;padding:5px 10px;font-size:.75rem;font-weight:600;cursor:pointer}
+  .aw-view-btn:hover{background:var(--aw-primary);color:#fff}
+  .aw-essay-bg{position:fixed;inset:0;background:rgba(16,34,46,.55);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
+  .aw-essay-bg.show{display:flex}
+  .aw-essay-modal{background:#fff;border-radius:16px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:26px}
+  .aw-essay-modal .rv-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
+  .aw-essay-modal .rv-block h4{color:var(--aw-primary);margin:0 0 6px;font-size:.85rem;text-transform:uppercase}
+  .aw-essay-modal .rv-block p{margin:0 0 6px;line-height:1.55;font-size:.9rem;color:var(--aw-ink-2)}
+
+  /* ── Task Type Selector ── */
+  .aw-task-selector{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+  .aw-task-card{border:2px solid var(--aw-border);border-radius:var(--aw-r);padding:14px 16px;cursor:pointer;transition:all .18s;background:var(--aw-surface);user-select:none}
+  .aw-task-card:hover{border-color:var(--aw-primary);background:var(--aw-primary-lt)}
+  .aw-task-card.active{border-color:var(--aw-primary);background:var(--aw-primary-lt);box-shadow:0 0 0 3px rgba(10,110,189,.15)}
+  .aw-task-card.active.t1{border-color:#1A9E5C;background:#EAF7F0;box-shadow:0 0 0 3px rgba(26,158,92,.15)}
+  .aw-task-card .tc-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--aw-font-display);font-weight:800;font-size:1.1rem;margin-bottom:6px}
+  .aw-task-card .tc-badge .tc-num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:.85rem;color:#fff}
+  .t2 .tc-num{background:var(--aw-primary)}
+  .t1 .tc-num{background:#1A9E5C}
+  .aw-task-card .tc-title{font-weight:700;font-size:.88rem;color:var(--aw-ink);margin-bottom:3px}
+  .aw-task-card .tc-desc{font-size:.76rem;color:var(--aw-ink-3);line-height:1.4}
+  .aw-task-card.active .tc-desc{color:var(--aw-ink-2)}
+  .aw-task-card .tc-criteria{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+  .aw-task-card .tc-crit{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid currentColor}
+  .t2.active .tc-crit{background:rgba(10,110,189,.1);color:var(--aw-primary)}
+  .t1.active .tc-crit{background:rgba(26,158,92,.1);color:#1A9E5C}
+  .aw-task-card:not(.active) .tc-crit{background:#f0f2f4;color:var(--aw-ink-3)}
+  /* ── Chart Upload (Task 1) ── */
+  .aw-chart-field{display:none}
+  .aw-chart-field.show{display:block}
+  .aw-chart-drop{border:2px dashed var(--aw-border);border-radius:var(--aw-r);padding:22px;text-align:center;cursor:pointer;transition:all .18s;background:var(--aw-surface-2);color:var(--aw-ink-3);font-size:.88rem}
+  .aw-chart-drop:hover,.aw-chart-drop.drag-over{border-color:#1A9E5C;background:#EAF7F0;color:#1A9E5C}
+  .aw-chart-drop .cd-icon{font-size:1.8rem;display:block;margin-bottom:6px}
+  .aw-chart-preview-wrap{position:relative;margin-top:10px;display:none}
+  .aw-chart-preview-wrap.show{display:block}
+  .aw-chart-preview-wrap img{width:100%;max-height:240px;object-fit:contain;border-radius:var(--aw-r-sm);border:1px solid var(--aw-border);background:#f8f9fa}
+  .aw-chart-preview-actions{display:flex;gap:8px;margin-top:8px}
+  .aw-chart-preview-actions button{font-size:.76rem;padding:5px 12px;border:1px solid var(--aw-border);border-radius:var(--aw-r-pill);cursor:pointer;background:#fff;color:var(--aw-ink-2)}
+  .aw-chart-preview-actions .cp-replace{border-color:var(--aw-primary);color:var(--aw-primary)}
+  .aw-chart-preview-actions .cp-remove{border-color:var(--aw-danger);color:var(--aw-danger)}
+  /* ── Chart type chips ── */
+  .aw-chart-type-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .aw-ct-chip{padding:4px 12px;border:1.5px solid var(--aw-border);border-radius:var(--aw-r-pill);font-size:.76rem;font-weight:600;cursor:pointer;background:#fff;color:var(--aw-ink-2);transition:all .15s}
+  .aw-ct-chip.active{background:#EAF7F0;border-color:#1A9E5C;color:#1A9E5C}
+  .aw-ct-chip:hover:not(.active){border-color:var(--aw-primary);color:var(--aw-primary)}
+  /* ── Assignment list badge ── */
+  .aw-task-badge{display:inline-block;font-size:.65rem;font-weight:800;padding:2px 7px;border-radius:10px;letter-spacing:.03em;vertical-align:middle;margin-left:5px}
+  .aw-task-badge.t1{background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0}
+  .aw-task-badge.t2{background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8}
+  .aw-amodal{max-width:680px!important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="aw-modal-bg" id="modalBg">
+  <div class="aw-modal">
+    <div class="aw-modal-doc">
+      <div class="aw-modal-doc-head">
+        <div><b id="mStudent">Student</b> <span style="color:var(--aw-ink-3)" id="mTopic"></span></div>
+        <button class="aw-btn" style="padding:6px 18px;background:#E5484D;color:#fff;font-weight:600" id="mClose">✕ Close</button>
+      </div>
+      <!-- annotation toolbar -->
+      <div style="display:flex;gap:2px;flex-wrap:wrap;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;margin-bottom:8px">
+        <button class="aw-tbtn" id="annBold" title="Bold"><b>B</b></button>
+        <button class="aw-tbtn" id="annItalic" title="Italic"><i>I</i></button>
+        <button class="aw-tbtn" id="annUnder" title="Underline"><u>U</u></button>
+        <span style="width:1px;background:var(--aw-border-2);margin:2px 4px;display:inline-block"></span>
+        <button class="aw-tbtn" id="annSug" title="Suggest edit (red strike + green insert)">✎ Suggest</button>
+        <button class="aw-tbtn" id="annStrike" title="Strike (delete suggestion)">S̶ Strike</button>
+        <button class="aw-tbtn" id="annHl" title="Highlight">🖍</button>
+        <button class="aw-tbtn" id="annComment" title="Comment">💬</button>
+        <span style="width:1px;background:var(--aw-border-2);margin:2px 4px;display:inline-block"></span>
+        <button class="aw-tbtn" id="annFontDown" title="Smaller text (selection)">A−</button>
+        <button class="aw-tbtn" id="annFontUp" title="Larger text (selection, up to 120px)" style="font-size:1.05rem">A+</button>
+        <button class="aw-tbtn" id="annClear" title="Clear formatting">✕ Clear</button>
+        <span style="width:1px;background:var(--aw-border-2);margin:2px 4px;display:inline-block"></span>
+        <button class="aw-tbtn" id="annZoomOut" title="Zoom out — your view only">🔍−</button>
+        <span id="annZoomLbl" style="align-self:center;font-size:.75rem;color:var(--aw-ink-3);min-width:38px;text-align:center">100%</span>
+        <button class="aw-tbtn" id="annZoomIn" title="Zoom in for the class to see — your view only">🔍+</button>
+        <button class="aw-tbtn" id="annZoomReset" title="Reset zoom" style="font-size:.75rem">Reset</button>
+      </div>
+      <div class="aw-doc-text" id="mText" contenteditable="false"></div>
+      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Select text then use the toolbar to suggest edits, highlight or comment. When done, click <b>Push to Student</b> so students can see your feedback.</p>
+    </div>
+    <div class="aw-modal-side">
+      <h4>Teacher Suggestions</h4>
+      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 12px">Red strike = error · Green = suggested fix</p>
+      <div class="aw-suggest-list" id="suggestList"></div>
+      <h4>Scoring (IELTS)</h4>
+      <div class="aw-score-input"><label>TR</label><input type="number" id="sTR" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label>CC</label><input type="number" id="sCC" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label>LR</label><input type="number" id="sLR" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label>GRA</label><input type="number" id="sGRA" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label><b>Overall</b></label><input type="number" id="sOverall" min="0" max="9" step="0.5"></div>
+      <button class="aw-btn aw-btn-accent aw-btn-block" id="pushFb" style="margin-top:12px">⬆ Push to Student</button>
+      <button class="aw-btn aw-btn-primary aw-btn-block" id="saveFb" style="margin-top:8px">✓ Submit & Save Score</button>
+    </div>
+  </div>
+</div>
+
+<div class="aw-essay-bg" id="essayModal"><div class="aw-essay-modal" id="essayModalBody"></div></div>
+
+<div class="aw-sel-pop" id="selPop">
+  <button id="popSuggest">✎ Suggest</button>
+  <button id="popStrike">S̶ Strike</button>
+  <button id="popHl">🖍 Highlight</button>
+  <button id="popComment">💬 Comment</button>
+</div>
+
+<!-- assignment creation modal -->
+<div class="aw-modal-bg" id="assignModal">
+  <div class="aw-amodal">
+    <h2 id="assignTitle">New Homework</h2>
+    <p class="aw-auth-sub" style="margin:0 0 14px" id="assignSub">Assign to the selected class.</p>
+
+    <!-- ① Task Type Selector -->
+    <div class="aw-field">
+      <label class="aw-label">Task Type <span style="color:var(--aw-danger)">*</span></label>
+      <div class="aw-task-selector" id="taskTypeSelector">
+        <div class="aw-task-card t2 active" data-tt="task2">
+          <div class="tc-badge"><span class="tc-num">2</span> Task 2</div>
+          <div class="tc-title">Essay / Opinion</div>
+          <div class="tc-desc">Discuss, argue or give your opinion on an issue. Min. 250 words.</div>
+          <div class="tc-criteria">
+            <span class="tc-crit">TR</span><span class="tc-crit">CC</span>
+            <span class="tc-crit">LR</span><span class="tc-crit">GRA</span>
+          </div>
+        </div>
+        <div class="aw-task-card t1" data-tt="task1">
+          <div class="tc-badge"><span class="tc-num">1</span> Task 1</div>
+          <div class="tc-title">Data / Chart / Diagram</div>
+          <div class="tc-desc">Describe, summarise or compare visual data. Min. 150 words.</div>
+          <div class="tc-criteria">
+            <span class="tc-crit">TA</span><span class="tc-crit">CC</span>
+            <span class="tc-crit">LR</span><span class="tc-crit">GRA</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ② Chart type chips — Task 1 only -->
+    <div class="aw-field aw-chart-field" id="chartTypeField">
+      <label class="aw-label">Chart / Diagram Type <span style="font-weight:400;color:var(--aw-ink-3)">(giúp AI chấm đúng rubric TA)</span></label>
+      <div class="aw-chart-type-row" id="chartTypeRow">
+        <span class="aw-ct-chip active" data-ct="Bar chart">📊 Bar chart</span>
+        <span class="aw-ct-chip" data-ct="Line graph">📈 Line graph</span>
+        <span class="aw-ct-chip" data-ct="Pie chart">🥧 Pie chart</span>
+        <span class="aw-ct-chip" data-ct="Table">🗃 Table</span>
+        <span class="aw-ct-chip" data-ct="Map">🗺 Map</span>
+        <span class="aw-ct-chip" data-ct="Process diagram">⚙️ Process</span>
+        <span class="aw-ct-chip" data-ct="Mixed charts">📉 Mixed</span>
+      </div>
+    </div>
+
+    <!-- ③ Title -->
+    <div class="aw-field">
+      <label class="aw-label">Title (tên bài tập)</label>
+      <input class="aw-input" id="aTopic" placeholder="VD: Week 3 — Bar Chart Practice">
+    </div>
+
+    <!-- ④ Prompt text -->
+    <div class="aw-field">
+      <label class="aw-label">Prompt (đề bài chính thức)</label>
+      <div class="aw-editor-mini-tb">
+        <button type="button" data-c="bold"><b>B</b></button>
+        <button type="button" data-c="italic"><i>I</i></button>
+        <button type="button" data-c="underline"><u>U</u></button>
+        <button type="button" data-c="insertUnorderedList">•</button>
+      </div>
+      <div class="aw-prompt-edit" id="aPrompt" contenteditable="true" data-ph="Enter the prompt / đề bài…"></div>
+    </div>
+
+    <!-- ⑤ Chart image upload — Task 1 only -->
+    <div class="aw-field aw-chart-field" id="chartUploadField">
+      <label class="aw-label">Chart / Diagram Image
+        <span style="font-weight:400;color:var(--aw-ink-3)"> — paste, drag hoặc click để chọn</span>
+      </label>
+      <div class="aw-chart-drop" id="chartDrop">
+        <span class="cd-icon">📊</span>
+        <b>Paste (Ctrl+V)</b> hoặc kéo thả ảnh biểu đồ vào đây<br>
+        <span style="font-size:.75rem;margin-top:4px;display:block">hoặc <u id="chartBrowseLink" style="cursor:pointer;color:var(--aw-primary)">chọn từ máy tính</u></span>
+      </div>
+      <input type="file" id="chartFileInput" accept="image/*" style="display:none">
+      <div class="aw-chart-preview-wrap" id="chartPreviewWrap">
+        <img id="chartPreviewImg" src="" alt="Chart preview">
+        <div class="aw-chart-preview-actions">
+          <button class="cp-replace" id="chartReplaceBtn">🔄 Thay ảnh</button>
+          <button class="cp-remove" id="chartRemoveBtn">✕ Xoá ảnh</button>
+        </div>
+        <p style="margin:5px 0 0;font-size:.73rem;color:var(--aw-ink-3)">Ảnh lưu Google Drive · Học sinh có thể thu/phóng khi làm bài.</p>
+      </div>
+    </div>
+
+    <!-- ⑥ Teacher Notes for AI -->
+    <div class="aw-field">
+      <label class="aw-label">🎓 Teacher's Notes for AI
+        <span style="font-weight:400;color:var(--aw-ink-3)">(grading rules — optional)</span>
+      </label>
+      <textarea class="aw-input" id="aAiNotes" rows="2"
+        placeholder="VD: 'Students may omit an overview — do not penalise.' hoặc 'Accept informal tone for this task.'"></textarea>
+      <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">💡 AI ưu tiên những quy tắc này hơn rubric mặc định IELTS.</p>
+    </div>
+
+    <!-- ⑦ Attempts / Duration / Deadline -->
+    <div class="aw-row" style="display:flex;gap:12px">
+      <div class="aw-field" style="flex:1" id="reqField">
+        <label class="aw-label">Required revisions</label>
+        <input class="aw-input" id="aReq" type="number" value="3" min="1" max="5">
+      </div>
+      <div class="aw-field" style="flex:1" id="durField">
+        <label class="aw-label">Duration (min)</label>
+        <input class="aw-input" id="aDur" type="number" value="40" min="5">
+      </div>
+      <div class="aw-field" style="flex:1" id="deadField">
+        <label class="aw-label">Deadline</label>
+        <input class="aw-input" id="aDead" type="date">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+      <button class="aw-btn aw-btn-ghost" id="aCancel">Cancel</button>
+      <button class="aw-btn aw-btn-primary" id="aCreate">Create & Assign</button>
+    </div>
+  </div>
+</div>
+
+<script src="aw-common.js"></script>
+<script src="aw-cefr.js"></script>
+<script src="aw-teacher-ai.js"></script>
+<script>
+if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
+if (window.AW && !AW.bumpLoginCount) { AW.bumpLoginCount = function(){}; }
+if (window.AW && !AW.groqKey) { AW.groqKey = { get:function(){return localStorage.getItem('aw_groq_key')||'';}, set:function(k){localStorage.setItem('aw_groq_key',k||'');} }; }
+</script>
+<script>
+if (typeof AW === 'undefined') {
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  throw new Error('aw-common.js not loaded');
+}
+
+var sess = AW.session.require('teacher');
+if (!sess) throw 'redirect';
+
+// selected class (persisted per teacher)
+var CLASS_KEY = 'aw_teacher_class';
+var myClasses = [];
+function curClass(){ return localStorage.getItem(CLASS_KEY) || ''; }
+function setCurClass(id){ localStorage.setItem(CLASS_KEY, id); }
+function curClassObj(){ return myClasses.filter(function(c){return c.classId===curClass();})[0]||null; }
+
+var nav = [
+  { id:'overview',   label:'Class Overview', icon:'overview', active:true },
+  { id:'live',       label:'Live Observation', icon:'live' },
+  { id:'assignments',label:'Assignments', icon:'modes' },
+  { id:'results',    label:'Results', icon:'results' },
+  { id:'queries',    label:'Feedback Queries', icon:'results' },
+  { id:'board',      label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'library',    label:'Library', icon:'library', href:'library.html' },
+  { id:'settings',   label:'Settings', icon:'settings' },
+];
+
+var content = AW.renderShell({
+  mount:'app', nav:nav, eyebrow:'Teacher Dashboard Interface', title:'Class Overview',
+  onNav:function(id){
+    stopLivePoll();
+    if(!curClass() && id!=='settings'){ AW.toast('Create or select a class first.','err'); showClasses(); AW.setActiveNav('overview'); return; }
+    if(id==='overview') showOverview();
+    else if(id==='live') showLive();
+    else if(id==='assignments') showAssignments();
+    else if(id==='results') showResults();
+    else if(id==='queries') showQueries();
+    else if(id==='settings') showSettings();
+    AW.setActiveNav(id);
+  }
+});
+
+// class selector bar injected under topbar
+function injectClassBar(){
+  var old=document.getElementById('classBar'); if(old)old.remove();
+  var bar=document.createElement('div');
+  bar.id='classBar';
+  bar.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 30px;background:var(--aw-surface);border-bottom:1px solid var(--aw-border-2);flex-wrap:wrap';
+  var opts=myClasses.map(function(c){
+    return '<option value="'+AW.esc(c.classId)+'"'+(c.classId===curClass()?' selected':'')+'>'+AW.esc(c.className)+' ('+AW.esc(c.classId)+')</option>';
+  }).join('');
+  bar.innerHTML=
+    '<span style="font-weight:600;font-size:.85rem;color:var(--aw-ink-2)">Class:</span>'+
+    '<select class="aw-select" id="classSel"'+(myClasses.length?'':' disabled')+'>'+
+      (myClasses.length?opts:'<option>No classes yet</option>')+'</select>'+
+    (curClassObj()?'<span class="aw-tag aw-tag-type">'+AW.esc(curClassObj().year||'')+(curClassObj().semester?' · HK'+AW.esc(curClassObj().semester):'')+'</span>':'')+
+    aiToggleHtml()+
+    '<button class="aw-btn aw-btn-primary" style="margin-left:auto;padding:8px 16px" id="newClassBtn">+ Create New Class</button>';
+  var main=document.querySelector('.aw-main');
+  var topbar=main.querySelector('.aw-topbar');
+  topbar.insertAdjacentElement('afterend', bar);
+  var sel=document.getElementById('classSel');
+  if(sel) sel.onchange=function(){ setCurClass(this.value); location.reload(); };
+  document.getElementById('newClassBtn').onclick=showCreateClass;
+  wireAiToggle();
+}
+
+/*──────── Experimental vs Control class ────────
+  A control class keeps every human feature (Ask Teacher, Board, raise hand)
+  but hides the AI grader and AI tutor from students, so the only difference
+  between the two groups is the thing being researched. */
+function classAiEnabled(){
+  var c = curClassObj();
+  return !c || c.aiEnabled !== false;   // default ON for existing classes
+}
+function aiToggleHtml(){
+  if(!curClassObj()) return '';
+  var on = classAiEnabled();
+  return '<button class="aw-ai-toggle'+(on?' on':'')+'" id="aiToggleBtn" '+
+    'title="'+(on?'Lớp thực nghiệm — sinh viên có AI chấm và AI Tutor':'Lớp đối chứng — sinh viên KHÔNG có AI')+'">'+
+    '<span class="aw-ai-dot"></span>'+(on?'AI: Bật':'AI: Tắt')+
+    '<span class="aw-ai-sub">'+(on?'Thực nghiệm':'Đối chứng')+'</span></button>';
+}
+function wireAiToggle(){
+  var b=document.getElementById('aiToggleBtn'); if(!b) return;
+  b.onclick=function(){
+    var on=classAiEnabled(), c=curClassObj();
+    var msg = on
+      ? 'Tắt AI cho lớp "'+c.className+'"?\n\nSinh viên sẽ KHÔNG còn: chấm điểm AI, AI Tutor, Vocabulary Profile.\nVẫn giữ: Ask Teacher, Board, Raise hand, Library, Q&A.\n\nLớp này sẽ được ghi nhận là nhóm ĐỐI CHỨNG.'
+      : 'Bật lại AI cho lớp "'+c.className+'"?\n\nSinh viên sẽ dùng được đầy đủ tính năng AI.\nLớp này sẽ được ghi nhận là nhóm THỰC NGHIỆM.';
+    if(!confirm(msg)) return;
+    b.disabled=true;
+    AW.api('class.setAiEnabled',{classId:c.classId, enabled:!on}).then(function(res){
+      if(res&&res.success){
+        c.aiEnabled = !on;
+        AW.toast(!on?'Đã bật AI — lớp thực nghiệm':'Đã tắt AI — lớp đối chứng','ok');
+        injectClassBar();
+      } else {
+        AW.toast((res&&res.error)||'Không đổi được','err');
+        b.disabled=false;
+      }
+    });
+  };
+}
+
+/*═══════════ CLASSES ═══════════*/
+function bootClasses(){
+  AW.api('class.list',{teacherEmail:sess.email}).then(function(res){
+    myClasses=(res&&res.data)||[];
+    if(myClasses.length && !curClass()) setCurClass(myClasses[0].classId);
+    injectClassBar();
+    if(!myClasses.length){ showClasses(); }
+    else { routeInitial(); }
+  });
+}
+
+function showClasses(){
+  document.getElementById('awPageTitle').textContent='My Classes';
+  if(!myClasses.length){
+    content.innerHTML='<div class="aw-empty">'+AW.icon('overview')+
+      '<p>You have no classes yet. Create your first class to begin.</p>'+
+      '<button class="aw-btn aw-btn-primary" style="margin-top:14px" onclick="showCreateClass()">+ Create New Class</button></div>';
+    return;
+  }
+  content.innerHTML='<div class="aw-grid">'+myClasses.map(function(c){
+    return '<div class="aw-lib-card" onclick="pickClass(\''+c.classId+'\')">'+
+      '<h3 class="aw-lib-title">'+AW.esc(c.className)+'</h3>'+
+      '<span class="aw-tag aw-tag-type">'+AW.esc(c.classId)+'</span> '+
+      '<span class="aw-tag aw-tag-medium">'+AW.esc(c.year||'')+(c.semester?' · HK'+AW.esc(c.semester):'')+'</span>'+
+      '<p class="aw-lib-desc">Class code to share with students: <b>'+AW.esc(c.classId)+'</b></p></div>';
+  }).join('')+'</div>';
+}
+window.pickClass=function(id){ setCurClass(id); location.reload(); };
+
+window.showCreateClass=function(){
+  var name=prompt('Class name (e.g. IELTS Writing 01):'); if(!name)return;
+  var year=prompt('Academic year (e.g. 2026-2027):','2026-2027')||'';
+  var sem=prompt('Semester (1, 2 or 3):','2')||'';
+  AW.api('class.create',{className:name,year:year,semester:sem,teacherEmail:sess.email}).then(function(res){
+    if(res&&res.success){
+      AW.toast('Class created · Code: '+res.data.classId,'ok',4000);
+      setCurClass(res.data.classId);
+      setTimeout(function(){location.reload();},800);
+    } else AW.toast((res&&res.error)||'Failed to create class','err');
+  });
+};
+
+/*═══════════ OVERVIEW ═══════════*/
+function showOverview(){
+  document.getElementById('awPageTitle').textContent='Class Overview';
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('teacher.getOverview',{class:curClass()}).then(function(res){
+    var d=(res&&res.data)||{avgScore:0,totalEssays:0,activeStudents:0,feedbackPending:0};
+    content.innerHTML=
+      '<div id="todaysWord"></div>' +
+      '<div class="aw-kpi-row">' +
+        kpi('Average Class Score', d.avgScore||'—') +
+        kpi('Total Essays Submitted', d.totalEssays) +
+        kpi('Active Students', d.activeStudents) +
+        kpi('Feedback Pending', d.feedbackPending) +
+      '</div>' +
+      '<div class="aw-two-col">' +
+        '<div class="aw-panel"><h3 style="margin:0 0 14px">Class Roster <span id="rosterCount" style="color:var(--aw-ink-3);font-weight:400;font-size:.85rem"></span></h3><div id="roster"></div></div>' +
+        '<div class="aw-panel"><h3 style="margin:0 0 14px">Quick Actions</h3>' +
+          '<button class="aw-btn aw-btn-primary aw-btn-block" style="margin-bottom:10px" onclick="document.querySelector(\'[data-nav=assignments]\').click()">+ New Assignment</button>' +
+          '<button class="aw-btn aw-btn-ghost aw-btn-block" style="margin-bottom:10px" onclick="document.querySelector(\'[data-nav=live]\').click()">Go to Live Observation</button>' +
+          '<button class="aw-btn aw-btn-ghost aw-btn-block" onclick="showClasses()">Manage Classes</button>' +
+        '</div>' +
+      '</div>';
+    loadRecent();
+    loadRoster();
+    AW.renderTodaysWord('todaysWord');
+  });
+}
+function kpi(label,val){return '<div class="aw-kpi"><div class="aw-kpi-label">'+label+'</div><div class="aw-kpi-value">'+val+'</div></div>';}
+function loadRecent(){
+  AW.api('teacher.getResults',{class:curClass(),mode:'homework'}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var box=document.getElementById('recent');
+    if(!box)return;
+    if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No submissions yet.</p>';return;}
+    box.innerHTML=rows.slice(-6).reverse().map(function(g){
+      var last=g.writes[g.writes.length-1]||{};
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
+        '<span>'+AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</span>'+
+        '<b class="'+AW.scoreClass(last.overall)+'">'+(last.overall||'—')+'</b></div>';
+    }).join('');
+  });
+}
+function loadRoster(){
+  AW.api('class.roster',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var box=document.getElementById('roster');
+    var cnt=document.getElementById('rosterCount');
+    if(!box)return;
+    if(cnt)cnt.textContent='('+rows.length+' students)';
+    if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No students have joined this class yet. Share class code <b>'+AW.esc(curClass())+'</b> with students.</p>';return;}
+    box.innerHTML=rows.map(function(s){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
+        '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
+        '<span style="display:flex;gap:8px;align-items:center"><span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span>'+
+        '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem;color:var(--aw-danger)" onclick="archiveStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\')">Archive</button></span></div>';
+    }).join('');
+  });
+}
+
+/*═══════════ LIVE OBSERVATION ═══════════*/
+/* IELTS band rounding: .25–.74 → .5, otherwise to the nearest whole band.
+   Shared by the Results table and the Live Observation scoring panel. */
+/* Compact CEFR vocabulary profile for the teacher essay modal.
+   Same difficulty ramp as the student view: green (easy) → red (hardest). */
+var AW_CEFR_BANDS = [
+  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',         color:'#2E9367' },
+  { key:'B1',   label:'B1',    sub:'Trung cấp',      color:'#0A6EBD' },
+  { key:'B2',   label:'B2',    sub:'Trên trung cấp', color:'#E0A32E' },
+  { key:'C1',   label:'C1',    sub:'Nâng cao',       color:'#E8730C' },
+  { key:'C2',   label:'C2',    sub:'Thành thạo',     color:'#D93025' }
+];
+function renderTeacherVocab(p){
+  if(!p || !p.totalWords) return '';
+  var pct = {
+    A1A2: Math.round((p.pctByLevel.A1 + p.pctByLevel.A2) * 10) / 10,
+    B1: p.pctByLevel.B1, B2: p.pctByLevel.B2, C1: p.pctByLevel.C1, C2: p.pctByLevel.C2
+  };
+  var segs = AW_CEFR_BANDS.map(function(b){
+    var w = pct[b.key]; if(w<=0) return '';
+    return '<div title="'+b.label+': '+w+'%" style="width:'+w+'%;background:'+b.color+'"></div>';
+  }).join('');
+  var rows = AW_CEFR_BANDS.map(function(b){
+    var w = pct[b.key];
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">'+
+      '<div style="width:112px;flex:0 0 auto;line-height:1.25"><b style="font-size:.82rem;color:'+b.color+'">'+b.label+'</b>'+
+        '<div style="font-size:.68rem;color:var(--aw-ink-3)">'+b.sub+'</div></div>'+
+      '<div style="flex:1;height:13px;background:var(--aw-surface-2);border-radius:7px;overflow:hidden">'+
+        '<div style="height:100%;width:'+w+'%;min-width:3px;border-radius:7px;background:'+b.color+'"></div></div>'+
+      '<div style="width:46px;text-align:right;font-size:.8rem;font-weight:700">'+w+'%</div></div>';
+  }).join('');
+  return '<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:14px 0 6px">📊 Vocabulary Profile (CEFR)</h4>'+
+    '<div style="display:flex;height:13px;border-radius:7px;overflow:hidden;margin-bottom:12px;background:var(--aw-surface-2)">'+segs+'</div>'+
+    rows+
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;margin:10px 0 4px">'+
+      '<span><b style="color:#E8730C">'+p.pctAdvanced+'%</b> C1 trở lên</span>'+
+      '<span><b style="color:#E0A32E">'+p.pctUpperMid+'%</b> B2 trở lên</span>'+
+      '<span><b>'+p.diversity+'%</b> độ đa dạng</span>'+
+      '<span><b>'+p.uniqueLemmas+'</b> từ khác nhau</span>'+
+    '</div>'+
+    '<p style="font-size:.72rem;color:var(--aw-ink-3);margin:0 0 10px">Độ đa dạng = số từ khác nhau ÷ tổng số từ (đếm theo từ gốc). '+p.listed+'/'+p.totalWords+' từ nằm trong thang CEFR.</p>'+
+    renderTeacherVocabWords(p);
+}
+
+/* Higher-level words the student actually used (B1+), for the teacher modal. */
+function renderTeacherVocabWords(p){
+  if(!p.wordsByLevel) return '';
+  var bands=[
+    {key:'C2',label:'C2',color:'#D93025'},
+    {key:'C1',label:'C1',color:'#E8730C'},
+    {key:'B2',label:'B2',color:'#E0A32E'},
+    {key:'B1',label:'B1',color:'#0A6EBD'}
+  ];
+  var blocks=bands.map(function(b){
+    var words=p.wordsByLevel[b.key]||[];
+    if(!words.length) return '';
+    var chips=words.map(function(w){
+      return '<span style="font-size:.76rem;border:1px solid '+b.color+';color:'+b.color+';border-radius:11px;padding:1px 9px;background:#fff;line-height:1.4">'+AW.esc(w)+'</span>';
+    }).join(' ');
+    return '<div style="margin-bottom:7px"><b style="font-size:.74rem;color:'+b.color+'">'+b.label+' <span style="font-weight:400;opacity:.7">('+words.length+')</span></b>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">'+chips+'</div></div>';
+  }).join('');
+  if(!blocks) return '';
+  return '<div style="margin-top:8px;padding-top:10px;border-top:1px solid var(--aw-border-2)">'+
+    '<div style="font-size:.78rem;font-weight:700;margin-bottom:8px">💡 Từ vựng B1+ sinh viên đã dùng</div>'+blocks+'</div>';
+}
+
+function awIeltsRound(avg){
+  var whole=Math.floor(avg), frac=avg-whole;
+  if(frac<0.25) return whole;
+  if(frac<0.75) return whole+0.5;
+  return whole+1;
+}
+/* Wire 4 criterion inputs so the overall box fills itself in.
+   The teacher can still type over it — a manual value is never overwritten
+   unless they change a criterion again. */
+function wireAutoOverall(critInputs, overallInput){
+  if(!overallInput || !critInputs.length) return;
+  function recalc(){
+    var nums=[];
+    critInputs.forEach(function(x){ var v=parseFloat(x.value); if(!isNaN(v)) nums.push(v); });
+    if(nums.length===critInputs.length){
+      var avg=nums.reduce(function(a,b){return a+b;},0)/nums.length;
+      overallInput.value=awIeltsRound(avg);
+    }
+  }
+  critInputs.forEach(function(inp){
+    if(inp.dataset.autoOa) return;   // already wired (modal reopened)
+    inp.dataset.autoOa='1';
+    inp.addEventListener('input', recalc);
+  });
+}
+
+var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all', liveView='grid';
+function showLive(){
+  document.getElementById('awPageTitle').textContent='Live Observation';
+  // load inclass assignments for filter
+  AW.api('write.getAssignments',{class:curClass(),mode:'inclass'}).then(function(res){
+    var tasks=(res&&res.data)||[];
+    var taskOpts='<option value="all">All in-class tasks</option>'+
+      tasks.map(function(t){return '<option value="'+AW.esc(t.topicId)+'">'+AW.esc(t.topic)+'</option>';}).join('');
+    content.innerHTML=
+      '<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
+        '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
+        '<div style="display:flex;gap:2px;background:var(--aw-surface-2);border-radius:8px;padding:3px">'+
+          '<button class="aw-btn" id="viewGrid" style="padding:5px 12px;font-size:.8rem">▦ Grid</button>'+
+          '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
+        '</div>'+
+        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 6s · Click a student to view &amp; annotate</span>'+
+      '</div>'+
+      '<div class="aw-live-wrap">' +
+        '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
+        '<div class="aw-live-side"><h4>🙋 Live Questions <span id="liveQCount" style="font-weight:400;color:var(--aw-danger)"></span></h4>' +
+          '<div id="liveQuestions" style="margin-bottom:16px"><p style="font-size:.8rem;color:var(--aw-ink-3)">No questions yet.</p></div>' +
+          '<h4>Session Stats</h4><div id="liveStats"></div>' +
+          '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
+      '</div>';
+    document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
+    function setView(v){ liveView=v;
+      document.getElementById('viewGrid').style.background=v==='grid'?'var(--aw-primary)':'';
+      document.getElementById('viewGrid').style.color=v==='grid'?'#fff':'';
+      document.getElementById('viewList').style.background=v==='list'?'var(--aw-primary)':'';
+      document.getElementById('viewList').style.color=v==='list'?'#fff':'';
+      renderLive();
+    }
+    document.getElementById('viewGrid').onclick=function(){setView('grid');};
+    document.getElementById('viewList').onclick=function(){setView('list');};
+    setView('grid');
+    pollLive();
+    livePoll=setInterval(pollLive, 6000);
+  });
+}
+function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
+function pollLive(){
+  AW.api('teacher.getLive',{class:curClass()}).then(function(res){
+    // Live Observation only tracks students doing In-class Practice
+    liveData=((res&&res.data)||[]).filter(function(s){ return s.mode==='inclass'; });
+    renderLive();
+  });
+  pollLiveQuestions();
+}
+function pollLiveQuestions(){
+  AW.api('query.listLive',{class:curClass()}).then(function(res){
+    var qs=(res&&res.data)||[];
+    var open=qs.filter(function(q){return q.status==='open';});
+    var box=document.getElementById('liveQuestions'); if(!box)return;
+    var cnt=document.getElementById('liveQCount'); if(cnt)cnt.textContent=open.length?('· '+open.length+' new'):'';
+    if(!qs.length){ box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">No questions yet.</p>'; return; }
+    box.innerHTML=qs.slice(0,8).map(function(q){
+      var answered=q.status==='answered';
+      return '<div style="border:1px solid var(--aw-border-2);border-radius:10px;padding:9px 11px;margin-bottom:8px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
+        '<div style="font-size:.76rem;color:var(--aw-ink-3);margin-bottom:3px"><b style="color:var(--aw-ink)">'+AW.esc(q.studentName||q.studentId)+'</b> · '+AW.esc(q.topic||'')+'</div>'+
+        '<div style="font-size:.85rem;margin-bottom:6px">'+AW.esc(q.question)+'</div>'+
+        (answered
+          ? '<div style="font-size:.8rem;background:#EAF6EF;border-radius:6px;padding:5px 8px"><b style="color:var(--aw-writing)">You:</b> '+AW.esc(q.answer)+'</div>'+
+            '<button class="aw-btn aw-btn-ghost lqShare" data-id="'+AW.esc(q.queryId)+'" data-shared="'+(q.shared?'1':'0')+'" style="padding:2px 10px;font-size:.72rem;margin-top:5px">'+(q.shared?'✓ Shared':'Share to class')+'</button>'
+          : '<div style="display:flex;gap:5px"><input class="aw-input lqAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Quick answer…" style="flex:1;padding:5px 8px;font-size:.8rem"><button class="aw-btn aw-btn-primary lqSend" data-id="'+AW.esc(q.queryId)+'" style="padding:5px 10px;font-size:.75rem">Reply</button></div>')+
+      '</div>';
+    }).join('');
+    AW.els('.lqSend').forEach(function(b){ b.onclick=function(){
+      var inp=document.querySelector('.lqAns[data-id="'+b.dataset.id+'"]'); var a=inp.value.trim();
+      if(!a){AW.toast('Type a reply','err');return;}
+      AW.api('query.answer',{queryId:b.dataset.id,answer:a}).then(function(r){ if(r&&r.success){AW.toast('Replied','ok');pollLiveQuestions();} });
+    };});
+    AW.els('.lqShare').forEach(function(b){ b.onclick=function(){
+      var mk=b.dataset.shared!=='1';
+      AW.api('query.share',{queryId:b.dataset.id,shared:mk}).then(function(r){ if(r&&r.success){AW.toast(mk?'Shared':'Unshared','ok');pollLiveQuestions();} });
+    };});
+  });
+}
+function renderLive(){
+  var grid=document.getElementById('liveGrid'); if(!grid)return;
+  var filtered = (liveTaskFilter==='all') ? liveData :
+    liveData.filter(function(s){ return String(s.topicId)===String(liveTaskFilter); });
+  if(!filtered.length){
+    grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>No students are currently doing In-class Practice. Create an in-class task first.</p></div>';
+    document.getElementById('liveStats').innerHTML='';return;
+  }
+  var counts={Writing:0,Idle:0,Offline:0,Submitted:0};
+  filtered.forEach(function(s){ counts[s.status]=(counts[s.status]||0)+1; });
+  grid.className = (liveView==='list') ? 'aw-live-list' : 'aw-live-grid';
+  grid.innerHTML=filtered.map(function(s){
+    var dot=s.status==='Writing'?'writing':s.status==='Idle'?'idle':s.status==='Submitted'?'submitted':'offline';
+    var init=(s.name||s.studentId).split(/\s+/).map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();
+    var hand = s.raisedHand ? '<span title="Raised hand" style="margin-left:6px">✋</span>' : '';
+    var lower = s.raisedHand
+      ? '<button class="aw-lower-hand" data-lower="'+AW.esc(s.studentId)+'" data-name="'+AW.esc(s.name||s.studentId)+'" title="Mark as handled — lowers the student\'s hand">✓ Lower hand</button>'
+      : '';
+    // Only students who have actually been pushed feedback get the review button.
+    var fbBtn = s.hasFeedback
+      ? '<button class="aw-live-fb" data-fb="'+AW.esc(s.studentId)+'" title="Xem lại nhận xét bạn đã gửi cho sinh viên này">💬 Xem nhận xét</button>'
+      : '';
+    if(liveView==='list'){
+      return '<div class="aw-live-row'+(liveSelected===s.studentId?' sel':'')+(s.raisedHand?' hand':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
+        '<div class="aw-live-av sm">'+AW.esc(init)+'</div>' +
+        '<div style="flex:1"><b>'+AW.esc(s.name||s.studentId)+'</b>'+hand+'<div style="font-size:.75rem;color:var(--aw-ink-3)">'+AW.esc(s.studentId)+'</div></div>' +
+        lower +
+        fbBtn +
+        '<div style="font-size:.8rem;color:var(--aw-ink-3);margin:0 12px">'+(parseInt(s.wordCount)||0)+' words</div>' +
+        '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div></div>';
+    }
+    return '<div class="aw-live-cell'+(liveSelected===s.studentId?' sel':'')+(s.raisedHand?' hand':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
+      '<div class="aw-live-av">'+AW.esc(init)+'</div>' +
+      '<div class="aw-live-name">'+AW.esc(s.name||s.studentId)+hand+'</div>' +
+      fbBtn +
+      '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div>' +
+      lower + '</div>';
+  }).join('');
+  var totalWords=filtered.reduce(function(a,s){return a+(parseInt(s.wordCount)||0);},0);
+  document.getElementById('liveStats').innerHTML=
+    statRow('Writing',counts.Writing||0)+statRow('Idle',counts.Idle||0)+
+    statRow('Offline',counts.Offline||0)+statRow('Submitted',counts.Submitted||0)+
+    '<hr style="border:none;border-top:1px solid var(--aw-border-2);margin:10px 0">'+
+    statRow('Total words',totalWords);
+  AW.els('.aw-live-cell, .aw-live-row').forEach(function(c){
+    c.onclick=function(){
+      liveSelected=c.dataset.sid;
+      var s=filtered.filter(function(x){return String(x.studentId)===String(liveSelected);})[0];
+      if(s) openAnnotation(s);
+    };
+  });
+  AW.els('.aw-lower-hand').forEach(function(b){
+    b.onclick=function(e){
+      e.stopPropagation();               // don't open the student's essay
+      lowerStudentHand(b.dataset.lower, b.dataset.name, b);
+    };
+  });
+  AW.els('.aw-live-fb').forEach(function(b){
+    b.onclick=function(e){
+      e.stopPropagation();               // review only — don't open the editor
+      var s=filtered.filter(function(x){return String(x.studentId)===String(b.dataset.fb);})[0];
+      if(s) openFeedbackReview(s);
+    };
+  });
+}
+/* Teacher marks a raised hand as handled. Clears the flag server-side and
+   updates the view straight away rather than waiting for the next poll. */
+function lowerStudentHand(studentId, name, btn){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  AW.api('write.raiseHand',{ studentId:studentId, raised:false }).then(function(res){
+    if(res&&res.success){
+      AW.toast('Lowered '+(name||'student')+"'s hand",'ok');
+      liveData.forEach(function(s){ if(String(s.studentId)===String(studentId)) s.raisedHand=false; });
+      delete _seenHands[studentId];      // so a new raise notifies again
+      renderLive();
+    } else {
+      AW.toast('Could not lower the hand','err');
+      if(btn){ btn.disabled=false; btn.textContent='✓ Lower hand'; }
+    }
+  });
+}
+function statRow(l,v){return '<div class="aw-stat-row"><span>'+l+'</span><b>'+v+'</b></div>';}
+
+/*═══════════ ANNOTATION MODAL — Google-Docs-style inline editing ═══════════
+  The doc is contentEditable. Selecting text + choosing a tool wraps the
+  selection in a styled span (strikethrough + green insertion, highlight,
+  or comment). Suggestions are also recorded in a structured list so they
+  can be saved to the backend and reviewed.
+─────────────────────────────────────────────────────────────────*/
+var currentAnnot={ studentId:null, topicId:null, mode:null, suggestions:[] };
+var mText=document.getElementById('mText');
+var selPop=document.getElementById('selPop');
+var savedRange=null;
+
+/* Read-only review of the feedback the teacher already pushed to a student.
+   Completely separate from openAnnotation (the editor): it never touches mText
+   or currentAnnot, so viewing an old suggestion can't disturb the live essay
+   the teacher may be marking up. */
+function openFeedbackReview(s){
+  var bg=document.getElementById('fbReviewBg');
+  if(!bg){
+    bg=document.createElement('div');
+    bg.id='fbReviewBg'; bg.className='aw-fbrev-bg';
+    bg.innerHTML='<div class="aw-fbrev-box" id="fbReviewBox"></div>';
+    bg.addEventListener('click',function(e){ if(e.target===bg) bg.classList.remove('show'); });
+    document.body.appendChild(bg);
+  }
+  document.getElementById('fbReviewBox').innerHTML=
+    '<div class="aw-fbrev-head">'+
+      '<h2>💬 '+AW.esc(s.name||s.studentId)+'</h2>'+
+      '<button class="aw-btn" style="background:#E5484D;color:#fff;padding:6px 16px" onclick="document.getElementById(\'fbReviewBg\').classList.remove(\'show\')">✕ Đóng</button>'+
+    '</div>'+
+    '<div class="aw-fbrev-body" id="fbReviewBody"><p style="color:var(--aw-ink-3)">Đang tải…</p></div>';
+  bg.classList.add('show');
+
+  AW.api('teacher.getAnnotation',{studentId:s.studentId, topicId:s.topicId}).then(function(res){
+    var body=document.getElementById('fbReviewBody'); if(!body) return;
+    if(!res||!res.success||!res.data||!res.data.annotatedHtml){
+      body.innerHTML='<p style="color:var(--aw-ink-3)">Chưa có nhận xét nào được gửi cho sinh viên này.</p>';
+      return;
+    }
+    var d=res.data, when='';
+    try{ if(d.timestamp){ var dt=new Date(d.timestamp); if(!isNaN(dt)) when=dt.toLocaleString('vi-VN'); } }catch(e){}
+    var scoreLine=(d.tr||d.cc||d.lr||d.gra)
+      ? '<div style="font-size:.82rem;color:var(--aw-ink-2);margin:0 0 8px">Điểm đã gửi: TR '+(d.tr||'—')+' · CC '+(d.cc||'—')+' · LR '+(d.lr||'—')+' · GRA '+(d.gra||'—')+'</div>'
+      : '';
+    var noteLine=d.note && d.note!=='push' ? '<div style="font-size:.85rem;margin:0 0 8px"><b>Ghi chú:</b> '+AW.esc(d.note)+'</div>' : '';
+    body.innerHTML=
+      '<div style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 8px">📩 Đã gửi'+(when?' lúc '+when:'')+(d.teacher?' · '+AW.esc(d.teacher):'')+'</div>'+
+      scoreLine+noteLine+
+      '<div class="aw-fbrev-content">'+d.annotatedHtml+'</div>'+
+      '<p style="font-size:.74rem;color:var(--aw-ink-3);margin:8px 0 0">Đỏ gạch = lỗi · Xanh = sửa · Vàng = nhấn mạnh. Đây là bản bạn đã Push cho sinh viên.</p>';
+  }).catch(function(){
+    var body=document.getElementById('fbReviewBody');
+    if(body) body.innerHTML='<p style="color:var(--aw-danger)">Không tải được nhận xét.</p>';
+  });
+}
+
+function openAnnotation(s){
+  currentAnnot={ studentId:s.studentId, topicId:s.topicId, mode:s.mode, suggestions:[] };
+  document.getElementById('mStudent').textContent=s.name||s.studentId;
+  document.getElementById('mTopic').textContent=s.topic?('· '+s.topic):'';
+  mText.textContent=s.snapshot||'(chưa có nội dung)';
+  mText.setAttribute('contenteditable','true');
+  document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';
+  ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
+  // Overall fills itself in from the 4 criteria (IELTS rounding)
+  wireAutoOverall(
+    ['sTR','sCC','sLR','sGRA'].map(function(id){ return document.getElementById(id); }),
+    document.getElementById('sOverall')
+  );
+  document.getElementById('modalBg').classList.add('show');
+  // wire toolbar buttons to trigger same actions as popup
+  document.getElementById('annBold').onclick=function(){ document.execCommand('bold'); };
+  document.getElementById('annItalic').onclick=function(){ document.execCommand('italic'); };
+  document.getElementById('annUnder').onclick=function(){ document.execCommand('underline'); };
+  document.getElementById('annSug').onclick=function(){ triggerAnnotation('suggest'); };
+  document.getElementById('annStrike').onclick=function(){ triggerAnnotation('strike'); };
+  document.getElementById('annHl').onclick=function(){ triggerAnnotation('highlight'); };
+  document.getElementById('annComment').onclick=function(){ triggerAnnotation('comment'); };
+  // font size on the SELECTION (this is part of the essay HTML → pushed to student)
+  document.getElementById('annFontUp').onclick=function(){ annChangeFont(1); };
+  document.getElementById('annFontDown').onclick=function(){ annChangeFont(-1); };
+  document.getElementById('annClear').onclick=annClearFormat;
+  // zoom = TEACHER VIEW ONLY (inline style on the container, never part of innerHTML)
+  document.getElementById('annZoomIn').onclick=function(){ annZoom(1); };
+  document.getElementById('annZoomOut').onclick=function(){ annZoom(-1); };
+  document.getElementById('annZoomReset').onclick=function(){ annZoomLevel=100; applyAnnZoom(); };
+  annZoomLevel=100; applyAnnZoom();
+}
+/*── teacher-only zoom: scales what the teacher (and the class projector) sees.
+    Applied as an inline style on the container, so it is NOT included in
+    mText.innerHTML and never reaches the student's copy. ──*/
+var annZoomLevel=100;
+function applyAnnZoom(){
+  mText.style.fontSize=(16*annZoomLevel/100).toFixed(1)+'px';
+  var lbl=document.getElementById('annZoomLbl'); if(lbl)lbl.textContent=annZoomLevel+'%';
+}
+function annZoom(dir){
+  var steps=[80,90,100,120,140,160,180,200,250,300];
+  var i=steps.indexOf(annZoomLevel); if(i===-1)i=2;
+  i=Math.max(0,Math.min(steps.length-1,i+(dir>0?1:-1)));
+  annZoomLevel=steps[i]; applyAnnZoom();
+}
+// font size applied to the selected text (becomes part of the essay markup)
+function annChangeFont(dir){
+  var sizes=[14,16,18,20,24,28,32,40,48,64,80,100,120];
+  var sel=window.getSelection();
+  if(!sel.rangeCount || sel.isCollapsed){ AW.toast('Select some text first','err'); return; }
+  var node=sel.anchorNode; node=node.nodeType===3?node.parentNode:node;
+  var cur=parseInt(window.getComputedStyle(node).fontSize,10)||16;
+  var i=0,best=1e9; sizes.forEach(function(s,si){var d=Math.abs(s-cur);if(d<best){best=d;i=si;}});
+  i=Math.max(0,Math.min(sizes.length-1,i+(dir>0?1:-1)));
+  var px=sizes[i];
+  var range=sel.getRangeAt(0), span=document.createElement('span');
+  span.style.fontSize=px+'px';
+  try{
+    span.appendChild(range.extractContents()); range.insertNode(span);
+    sel.removeAllRanges(); var nr=document.createRange(); nr.selectNodeContents(span); sel.addRange(nr);
+  }catch(e){ document.execCommand('fontSize',false,dir>0?'5':'3'); }
+  AW.toast('Font size: '+px+'px'+(px===120?' (max)':''),'ok',1000);
+}
+function annClearFormat(){
+  var sel=window.getSelection();
+  if(!sel.rangeCount || sel.isCollapsed){ AW.toast('Select some text first','err'); return; }
+  document.execCommand('removeFormat', false, null);
+  document.execCommand('hiliteColor', false, 'transparent');
+  document.execCommand('backColor', false, 'transparent');
+  // strip leftover inline styles (font-size spans, suggestion marks) inside the selection
+  var r=sel.getRangeAt(0);
+  var tmp=document.createElement('div'); tmp.appendChild(r.cloneContents());
+  tmp.querySelectorAll('[style]').forEach(function(el){ el.removeAttribute('style'); });
+  var plain=tmp.innerHTML;
+  r.deleteContents();
+  r.insertNode(document.createRange().createContextualFragment(plain));
+  AW.toast('Formatting cleared','ok',1000);
+}
+function triggerAnnotation(type){
+  // save current selection if any, or re-use savedRange
+  var sel=window.getSelection();
+  if(sel.rangeCount && sel.toString().trim()) savedRange=sel.getRangeAt(0).cloneRange();
+  if(type==='suggest') document.getElementById('popSuggest').onclick();
+  else if(type==='strike') document.getElementById('popStrike').onclick();
+  else if(type==='highlight') document.getElementById('popHl').onclick();
+  else if(type==='comment') document.getElementById('popComment').onclick();
+}
+// Push to Student — saves the marked-up snapshot to the Annotations tab.
+// write.html polls write.getAnnotation and shows it to the student read-only.
+document.getElementById('pushFb').onclick=function(){
+  var btn=this; btn.disabled=true; var o=btn.innerHTML;
+  btn.innerHTML='<span class="aw-spin"></span>';
+  AW.api('teacher.saveAnnotation',{
+    studentId:currentAnnot.studentId, topicId:currentAnnot.topicId, mode:currentAnnot.mode,
+    teacher:sess.name||sess.email, suggestions:currentAnnot.suggestions,
+    annotatedHtml: mText.innerHTML,
+    tr:'', cc:'', lr:'', gra:'', note:'push', teacherGrading:''
+  }).then(function(res){
+    if(res&&res.success) AW.toast('Feedback pushed to student','ok');
+    else AW.toast('Failed to send','err');
+  }).finally(function(){ btn.disabled=false; btn.innerHTML=o; });
+};
+document.getElementById('mClose').onclick=function(){
+  document.getElementById('modalBg').classList.remove('show');liveSelected=null;selPop.classList.remove('show');
+};
+
+// show popup on selection within the doc
+mText.addEventListener('mouseup',function(e){
+  var sel=window.getSelection();
+  var txt=sel.toString().trim();
+  if(txt && sel.rangeCount){
+    savedRange=sel.getRangeAt(0).cloneRange();
+    selPop.style.left=Math.max(8,e.clientX-40)+'px';
+    selPop.style.top=Math.max(8,e.clientY-48)+'px';
+    selPop.classList.add('show');
+  } else {
+    selPop.classList.remove('show');
+  }
+});
+document.addEventListener('mousedown',function(e){
+  if(!selPop.contains(e.target) && e.target!==mText && !mText.contains(e.target)) selPop.classList.remove('show');
+});
+
+function restoreSelection(){
+  if(!savedRange) return null;
+  var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(savedRange);
+  return savedRange;
+}
+
+// wrap current selection in a span with given class; optionally append inserted text
+function wrapSelection(cls, insertAfterText){
+  var range=restoreSelection(); if(!range) return '';
+  var original=range.toString();
+  var span=document.createElement('span');
+  span.className=cls;
+  try{ range.surroundContents(span); }
+  catch(e){ // selection spans multiple nodes → extract + wrap
+    var frag=range.extractContents(); span.appendChild(frag); range.insertNode(span);
+  }
+  if(insertAfterText){
+    var ins=document.createElement('span');
+    ins.className='aw-sug-ins'; ins.textContent=' '+insertAfterText;
+    span.parentNode.insertBefore(ins, span.nextSibling);
+  }
+  selPop.classList.remove('show');
+  return original;
+}
+
+// Suggest edit: strike original (red) + insert replacement (green)
+document.getElementById('popSuggest').onclick=function(){
+  var orig=savedRange?savedRange.toString():'';
+  var sug=prompt('Đề xuất sửa "'+orig+'" thành:');
+  if(sug){ wrapSelection('aw-sug-del', sug); recordSuggestion(orig,sug,'edit'); }
+  else selPop.classList.remove('show');
+};
+// Strikethrough only (delete suggestion)
+document.getElementById('popStrike').onclick=function(){
+  var orig=wrapSelection('aw-sug-del',''); if(orig)recordSuggestion(orig,'','strike');
+};
+// Highlight
+document.getElementById('popHl').onclick=function(){
+  var orig=wrapSelection('aw-hl',''); if(orig)recordSuggestion(orig,'','highlight');
+};
+// Comment (dotted underline + note)
+document.getElementById('popComment').onclick=function(){
+  var orig=savedRange?savedRange.toString():'';
+  var note=prompt('Bình luận cho "'+orig+'":');
+  if(note){
+    var range=restoreSelection();
+    var span=document.createElement('span');
+    span.className='aw-doc-comment'; span.title=note;
+    try{range.surroundContents(span);}catch(e){var f=range.extractContents();span.appendChild(f);range.insertNode(span);}
+    recordSuggestion(orig,note,'comment');
+  }
+  selPop.classList.remove('show');
+};
+
+function recordSuggestion(orig,sug,type){
+  currentAnnot.suggestions.push({original:orig,suggestion:sug,type:type});
+  renderSuggestions();
+}
+function renderSuggestions(){
+  var box=document.getElementById('suggestList');
+  if(!currentAnnot.suggestions.length){box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';return;}
+  var labels={edit:'→',strike:'✕ delete',highlight:'🖍',comment:'💬'};
+  box.innerHTML=currentAnnot.suggestions.map(function(s,i){
+    var mid = s.type==='edit' ? ' → <span class="sug">'+AW.esc(s.suggestion)+'</span>'
+            : s.type==='comment' ? ' <i style="color:var(--aw-accent-dk)">💬 '+AW.esc(s.suggestion)+'</i>'
+            : ' <i>'+ (labels[s.type]||'') +'</i>';
+    return '<div class="aw-suggest"><span class="orig">'+AW.esc(s.original)+'</span>'+mid+
+      ' <button onclick="rmSuggest('+i+')" style="float:right;border:none;background:none;color:var(--aw-danger);cursor:pointer">✕</button></div>';
+  }).join('');
+}
+window.rmSuggest=function(i){currentAnnot.suggestions.splice(i,1);renderSuggestions();};
+
+document.getElementById('saveFb').onclick=function(){
+  var overall=document.getElementById('sOverall').value;
+  var btn=this; btn.disabled=true; var orig=btn.textContent; btn.innerHTML='<span class="aw-spin"></span>';
+  AW.api('teacher.saveAnnotation',{
+    studentId:currentAnnot.studentId, topicId:currentAnnot.topicId, mode:currentAnnot.mode,
+    teacher:sess.name||sess.email, suggestions:currentAnnot.suggestions,
+    annotatedHtml: mText.innerHTML,
+    tr:document.getElementById('sTR').value, cc:document.getElementById('sCC').value,
+    lr:document.getElementById('sLR').value, gra:document.getElementById('sGRA').value,
+    note:'', teacherGrading:overall
+  }).then(function(res){
+    if(res&&res.success){AW.toast('Đã lưu nhận xét & điểm','ok');document.getElementById('modalBg').classList.remove('show');}
+    else AW.toast('Lưu thất bại','err');
+  }).finally(function(){ btn.disabled=false; btn.textContent=orig; });
+};
+
+/*═══════════ RESULTS ═══════════*/
+// Newest submission first by default: a teacher opening Results almost always
+// wants to see who has just handed something in, not who is alphabetically first.
+var resultsData=[], resultsSort={key:'latest',dir:-1};   // dir: 1 = ascending, -1 = descending
+
+/* Which submissions this teacher has already opened.
+   Stored per device and keyed by group, with the timestamp that was current
+   when it was viewed — so if the student submits AGAIN later, the newer
+   timestamp beats the stored one and the badge comes back. */
+var LS_SEEN='aw_seen_results';
+function getSeenMap(){ try{ return JSON.parse(localStorage.getItem(LS_SEEN))||{}; }catch(e){ return {}; } }
+function markResultSeen(gkey, ts){
+  if(!gkey||!ts) return;
+  var m=getSeenMap();
+  if(!m[gkey] || m[gkey]<ts){
+    m[gkey]=ts;
+    // keep the store from growing without bound on a long-lived device
+    var keys=Object.keys(m);
+    if(keys.length>800){
+      keys.sort(function(a,b){ return m[a]-m[b]; }).slice(0, keys.length-800)
+          .forEach(function(k){ delete m[k]; });
+    }
+    try{ localStorage.setItem(LS_SEEN, JSON.stringify(m)); }catch(e){}
+  }
+}
+function isResultUnseen(gkey, ts){
+  var m=getSeenMap();
+  return !m[gkey] || m[gkey] < ts;
+}
+
+/* Most recent submission in a group, as a timestamp number (0 when unknown). */
+function groupLastTs(g){
+  var t=0;
+  (g.writes||[]).forEach(function(w){
+    var d=new Date(w.timestamp||w.finishTime||w.startTime);
+    if(!isNaN(d) && d.getTime()>t) t=d.getTime();
+  });
+  return t;
+}
+function resSortValue(g,k){
+  if(k==='latest')       return groupLastTs(g);
+  if(k==='bestResult')   return parseFloat(g.bestResult)||0;
+  if(k==='attemptCount') return (g.writes||[]).length;
+  if(k==='class')        return String(g.className||g.class||'').toLowerCase();
+  if(k==='topic')        return String(g.topic||'').toLowerCase();
+  return String(g[k]==null?'':g[k]).toLowerCase();
+}
+/* Dates and numbers read best highest-first; text reads best A→Z. */
+function resDefaultDir(k){
+  return (k==='latest'||k==='bestResult'||k==='attemptCount') ? -1 : 1;
+}
+function syncSortDirBtn(){
+  var b=document.getElementById('fSortDir'); if(!b) return;
+  b.textContent = resultsSort.dir===1 ? '↑' : '↓';
+  b.title = resultsSort.dir===1 ? 'Đang tăng dần — bấm để đảo' : 'Đang giảm dần — bấm để đảo';
+}
+function setResSort(k){
+  if(resultsSort.key===k) resultsSort.dir = -resultsSort.dir;  // same column → flip
+  else { resultsSort.key=k; resultsSort.dir=resDefaultDir(k); }
+  var sel=document.getElementById('fSort'); if(sel) sel.value=k;
+  renderResults();
+}
+/* Rows are filtered and sorted before rendering, so a row's position is NOT a
+   stable identity — using it to look up resultsData opened (and saved to) the
+   wrong student. Every row carries this key instead. */
+function resKey(g){ return String(g.studentId)+'||'+String(g.topicId||g.topic||''); }
+function findResult(key){
+  for (var i=0;i<resultsData.length;i++){ if(resKey(resultsData[i])===key) return resultsData[i]; }
+  return null;
+}
+function showResults(){
+  document.getElementById('awPageTitle').textContent='Results';
+  content.innerHTML=
+    '<div class="aw-tabs">' +
+      '<button class="aw-tab active" data-mode="inclass">In-Class Practice</button>' +
+      '<button class="aw-tab" data-mode="homework">Homework</button>' +
+      '<button class="aw-tab" data-mode="free">Free Writing</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">'+
+      '<select class="aw-select" id="fClass"><option value="">All classes</option></select>'+
+      '<select class="aw-select" id="fTopic"><option value="">All topics</option></select>'+
+      '<div class="aw-search" style="flex:1;min-width:200px">'+AW.icon('search')+'<input id="resSearch" placeholder="Name / Student ID…"></div>'+
+      '<select class="aw-select" id="fSort">'+
+        '<option value="latest">Sort: Ngày nộp</option>'+
+        '<option value="name">Sort: Name</option>'+
+        '<option value="studentId">Sort: Student ID</option>'+
+        '<option value="class">Sort: Class</option>'+
+        '<option value="topic">Sort: Title</option>'+
+        '<option value="bestResult">Sort: Best band</option>'+
+        '<option value="attemptCount">Sort: Attempts</option>'+
+      '</select>'+
+      '<button class="aw-btn aw-btn-ghost" id="fSortDir" style="padding:8px 12px;font-weight:700" title="Đảo thứ tự tăng/giảm">↓</button>'+
+      '<button class="aw-btn aw-btn-ghost" id="clearFilters" style="padding:8px 14px">Clear</button>'+
+      '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px">⤓ Export to Sheet</button>'+
+      '<span id="resCount" style="color:var(--aw-ink-3);font-size:.85rem"></span>'+
+    '</div>'+
+    '<div id="resultsBox"></div>';
+  AW.els('.aw-tab').forEach(function(t){
+    t.onclick=function(){AW.els('.aw-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');loadResults(t.dataset.mode);};
+  });
+  document.getElementById('resSearch').oninput=function(){ renderResults(); };
+  document.getElementById('fClass').onchange=function(){ renderResults(); };
+  document.getElementById('fTopic').onchange=function(){ renderResults(); };
+  var selSort=document.getElementById('fSort');
+  selSort.value=resultsSort.key;
+  selSort.onchange=function(){ resultsSort.key=this.value; resultsSort.dir=resDefaultDir(this.value); renderResults(); };
+  document.getElementById('fSortDir').onclick=function(){ resultsSort.dir=-resultsSort.dir; renderResults(); };
+  syncSortDirBtn();
+  document.getElementById('clearFilters').onclick=function(){
+    document.getElementById('resSearch').value='';
+    document.getElementById('fClass').value='';
+    document.getElementById('fTopic').value='';
+    renderResults();
+  };
+  document.getElementById('exportResults').onclick=function(){
+    var mode=document.querySelector('.aw-tab.active').dataset.mode;
+    var btn=this; btn.disabled=true; var o=btn.textContent; btn.textContent='Exporting…';
+    AW.toast('Creating Google Sheet…');
+    AW.api('teacher.exportResults',{mode:mode,class:curClass()}).then(function(res){
+      if(res&&res.success){ AW.toast('Sheet ready! ('+res.data.rows+' rows)','ok'); window.open(res.data.url,'_blank'); }
+      else AW.toast((res&&res.error)||'Export failed','err',4000);
+    }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+  };
+  loadResults('inclass');
+}
+function loadResults(mode){
+  var box=document.getElementById('resultsBox');
+  box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('teacher.getResults',{class:curClass(),mode:mode}).then(function(res){
+    resultsData=(res&&res.data)||[];
+    // populate class + topic filters
+    var classes={}, topics={};
+    resultsData.forEach(function(g){ if(g.className||g.class)classes[g.className||g.class]=1; if(g.topic)topics[g.topic]=1; });
+    var fc=document.getElementById('fClass'); if(fc){fc.innerHTML='<option value="">All classes</option>'+Object.keys(classes).map(function(c){return '<option>'+AW.esc(c)+'</option>';}).join('');}
+    var ft=document.getElementById('fTopic'); if(ft){ft.innerHTML='<option value="">All topics</option>'+Object.keys(topics).map(function(t){return '<option>'+AW.esc(t)+'</option>';}).join('');}
+    renderResults();
+  });
+}
+function scoreCell(w,grpClass,gkey,writeIdx){
+  if(!w) return '<td class="'+(grpClass||'')+'">—</td>';
+  var o=w.overall||w.teacher||'—';
+  var pop='TR '+(w.tr||'—')+' · CC '+(w.cc||'—')+' · LR '+(w.lr||'—')+' · GRA '+(w.gra||'—');
+  var clickAttr = (gkey!=null && writeIdx!=null) ? ' data-open-key="'+AW.esc(gkey)+'" data-open-wi="'+writeIdx+'"' : '';
+  return '<td class="'+(grpClass||'')+'"><span class="aw-res-overall"'+clickAttr+'>'+o+'<small>/9</small><span class="aw-res-pop">'+pop+'</span></span></td>';
+}
+function timeCells(w,grpClass){
+  var cl=grpClass||'';
+  if(!w) return '<td class="'+cl+'">—</td><td class="'+cl+'">—</td><td class="'+cl+'">—</td>';
+  function t(x){ if(!x)return '—'; var d=new Date(x); return isNaN(d)?x:(d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')); }
+  function dur(s){ if(!s)return '—'; s=parseInt(s,10); if(isNaN(s))return '—'; var m=Math.floor(s/60); return m>=60?(Math.floor(m/60)+'h'+(m%60)+'m'):(m+'m'); }
+  // Date sits under the start time rather than in its own column — the table
+  // is already wide, and the date belongs with the time it refers to.
+  function dstr(x){
+    if(!x) return '';
+    var d=new Date(x); if(isNaN(d)) return '';
+    return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2);
+  }
+  var day = dstr(w.timestamp || w.startTime);
+  var dayLine = day ? '<div class="aw-res-date">'+day+'</div>' : '';
+  return '<td class="'+cl+'">'+t(w.startTime)+dayLine+'</td><td class="'+cl+'">'+t(w.finishTime)+'</td><td class="'+cl+'">'+dur(w.duration)+'</td>';
+}
+function renderResults(){
+  var box=document.getElementById('resultsBox'); if(!box)return;
+  var q=(document.getElementById('resSearch')?document.getElementById('resSearch').value:'').toLowerCase();
+  var fClass=document.getElementById('fClass')?document.getElementById('fClass').value:'';
+  var fTopic=document.getElementById('fTopic')?document.getElementById('fTopic').value:'';
+  var rows=resultsData.filter(function(g){
+    if(fClass && (g.className||g.class)!==fClass) return false;
+    if(fTopic && g.topic!==fTopic) return false;
+    if(q && (g.name+' '+g.studentId).toLowerCase().indexOf(q)===-1) return false;
+    return true;
+  });
+  var cnt=document.getElementById('resCount'); if(cnt)cnt.textContent=rows.length+' results';
+  syncSortDirBtn();
+  if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
+  rows.sort(function(a,b){
+    var k=resultsSort.key;
+    var av=resSortValue(a,k), bv=resSortValue(b,k);
+    // Vietnamese names must collate by locale, not codepoint — a raw < compare
+    // puts "Nguyen" before "Nguyễn" and scatters names with diacritics
+    var r = (typeof av==='string')
+      ? av.localeCompare(bv,'vi',{numeric:true,sensitivity:'base'})
+      : (av<bv ? -1 : av>bv ? 1 : 0);
+    if(r) return r*resultsSort.dir;
+    // stable tie-break so equal values never shuffle between renders
+    return String(a.name||'').localeCompare(String(b.name||''),'vi',{sensitivity:'base'});
+  });
+  var writeLabels=[['First Write','grp-1','hd-1',0],['Second Write','grp-2','hd-2',1],['Third Write','grp-3','hd-3',2],['★ Best Write','grp-best','hd-best','best']];
+  // Clickable headers: click to sort, click again to reverse
+  function sortableTh(label, key, extraCls){
+    var on = resultsSort.key===key;
+    var caret = on ? (resultsSort.dir===1 ? ' ▲' : ' ▼') : '';
+    return '<th rowspan="2" class="res-sortable'+(on?' on':'')+(extraCls?' '+extraCls:'')+'" data-sortkey="'+key+'" '+
+           'title="Bấm để sắp xếp theo '+label+'">'+label+'<span class="res-caret">'+caret+'</span></th>';
+  }
+  var top='<tr>'+
+    sortableTh('Student ID','studentId','sticky')+
+    sortableTh('Name','name')+
+    sortableTh('Class','class')+
+    sortableTh('Title','topic')+
+    '<th rowspan="2">Prompt (đề bài)</th>';
+  writeLabels.forEach(function(l){
+    top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>';
+  });
+  top+='<th rowspan="2" class="hd-best">Attempts & Score</th><th rowspan="2" style="background:#2E9367 !important">💬 Note for Student</th></tr><tr>';
+  writeLabels.forEach(function(l){ top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Result</th>'; });
+  top+='</tr>';
+
+  var body=rows.map(function(g){
+    var gkey=resKey(g);
+    var w=g.writes||[];
+    var best=null,bestI=-1;
+    w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall))){best=x;bestI=xi;}});
+    var groups=['grp-1','grp-2','grp-3','grp-best'];
+    var picks=[ w[0], w[1], w[2], best ];
+    var vals=w.map(function(x){return parseFloat(x.overall);}).filter(function(v){return !isNaN(v);});
+    var avg=vals.length?(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(1):'—';
+    var bestVal=best?best.overall:'—';
+    var improve=(vals.length>=2)?(vals[vals.length-1]-vals[0]).toFixed(1):null;
+    var impBadge=improve!==null?(parseFloat(improve)>=0?'<span style="color:var(--aw-writing)">▲ +'+improve+'</span>':'<span style="color:var(--aw-danger)">▼ '+improve+'</span>'):'';
+    var ts = g.teacherScore || {};
+    var attemptsCell='<div style="font-size:.78rem;line-height:1.5;width:200px;padding:2px" class="grp-best">'+
+      '<div style="margin-bottom:6px"><b>'+w.length+'/3</b> attempts · AI best <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
+      '<div style="font-weight:600;margin-bottom:3px;color:var(--aw-ink-2)">Teacher scoring:</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:5px">'+
+        '<input class="ms-in" data-f="tr" placeholder="TR" value="'+AW.esc(ts.tr||'')+'" title="Task Response">'+
+        '<input class="ms-in" data-f="cc" placeholder="CC" value="'+AW.esc(ts.cc||'')+'" title="Coherence">'+
+        '<input class="ms-in" data-f="lr" placeholder="LR" value="'+AW.esc(ts.lr||'')+'" title="Lexical">'+
+        '<input class="ms-in" data-f="gra" placeholder="GR" value="'+AW.esc(ts.gra||'')+'" title="Grammar">'+
+        '<input class="ms-in" data-f="overall" placeholder="OA" value="'+AW.esc(ts.overall||'')+'" title="Overall" style="font-weight:700;background:#FEF6E3">'+
+      '</div>'+
+      '<div style="display:flex;gap:5px;align-items:center">'+
+        '<input class="ms-note" data-f="note" placeholder="Private note (GV only)…" value="'+AW.esc(ts.note||'')+'" style="flex:1;min-width:0" title="Only you see this">'+
+        '<button class="ms-save aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.72rem;flex:0 0 auto" data-key="'+AW.esc(gkey)+'">Save</button>'+
+      '</div>'+
+      (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
+    '</div>';
+    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:110px;max-width:140px"><b>'+AW.esc(g.topic||'')+'</b></td>';
+    var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
+    var promptCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>';
+    // Flag anything handed in within the last 24h that this teacher has not
+    // opened yet. Both conditions matter: the time window stops the whole
+    // backlog lighting up, and the seen-check stops 20 badges staying on
+    // screen after the teacher has already worked through them.
+    var _last=groupLastTs(g);
+    var newBadge=(_last && (Date.now()-_last) < 86400000 && isResultUnseen(gkey,_last))
+      ? ' <span class="res-new" title="Nộp trong 24 giờ qua — chưa xem">new</span>' : '';
+    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+'</td>'+
+      '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell;
+    picks.forEach(function(p,pi){
+      // map pick index to actual write index (best uses bestI)
+      var realIdx = (pi<3) ? pi : bestI;
+      tds+=timeCells(p,groups[pi])+scoreCell(p,groups[pi],gkey,realIdx);
+    });
+    tds+='<td class="grp-best">'+attemptsCell+'</td>';
+    // private note column (teacher-only)
+    tds+='<td style="background:#EAF6EF;min-width:180px;vertical-align:top">'+
+      '<div style="display:flex;flex-direction:column;gap:5px;align-items:stretch">'+
+        '<textarea class="pv-note" data-key="'+AW.esc(gkey)+'" placeholder="Nhận xét gửi cho sinh viên (SV sẽ thấy)…" '+
+        'style="width:100%;min-height:56px;border:1px solid var(--aw-border);border-radius:6px;padding:6px;font-size:.78rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box">'+AW.esc(ts.privateNote||'')+'</textarea>'+
+        '<button class="pv-save aw-btn aw-btn-primary" data-key="'+AW.esc(gkey)+'" style="padding:5px 10px;font-size:.72rem;width:100%">Save note</button>'+
+      '</div></td>';
+    return '<tr data-key="'+AW.esc(gkey)+'" data-besti="'+bestI+'">'+tds+'</tr>';
+  }).join('');
+
+  box.innerHTML='<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 10px">💡 Click any <b>Result</b> score to view that attempt\'s full essay and feedback.</p>'+
+    '<div class="aw-res-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
+  // click a column header to sort by it
+  AW.els('.res-sortable').forEach(function(th){
+    th.onclick=function(){ setResSort(th.dataset.sortkey); };
+  });
+  // click a Result score to view that attempt's essay + feedback
+  AW.els('[data-open-key]').forEach(function(cell){
+    cell.style.cursor='pointer';
+    cell.title='Click to view this attempt';
+    cell.onclick=function(){ viewEssays(cell.dataset.openKey, +cell.dataset.openWi); };
+  });
+  // manual score save + auto-average overall (IELTS rounding)
+  AW.els('.grp-best').forEach(function(cell){
+    wireAutoOverall(
+      Array.prototype.slice.call(cell.querySelectorAll('.ms-in[data-f="tr"],.ms-in[data-f="cc"],.ms-in[data-f="lr"],.ms-in[data-f="gra"]')),
+      cell.querySelector('.ms-in[data-f="overall"]')
+    );
+  });
+  AW.els('.ms-save').forEach(function(btn){
+    btn.onclick=function(){
+      var key=btn.dataset.key, g=findResult(key); if(!g)return;
+      var cell=btn.closest('.grp-best');
+      var payload={ studentId:g.studentId, topicId:g.topicId,
+        mode:document.querySelector('.aw-tab.active').dataset.mode };
+      cell.querySelectorAll('[data-f]').forEach(function(inp){ payload[inp.dataset.f]=inp.value.trim(); });
+      // preserve existing private note
+      var pv=document.querySelector('.pv-note[data-key="'+key+'"]');
+      payload.privateNote = pv?pv.value.trim():((g.teacherScore&&g.teacherScore.privateNote)||'');
+      btn.disabled=true; var o=btn.textContent; btn.textContent='Saving…';
+      AW.api('teacher.saveManualScore',payload).then(function(res){
+        if(res&&res.success){ AW.toast('Score saved','ok'); g.teacherScore=payload; }
+        else AW.toast((res&&res.error)||'Save failed','err');
+      }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+    };
+  });
+  // private note save (teacher-only)
+  AW.els('.pv-save').forEach(function(btn){
+    btn.onclick=function(){
+      var key=btn.dataset.key, g=findResult(key); if(!g)return;
+      var ts=g.teacherScore||{};
+      var pv=document.querySelector('.pv-note[data-key="'+key+'"]');
+      var payload={ studentId:g.studentId, topicId:g.topicId,
+        mode:document.querySelector('.aw-tab.active').dataset.mode,
+        tr:ts.tr||'', cc:ts.cc||'', lr:ts.lr||'', gra:ts.gra||'', overall:ts.overall||'', note:ts.note||'',
+        privateNote: pv?pv.value.trim():'' };
+      btn.disabled=true; var o=btn.textContent; btn.textContent='Saving…';
+      AW.api('teacher.saveManualScore',payload).then(function(res){
+        if(res&&res.success){ AW.toast('Note sent to student','ok'); g.teacherScore=payload; }
+        else AW.toast((res&&res.error)||'Save failed','err');
+      }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+    };
+  });
+}
+// view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
+window.viewEssays=function(gkey, writeIdx){
+  var g=findResult(gkey); if(!g){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
+  // opening it counts as reading it — drop the badge straight away rather than
+  // waiting for the next full re-render
+  markResultSeen(gkey, groupLastTs(g));
+  AW.els('tr[data-key]').forEach(function(tr){
+    if(tr.dataset.key===gkey){ var b=tr.querySelector('.res-new'); if(b) b.remove(); }
+  });
+  var w=g.writes||[];
+  var showList = (writeIdx==null || writeIdx<0) ? w.map(function(x,i){return {x:x,i:i};})
+                                                : (w[writeIdx]?[{x:w[writeIdx],i:writeIdx}]:[]);
+  function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
+    return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
+  // The title can be long, so it gets the flexible space (and ellipsis) while
+  // the buttons stay fixed-width on one line — previously a long topic pushed
+  // Close onto its own row.
+  var header='<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:nowrap">'+
+    '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem;flex:1 1 auto;min-width:0;'+
+      'overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+AW.esc((g.name||g.studentId)+' — '+(g.topic||''))+'">'+
+      AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
+    '<div style="display:flex;gap:6px;flex:0 0 auto;white-space:nowrap">'+
+      '<button class="aw-btn aw-btn-accent" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\')" title="Mở file nhận xét trên Google Docs (giữ nguyên comment đã thêm)">📄 Open Doc</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\',true)" title="Tạo lại file từ đầu — mọi comment và suggestion của bạn sẽ bị xoá">↻ Re-create Doc</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="printTeacherFeedback()">⤓ PDF</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="closeEssayModal()">Close</button>'+
+    '</div></div>';
+  var body;
+  if(!showList.length){
+    body='<div class="aw-empty" style="padding:40px 20px">'+AW.icon('results')+'<p>Student has not completed this attempt yet.</p></div>';
+  } else {
+    body='<div id="teacherReviewContent">'+showList.map(function(item){
+      var x=item.x, i=item.i;
+      var fb=null; try{ fb=x.feedback?JSON.parse(x.feedback):null; }catch(e){}
+      var s=(fb&&fb.scores)||{tr:x.tr,cc:x.cc,lr:x.lr,gra:x.gra};
+      var subT='';
+      var _ts=x.timestamp||x.startTime;
+      if(_ts){ var _d=new Date(_ts); if(!isNaN(_d)){
+        subT='<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 Nộp lúc: '+
+          String(_d.getDate()).padStart(2,'0')+'/'+String(_d.getMonth()+1).padStart(2,'0')+'/'+_d.getFullYear()+
+          '  '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0')+'</div>'; } }
+      var out='<div class="rv-block"><h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+subT;
+      // score bars
+      out+='<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
+        '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
+        '<div style="flex:1">'+crit('Task Response',s.TR||x.tr)+crit('Coherence & Cohesion',s.CC||x.cc)+crit('Lexical Resource',s.LR||x.lr)+crit('Grammar',s.GRA||x.gra)+'</div>'+
+      '</div>';
+      // essay
+      out+=x.essay?'<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:10px">'+AW.esc(x.essay)+'</div>':'<p style="color:var(--aw-ink-3)">No essay text.</p>';
+      // vocabulary profile (CEFR, computed here from the essay text — no extra storage)
+      if(x.essay && window.AW && AW.analyseVocabulary){
+        out+=renderTeacherVocab(AW.analyseVocabulary(x.essay));
+      }
+      // feedback detail
+      if(fb){
+        out+='<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">AI Feedback</h4>';
+        if(fb.overall_feedback_vi) out+='<p style="margin:0 0 8px"><b>Overall:</b> '+AW.esc(fb.overall_feedback_vi)+'</p>';
+        if(fb.repeated_errors_vi) out+='<p style="margin:0 0 8px;background:#FFF8EC;padding:8px;border-radius:6px"><b>⚠ Repeated errors:</b> '+AW.esc(fb.repeated_errors_vi)+'</p>';
+        if((fb.tr_comments||[]).length) out+='<p style="margin:0 0 8px"><b>Task Response:</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';
+        if((fb.gra_errors||[]).length) out+='<p style="margin:0 0 8px"><b>Grammar:</b> '+fb.gra_errors.slice(0,8).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.correct)+'</span>';}).join('; ')+'</p>';
+        if((fb.lr_issues||[]).length) out+='<p style="margin:0 0 8px"><b>Vocabulary:</b> '+fb.lr_issues.slice(0,6).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.better)+'</span>';}).join('; ')+'</p>';
+        if(fb.cc_feedback&&fb.cc_feedback.assessment_vi) out+='<p style="margin:0 0 8px"><b>Coherence:</b> '+AW.esc(fb.cc_feedback.assessment_vi)+'</p>';
+      } else {
+        out+='<p style="color:var(--aw-ink-3);font-size:.85rem;background:#FFF8EC;padding:8px;border-radius:6px">No stored AI feedback for this attempt (submitted before feedback storage was enabled). New submissions will include full feedback.</p>';
+      }
+      return out+'</div>';
+    }).join('')+'</div>';
+  }
+  document.getElementById('essayModalBody').innerHTML=header+body;
+  document.getElementById('essayModal').classList.add('show');
+};
+window.closeEssayModal=function(){document.getElementById('essayModal').classList.remove('show');};
+window.printTeacherFeedback=function(){
+  var el=document.getElementById('teacherReviewContent'); if(!el)return;
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>ArticuWrite Feedback</title><style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#10222E}h4{color:#0A6EBD;margin:16px 0 6px;font-size:.9rem}.rv-block{margin-top:14px;padding-top:14px;border-top:1px solid #E5E9EE}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#0A6EBD">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString()+'</p></body></html>');
+  w.document.close(); setTimeout(function(){w.print();},400);
+};
+window.exportTeacherDoc=function(gkey, regenerate){
+  var g=findResult(gkey); if(!g||!g.writes.length){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
+  if (regenerate){ showRecreateWarning(gkey); return; }   // go through the banner first
+  runExportDoc(gkey, false);
+};
+
+/* A prominent warning before re-creating a doc, instead of the bland browser
+   confirm(). Re-creating wipes every teacher comment/suggestion, so this needs
+   to be hard to click through by accident. */
+function showRecreateWarning(gkey){
+  var bg=document.createElement('div');
+  bg.className='aw-recreate-bg';
+  bg.innerHTML=
+    '<div class="aw-recreate-box">'+
+      '<div class="aw-recreate-head">⚠️ Tạo lại Google Doc?</div>'+
+      '<div class="aw-recreate-body">'+
+        '<p>Thao tác này sẽ <b>tạo lại toàn bộ nội dung file từ đầu</b> bằng bản nhận xét mới nhất của hệ thống.</p>'+
+        '<div class="aw-recreate-danger">🗑️ Mọi <b>comment</b> và <b>suggestion</b> bạn đã thêm trong file sẽ bị <b>XOÁ VĨNH VIỄN</b> và không thể khôi phục.</div>'+
+        '<p style="color:var(--aw-ink-3);font-size:.86rem">Nếu bạn chỉ muốn xem file hoặc thêm bài nộp mới, hãy dùng nút <b>📄 Open Doc</b> — nút đó giữ nguyên comment của bạn.</p>'+
+      '</div>'+
+      '<div class="aw-recreate-foot">'+
+        '<button class="aw-btn aw-btn-ghost" id="recCancel">Huỷ</button>'+
+        '<button class="aw-btn" id="recGo" style="background:#D93025;color:#fff">Tôi hiểu, vẫn tạo lại</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(bg);
+  var close=function(){ bg.remove(); };
+  bg.addEventListener('click',function(e){ if(e.target===bg) close(); });
+  document.getElementById('recCancel').onclick=close;
+  document.getElementById('recGo').onclick=function(){ close(); runExportDoc(gkey, true); };
+}
+
+function runExportDoc(gkey, regenerate){
+  var g=findResult(gkey); if(!g) return;
+  AW.toast(regenerate ? 'Đang tạo lại Doc…' : 'Đang mở Doc…');
+  AW.api('write.exportDoc',{
+    studentId:g.studentId, topicId:g.topicId,
+    mode:document.querySelector('.aw-tab.active').dataset.mode,
+    teacherEmail: sess.email,
+    regenerate: regenerate ? 1 : 0
+  }).then(function(res){
+    if(res&&res.success && res.data.url){
+      AW.toast(res.data.reused ? 'Đã mở file (giữ nguyên comment)' : (res.data.regenerated ? 'Đã tạo lại file' : 'Đã tạo file lần đầu'),'ok');
+      window.open(res.data.url,'_blank');
+    } else AW.toast((res&&res.error)||'Không mở được file','err',4000);
+  });
+}
+
+/*═══════════ ASSIGNMENTS ═══════════*/
+function showAssignments(){
+  document.getElementById('awPageTitle').textContent='Assignments';
+  content.innerHTML=
+    '<div style="display:flex;gap:10px;margin-bottom:16px">'+
+      '<button class="aw-btn aw-btn-primary" onclick="newAssignment(\'homework\')">+ New Homework</button>'+
+      '<button class="aw-btn aw-btn-ghost" onclick="newAssignment(\'inclass\')">+ New In-class Task</button>'+
+    '</div>'+
+    '<div class="aw-tabs" id="assignTabs">'+
+      '<button class="aw-tab active" data-amode="inclass">In-class Practice</button>'+
+      '<button class="aw-tab" data-amode="homework">Homework</button>'+
+    '</div>'+
+    '<div id="assignList"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+  AW.els('[data-amode]').forEach(function(t){
+    t.onclick=function(){
+      AW.els('[data-amode]').forEach(function(x){x.classList.remove('active');});
+      t.classList.add('active');
+      loadAssignmentList(t.dataset.amode);
+    };
+  });
+  loadAssignmentList('inclass');
+}
+function loadAssignmentList(mode){
+  AW.api('write.getAssignments',{class:curClass(),mode:mode}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var box=document.getElementById('assignList');
+    if(!box) return;
+    if(!rows.length){
+      box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>No '+(mode==='inclass'?'In-class':'Homework')+' assignments yet.</p></div>';
+      return;
+    }
+    box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
+      '<th>Title</th><th>Prompt</th><th>Class</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
+      rows.map(function(a){
+        var plain=(AW.stripHtml?AW.stripHtml(a.prompt||''):(a.prompt||'').replace(/<[^>]*>/g,'')).slice(0,120);
+        var taskBadge = a.taskType==='task1'
+          ? '<span class="aw-task-badge t1">Task 1</span>'
+          : '<span class="aw-task-badge t2">Task 2</span>';
+        return '<tr>'+
+          '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+'</td>'+
+          '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
+          '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
+          '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
+          '<td>'+(a.deadline?AW.esc(a.deadline):'—')+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  });
+}
+
+/*── Assignment modal state ──*/
+var assignMode    = 'homework';
+var _taskType     = 'task2';      // currently selected task type
+var _chartType    = 'Bar chart';  // currently selected chart sub-type (Task 1)
+var _chartDataUrl = null;         // base64 data URL of chart image (before upload)
+var _chartFileId  = null;         // Drive file ID after upload
+
+/*── helpers ──*/
+function _applyTaskType(tt){
+  _taskType = tt;
+  AW.els('.aw-task-card').forEach(function(c){
+    c.classList.toggle('active', c.dataset.tt === tt);
+  });
+  var show = (tt === 'task1');
+  AW.els('.aw-chart-field').forEach(function(el){ el.classList.toggle('show', show); });
+  document.getElementById('aPrompt').setAttribute('data-ph',
+    tt==='task1'
+      ? 'The charts/diagram below show… Summarise the information by selecting and reporting the main features, and make comparisons where relevant.'
+      : 'Enter the prompt / đề bài…');
+}
+function _setChartImage(dataUrl){
+  _chartDataUrl = dataUrl;
+  document.getElementById('chartPreviewImg').src = dataUrl;
+  document.getElementById('chartPreviewWrap').classList.add('show');
+  document.getElementById('chartDrop').style.display = 'none';
+}
+function _clearChartPreview(){
+  _chartDataUrl = null; _chartFileId = null;
+  document.getElementById('chartPreviewImg').src = '';
+  document.getElementById('chartPreviewWrap').classList.remove('show');
+  document.getElementById('chartDrop').style.display = '';
+}
+function _fileToDataUrl(file, cb){
+  if (!file || !file.type.startsWith('image/')) { AW.toast('Chọn file ảnh (png/jpg…)','err'); return; }
+  var r = new FileReader();
+  r.onload = function(){ cb(r.result); };
+  r.readAsDataURL(file);
+}
+
+/*── Task Type card click ──*/
+AW.els('.aw-task-card').forEach(function(card){
+  card.onclick = function(){ _applyTaskType(card.dataset.tt); };
+});
+
+/*── Chart type chip click ──*/
+AW.els('.aw-ct-chip').forEach(function(chip){
+  chip.onclick = function(){
+    AW.els('.aw-ct-chip').forEach(function(c){ c.classList.remove('active'); });
+    chip.classList.add('active');
+    _chartType = chip.dataset.ct;
+  };
+});
+
+/*── Chart paste / drag / click ──*/
+document.getElementById('assignModal').addEventListener('paste', function(e){
+  var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (var i=0;i<items.length;i++){
+    if (items[i].type.indexOf('image') !== -1){ _fileToDataUrl(items[i].getAsFile(), _setChartImage); break; }
+  }
+});
+var _drop = document.getElementById('chartDrop');
+_drop.addEventListener('dragover', function(e){ e.preventDefault(); _drop.classList.add('drag-over'); });
+_drop.addEventListener('dragleave', function(){ _drop.classList.remove('drag-over'); });
+_drop.addEventListener('drop', function(e){ e.preventDefault(); _drop.classList.remove('drag-over'); _fileToDataUrl(e.dataTransfer.files[0], _setChartImage); });
+document.getElementById('chartBrowseLink').onclick = function(){ document.getElementById('chartFileInput').click(); };
+document.getElementById('chartFileInput').onchange = function(){ if(this.files[0]) _fileToDataUrl(this.files[0], _setChartImage); };
+document.getElementById('chartReplaceBtn').onclick = function(){ document.getElementById('chartFileInput').click(); };
+document.getElementById('chartRemoveBtn').onclick  = _clearChartPreview;
+
+/*── open modal ──*/
+window.newAssignment=function(mode){
+  assignMode = mode||'homework';
+  document.getElementById('assignTitle').textContent = assignMode==='homework'?'New Homework':'New In-class Task';
+  document.getElementById('aTopic').value      = '';
+  document.getElementById('aPrompt').innerHTML = '';
+  document.getElementById('aAiNotes').value    = '';
+  // reset task type to task2
+  _taskType = 'task2'; _chartDataUrl = null; _chartFileId = null;
+  _applyTaskType('task2');
+  _clearChartPreview();
+  // reset chart type chip
+  AW.els('.aw-ct-chip').forEach(function(c){ c.classList.toggle('active', c.dataset.ct==='Bar chart'); });
+  _chartType = 'Bar chart';
+  // show/hide mode-specific fields
+  document.getElementById('reqField').style.display  = assignMode==='homework'?'':'none';
+  document.getElementById('durField').style.display  = assignMode==='inclass'?'':'none';
+  document.getElementById('deadField').style.display = assignMode==='homework'?'':'none';
+  document.getElementById('assignModal').classList.add('show');
+};
+
+/*── mini toolbar ──*/
+AW.els('.aw-editor-mini-tb button').forEach(function(b){
+  b.onclick=function(){ document.execCommand(b.dataset.c,false,null); document.getElementById('aPrompt').focus(); };
+});
+
+/*── cancel ──*/
+document.getElementById('aCancel').onclick=function(){ document.getElementById('assignModal').classList.remove('show'); };
+
+/*── create ──*/
+document.getElementById('aCreate').onclick=function(){
+  var topic      = document.getElementById('aTopic').value.trim();
+  var promptHtml = document.getElementById('aPrompt').innerHTML.trim();
+  if(!topic){ AW.toast('Nhập tên bài tập.','err'); return; }
+  var btn=this; btn.disabled=true; var orig=btn.textContent; btn.innerHTML='<span class="aw-spin"></span>';
+
+  // Auto-inject task context into AI Notes so grader always knows the task type
+  var aiNotesRaw = document.getElementById('aAiNotes').value.trim();
+  var aiNotes = aiNotesRaw;
+  if (_taskType === 'task1') {
+    var ctxLine = '[Task 1 — ' + _chartType + '] Grade as IELTS Academic Writing Task 1. ' +
+      'Visual data type: ' + _chartType + '. ' +
+      'Criterion 1 = Task Achievement (TA), NOT Task Response. ' +
+      'TA assesses: accurate data coverage, overview present, key features selected, comparisons made where relevant. ' +
+      'Do NOT expect an opinion/thesis statement — personal view = penalise TA.';
+    aiNotes = ctxLine + (aiNotesRaw ? '\nTeacher adds: ' + aiNotesRaw : '');
+  }
+
+  function _doCreate(chartImageId){
+    AW.api('teacher.createAssignment',{
+      class:           curClass(),
+      mode:            assignMode,
+      topic:           topic,
+      prompt:          promptHtml,
+      taskType:        _taskType,
+      chartImageId:    chartImageId || '',
+      aiNotes:         aiNotes,
+      requiredAttempts:assignMode==='homework'?parseInt(document.getElementById('aReq').value||'3',10):1,
+      durationMin:     assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
+      deadline:        assignMode==='homework'?document.getElementById('aDead').value:''
+    }).then(function(res){
+      if(res&&res.success){
+        AW.toast('Assignment created ✓','ok');
+        document.getElementById('assignModal').classList.remove('show');
+        showAssignments();
+      } else AW.toast((res&&res.error)||'Failed to create','err');
+    }).finally(function(){ btn.disabled=false; btn.textContent=orig; });
+  }
+
+  // Task 1 with chart: upload image first, then create
+  if (_taskType === 'task1' && _chartDataUrl) {
+    AW.toast('Uploading chart…');
+    AW.api('assign.uploadChart',{ dataUrl:_chartDataUrl, name:'chart-'+Date.now()+'.png' })
+      .then(function(res){
+        if(res&&res.success){ _chartFileId=res.data.fileId; _doCreate(_chartFileId); }
+        else { AW.toast((res&&res.error)||'Chart upload failed','err'); btn.disabled=false; btn.textContent=orig; }
+      }).catch(function(e){ AW.toast('Upload error: '+(e.message||''),'err'); btn.disabled=false; btn.textContent=orig; });
+  } else {
+    _doCreate(null);
+  }
+};
+
+/*═══════════ GLOBAL NOTIFICATIONS (raised hands + new questions) ═══════════
+  Runs on every teacher page, not just Live Observation, so a student's
+  hand or question is never missed. Only *newly seen* events pop up. */
+var _seenHands = {}, _seenQueries = {}, _notifPrimed = false;
+function notify(html, kind, onClick){
+  var stack=document.getElementById('awNotif');
+  if(!stack){
+    stack=document.createElement('div'); stack.id='awNotif';
+    stack.style.cssText="position:fixed;bottom:84px;right:24px;z-index:860;display:flex;flex-direction:column;gap:10px;max-width:340px";
+    document.body.appendChild(stack);
+  }
+  var card=document.createElement('div');
+  card.style.cssText='background:#fff;border-left:5px solid '+(kind==='hand'?'#E0A32E':'#2E9367')+
+    ';border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.22);padding:13px 16px;font-size:.88rem;'+
+    'cursor:pointer;animation:awSlideIn .25s ease;display:flex;align-items:flex-start;gap:10px';
+  card.innerHTML='<div style="flex:1">'+html+'</div><button class="aw-notif-x" style="background:none;border:none;color:#9AA6B2;cursor:pointer;font-size:1.1rem;line-height:1;padding:0">×</button>';
+  card.querySelector('.aw-notif-x').onclick=function(e){ e.stopPropagation(); card.remove(); };
+  // an inline "Lower hand" action inside the card must not also open Live
+  var lowerBtn=card.querySelector('[data-notif-lower]');
+  if(lowerBtn) lowerBtn.onclick=function(e){
+    e.stopPropagation();
+    lowerStudentHand(lowerBtn.dataset.notifLower, null, lowerBtn);
+    card.remove();
+  };
+  card.onclick=function(){ card.remove(); if(onClick)onClick(); };
+  stack.appendChild(card);
+  setTimeout(function(){ if(card.parentNode) card.remove(); }, 12000);
+}
+function pollNotifications(){
+  if(!curClass()) return;
+  // raised hands
+  AW.api('teacher.getLive',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    rows.forEach(function(s){
+      var key=s.studentId;
+      if(s.raisedHand && !_seenHands[key]){
+        _seenHands[key]=true;
+        if(_notifPrimed) notify('<b>✋ '+AW.esc(s.name||s.studentId)+'</b> is raising a hand'+
+          (s.topic?'<div style="font-size:.78rem;color:#667;margin-top:2px">'+AW.esc(s.topic)+'</div>':'')+
+          '<button class="aw-lower-hand" data-notif-lower="'+AW.esc(s.studentId)+'" style="margin-top:8px">✓ Lower hand</button>',
+          'hand', function(){ location.hash='live'; showLive(); AW.setActiveNav('live'); });
+      }
+      if(!s.raisedHand) delete _seenHands[key]; // lowered → can notify again next time
+    });
+  });
+  // new questions
+  AW.api('query.listForTeacher',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    rows.filter(function(q){return q.status==='open';}).forEach(function(q){
+      if(!_seenQueries[q.queryId]){
+        _seenQueries[q.queryId]=true;
+        if(_notifPrimed) notify('<b>🙋 '+AW.esc(q.studentName||q.studentId)+'</b> asked a question'+
+          '<div style="font-size:.8rem;color:#445;margin-top:3px">'+AW.esc((q.question||'').slice(0,90))+'</div>',
+          'ask', function(){
+            if(q.phase==='live'){ location.hash='live'; showLive(); AW.setActiveNav('live'); }
+            else { location.hash='queries'; showQueries(); AW.setActiveNav('queries'); }
+          });
+      }
+    });
+    _notifPrimed=true; // first pass only records existing state — no popup flood on load
+  });
+}
+setInterval(pollNotifications, 8000);
+// Tell the floating AI assistant what the teacher is currently looking at
+if (window.AW && AW.teacherAI) {
+  AW.teacherAI.setContextProvider(function(){
+    var bits = [];
+    var title = (document.getElementById('awPageTitle')||{}).textContent;
+    if (title) bits.push('Screen: ' + title);
+    var co = (typeof curClassObj==='function') ? curClassObj() : null;
+    if (co) bits.push('Class: ' + co.className + ' (' + co.classId + ')');
+    // if a live essay modal is open, include its author + text
+    var mb = document.getElementById('modalBg');
+    if (mb && mb.classList.contains('show')) {
+      var who = (document.getElementById('mStudent')||{}).textContent || '';
+      var topic = (document.getElementById('mTopic')||{}).textContent || '';
+      var essay = (document.getElementById('mText')||{}).innerText || '';
+      if (who) bits.push('Open essay by: ' + who + ' ' + topic);
+      if (essay.trim()) bits.push('Essay text (first 1500 chars):\n' + essay.trim().slice(0,1500));
+    }
+    return bits.join('\n');
+  });
+}
+setTimeout(pollNotifications, 1500);
+
+/*═══════════ FEEDBACK QUERIES (student questions about AI feedback) ═══════════*/
+function showQueries(){
+  document.getElementById('awPageTitle').textContent='Feedback Queries';
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('query.listForTeacher',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    if(!rows.length){content.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No feedback queries yet. When students ask about an AI correction, it appears here.</p></div>';return;}
+    var open=rows.filter(function(q){return q.status==='open';});
+    content.innerHTML=
+      '<p style="color:var(--aw-ink-2);margin:0 0 16px">'+open.length+' unanswered · '+rows.length+' total. Answers are private to the student unless you share them with the class.</p>'+
+      '<div style="display:flex;flex-direction:column;gap:14px">'+
+      rows.map(function(q){
+        var answered=q.status==='answered';
+        return '<div style="border:1px solid var(--aw-border-2);border-radius:14px;padding:16px 18px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
+          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
+            '<b>'+AW.esc(q.studentName||q.studentId)+' <span style="color:var(--aw-ink-3);font-weight:400">('+AW.esc(q.studentId)+')</span></b>'+
+            '<span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(q.mode)+' · '+AW.esc(q.topic||'')+(q.attempt?' · Attempt '+AW.esc(q.attempt):'')+'</span>'+
+          '</div>'+
+          (q.errorQuote?'<div style="font-size:.85rem;background:var(--aw-surface-2);border-radius:8px;padding:6px 10px;margin-bottom:8px"><b>Re:</b> '+AW.esc(q.errorQuote)+'</div>':'')+
+          '<p style="margin:0 0 10px">'+AW.esc(q.question)+'</p>'+
+          (answered
+            ? '<div style="background:#EAF6EF;border-radius:8px;padding:10px 12px;font-size:.9rem"><b style="color:var(--aw-writing)">Your answer:</b> '+AW.esc(q.answer)+'</div>'+
+              '<div style="margin-top:8px;display:flex;gap:8px;align-items:center">'+
+                '<button class="aw-btn aw-btn-ghost qShare" data-id="'+AW.esc(q.queryId)+'" data-shared="'+(q.shared?'1':'0')+'" style="padding:4px 12px;font-size:.78rem">'+(q.shared?'✓ Shared with class (click to unshare)':'Share to class')+'</button>'+
+              '</div>'
+            : '<div style="display:flex;gap:8px;margin-top:6px"><input class="aw-input qAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Type your answer…" style="flex:1"><button class="aw-btn aw-btn-primary qSend" data-id="'+AW.esc(q.queryId)+'" style="padding:8px 16px">Answer</button></div>')+
+        '</div>';
+      }).join('')+'</div>';
+    AW.els('.qSend').forEach(function(b){
+      b.onclick=function(){
+        var inp=document.querySelector('.qAns[data-id="'+b.dataset.id+'"]');
+        var ans=inp.value.trim(); if(!ans){AW.toast('Type an answer','err');return;}
+        b.disabled=true;
+        AW.api('query.answer',{queryId:b.dataset.id,answer:ans}).then(function(res){
+          if(res&&res.success){AW.toast('Answer sent','ok');showQueries();}
+          else AW.toast('Failed','err');
+        });
+      };
+    });
+    AW.els('.qShare').forEach(function(b){
+      b.onclick=function(){
+        var makeShared=b.dataset.shared!=='1';
+        AW.api('query.share',{queryId:b.dataset.id,shared:makeShared}).then(function(res){
+          if(res&&res.success){AW.toast(makeShared?'Shared with class':'Unshared','ok');showQueries();}
+        });
+      };
+    });
+  });
+}
+
+/*═══════════ SETTINGS ═══════════*/
+function showSettings(){
+  document.getElementById('awPageTitle').textContent='Settings';
+  var clsRows=myClasses.map(function(c){
+    return '<tr><td>'+AW.esc(c.className)+'</td><td><b>'+AW.esc(c.classId)+'</b></td><td>'+AW.esc(c.year||'')+'</td><td>'+(c.semester?'HK'+AW.esc(c.semester):'')+'</td>'+
+      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;color:var(--aw-danger)" onclick="archiveClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className)+'\')">Archive</button></td></tr>';
+  }).join('');
+  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+    '<h3 style="margin:0 0 6px">Account</h3>'+
+    '<p style="color:var(--aw-ink-2);font-size:.9rem">Name: <b>'+AW.esc(sess.name||'')+'</b><br>Email: <b>'+AW.esc(sess.email||'')+'</b></p>'+
+    '</div>'+
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
+    '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
+    (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th><th></th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
+    '</div>'+
+    '<div class="aw-card" style="padding:24px;max-width:600px">'+
+      '<h3 style="margin:0 0 14px">Change Password</h3>'+
+      '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="tpwOld" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="tpwNew" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">Confirm</label><input class="aw-input" id="tpwNew2" type="password"></div>'+
+      '<button class="aw-btn aw-btn-primary" id="tpwBtn">Update password</button>'+
+    '</div>';
+  document.getElementById('tpwBtn').onclick=function(){
+    var o=document.getElementById('tpwOld').value, n=document.getElementById('tpwNew').value, n2=document.getElementById('tpwNew2').value;
+    if(!o||!n){AW.toast('Please fill all fields.','err');return;}
+    if(n!==n2){AW.toast('New passwords do not match.','err');return;}
+    AW.api('auth.changePassword',{email:sess.email,oldPass:o,newPass:n}).then(function(res){
+      if(res&&res.success)AW.toast('Password changed','ok');
+      else AW.toast((res&&res.error)||'Failed','err');
+    });
+  };
+}
+window.archiveClass=function(classId,className){
+  if(!confirm('Archive class "'+className+'"?\nStudents will no longer see it and it will be hidden from your dashboard. Data is preserved.'))return;
+  AW.api('class.archive',{classId:classId}).then(function(res){
+    if(res&&res.success){
+      AW.toast('Class archived','ok');
+      if(curClass()===classId) localStorage.removeItem(CLASS_KEY);
+      setTimeout(function(){location.reload();},700);
+    } else AW.toast((res&&res.error)||'Failed','err');
+  });
+};
+window.archiveStudent=function(studentId,name){
+  if(!confirm('Archive student "'+name+'" ('+studentId+')?\nThey will be removed from the roster. Data is preserved.'))return;
+  AW.api('student.archive',{studentId:studentId}).then(function(res){
+    if(res&&res.success){ AW.toast('Student archived','ok'); loadRoster(); }
+    else AW.toast((res&&res.error)||'Failed','err');
+  });
+};
+
+/*═══════════ global alerts: raised hands + new questions ═══════════
+  Runs on every teacher view so a raised hand is never missed, and stays
+  lightweight (no essay snapshots) to keep Apps Script quota happy. */
+var _seenHands={}, _seenQs={}, _alertFirstRun=true;
+function startAlerts(){
+  pollAlerts();
+  setInterval(pollAlerts, 12000);
+}
+function pollAlerts(){
+  if(!curClass())return;
+  AW.api('teacher.getAlerts',{class:curClass()}).then(function(res){
+    if(!res||!res.success)return;
+    var d=res.data||{};
+    var handIds={};
+    (d.hands||[]).forEach(function(h){
+      handIds[h.studentId]=1;
+      if(!_seenHands[h.studentId] && !_alertFirstRun){
+        awNotify('✋ <b>'+AW.esc(h.name||h.studentId)+'</b> is raising their hand'+
+          (h.where?'<div style="font-size:.78rem;opacity:.85;margin-top:2px">'+AW.esc(h.where)+'</div>':''), 'hand');
+      }
+      _seenHands[h.studentId]=1;
+    });
+    // clear remembered hands that were lowered so a re-raise notifies again
+    Object.keys(_seenHands).forEach(function(id){ if(!handIds[id]) delete _seenHands[id]; });
+
+    (d.questions||[]).forEach(function(q){
+      if(!_seenQs[q.queryId] && !_alertFirstRun){
+        awNotify('🙋 <b>'+AW.esc(q.name||q.studentId)+'</b> asked a question'+
+          '<div style="font-size:.8rem;opacity:.9;margin-top:3px">'+AW.esc((q.question||'').slice(0,90))+'</div>', 'question');
+      }
+      _seenQs[q.queryId]=1;
+    });
+    // badge on the sidebar
+    var openN=(d.questions||[]).length, handN=(d.hands||[]).length;
+    setNavBadge('queries', openN);
+    setNavBadge('live', handN);
+    _alertFirstRun=false;
+  });
+}
+function setNavBadge(navId, n){
+  var link=document.querySelector('[data-nav="'+navId+'"]');
+  if(!link)return;
+  var b=link.querySelector('.aw-nav-badge');
+  if(!n){ if(b)b.remove(); return; }
+  if(!b){ b=document.createElement('span'); b.className='aw-nav-badge'; link.appendChild(b); }
+  b.textContent=n;
+}
+// bottom-right notification stack
+function awNotify(html, kind){
+  var wrap=document.getElementById('awNotifs');
+  if(!wrap){
+    wrap=document.createElement('div'); wrap.id='awNotifs'; wrap.className='aw-notifs';
+    document.body.appendChild(wrap);
+  }
+  var n=document.createElement('div');
+  n.className='aw-notif'+(kind==='hand'?' hand':'');
+  n.innerHTML='<div>'+html+'</div><button class="aw-notif-x">×</button>';
+  n.querySelector('.aw-notif-x').onclick=function(){ n.remove(); };
+  n.onclick=function(e){
+    if(e.target.classList.contains('aw-notif-x'))return;
+    if(kind==='hand'){ showLive(); AW.setActiveNav('live'); }
+    else { showQueries(); AW.setActiveNav('queries'); }
+    n.remove();
+  };
+  wrap.appendChild(n);
+  setTimeout(function(){ n.classList.add('out'); setTimeout(function(){n.remove();},300); }, 9000);
+}
+
+/*═══════════ init ═══════════*/
+function routeInitial(){
+  var hash=(location.hash||'').replace('#','');
+  if(hash==='live'){showLive();AW.setActiveNav('live');}
+  else if(hash==='results'){showResults();AW.setActiveNav('results');}
+  else if(hash==='queries'){showQueries();AW.setActiveNav('queries');}
+  else if(hash==='assignments'){showAssignments();AW.setActiveNav('assignments');}
+  else showOverview();
+}
+bootClasses();
+startAlerts();
+</script>
+</body>
+</html>

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- App icon: SVG data URI — no file, no extra request, no 404 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#0A6EBD">
+<title>Board · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  .aw-board-toolbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:8px 10px;margin-bottom:14px;box-shadow:var(--aw-shadow-sm);position:sticky;top:12px;z-index:50}
+  .aw-tbtn{min-width:34px;height:34px;border:none;background:none;border-radius:7px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:inline-grid;place-items:center;font-size:.9rem;padding:0 8px}
+  .aw-tbtn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-tbtn.on{background:var(--aw-primary);color:#fff}
+  .aw-tsep{width:1px;height:22px;background:var(--aw-border);margin:0 4px}
+  .aw-tcolor{width:26px;height:26px;border:none;border-radius:6px;cursor:pointer;padding:0;background:none}
+  .aw-canvas-wrap{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);box-shadow:var(--aw-shadow);overflow:auto;padding:0}
+  .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s,font-size .15s;overflow-wrap:break-word}
+  .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
+  .aw-canvas img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;cursor:pointer}
+  .aw-canvas img.selected{outline:2px solid var(--aw-primary);outline-offset:2px}
+  .aw-img-controls{position:fixed;z-index:60;display:none;gap:4px;background:var(--aw-primary-dk);border-radius:8px;padding:4px;box-shadow:var(--aw-shadow-lg)}
+  /*── student help tools (raise hand / ask teacher) ──*/
+  .bd-hand{position:fixed;bottom:78px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3);font-family:var(--aw-font-body)}
+  .bd-hand:hover{transform:translateY(-2px)}
+  .bd-hand.on{background:#E0A32E;color:#fff}
+  .bd-ask{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(46,147,103,.4);font-family:var(--aw-font-body)}
+  .bd-ask:hover{transform:translateY(-2px)}
+  .bd-askpanel{position:fixed;bottom:24px;right:24px;z-index:401;width:360px;max-width:calc(100vw - 32px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden}
+  .bd-askpanel.show{display:flex}
+  .bd-askhead{background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .bd-asknote{background:#EAF2FB;color:#0A4A7A;font-size:.78rem;padding:9px 14px;line-height:1.4;border-bottom:1px solid #B8D4F0}
+  .bd-askpanel textarea{border:1px solid var(--aw-border);border-radius:8px;padding:10px;margin:12px 14px 8px;font-size:.88rem;font-family:var(--aw-font-body);resize:vertical;min-height:80px;outline:none}
+  .bd-askpanel textarea:focus{border-color:var(--aw-primary)}
+  .bd-askpanel > .aw-btn{margin:0 14px 14px;width:calc(100% - 28px)}
+  .aw-img-controls button{background:none;border:none;color:#fff;padding:5px 8px;font-size:.78rem;cursor:pointer;border-radius:5px}
+  .aw-img-controls button:hover{background:rgba(255,255,255,.15)}
+  .aw-canvas[contenteditable="false"]{cursor:default}
+  .aw-board-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .aw-board-title-in{font-family:var(--aw-font-display);font-size:1.3rem;font-weight:600;border:none;background:none;color:var(--aw-ink);outline:none;flex:1;min-width:180px}
+  .aw-board-title-in:focus{border-bottom:2px solid var(--aw-primary)}
+  .aw-save-dot{font-size:.8rem;color:var(--aw-ink-3)}
+  .aw-board-card{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:20px;cursor:pointer;transition:transform .14s,box-shadow .16s,border-color .16s;box-shadow:var(--aw-shadow-sm)}
+  .aw-board-card:hover{transform:translateY(-3px);box-shadow:var(--aw-shadow-lg);border-color:var(--aw-primary)}
+  .aw-board-card h3{margin:0 0 8px;font-family:var(--aw-font-display);font-size:1.05rem}
+  .aw-board-card .meta{font-size:.8rem;color:var(--aw-ink-3)}
+  .aw-zoom-ind{font-size:.82rem;color:var(--aw-ink-2);min-width:44px;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="aw-img-controls" id="imgCtrl">
+  <button id="imgSmaller">A▼ Smaller</button>
+  <button id="imgLarger">A▲ Larger</button>
+  <button id="imgFull">⇔ Full width</button>
+  <button id="imgRemove">✕ Remove</button>
+</div>
+
+<div class="aw-modal-bg" id="boardModal"><div class="aw-modal2 bm-body"></div></div>
+<style>
+  .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-modal-bg.show{display:flex}
+  .aw-modal2{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:460px;box-shadow:var(--aw-shadow-lg);padding:28px}
+</style>
+
+<script src="aw-common.js"></script>
+<script>
+if (typeof AW === 'undefined') {
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  throw new Error('aw-common.js not loaded');
+}
+
+var sess = AW.session.require();
+if (!sess) throw 'redirect';
+var isTeacher = sess.role === 'teacher';
+
+var nav = isTeacher ? [
+  { id:'overview', label:'Class Overview', icon:'overview', href:'teacher.html' },
+  { id:'live',     label:'Live Observation', icon:'live', href:'teacher.html#live' },
+  { id:'assign',   label:'Assignments', icon:'modes', href:'teacher.html#assignments' },
+  { id:'results',  label:'Results', icon:'results', href:'teacher.html#results' },
+  { id:'queries',  label:'Feedback Queries', icon:'results', href:'teacher.html#queries' },
+  { id:'board',    label:'Interactive Board', icon:'modes', active:true },
+  { id:'library',  label:'Library', icon:'library', href:'library.html' },
+  { id:'settings', label:'Settings', icon:'settings', href:'teacher.html#settings' },
+] : [
+  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
+  { id:'board',   label:'Interactive Board', icon:'modes', active:true },
+  { id:'library', label:'Library', icon:'library', href:'library.html' },
+  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
+  { id:'qa',      label:'Q&A with Teacher', icon:'results', href:'student.html#qa' },
+  { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
+];
+
+var content = AW.renderShell({
+  mount:'app', nav:nav,
+  eyebrow:(isTeacher?'Teacher':'Student')+' Interface', title:'Interactive Board'
+});
+
+var curBoard=null, zoom=1, saveTimer=null, pollTimer=null;
+var BASE_CANVAS_PX = 16;  // matches .aw-canvas font-size; student zoom scales from this
+
+/*──── resolve which class this board belongs to ────*/
+// Teacher: use the class selected in the dashboard (localStorage 'aw_teacher_class')
+// Student: use their own class from session
+function myBoardClass(){
+  if (isTeacher) return localStorage.getItem('aw_teacher_class') || sess.class || '';
+  return sess.class || '';
+}
+
+/*──── board list ────*/
+var teacherClasses=[];
+function showList(){
+  stopPoll();
+  document.getElementById('awPageTitle').textContent='Interactive Board';
+  content.innerHTML =
+    (isTeacher ? '<button class="aw-btn aw-btn-primary" id="newBoard" style="margin-bottom:18px">+ New Board</button>' : '') +
+    '<div id="boardGrid" class="aw-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+  if (isTeacher){
+    document.getElementById('newBoard').onclick=openBoardModal;
+    // preload teacher's classes for the class dropdown
+    AW.api('class.list',{teacherEmail:sess.email}).then(function(r){ teacherClasses=(r&&r.data)||[]; });
+  }
+  AW.api('board.list',{class:myBoardClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var grid=document.getElementById('boardGrid');
+    if(!rows.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>'+(isTeacher?'No boards yet. Click "+ New Board".':'No boards for your class yet.')+'</p></div>';return;}
+    grid.innerHTML=rows.map(function(b){
+      return '<div class="aw-board-card" data-id="'+AW.esc(b.boardId)+'">' +
+        '<h3>'+AW.esc(b.title)+'</h3>' +
+        (b.className||b.class?'<span class="aw-tag aw-tag-type" style="font-size:.72rem">'+AW.esc(b.className||b.class)+'</span> ':'') +
+        '<div class="meta">Updated: '+(b.updatedAt?new Date(b.updatedAt).toLocaleString():'—')+'</div>' +
+        (isTeacher?'<button class="aw-btn aw-btn-ghost" style="padding:5px 12px;margin-top:10px" data-del="'+AW.esc(b.boardId)+'">Delete</button>':'') +
+        '</div>';
+    }).join('');
+    AW.els('.aw-board-card').forEach(function(c){
+      c.onclick=function(e){ if(e.target.hasAttribute('data-del'))return; openBoard(c.dataset.id); };
+    });
+    AW.els('[data-del]').forEach(function(b){
+      b.onclick=function(e){ e.stopPropagation();
+        if(confirm('Delete this board?')) AW.api('board.delete',{boardId:b.dataset.del}).then(showList);
+      };
+    });
+  });
+}
+
+function openBoardModal(){
+  var classOpts = teacherClasses.length
+    ? teacherClasses.map(function(c){
+        var sel=(c.classId===myBoardClass())?' selected':'';
+        return '<option value="'+AW.esc(c.classId)+'"'+sel+'>'+AW.esc(c.className)+' ('+AW.esc(c.classId)+')</option>';
+      }).join('')
+    : '<option value="'+AW.esc(myBoardClass())+'">'+AW.esc(myBoardClass()||'(current class)')+'</option>';
+  var bg=document.getElementById('boardModal');
+  bg.querySelector('.bm-body').innerHTML=
+    '<h2 style="margin:0 0 4px;font-family:var(--aw-font-display);font-size:1.4rem">Create New Board</h2>'+
+    '<p style="margin:0 0 18px;color:var(--aw-ink-2);font-size:.9rem">Only students in the selected class will see this board.</p>'+
+    '<div class="aw-field"><label class="aw-label">Board title</label>'+
+      '<input class="aw-input" id="bmTitle" placeholder="e.g. Week 1 — Lesson Board"></div>'+
+    '<div class="aw-field"><label class="aw-label">Class</label>'+
+      '<select class="aw-select" id="bmClass" style="width:100%">'+classOpts+'</select></div>'+
+    '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'+
+      '<button class="aw-btn aw-btn-ghost" id="bmCancel">Cancel</button>'+
+      '<button class="aw-btn aw-btn-primary" id="bmCreate">Create Board</button>'+
+    '</div>';
+  bg.classList.add('show');
+  document.getElementById('bmCancel').onclick=function(){ bg.classList.remove('show'); };
+  document.getElementById('bmCreate').onclick=function(){
+    var title=document.getElementById('bmTitle').value.trim();
+    var cls=document.getElementById('bmClass').value;
+    if(!title){AW.toast('Enter a board title.','err');return;}
+    var btn=this; btn.disabled=true; btn.textContent='Creating…';
+    AW.api('board.create',{class:cls,title:title,owner:sess.name||sess.email}).then(function(res){
+      if(res&&res.success){ bg.classList.remove('show'); AW.toast('Board created','ok'); openBoard(res.data.boardId); }
+      else AW.toast('Failed to create','err');
+    }).finally(function(){ btn.disabled=false; btn.textContent='Create Board'; });
+  };
+}
+
+/*──── open board ────*/
+function openBoard(id){
+  AW.api('board.get',{boardId:id}).then(function(res){
+    if(!res||!res.success){AW.toast('Không mở được bảng','err');return;}
+    curBoard=res.data; zoom=1;
+    renderBoard();
+    if(!isTeacher){ pollTimer=setInterval(refreshBoard, 6000); } // students poll for updates
+  });
+}
+function refreshBoard(){
+  if(!curBoard)return;
+  AW.api('board.get',{boardId:curBoard.boardId}).then(function(res){
+    if(res&&res.success && res.data.updatedAt!==curBoard.updatedAt){
+      curBoard=res.data;
+      var canvas=document.getElementById('canvas');
+      if(canvas){
+        canvas.innerHTML = isTeacher ? (curBoard.content||'') : renderForStudent(curBoard.content||'');
+        applyZoom(); // keep the student's own zoom across live updates
+      }
+    }
+  });
+}
+function stopPoll(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
+
+function renderBoard(){
+  document.getElementById('awPageTitle').textContent='Interactive Board';
+  var toolbar = isTeacher ? buildToolbar() : studentZoomBar();
+  content.innerHTML =
+    '<div class="aw-board-head">' +
+      '<button class="aw-btn aw-btn-ghost" style="padding:7px 14px" onclick="backList()">← Boards</button>' +
+      (isTeacher
+        ? '<input class="aw-board-title-in" id="boardTitle" value="'+AW.esc(curBoard.title)+'">'
+        : '<span class="aw-board-title-in" style="flex:1">'+AW.esc(curBoard.title)+'</span>') +
+      '<span class="aw-save-dot" id="saveDot">'+(isTeacher?'Saved':'View only')+'</span>' +
+      '<button class="aw-btn aw-btn-accent" style="padding:8px 16px" onclick="exportPDF()">Export PDF</button>' +
+    '</div>' +
+    toolbar +
+    '<div class="aw-canvas-wrap"><div class="aw-canvas" id="canvas" '+
+      (isTeacher?'contenteditable="true"':'contenteditable="false"')+
+      ' data-ph="'+(isTeacher?'Type here, paste text or images, format freely…':'')+'"></div></div>';
+
+  var canvas=document.getElementById('canvas');
+  canvas.innerHTML = isTeacher ? (curBoard.content||'') : renderForStudent(curBoard.content||'');
+
+  if(isTeacher){
+    wireToolbar();
+    document.getElementById('boardTitle').oninput=scheduleSave;
+    canvas.addEventListener('input', scheduleSave);
+    canvas.addEventListener('paste', onPaste);
+  } else {
+    wireStudentZoom();
+    mountBoardHelp();
+  }
+}
+
+/*── Students can raise a hand / ask the teacher while reading the board ──*/
+function mountBoardHelp(){
+  if(document.getElementById('bdHelp'))return;
+  var w=document.createElement('div');
+  w.id='bdHelp';
+  w.innerHTML=
+    '<button class="bd-hand" id="bdHand">✋ Raise hand</button>' +
+    '<button class="bd-ask" id="bdAsk">🙋 Ask Teacher</button>' +
+    '<div class="bd-askpanel" id="bdAskPanel">' +
+      '<div class="bd-askhead"><b>Ask your teacher</b>' +
+        '<button id="bdAskClose" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;line-height:1">×</button></div>' +
+      '<div class="bd-asknote">Your teacher sees this live. Replies appear in <b>Q&amp;A with Teacher</b>.</div>' +
+      '<textarea id="bdAskText" placeholder="Type your question about the board…"></textarea>' +
+      '<button class="aw-btn aw-btn-primary" id="bdAskSend">Send</button>' +
+    '</div>';
+  document.body.appendChild(w);
+
+  var raised=false;
+  document.getElementById('bdHand').onclick=function(){
+    raised=!raised;
+    var b=this;
+    AW.api('write.raiseHand',{
+      studentId:sess.studentId, name:sess.name, class:sess.class,
+      raised:raised, where:'Interactive Board', mode:'board'
+    }).then(function(res){
+      if(res&&res.success){
+        b.textContent=raised?'✋ Hand raised':'✋ Raise hand';
+        b.classList.toggle('on',raised);
+        AW.toast(raised?'Teacher notified you raised your hand':'Hand lowered','ok');
+      } else { raised=!raised; AW.toast('Could not reach the teacher','err'); }
+    });
+  };
+  var panel=document.getElementById('bdAskPanel');
+  var askFab=document.getElementById('bdAsk'), handFab=document.getElementById('bdHand');
+  function showPanel(on){
+    panel.classList.toggle('show', on);
+    askFab.style.display = on ? 'none' : '';
+    handFab.style.display = on ? 'none' : '';   // otherwise it floats over the panel
+  }
+  askFab.onclick=function(){ showPanel(true); document.getElementById('bdAskText').focus(); };
+  document.getElementById('bdAskClose').onclick=function(){ showPanel(false); };
+  document.getElementById('bdAskSend').onclick=function(){
+    var t=document.getElementById('bdAskText');
+    var q=(t.value||'').trim(); if(!q){AW.toast('Type your question','err');return;}
+    var btn=this; btn.disabled=true; btn.textContent='Sending…';
+    AW.api('query.create',{
+      class:sess.class, studentId:sess.studentId, studentName:sess.name,
+      mode:'board', topic:(curBoard&&curBoard.title)||'Interactive Board',
+      topicId:(curBoard&&curBoard.boardId)||'', question:q, phase:'live'
+    }).then(function(res){
+      if(res&&res.success){ AW.toast('Sent to your teacher','ok'); t.value=''; panel.classList.remove('show'); }
+      else AW.toast('Failed to send','err');
+    }).finally(function(){ btn.disabled=false; btn.textContent='Send'; });
+  };
+}
+
+/*── Student view ──
+  Teachers enlarge text so the whole class can read it on the projector.
+  On a student's own screen that huge text is unhelpful, so we strip the
+  teacher's font-size choices (keeping every other format: bold, colour,
+  highlight, lists, images) and give students their own zoom instead. */
+function renderForStudent(html){
+  var tmp=document.createElement('div');
+  tmp.innerHTML=html||'';
+  tmp.querySelectorAll('[style]').forEach(function(el){
+    el.style.removeProperty('font-size');
+    if(!el.getAttribute('style')) el.removeAttribute('style');
+  });
+  // legacy <font size> tags from execCommand
+  tmp.querySelectorAll('font[size]').forEach(function(el){ el.removeAttribute('size'); });
+  return tmp.innerHTML;
+}
+function studentZoomBar(){
+  return '<div class="aw-board-toolbar" id="tb" style="justify-content:flex-end">' +
+    '<span style="font-size:.8rem;color:var(--aw-ink-3);margin-right:6px">Your view:</span>' +
+    '<button class="aw-tbtn" data-szoom="out" title="Zoom out">➖</button>' +
+    '<span class="aw-zoom-ind" id="zoomInd">100%</span>' +
+    '<button class="aw-tbtn" data-szoom="in" title="Zoom in">➕</button>' +
+    '<button class="aw-tbtn" data-szoom="reset" title="Reset zoom" style="font-size:.75rem">Reset</button>' +
+  '</div>';
+}
+function wireStudentZoom(){
+  AW.els('[data-szoom]').forEach(function(b){
+    b.onclick=function(){
+      var d=b.dataset.szoom;
+      if(d==='reset') zoom=1;
+      else zoom=Math.min(3, Math.max(0.5, zoom + (d==='in'?0.1:-0.1)));
+      applyZoom();
+    };
+  });
+}
+window.backList=function(){ stopPoll(); if(isTeacher)saveNow(); showList(); };
+
+/*──── toolbar (teacher only) ────*/
+function buildToolbar(){
+  return '<div class="aw-board-toolbar" id="tb">' +
+    tb('bold','<b>B</b>')+tb('italic','<i>I</i>')+tb('underline','<u>U</u>')+tb('strikeThrough','<s>S</s>')+
+    '<span class="aw-tsep"></span>' +
+    tb('fontUp','A▲')+tb('fontDown','A▼')+
+    '<span class="aw-tsep"></span>' +
+    '<input type="color" class="aw-tcolor" id="txtColor" title="Text color" value="#0A6EBD">' +
+    '<button class="aw-tbtn" data-hl title="Highlight">🖍</button>' +
+    '<button class="aw-tbtn" data-hloff title="Remove highlight">🚫🖍</button>' +
+    '<button class="aw-tbtn" data-clear title="Clear formatting">✕ Format</button>' +
+    '<span class="aw-tsep"></span>' +
+    tb('insertUnorderedList','• List')+tb('justifyLeft','⇤')+tb('justifyCenter','⇔')+
+    '<span class="aw-tsep"></span>' +
+    '<button class="aw-tbtn" id="imgBtn" title="Insert image">🖼 Image</button>' +
+    '<input type="file" id="imgFile" accept="image/*" style="display:none">' +
+    '<span class="aw-tsep"></span>' +
+    '<button class="aw-tbtn" data-zoom="out" title="Zoom out">➖</button>' +
+    '<span class="aw-zoom-ind" id="zoomInd">100%</span>' +
+    '<button class="aw-tbtn" data-zoom="in" title="Zoom in">➕</button>' +
+  '</div>';
+}
+function tb(cmd,label){ return '<button class="aw-tbtn" data-cmd="'+cmd+'">'+label+'</button>'; }
+
+function wireToolbar(){
+  var canvas=document.getElementById('canvas');
+  AW.els('#tb [data-cmd]').forEach(function(b){
+    b.onclick=function(){
+      var c=b.dataset.cmd;
+      if(c==='fontUp'){ changeFont(1); }
+      else if(c==='fontDown'){ changeFont(-1); }
+      else { document.execCommand(c,false,null); }
+      canvas.focus(); scheduleSave();
+    };
+  });
+  document.getElementById('txtColor').oninput=function(){
+    document.execCommand('foreColor',false,this.value); scheduleSave();
+  };
+  AW.el('[data-hl]').onclick=function(){
+    document.execCommand('hiliteColor',false,'#FFF1A8')||document.execCommand('backColor',false,'#FFF1A8');
+    scheduleSave();
+  };
+  AW.el('[data-hloff]').onclick=function(){
+    // remove highlight by setting background to transparent/white
+    document.execCommand('hiliteColor',false,'transparent')||document.execCommand('backColor',false,'transparent');
+    canvas.focus(); scheduleSave();
+  };
+  AW.el('[data-clear]').onclick=function(){
+    document.execCommand('removeFormat',false,null);
+    document.execCommand('hiliteColor',false,'transparent');
+    canvas.focus(); scheduleSave();
+  };
+  AW.els('[data-zoom]').forEach(function(b){
+    b.onclick=function(){ zoom=Math.max(.5,Math.min(3, zoom+(b.dataset.zoom==='in'?.1:-.1))); applyZoom(); };
+  });
+  document.getElementById('imgBtn').onclick=function(){ document.getElementById('imgFile').click(); };
+  document.getElementById('imgFile').onchange=function(){ if(this.files[0]) handleImage(this.files[0]); };
+}
+// zoom scales the canvas view only — it is never saved into the board content
+// Zoom is a view-only setting — it is never saved into the board content.
+// Teacher: scales the whole canvas, so the projector shows the exact layout.
+// Student: scales the text size only, so the column keeps its width and
+// long lines simply re-wrap instead of running off the side.
+function applyZoom(){
+  var canvas=document.getElementById('canvas'); if(!canvas)return;
+  if(isTeacher){
+    canvas.style.transform='scale('+zoom+')';
+  } else {
+    canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
+  }
+  var ind=document.getElementById('zoomInd');
+  if(ind) ind.textContent=Math.round(zoom*100)+'%';
+}
+function changeFont(dir){
+  // apply real px font-size to the selection, stepping between preset sizes up to 120px
+  var sizes=[14,16,18,20,24,28,32,40,48,64,80,100,120];
+  var sel=window.getSelection();
+  if(!sel.rangeCount || sel.isCollapsed){ AW.toast('Select some text first','err'); return; }
+  // find current size from the anchor
+  var node=sel.anchorNode; node=node.nodeType===3?node.parentNode:node;
+  var cur=parseInt(window.getComputedStyle(node).fontSize,10)||16;
+  // nearest index
+  var i=0, best=1e9;
+  sizes.forEach(function(s,si){ var d=Math.abs(s-cur); if(d<best){best=d;i=si;} });
+  i = Math.max(0, Math.min(sizes.length-1, i + (dir>0?1:-1)));
+  var px=sizes[i];
+  // wrap selection in a span with the chosen size
+  var range=sel.getRangeAt(0);
+  var span=document.createElement('span');
+  span.style.fontSize=px+'px';
+  try{
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+    // reselect
+    sel.removeAllRanges();
+    var nr=document.createRange(); nr.selectNodeContents(span); sel.addRange(nr);
+  }catch(e){ document.execCommand('fontSize',false,dir>0?'5':'3'); }
+  AW.toast('Font size: '+px+'px'+(px===120?' (max)':''),'ok',1200);
+  if(typeof scheduleSave==='function') scheduleSave();
+}
+
+/*──── image handling ────*/
+function onPaste(e){
+  var items=(e.clipboardData||{}).items||[];
+  for(var i=0;i<items.length;i++){
+    if(items[i].type.indexOf('image')===0){
+      e.preventDefault();
+      handleImage(items[i].getAsFile());
+      return;
+    }
+  }
+}
+function handleImage(file){
+  // small (<200KB) → compress to base64 inline; larger → upload to Drive
+  var reader=new FileReader();
+  reader.onload=function(){
+    compress(reader.result, function(dataUrl, sizeKB){
+      if(sizeKB < 180){ insertImg(dataUrl); scheduleSave(); }
+      else {
+        AW.toast('Uploading image…');
+        AW.api('board.uploadImage',{dataUrl:dataUrl,name:file.name}).then(function(res){
+          if(res&&res.success){ insertImg(res.data.url); scheduleSave(); AW.toast('Đã chèn ảnh','ok'); }
+          else AW.toast((res&&res.error)||'Upload lỗi','err');
+        });
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+}
+function compress(dataUrl, cb){
+  var img=new Image();
+  img.onload=function(){
+    var max=1200, w=img.width, h=img.height;
+    if(w>max){ h=h*max/w; w=max; }
+    var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    var out=cv.toDataURL('image/jpeg',0.82);
+    cb(out, Math.round(out.length*0.75/1024));
+  };
+  img.onerror=function(){ cb(dataUrl, 999); };
+  img.src=dataUrl;
+}
+function insertImg(url){
+  var canvas=document.getElementById('canvas'); canvas.focus();
+  document.execCommand('insertHTML',false,'<img src="'+url+'" alt="board image">');
+}
+
+/*──── image resize & select (teacher only) ────*/
+var selectedImg=null;
+var imgCtrl=document.getElementById('imgCtrl');
+if(isTeacher){
+  document.addEventListener('click',function(e){
+    if(e.target.tagName==='IMG' && document.getElementById('canvas').contains(e.target)){
+      if(selectedImg) selectedImg.classList.remove('selected');
+      selectedImg=e.target; selectedImg.classList.add('selected');
+      imgCtrl.style.display='flex';
+      imgCtrl.style.top=(e.clientY+10)+'px';
+      imgCtrl.style.left=(e.clientX-80)+'px';
+    } else if(!imgCtrl.contains(e.target)){
+      if(selectedImg){selectedImg.classList.remove('selected');selectedImg=null;}
+      imgCtrl.style.display='none';
+    }
+  });
+  document.getElementById('imgSmaller').onclick=function(){
+    if(!selectedImg)return;
+    var w=selectedImg.width||selectedImg.offsetWidth||200;
+    selectedImg.style.width=Math.max(80,w*0.75)+'px';scheduleSave();
+  };
+  document.getElementById('imgLarger').onclick=function(){
+    if(!selectedImg)return;
+    var w=selectedImg.width||selectedImg.offsetWidth||200;
+    selectedImg.style.width=Math.min(1200,w*1.33)+'px';scheduleSave();
+  };
+  document.getElementById('imgFull').onclick=function(){
+    if(!selectedImg)return;
+    selectedImg.style.width='100%';scheduleSave();
+  };
+  document.getElementById('imgRemove').onclick=function(){
+    if(!selectedImg)return;
+    selectedImg.parentNode&&selectedImg.parentNode.removeChild(selectedImg);
+    selectedImg=null;imgCtrl.style.display='none';scheduleSave();
+  };
+}
+function scheduleSave(){
+  var dot=document.getElementById('saveDot'); if(dot)dot.textContent='Saving…';
+  clearTimeout(saveTimer); saveTimer=setTimeout(saveNow, 1500);
+}
+function saveNow(){
+  if(!curBoard||!isTeacher)return;
+  var canvas=document.getElementById('canvas'); if(!canvas)return;
+  var title=document.getElementById('boardTitle'); title=title?title.value:curBoard.title;
+  curBoard.content=canvas.innerHTML; curBoard.title=title;
+  AW.api('board.save',{boardId:curBoard.boardId,title:title,content:canvas.innerHTML}).then(function(res){
+    var dot=document.getElementById('saveDot');
+    if(dot)dot.textContent = (res&&res.success)?'Saved':'Save failed';
+  });
+}
+
+/*──── export PDF (print) ────*/
+window.exportPDF=function(){
+  var canvas=document.getElementById('canvas');
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>'+AW.esc(curBoard.title)+'</title>'+
+    '<style>body{font-family:Inter,system-ui,sans-serif;padding:40px;line-height:1.7;color:#10222E}'+
+    'img{max-width:100%;border-radius:8px}h1{font-family:Georgia,serif}</style></head><body>'+
+    '<h1>'+AW.esc(curBoard.title)+'</h1>'+canvas.innerHTML+'</body></html>');
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 400);
+};
+
+showList();
+</script>
+</body>
+</html>
