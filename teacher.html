@@ -1339,7 +1339,7 @@ function renderResults(){
       '<div style="margin-bottom:6px"><b>'+w.length+'/3</b> attempts · AI best <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
       '<div style="font-weight:600;margin-bottom:3px;color:var(--aw-ink-2)">Teacher scoring:</div>'+
       '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:5px">'+
-        '<input class="ms-in" data-f="tr" placeholder="'+(g.taskType==='task1'?'TA':'TR')+'" value="'+AW.esc(ts.tr||'')+'" title="'+(g.taskType==='task1'?'Task Achievement':'Task Response')+'">'+'
+        '<input class="ms-in" data-f="tr" placeholder="'+(g.taskType==='task1'?'TA':'TR')+'" value="'+AW.esc(ts.tr||'')+'" title="'+(g.taskType==='task1'?'Task Achievement':'Task Response')+'">'+
         '<input class="ms-in" data-f="cc" placeholder="CC" value="'+AW.esc(ts.cc||'')+'" title="Coherence">'+
         '<input class="ms-in" data-f="lr" placeholder="LR" value="'+AW.esc(ts.lr||'')+'" title="Lexical">'+
         '<input class="ms-in" data-f="gra" placeholder="GR" value="'+AW.esc(ts.gra||'')+'" title="Grammar">'+
@@ -1650,37 +1650,69 @@ function _fileToDataUrl(file, cb){
 }
 
 /*── Task Type card click ──*/
-AW.els('.aw-task-card').forEach(function(card){
-  card.onclick = function(){ _applyTaskType(card.dataset.tt); };
-});
-
 /*── Chart type chip click ──*/
-AW.els('.aw-ct-chip').forEach(function(chip){
-  chip.onclick = function(){
-    AW.els('.aw-ct-chip').forEach(function(c){ c.classList.remove('active'); });
-    chip.classList.add('active');
-    _chartType = chip.dataset.ct;
-  };
-});
-
 /*── Chart paste / drag / click ──*/
-document.getElementById('assignModal').addEventListener('paste', function(e){
-  var items = (e.clipboardData || e.originalEvent.clipboardData).items;
-  for (var i=0;i<items.length;i++){
-    if (items[i].type.indexOf('image') !== -1){ _fileToDataUrl(items[i].getAsFile(), _setChartImage); break; }
+// All modal element listeners are attached lazily on first open (see _initModalListeners)
+// to avoid getElementById-on-null crashes before the shell renders.
+var _modalListenersDone = false;
+function _initModalListeners(){
+  if (_modalListenersDone) return;
+  _modalListenersDone = true;
+
+  AW.els('.aw-task-card').forEach(function(card){
+    card.onclick = function(){ _applyTaskType(card.dataset.tt); };
+  });
+
+  AW.els('.aw-ct-chip').forEach(function(chip){
+    chip.onclick = function(){
+      AW.els('.aw-ct-chip').forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      _chartType = chip.dataset.ct;
+    };
+  });
+
+  var modal = document.getElementById('assignModal');
+  if (modal) modal.addEventListener('paste', function(e){
+    var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (var i=0;i<items.length;i++){
+      if (items[i].type.indexOf('image') !== -1){ _fileToDataUrl(items[i].getAsFile(), _setChartImage); break; }
+    }
+  });
+
+  var _drop = document.getElementById('chartDrop');
+  if (_drop) {
+    _drop.addEventListener('dragover',  function(e){ e.preventDefault(); _drop.classList.add('drag-over'); });
+    _drop.addEventListener('dragleave', function(){ _drop.classList.remove('drag-over'); });
+    _drop.addEventListener('drop', function(e){ e.preventDefault(); _drop.classList.remove('drag-over'); _fileToDataUrl(e.dataTransfer.files[0], _setChartImage); });
   }
-});
-var _drop = document.getElementById('chartDrop');
-_drop.addEventListener('dragover', function(e){ e.preventDefault(); _drop.classList.add('drag-over'); });
-_drop.addEventListener('dragleave', function(){ _drop.classList.remove('drag-over'); });
-_drop.addEventListener('drop', function(e){ e.preventDefault(); _drop.classList.remove('drag-over'); _fileToDataUrl(e.dataTransfer.files[0], _setChartImage); });
-document.getElementById('chartBrowseLink').onclick = function(){ document.getElementById('chartFileInput').click(); };
-document.getElementById('chartFileInput').onchange = function(){ if(this.files[0]) _fileToDataUrl(this.files[0], _setChartImage); };
-document.getElementById('chartReplaceBtn').onclick = function(){ document.getElementById('chartFileInput').click(); };
-document.getElementById('chartRemoveBtn').onclick  = _clearChartPreview;
+
+  var browseLink = document.getElementById('chartBrowseLink');
+  if (browseLink) browseLink.onclick = function(){ document.getElementById('chartFileInput').click(); };
+
+  var fileInput = document.getElementById('chartFileInput');
+  if (fileInput) fileInput.onchange = function(){ if(this.files[0]) _fileToDataUrl(this.files[0], _setChartImage); };
+
+  var replBtn = document.getElementById('chartReplaceBtn');
+  if (replBtn) replBtn.onclick = function(){ document.getElementById('chartFileInput').click(); };
+
+  var remBtn = document.getElementById('chartRemoveBtn');
+  if (remBtn) remBtn.onclick = _clearChartPreview;
+
+  var createBtn = document.getElementById('aCreate');
+  if (createBtn) createBtn.onclick = _aCreateHandler;
+
+  var miniTb = document.querySelectorAll('.aw-editor-mini-tb button');
+  miniTb.forEach(function(b){
+    b.onclick=function(){ document.execCommand(b.dataset.c,false,null); document.getElementById('aPrompt').focus(); };
+  });
+
+  var cancelBtn = document.getElementById('aCancel');
+  if (cancelBtn) cancelBtn.onclick=function(){ document.getElementById('assignModal').classList.remove('show'); };
+}
 
 /*── open modal ──*/
 window.newAssignment=function(mode){
+  _initModalListeners(); // attach once, safe to call multiple times
   assignMode = mode||'homework';
   document.getElementById('assignTitle').textContent = assignMode==='homework'?'New Homework':'New In-class Task';
   document.getElementById('aTopic').value      = '';
@@ -1700,16 +1732,8 @@ window.newAssignment=function(mode){
   document.getElementById('assignModal').classList.add('show');
 };
 
-/*── mini toolbar ──*/
-AW.els('.aw-editor-mini-tb button').forEach(function(b){
-  b.onclick=function(){ document.execCommand(b.dataset.c,false,null); document.getElementById('aPrompt').focus(); };
-});
-
-/*── cancel ──*/
-document.getElementById('aCancel').onclick=function(){ document.getElementById('assignModal').classList.remove('show'); };
-
-/*── create ──*/
-document.getElementById('aCreate').onclick=function(){
+/*── create handler — wired in _initModalListeners() ──*/
+function _aCreateHandler(){
   var topic      = document.getElementById('aTopic').value.trim();
   var promptHtml = document.getElementById('aPrompt').innerHTML.trim();
   if(!topic){ AW.toast('Nhập tên bài tập.','err'); return; }
@@ -1759,7 +1783,7 @@ document.getElementById('aCreate').onclick=function(){
   } else {
     _doCreate(null);
   }
-};
+}
 
 /*═══════════ GLOBAL NOTIFICATIONS (raised hands + new questions) ═══════════
   Runs on every teacher page, not just Live Observation, so a student's
