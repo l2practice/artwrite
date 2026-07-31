@@ -20,6 +20,23 @@
   .aw-mode-free .aw-mode-ic{background:#E4F5EA}
   .aw-mode-inclass .aw-mode-ic{background:var(--aw-primary-lt)}
   .aw-mode-hw .aw-mode-ic{background:#FEF3D6}
+  /* Free Writing task selector panel */
+  .aw-free-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);padding:24px;margin-bottom:20px;box-shadow:var(--aw-shadow-sm)}
+  .aw-free-panel h3{font-family:var(--aw-font-display);margin:0 0 6px;font-size:1.15rem}
+  .aw-free-panel p{margin:0 0 18px;color:var(--aw-ink-2);font-size:.9rem;line-height:1.5}
+  .aw-free-tasks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:540px){.aw-free-tasks{grid-template-columns:1fr}}
+  .aw-free-task{border:2px solid var(--aw-border);border-radius:var(--aw-r);padding:16px 18px;cursor:pointer;transition:all .18s;background:#fff;text-align:left}
+  .aw-free-task:hover{border-color:var(--aw-primary);background:var(--aw-primary-lt);transform:translateY(-2px);box-shadow:var(--aw-shadow)}
+  .aw-free-task.t1:hover{border-color:#1A9E5C;background:#EAF7F0}
+  .aw-free-task .ft-icon{font-size:1.6rem;margin-bottom:8px}
+  .aw-free-task .ft-badge{display:inline-flex;align-items:center;gap:5px;font-size:.7rem;font-weight:800;padding:2px 9px;border-radius:12px;margin-bottom:6px;letter-spacing:.03em}
+  .t2 .ft-badge{background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8}
+  .t1 .ft-badge{background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0}
+  .aw-free-task h4{margin:0 0 4px;font-size:.95rem;font-family:var(--aw-font-display)}
+  .aw-free-task p{margin:0;font-size:.8rem;color:var(--aw-ink-3);line-height:1.4}
+  .aw-free-task .ft-crits{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+  .aw-free-task .ft-crit{font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:12px;border:1px solid currentColor;background:#fff}
   .aw-mode-card h3{margin:0 0 6px;font-size:1.15rem;font-family:var(--aw-font-display)}
   .aw-mode-card p{margin:0;color:var(--aw-ink-2);font-size:.9rem;line-height:1.5}
   .aw-hist-list{display:flex;flex-direction:column;gap:10px}
@@ -119,7 +136,7 @@ function showModes(){
         AW.toast('Mục Free Writing không khả dụng cho lớp của bạn. Hãy làm bài trong mục Homework hoặc In-class Practice.','err',5000);
         return;
       }
-      if(m==='free'){ location.href='write.html?mode=free&topic='+encodeURIComponent('Free Writing'); }
+      if(m==='free'){ showFreeTaskSelector(); }
       else { loadAssignments(m); }
     };
   });
@@ -130,6 +147,120 @@ function modeCard(mode,ic,title,desc,cls){
   var locked = cls.indexOf('aw-mode-locked') !== -1;
   return '<div class="aw-mode-card '+cls+'" data-mode="'+mode+'">' +
     '<div class="aw-mode-ic">'+ic+'</div><h3>'+title+(locked?' <span class="aw-lock-badge">🔒 Khoá</span>':'')+'</h3><p>'+desc+'</p></div>';
+}
+
+/*── Free Writing: chọn Task 1 hoặc Task 2 trước khi vào write.html ──
+  Render ngay trong content area (không dùng modal) để SV thấy
+  mô tả đầy đủ và quyết định có chủ đích.                             */
+function showFreeTaskSelector(){
+  document.getElementById('awPageTitle').textContent='Free Writing';
+  content.innerHTML =
+    '<button class="aw-btn aw-btn-ghost" style="margin-bottom:18px" onclick="showModes()">← Back to modes</button>'+
+    '<div class="aw-free-panel">'+
+      '<h3>✍️ Chọn dạng bài luyện tập</h3>'+
+      '<p>Free Writing không giới hạn số lần thử. Chọn Task 1 để luyện mô tả biểu đồ, hoặc Task 2 để luyện viết luận.</p>'+
+      '<div class="aw-free-tasks">'+
+
+        // Task 1 card
+        '<div class="aw-free-task t1" id="freeTask1">'+
+          '<div class="ft-icon">📊</div>'+
+          '<div class="ft-badge">Task 1</div>'+
+          '<h4>Data / Chart / Diagram</h4>'+
+          '<p>Mô tả, tóm tắt hoặc so sánh thông tin từ biểu đồ, bảng, sơ đồ. Tối thiểu 150 từ.</p>'+
+          '<div class="ft-crits">'+
+            '<span class="ft-crit" style="color:#1A9E5C">TA</span>'+
+            '<span class="ft-crit" style="color:#0A6EBD">CC</span>'+
+            '<span class="ft-crit" style="color:#E0A32E">LR</span>'+
+            '<span class="ft-crit" style="color:#E8730C">GRA</span>'+
+          '</div>'+
+        '</div>'+
+
+        // Task 2 card
+        '<div class="aw-free-task t2" id="freeTask2">'+
+          '<div class="ft-icon">📝</div>'+
+          '<div class="ft-badge">Task 2</div>'+
+          '<h4>Essay / Opinion</h4>'+
+          '<p>Thảo luận, lập luận hoặc trình bày quan điểm về một vấn đề. Tối thiểu 250 từ.</p>'+
+          '<div class="ft-crits">'+
+            '<span class="ft-crit" style="color:#0A6EBD">TR</span>'+
+            '<span class="ft-crit" style="color:#0A6EBD">CC</span>'+
+            '<span class="ft-crit" style="color:#E0A32E">LR</span>'+
+            '<span class="ft-crit" style="color:#E8730C">GRA</span>'+
+          '</div>'+
+        '</div>'+
+
+      '</div>'+
+    '</div>'+
+    // Show recent free writing history below
+    '<h2 class="aw-sec-title">Recent Free Writing</h2>'+
+    '<div id="hist" class="aw-hist-list"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+
+  // Task 1 click → show prompt input panel for Task 1
+  document.getElementById('freeTask1').onclick = function(){
+    showFreePromptInput('task1');
+  };
+  // Task 2 click → show prompt input panel for Task 2
+  document.getElementById('freeTask2').onclick = function(){
+    showFreePromptInput('task2');
+  };
+
+  loadHistory();
+}
+
+/*── Free Writing: nhập đề bài (optional) rồi bắt đầu viết ──*/
+function showFreePromptInput(taskType){
+  var isT1 = taskType === 'task1';
+  var taskLabel   = isT1 ? 'Task 1 — Data / Chart / Diagram' : 'Task 2 — Essay / Opinion';
+  var taskIcon    = isT1 ? '📊' : '📝';
+  var placeholder = isT1
+    ? 'VD: The chart below shows the percentage of households in four European countries with at least one car from 1996 to 2011. Summarise the information…'
+    : 'VD: Some people think that modern technology is making people more sociable, while others think it is making them less sociable. Discuss both views and give your opinion.';
+  var minWords    = isT1 ? '150' : '250';
+  var badgeColor  = isT1 ? '#1A9E5C' : 'var(--aw-primary)';
+  var badgeBg     = isT1 ? '#EAF7F0' : 'var(--aw-primary-lt)';
+
+  document.getElementById('awPageTitle').textContent='Free Writing';
+  content.innerHTML =
+    '<button class="aw-btn aw-btn-ghost" style="margin-bottom:18px" onclick="showFreeTaskSelector()">← Chọn lại dạng bài</button>'+
+    '<div class="aw-free-panel">'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'+
+        '<span style="font-size:1.6rem">'+taskIcon+'</span>'+
+        '<div>'+
+          '<span style="display:inline-block;font-size:.72rem;font-weight:800;padding:2px 10px;border-radius:12px;background:'+badgeBg+';color:'+badgeColor+';border:1px solid;letter-spacing:.03em">'+taskLabel+'</span>'+
+          '<div style="font-size:.8rem;color:var(--aw-ink-3);margin-top:3px">Min. '+minWords+' words · AI grading after submission</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="aw-field">'+
+        '<label class="aw-label">Đề bài (Prompt) <span style="font-weight:400;color:var(--aw-ink-3)">— tuỳ chọn, có thể để trống</span></label>'+
+        '<textarea id="freePromptInput" rows="3" class="aw-input" style="resize:vertical" placeholder="'+AW.esc(placeholder)+'"></textarea>'+
+        '<p style="margin:6px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 Nếu để trống, bạn có thể nhập đề bài trong trang viết, hoặc AI sẽ chấm theo chất lượng Task '+( isT1 ? '1' : '2')+' chung.</p>'+
+      '</div>'+
+      '<div style="display:flex;gap:10px;margin-top:4px">'+
+        '<button class="aw-btn aw-btn-primary" id="freeStartBtn" style="flex:1;padding:13px">'+taskIcon+' Bắt đầu viết →</button>'+
+      '</div>'+
+    '</div>';
+
+  document.getElementById('freeStartBtn').onclick = function(){
+    var prompt = (document.getElementById('freePromptInput').value||'').trim();
+    var topic  = prompt
+      ? prompt.slice(0, 60) + (prompt.length > 60 ? '…' : '')
+      : (isT1 ? 'Free Writing — Task 1' : 'Free Writing — Task 2');
+    var params = new URLSearchParams({
+      mode:   'free',
+      type:   taskType,
+      topic:  topic
+    });
+    if (prompt) params.set('prompt', prompt);
+    location.href = 'write.html?' + params.toString();
+  };
+
+  // Also allow Enter in textarea to submit (Shift+Enter for newline)
+  document.getElementById('freePromptInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      document.getElementById('freeStartBtn').click();
+    }
+  });
 }
 
 function loadHistory(){
@@ -143,15 +274,18 @@ function loadHistory(){
       return;
     }
     box2.innerHTML=res.data.slice(0,8).map(function(h){
-      var band=h.overall||h.teacher||'—';
+      var band=h.bestResult||h.overall||h.teacher||'—';
+      var taskBadge = (h.taskType==='task1')
+        ? '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
+        : '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;margin-left:5px;vertical-align:middle">T2</span>';
       return '<div class="aw-hist"><div class="aw-hist-main">' +
-        '<div class="aw-hist-topic">'+AW.esc(h.topic||'Untitled')+'</div>' +
-        '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · Band '+AW.esc(String(band))+' · '+(h.timestamp?new Date(h.timestamp).toLocaleDateString():'')+'</div>' +
-        '</div><button class="aw-btn aw-btn-ghost" style="padding:7px 16px" data-tid="'+AW.esc(h.topicId)+'" data-topic="'+AW.esc(h.topic)+'" data-mode="'+AW.esc(h.mode)+'">Re-try</button></div>';
+        '<div class="aw-hist-topic">'+AW.esc(h.topic||'Untitled')+taskBadge+'</div>' +
+        '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · Band '+AW.esc(String(band))+' · '+(h.latestTime?new Date(h.latestTime).toLocaleDateString():(h.timestamp?new Date(h.timestamp).toLocaleDateString():''))+'</div>' +
+        '</div><button class="aw-btn aw-btn-ghost" style="padding:7px 16px" data-tid="'+AW.esc(h.topicId)+'" data-topic="'+AW.esc(h.topic)+'" data-mode="'+AW.esc(h.mode)+'" data-ttype="'+(h.taskType||'task2')+'">Re-try</button></div>';
     }).join('');
     AW.els('[data-tid]').forEach(function(b){
       b.onclick=function(){
-        location.href='write.html?mode='+b.dataset.mode+'&retry=1&topicId='+encodeURIComponent(b.dataset.tid)+'&topic='+encodeURIComponent(b.dataset.topic);
+        location.href='write.html?mode='+b.dataset.mode+'&retry=1&topicId='+encodeURIComponent(b.dataset.tid)+'&topic='+encodeURIComponent(b.dataset.topic)+'&type='+encodeURIComponent(b.dataset.ttype||'task2');
       };
     });
   });
