@@ -706,27 +706,11 @@ function showLive(){
         return '<option value="'+AW.esc(t.topicId)+'">'+tBadge+AW.esc(t.topic)+'</option>';
       }).join('');
 
-    // Class selector (if teacher has multiple classes)
-    var classOpts = myClasses.map(function(c){
-      return '<option value="'+AW.esc(c.classId)+'"'+(c.classId===curClass()?' selected':'')+'>'+AW.esc(c.className)+'</option>';
-    }).join('');
-
     content.innerHTML=
       '<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
-        // Class selector
-        (myClasses.length > 1
-          ? '<div style="display:flex;align-items:center;gap:6px">'+
-              '<span style="font-size:.78rem;font-weight:600;color:var(--aw-ink-3);white-space:nowrap">Lớp:</span>'+
-              '<select class="aw-select" id="liveClassSel">'+classOpts+'</select>'+
-            '</div>'
-          : '<span style="font-size:.88rem;font-weight:600;color:var(--aw-ink-2)">'+
-              AW.esc((curClassObj()&&curClassObj().className)||curClass())+'</span>'
-        )+
-        // Task filter
-        '<div style="display:flex;align-items:center;gap:6px">'+
-          '<span style="font-size:.78rem;font-weight:600;color:var(--aw-ink-3);white-space:nowrap">Bài:</span>'+
-          '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
-        '</div>'+
+        // Task filter only (class is already selected in the header bar)
+        '<span style="font-size:.78rem;font-weight:600;color:var(--aw-ink-3);white-space:nowrap">Bài:</span>'+
+        '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
         '<div style="display:flex;gap:2px;background:var(--aw-surface-2);border-radius:8px;padding:3px">'+
           '<button class="aw-btn" id="viewGrid" style="padding:5px 12px;font-size:.8rem">▦ Grid</button>'+
           '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
@@ -741,19 +725,6 @@ function showLive(){
           '<h4>Session Stats</h4><div id="liveStats"></div>' +
           '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
       '</div>';
-
-    // Class selector change → reload live data for that class
-    var liveClassSel = document.getElementById('liveClassSel');
-    if (liveClassSel) {
-      liveClassSel.onchange = function(){
-        // Update curClass selection globally so pollLive uses new class
-        var sel = document.getElementById('classSel');
-        if (sel) { sel.value = this.value; sel.dispatchEvent(new Event('change')); }
-        // Reload task list for new class
-        stopLivePoll();
-        showLive();
-      };
-    }
 
     document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
 
