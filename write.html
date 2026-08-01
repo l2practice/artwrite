@@ -121,22 +121,6 @@
   .aw-tutor-msg.user{background:var(--aw-primary);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
   .aw-tutor-input{display:flex;gap:6px;padding:12px;border-top:1px solid var(--aw-border-2)}
   .aw-tutor-input input{flex:1;border:1px solid var(--aw-border);border-radius:20px;padding:9px 14px;font-size:.88rem}
-  /* ── Task 1 chart viewer ── */
-  .aw-chart-viewer{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:12px 14px;margin-bottom:14px}
-  .aw-chart-viewer-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-  .aw-chart-viewer-head span{font-size:.78rem;font-weight:700;text-transform:uppercase;color:#1A9E5C;letter-spacing:.04em}
-  .aw-chart-controls{display:flex;align-items:center;gap:4px;margin-left:auto}
-  .aw-chart-controls button{width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem;font-weight:700;color:var(--aw-ink-2);display:grid;place-items:center}
-  .aw-chart-controls button:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
-  .aw-chart-pct{font-size:.75rem;font-weight:600;color:var(--aw-ink-3);min-width:38px;text-align:center}
-  .aw-chart-img-wrap{overflow:auto;max-height:480px;border-radius:6px;background:#fff;border:1px solid var(--aw-border-2);padding:4px;text-align:center}
-  .aw-chart-img-wrap img{display:block;margin:0 auto;transition:width .2s}
-  /* Task type badge in prompt header */
-  .aw-task1-badge{display:inline-flex;align-items:center;gap:5px;background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;border-radius:12px;font-size:.72rem;font-weight:700;padding:2px 10px;margin-left:8px;vertical-align:middle;letter-spacing:.02em}
-  .aw-task2-badge{display:inline-flex;align-items:center;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;border-radius:12px;font-size:.72rem;font-weight:700;padding:2px 10px;margin-left:8px;vertical-align:middle}
-  /* word count warning colours */
-  .wc-warn{color:#E0A32E!important;font-weight:700}
-  .wc-ok{color:#1A9E5C!important;font-weight:700}
 </style>
 </head>
 <body>
@@ -170,9 +154,7 @@ var MODE = qp.get('mode') || 'free';               // free | homework | inclass
 var TOPIC = qp.get('topic') || 'Free Writing';
 var PROMPT = qp.get('prompt') || 'Write about your opinion on the given topic.';
 var AI_NOTES = '';  // teacher's grading rules for this task (context)
-var TASK_TYPE    = qp.get('type') || 'task2';   // 'task1' | 'task2'
-var CHART_IMAGE_ID = '';                         // Drive fileId for Task 1 chart
-var MIN_WORDS    = TASK_TYPE === 'task1' ? 150 : 250;  // recalculated after prompt load
+var TASK_TYPE = qp.get('type') || '';
 var TOPIC_ID = qp.get('topicId') || ('T' + Date.now().toString(36));
 var RETRY = qp.get('retry') === '1';
 var DURATION_MIN = parseInt(qp.get('duration') || '0', 10);
@@ -199,6 +181,10 @@ var attempt = 1;
 // If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
 // fetch the official prompt from the backend so the student sees the real đề bài.
 var hasRealTopic = qp.get('topicId') && MODE !== 'free';
+// MIN_WORDS: default by task type, overridden by assignment's minWords field
+// GV có thể set minWords thấp hơn (VD: 80 nếu chỉ viết 1 đoạn thân bài)
+var MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
+
 if (hasRealTopic) {
   AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
     if (res && res.success) {
@@ -208,76 +194,14 @@ if (hasRealTopic) {
         if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
       }
       AI_NOTES = res.data.aiNotes || '';
-      // Task type from server overrides URL param (more reliable)
-      if (res.data.taskType) {
-        TASK_TYPE = res.data.taskType;
-        MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
-        // Update badge in prompt box header
-        var badge = document.getElementById('taskTypeBadge');
-        if (badge) {
-          if (TASK_TYPE === 'task1') {
-            badge.className = 'aw-task1-badge'; badge.textContent = 'Task 1';
-          } else {
-            badge.className = 'aw-task2-badge'; badge.textContent = 'Task 2';
-          }
-        }
-      }
-      // Task 1: load chart image if provided
-      if (res.data.chartImageId && TASK_TYPE === 'task1') {
-        CHART_IMAGE_ID = res.data.chartImageId;
-        renderChartViewer(CHART_IMAGE_ID);
+      // Override MIN_WORDS if teacher specified a custom limit for this task
+      if (res.data.minWords && parseInt(res.data.minWords, 10) > 0) {
+        MIN_WORDS = parseInt(res.data.minWords, 10);
+        // Update the word counter label to reflect custom limit
+        updateWordCount();
       }
     }
   });
-}
-
-/*── Chart viewer (Task 1) ──
-   Injected above the prompt box after getPrompt resolves.
-   Student can zoom ±20% steps. Image hosted on Drive (public link).  */
-function renderChartViewer(fileId){
-  var existing = document.getElementById('chartViewerBox');
-  if (existing) return;  // already rendered
-  var url = 'https://drive.google.com/uc?export=view&id=' + fileId;
-  var box = document.createElement('div');
-  box.id = 'chartViewerBox';
-  box.className = 'aw-chart-viewer';
-  box.innerHTML =
-    '<div class="aw-chart-viewer-head">'+
-      '<span>📊 Chart / Diagram</span>'+
-      '<span style="font-size:.72rem;color:var(--aw-ink-3);font-weight:400;margin-left:4px">— refer to this while writing</span>'+
-      '<div class="aw-chart-controls">'+
-        '<button id="chartZoomOut" title="Thu nhỏ">−</button>'+
-        '<span class="aw-chart-pct" id="chartPct">100%</span>'+
-        '<button id="chartZoomIn" title="Phóng to">+</button>'+
-        '<button id="chartFull" title="Xem toàn màn hình" style="width:auto;padding:0 8px;font-size:.72rem;font-weight:600">⛶ Full</button>'+
-      '</div>'+
-    '</div>'+
-    '<div class="aw-chart-img-wrap" id="chartImgWrap">'+
-      '<img id="chartImg" src="'+url+'" alt="Chart" style="width:100%;max-width:600px" '+
-        'onerror="this.alt=\'⚠ Không tải được ảnh — kiểm tra kết nối mạng.\';this.style.padding=\'20px\';this.removeAttribute(\'src\')">'+
-    '</div>';
-  // insert before prompt box
-  var promptBox = document.querySelector('.aw-prompt-box');
-  if (promptBox) promptBox.parentNode.insertBefore(box, promptBox);
-  else { var firstChild = document.querySelector('.aw-write-grid > div'); if(firstChild) firstChild.insertBefore(box, firstChild.firstChild); }
-
-  // zoom controls
-  var img = document.getElementById('chartImg');
-  var pctEl = document.getElementById('chartPct');
-  var curPct = 100;
-  function setZoom(p){
-    curPct = Math.max(40, Math.min(200, p));
-    img.style.width = curPct + '%';
-    img.style.maxWidth = 'none';
-    pctEl.textContent = curPct + '%';
-  }
-  document.getElementById('chartZoomIn').onclick  = function(){ setZoom(curPct + 20); };
-  document.getElementById('chartZoomOut').onclick = function(){ setZoom(curPct - 20); };
-  document.getElementById('chartFull').onclick = function(){
-    var w = window.open('', '_blank');
-    w.document.write('<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="'+url+'" style="max-width:100%;max-height:100vh"></body></html>');
-    w.document.close();
-  };
 }
 
 /* Experimental class (AI on) vs control class (AI off). Read the cached value
@@ -301,10 +225,7 @@ content.innerHTML =
             'style="width:100%;min-height:70px;border:1px solid var(--aw-border);border-radius:8px;padding:10px;font-size:.92rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box"></textarea>' +
             '<p style="margin:8px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 No prompt? You can still write freely — the AI will assess general Task 2 quality.</p></div>';
         }
-        var ttBadge = TASK_TYPE === 'task1'
-          ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
-          : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
-        return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt'+ttBadge+'</h4>' +
+        return '<div class="aw-prompt-box"><h4>'+AW.esc(TASK_TYPE || 'IELTS Task 2 Prompt')+'</h4>' +
           '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +
@@ -440,26 +361,43 @@ AW.els('.aw-hl-btn').forEach(function(b){
 });
 var wc = document.getElementById('wc');
 var DRAFT_KEY = 'aw_draft_' + MODE + '_' + TOPIC_ID;
+var DRAFT_SERVER_KEY = 'draft_' + sess.studentId + '_' + TOPIC_ID; // for heartbeat backup
+
 function updateWordCount(){
   var n = AW.wordCount(editor.innerText);
-  var minW = MIN_WORDS; // 150 for Task 1, 250 for Task 2
-  var label = n + ' / ' + minW + ' words';
+  var label = n + ' / ' + MIN_WORDS + ' words min';
   wc.textContent = label;
-  wc.className = n >= minW ? 'wc-ok' : (n >= minW * 0.8 ? 'wc-warn' : '');
+  wc.className = n >= MIN_WORDS ? 'wc-ok' : (n >= MIN_WORDS * 0.7 ? 'wc-warn' : '');
 }
+
+// Auto-save draft to localStorage on every keystroke
 editor.addEventListener('input', function(){
   updateWordCount();
-  if (!RETRY) { try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){} }
+  if (!RETRY) {
+    try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
+  }
 });
 updateWordCount();
 
-// restore a saved draft if present (so leaving & returning doesn't lose work)
+// Restore draft: localStorage first (fastest), then server snapshot as fallback
 if (!RETRY) {
   var saved = localStorage.getItem(DRAFT_KEY);
   if (saved && saved.trim() && saved.replace(/<[^>]*>/g,'').trim()) {
     editor.innerHTML = saved;
-    wc.textContent = AW.wordCount(editor.innerText) + ' words';
-    AW.toast('Restored your saved draft','ok');
+    updateWordCount();
+    AW.toast('✓ Đã khôi phục bài đang viết dang dở','ok', 3000);
+  } else if (MODE === 'inclass' && TOPIC_ID) {
+    // Fallback: try to restore from server heartbeat snapshot
+    // (covers case where student switched device or cleared browser cache)
+    AW.api('write.getDraftSnapshot', { studentId: sess.studentId, topicId: TOPIC_ID }).then(function(res){
+      if (res && res.success && res.data && res.data.snapshot && !editor.innerText.trim()) {
+        editor.innerText = res.data.snapshot;
+        updateWordCount();
+        AW.toast('✓ Đã khôi phục bài từ server (đổi thiết bị)','ok', 4000);
+        // Also save to localStorage so next restore is faster
+        try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
+      }
+    }).catch(function(){}); // silent fail — not critical
   }
 }
 window.pauseWriting = function(){
@@ -467,7 +405,9 @@ window.pauseWriting = function(){
   AW.toast('Draft saved. You can leave and come back anytime.','ok',3000);
 };
 // clear draft after successful submission
-window.clearDraft = function(){ try { localStorage.removeItem(DRAFT_KEY); } catch(e){} };
+window.clearDraft = function(){
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e){}
+};
 setTimeout(function(){ var pb=document.getElementById('pauseBtn'); if(pb) pb.onclick=pauseWriting; }, 0);
 
 /*──────── retry: start FRESH with an empty editor ────────*/
@@ -522,26 +462,202 @@ if (DURATION_MIN) {
     var m=Math.floor(remain/60), s=remain%60;
     if (tEl){
       tEl.textContent = '⏱ '+m+':'+(s<10?'0':'')+s;
-      if (remain<=300) tEl.style.color = '#D93025';   // last 5 min: red
+      if (remain<=60)  { tEl.style.color='#B42318'; tEl.style.fontWeight='900'; }
+      else if (remain<=300) tEl.style.color = '#D93025';   // last 5 min: red
     }
+    // Milestone toasts
+    if (remain===600) AW.toast('⏰ Còn 10 phút — hãy hoàn thiện bài nhé!','err',4000);
+    if (remain===300) AW.toast('⚠️ Còn 5 phút — chuẩn bị kết bài!','err',4000);
+    if (remain===60)  AW.toast('🚨 Còn 1 phút — bài sẽ tự động nộp!','err',5000);
   },1000);
 }
 
-/* Fired once when the countdown reaches zero. Reuses the normal grade/submit
-   path so the attempt is saved exactly like a manual submission, then blocks
-   further editing. */
+/* Fired once when the countdown reaches zero.
+   Always saves the attempt — even if short/incomplete — so the teacher
+   sees every student in Results. Shows an encouragement banner after grading
+   so the student knows to use Free Writing to improve.                      */
 function autoSubmitOnTimeout(){
-  var gb = document.getElementById('gradeBtn');
+  var gb   = document.getElementById('gradeBtn');
   var text = editor ? editor.innerText.trim() : '';
-  if (AW.wordCount(text) < 20){
-    // too little to grade — just lock so they can't keep working past time
-    if (gb){ gb.disabled = true; }
-    lockEditor('Hết giờ làm bài. Bạn không nộp kịp bài lần này.');
+  var wc   = AW.wordCount(text);
+
+  // Lock editor immediately so student can't keep writing past time
+  editor.setAttribute('contenteditable','false');
+  editor.style.background='var(--aw-surface-2)';
+  if (gb) { gb.disabled = true; gb.textContent = '⏳ Đang nộp tự động…'; }
+  AW.toast('Hết giờ! Bài của bạn đang được nộp tự động…', 'err', 5000);
+
+  if (wc < 10) {
+    // Nothing meaningful written — save a blank record so teacher knows
+    // the student was present but didn't write, then show message
+    AW.api('write.saveResult', {
+      studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+      taskType:TASK_TYPE,
+      startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+      duration:Math.round((Date.now()-startTime)/1000),
+      tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
+      essay: text || '(Không có nội dung — chưa viết được gì)',
+      class:(sess.class||''), feedback:''
+    }).then(function(){
+      sendHeartbeat('Submitted');
+      lockEditor('Hết giờ. Bài đã được ghi nhận.');
+      showTimeUpBanner(wc, null);
+    });
     return;
   }
-  if (gb && !gb.disabled){
-    gb.click();   // runs the same submit/grade flow (AI class = grade, control = plain submit)
+
+  // Has content: grade with AI (same path as manual submit) then show banner
+  var isAI = AW_AI_ON;
+  var key  = isAI ? AW.geminiKey.get() : null;
+
+  if (isAI && key) {
+    // AI class: grade then save
+    showGradingOverlay(TASK_TYPE);
+    var vocabSummary = '';
+    try {
+      if (window.AW && AW.analyseVocabulary) {
+        lastVocabProfile = AW.analyseVocabulary(text);
+        vocabSummary = AW.cefrSummary(lastVocabProfile);
+      }
+    } catch(e){ lastVocabProfile = null; }
+
+    AW.grade({ writing:text, question:PROMPT, attempt:attempt,
+               aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE }, key)
+      .then(function(result){
+        lastResult = result;
+        renderFeedback(result);
+        return AW.api('write.saveResult', {
+          studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+          taskType:TASK_TYPE,
+          startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+          duration:Math.round((Date.now()-startTime)/1000),
+          tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
+          aiGrading:result.overall, teacherGrading:'',
+          essay:text, class:(sess.class||''), feedback:JSON.stringify(result)
+        });
+      })
+      .then(function(saveRes){
+        if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
+        sendHeartbeat('Submitted');
+        if(window.clearDraft) window.clearDraft();
+        lockEditor('Hết giờ — bài đã được nộp và chấm tự động.');
+        showTimeUpBanner(wc, lastResult);
+        // Show CEFR vocab profile if available
+        try { if(lastVocabProfile && window.AW && AW.renderVocabProfile) AW.renderVocabProfile(lastVocabProfile); } catch(e){}
+      })
+      .catch(function(e){
+        // AI failed — save plain submission anyway so student isn't penalised
+        AW.api('write.saveResult', {
+          studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+          taskType:TASK_TYPE,
+          startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+          duration:Math.round((Date.now()-startTime)/1000),
+          tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
+          essay:text, class:(sess.class||''), feedback:''
+        }).then(function(){
+          sendHeartbeat('Submitted');
+          lockEditor('Hết giờ — bài đã nộp (AI chấm thất bại, GV sẽ chấm thủ công).');
+          showTimeUpBanner(wc, null);
+        });
+      })
+      .finally(function(){ hideGradingOverlay(); });
+  } else {
+    // Control class or no key: save plain
+    AW.api('write.saveResult', {
+      studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+      taskType:TASK_TYPE,
+      startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+      duration:Math.round((Date.now()-startTime)/1000),
+      tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
+      essay:text, class:(sess.class||''), feedback:''
+    }).then(function(){
+      sendHeartbeat('Submitted');
+      if(window.clearDraft) window.clearDraft();
+      lockEditor('Hết giờ — bài đã được nộp cho giáo viên.');
+      showTimeUpBanner(wc, null);
+    });
   }
+}
+
+/*── Banner hiển thị sau khi hết giờ và auto-submit ──
+   Nếu bài ngắn/không hoàn chỉnh: nhắc nhở và đề xuất Free Writing.
+   Nếu bài đủ dài và có điểm AI: khen + gợi ý cải thiện.             */
+function showTimeUpBanner(wordCount, result) {
+  var minWords = TASK_TYPE === 'task1' ? 150 : 250;
+  var isShort  = wordCount < minWords;
+  var band     = result && result.overall ? parseFloat(result.overall) : null;
+
+  var bannerEl = document.createElement('div');
+  bannerEl.style.cssText =
+    'position:fixed;bottom:0;left:0;right:0;z-index:1500;padding:18px 20px;'+
+    'background:'+(isShort?'#FEF2F2':'#EAF6EF')+';'+
+    'border-top:3px solid '+(isShort?'#E8362A':'#1A9E5C')+';'+
+    'box-shadow:0 -4px 24px rgba(0,0,0,.15);font-family:var(--aw-font-body)';
+
+  var msg = '';
+  if (wordCount < 10) {
+    msg =
+      '<div style="display:flex;align-items:flex-start;gap:14px">'+
+        '<span style="font-size:1.8rem">😔</span>'+
+        '<div>'+
+          '<b style="font-size:1rem;color:#B42318;display:block;margin-bottom:5px">Hết giờ — Chưa viết được bài</b>'+
+          '<p style="margin:0 0 8px;font-size:.9rem;color:#7A271A;line-height:1.5">'+
+            'Giáo viên đã ghi nhận sự có mặt của bạn. Không sao — lần sau hãy bắt đầu viết ngay khi có đề bài nhé!'+
+          '</p>'+
+          '<p style="margin:0;font-size:.88rem;color:#7A271A">'+
+            '💡 Bạn có thể dùng <b>Free Writing</b> để luyện tập thêm trước buổi học tiếp theo.'+
+          '</p>'+
+        '</div>'+
+      '</div>';
+  } else if (isShort) {
+    msg =
+      '<div style="display:flex;align-items:flex-start;gap:14px">'+
+        '<span style="font-size:1.8rem">⏰</span>'+
+        '<div>'+
+          '<b style="font-size:1rem;color:#B42318;display:block;margin-bottom:5px">'+
+            'Hết giờ — Bài chưa hoàn thiện ('+wordCount+'/'+minWords+' từ)'+
+          '</b>'+
+          (band !== null
+            ? '<p style="margin:0 0 6px;font-size:.9rem;color:#7A271A">AI chấm được <b>Band '+(result.overall)+'</b> — điểm có thể thấp hơn thực lực vì bài chưa đủ ý.</p>'
+            : '<p style="margin:0 0 6px;font-size:.9rem;color:#7A271A">Bài chưa viết đủ '+minWords+' từ theo yêu cầu IELTS.</p>'
+          )+
+          '<p style="margin:0 0 8px;font-size:.88rem;color:#7A271A;line-height:1.5">'+
+            '👉 <b>Gợi ý:</b> Hãy dùng <b>Free Writing</b> để viết lại bài này với đề tương tự — '+
+            'không bị giới hạn thời gian, AI sẽ chấm đầy đủ để bạn thấy điểm thật của mình.'+
+          '</p>'+
+          '<a href="student.html" style="display:inline-block;padding:8px 18px;background:#B42318;color:#fff;border-radius:20px;font-size:.85rem;font-weight:700;text-decoration:none">→ Về trang chính để Free Writing</a>'+
+        '</div>'+
+      '</div>';
+  } else {
+    // Đủ dài, có điểm
+    msg =
+      '<div style="display:flex;align-items:flex-start;gap:14px">'+
+        '<span style="font-size:1.8rem">✅</span>'+
+        '<div>'+
+          '<b style="font-size:1rem;color:#1A6B3C;display:block;margin-bottom:5px">'+
+            'Hết giờ — Bài đã được nộp và chấm tự động!'+
+          '</b>'+
+          (band !== null
+            ? '<p style="margin:0 0 6px;font-size:.9rem;color:#1F5C35">'+
+                'Band <b>'+result.overall+'</b> · '+wordCount+' từ · Xem nhận xét chi tiết bên dưới.'+
+              '</p>'
+            : ''
+          )+
+          '<p style="margin:0;font-size:.88rem;color:#1F5C35;line-height:1.5">'+
+            '💡 Muốn cải thiện điểm? Dùng <b>Free Writing</b> để luyện lại với đề tương tự — không giới hạn thời gian.'+
+          '</p>'+
+        '</div>'+
+      '</div>';
+  }
+
+  bannerEl.innerHTML = msg;
+  // Close button
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--aw-ink-3)';
+  closeBtn.onclick = function(){ bannerEl.remove(); };
+  bannerEl.appendChild(closeBtn);
+  document.body.appendChild(bannerEl);
 }
 
 /*──────── heartbeat (live observation) ────────*/
@@ -634,13 +750,7 @@ function submitWithoutAI(btn, text){
 var lastResult=null;
 document.getElementById('gradeBtn').onclick = function(){
   var text = editor.innerText.trim();
-  var wCount = AW.wordCount(text);
-  // Soft warn if below minimum but still allow submit (students may not know the limit yet)
-  if (wCount < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
-  if (wCount < MIN_WORDS) {
-    var minLabel = TASK_TYPE === 'task1' ? '150 words (Task 1 minimum)' : '250 words (Task 2 minimum)';
-    if (!confirm('Your essay is only '+wCount+' words — IELTS requires at least '+minLabel+'.\n\nSubmit anyway?')) return;
-  }
+  if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
   // Control class: plain submission, graded by the teacher by hand
   if (!AW_AI_ON) { submitWithoutAI(this, text); return; }
   var key = AW.geminiKey.get();
@@ -657,10 +767,10 @@ document.getElementById('gradeBtn').onclick = function(){
     return;
   }
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
-  // Update overlay steps for Task 1 (TA instead of TR)
-  showGradingOverlay(TASK_TYPE);
+  showGradingOverlay();
 
-  // Measure vocabulary against the CEFR list (client-side, free).
+  // Measure vocabulary against the CEFR list (client-side, free). Show it in
+  // the profile widget, and hand a short summary to the grader for reference.
   var vocabSummary = '';
   try {
     if (window.AW && AW.analyseVocabulary) {
@@ -669,14 +779,13 @@ document.getElementById('gradeBtn').onclick = function(){
     }
   } catch(e) { lastVocabProfile = null; }
 
-  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES,
-             vocabSummary:vocabSummary, taskType:TASK_TYPE }, key)
+  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key)
     .then(function(result){
       lastResult=result;
       renderFeedback(result);
+      // save each graded attempt WITH full feedback JSON for later review
       return AW.api('write.saveResult', {
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
-        taskType:TASK_TYPE,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
         tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
@@ -715,7 +824,7 @@ document.getElementById('gradeBtn').onclick = function(){
 
 /*──────── fake grading progress overlay ────────*/
 var _gradeTimers=[];
-function showGradingOverlay(taskType){
+function showGradingOverlay(){
   var ov=document.getElementById('gradeOverlay');
   if(!ov){
     ov=document.createElement('div');
@@ -723,10 +832,9 @@ function showGradingOverlay(taskType){
     ov.className='aw-grade-ov';
     document.body.appendChild(ov);
   }
-  var isT1 = (taskType === 'task1');
   var steps=[
     {t:'Reading your essay…', d:0},
-    {t: isT1 ? 'Assessing Task Achievement…' : 'Assessing Task Response…', d:1400},
+    {t:'Assessing Task Response…', d:1400},
     {t:'Analysing Coherence & Cohesion…', d:3000},
     {t:'Checking Lexical Resource…', d:4600},
     {t:'Reviewing Grammatical Range & Accuracy…', d:6200},
@@ -803,11 +911,10 @@ function renderFeedback(r){
     editor.style.background='#FAFBFC';
     editor.style.whiteSpace='pre-wrap';   // keep line breaks even if the essay was plain text
   }
-  var c1label = (TASK_TYPE === 'task1') ? 'Task Achievement' : 'Task Response';
   var html =
     '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">BAND</div></div>' +
       '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b><p style="margin:4px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+AW.esc((r.overall_feedback_vi||'').slice(0,90))+'</p></div></div>' +
-    crit(c1label, s.TR) + crit('Coherence & Cohesion', s.CC) +
+    crit('Task Response', s.TR) + crit('Coherence & Cohesion', s.CC) +
     crit('Lexical Resource', s.LR) + crit('Grammar', s.GRA);
 
   // For attempt 2-3: highlight whether old mistakes were repeated

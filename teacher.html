@@ -352,6 +352,18 @@
       <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">💡 AI ưu tiên những quy tắc này hơn rubric mặc định IELTS.</p>
     </div>
 
+    <!-- ⑦ Min Words (custom) -->
+    <div class="aw-field">
+      <label class="aw-label">Số từ tối thiểu
+        <span style="font-weight:400;color:var(--aw-ink-3)"> — để trống = dùng chuẩn IELTS (Task 1: 150, Task 2: 250)</span>
+      </label>
+      <input class="aw-input" id="aMinWords" type="number" min="20" max="400"
+        placeholder="VD: 80 (nếu chỉ viết 1 đoạn thân bài)" style="max-width:220px">
+      <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">
+        💡 Dùng khi giao viết partial (chỉ mở bài, 1 thân bài…). AI vẫn chấm đủ 4 tiêu chí nhưng không phạt thiếu từ theo chuẩn IELTS.
+      </p>
+    </div>
+
     <!-- ⑦ Attempts / Duration / Deadline -->
     <div class="aw-row" style="display:flex;gap:12px">
       <div class="aw-field" style="flex:1" id="reqField">
@@ -720,6 +732,7 @@ function showLive(){
           '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
         '</div>'+
         '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 6s · Click a student to view &amp; annotate</span>'+
+        '<button id="clearLiveBtn" class="aw-btn aw-btn-ghost" style="margin-left:auto;padding:5px 12px;font-size:.78rem;color:var(--aw-danger);border-color:var(--aw-danger)" title="Xoá toàn bộ data cũ trong LiveSessions tab">🗑 Clear session</button>'+
       '</div>'+
       '<div class="aw-live-wrap">' +
         '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
@@ -743,6 +756,16 @@ function showLive(){
     }
 
     document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
+
+    document.getElementById('clearLiveBtn').onclick = function(){
+      if (!confirm('Xoá toàn bộ data phiên học trong tab LiveSessions của lớp '+((curClassObj()&&curClassObj().className)||curClass())+'?\n\nThao tác này chỉ xoá data tracking tạm thời — không ảnh hưởng bài làm của sinh viên.')) return;
+      var btn = this; btn.disabled = true;
+      AW.api('teacher.clearLive', { class: curClass() }).then(function(res){
+        btn.disabled = false;
+        if (res && res.success) { AW.toast('Đã xoá data phiên cũ ✓', 'ok'); liveData = []; renderLive(); }
+        else AW.toast((res&&res.error)||'Lỗi','err');
+      });
+    };
     function setView(v){ liveView=v;
       document.getElementById('viewGrid').style.background=v==='grid'?'var(--aw-primary)':'';
       document.getElementById('viewGrid').style.color=v==='grid'?'#fff':'';
@@ -1754,6 +1777,7 @@ window.newAssignment=function(mode){
   document.getElementById('aTopic').value      = '';
   document.getElementById('aPrompt').innerHTML = '';
   document.getElementById('aAiNotes').value    = '';
+  document.getElementById('aMinWords').value   = '';
   // reset task type to task2
   _taskType = 'task2'; _chartDataUrl = null; _chartFileId = null;
   _applyTaskType('task2');
@@ -1795,6 +1819,7 @@ function _aCreateHandler(){
       prompt:          promptHtml,
       taskType:        _taskType,
       chartImageId:    chartImageId || '',
+      minWords:        parseInt(document.getElementById('aMinWords').value||'0',10)||0,
       aiNotes:         aiNotes,
       requiredAttempts:assignMode==='homework'?parseInt(document.getElementById('aReq').value||'3',10):1,
       durationMin:     assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
