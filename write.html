@@ -35,8 +35,29 @@
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
   .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:var(--aw-primary)}
-  .aw-side-panel{background:var(--aw-surface-2);border-left:1px solid var(--aw-border-2);padding:22px;height:calc(100vh - 140px);overflow-y:auto;position:sticky;top:0}
-  .aw-side-panel h3{margin:0 0 14px;font-size:1rem}
+  .aw-side-panel{background:var(--aw-surface-2);border-left:1px solid var(--aw-border-2);padding:18px;height:calc(100vh - 140px);overflow-y:auto;position:sticky;top:0;display:flex;flex-direction:column}
+  .aw-side-panel h3{margin:0 0 10px;font-size:.95rem;font-weight:700;color:var(--aw-ink)}
+
+  /* Notepad */
+  .aw-notepad-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--aw-ink-3);margin-bottom:6px}
+  .aw-notepad-hint{font-size:.73rem;color:var(--aw-ink-3);margin-bottom:8px;line-height:1.4}
+  #draftNote{flex:1;width:100%;min-height:200px;border:1.5px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px 12px;font-family:var(--aw-font-body);font-size:.88rem;line-height:1.6;resize:none;outline:none;background:#fffdf5;color:var(--aw-ink);box-sizing:border-box}
+  #draftNote:focus{border-color:#E0A32E;background:#fffef8}
+  #draftNote::placeholder{color:var(--aw-ink-3)}
+
+  /* CEFR vocab panel (post-submit) */
+  .aw-vocab-panel{animation:fadeIn .3s ease}
+  .aw-vocab-bar-wrap{margin:10px 0 14px}
+  .aw-vocab-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;gap:1px;margin-bottom:6px}
+  .aw-vocab-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff;transition:flex .4s;min-width:0;overflow:hidden;white-space:nowrap}
+  .aw-vocab-legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px}
+  .aw-vocab-legend-item{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--aw-ink-2)}
+  .aw-vocab-legend-dot{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+  .aw-vocab-wordlist{margin-top:12px}
+  .aw-vocab-wordlist h4{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--aw-ink-3);margin:10px 0 5px}
+  .aw-vocab-words{display:flex;flex-wrap:wrap;gap:4px}
+  .aw-vocab-word{font-size:.75rem;padding:2px 8px;border-radius:12px;font-weight:600}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .aw-band{display:flex;align-items:center;gap:14px;margin-bottom:16px}
   .aw-band-circ{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto}
   .aw-band-num{font-size:1.7rem;font-weight:800;color:#fff;line-height:1;font-family:var(--aw-font-display)}
@@ -267,11 +288,10 @@ content.innerHTML =
       '</div>' +
     '</div>' +
     '<div class="aw-side-panel" id="side">' +
-      '<h3>'+(!AW_AI_ON?'Bài nộp':(MODE==='free'?'AI Feedback':'Revision History'))+'</h3>' +
-      '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">'+
-        (AW_AI_ON ? 'When finished, click <b>Get AI Feedback</b> to get your score and feedback.'
-                  : 'Viết xong thì bấm <b>Nộp bài</b>. Giáo viên sẽ chấm và trả kết quả trong <b>My Progress</b>.')+
-      '</p></div>' +
+      '<div class="aw-notepad-label">📝 Draft Notepad</div>' +
+      '<p class="aw-notepad-hint">Ghi tạm ý tưởng, dàn bài, từ vựng… Phần này <b>không nộp</b>, không chấm, không lưu.</p>' +
+      '<textarea id="draftNote" placeholder="• Thesis: …&#10;• Body 1: …&#10;• Body 2: …&#10;• Vocab notes: …"></textarea>' +
+      '<div id="sideBody" style="display:none"></div>' +
       '<div id="submitStatus" style="margin-top:14px;text-align:center;display:none"><span style="color:var(--aw-writing);font-weight:600">✓ Submitted</span></div>' +
     '</div>' +
   '</div>' +
@@ -734,14 +754,20 @@ function submitWithoutAI(btn, text){
     attempt = (res.data.attempt||attempt)+1;
     var used = attempt-1;
     if(window.clearDraft) window.clearDraft();
+    // Hide notepad, show submission status in side panel
+    var noteEl = document.getElementById('draftNote');
+    if (noteEl) noteEl.style.display = 'none';
+    document.querySelectorAll('.aw-notepad-label,.aw-notepad-hint').forEach(function(el){ el.style.display='none'; });
     AW.toast('Đã nộp bài (lần '+used+'/3)','ok');
-    document.getElementById('sideBody').innerHTML =
+    var sideBodyEl2 = document.getElementById('sideBody');
+    if (sideBodyEl2) { sideBodyEl2.style.display=''; sideBodyEl2.innerHTML =
       '<div style="text-align:center;padding:18px 6px">' +
         '<div style="font-size:2.2rem;line-height:1">✅</div>' +
         '<h4 style="margin:8px 0 6px;font-family:var(--aw-font-display)">Đã nộp — chờ giáo viên chấm</h4>' +
         '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 10px">Điểm và nhận xét sẽ hiện trong <b>My Progress</b> sau khi giáo viên chấm xong.</p>' +
         '<p style="color:var(--aw-ink-3);font-size:.8rem;margin:0">Lần nộp: <b>'+used+'/3</b>. Giáo viên chấm bản nộp mới nhất.</p>' +
       '</div>';
+    }
     editor.setAttribute('contenteditable','false');
     editor.style.background='var(--aw-surface-2)';
     if(used>=3){
@@ -806,7 +832,6 @@ document.getElementById('gradeBtn').onclick = function(){
     })
     .then(function(saveRes){
       if (saveRes && saveRes.locked) {
-        // hit 3-attempt cap or past deadline
         AW.toast(saveRes.error||'This task is locked.','err',4000);
         lockEditor(saveRes.error||'This task is locked.');
         return;
@@ -817,16 +842,53 @@ document.getElementById('gradeBtn').onclick = function(){
       if(window.clearDraft) window.clearDraft();
       if(MODE!=='free'){
         if(done){
-          lockEditor('You have completed all 3 attempts for this task.');
+          lockEditor('Bạn đã hoàn thành đủ 3 lần cho bài này.');
         } else {
           editor.setAttribute('contenteditable','false');
           editor.style.background='var(--aw-surface-2)';
           var gb=document.getElementById('gradeBtn');
-          if(gb){gb.textContent='Saved attempt '+(attempt-1)+'/3 – Re-try from My Progress';gb.disabled=true;}
+          if(gb){gb.textContent='Đã nộp lần '+(attempt-1)+'/3 – Re-try trong My Progress';gb.disabled=true;}
           var ss2=document.getElementById('submitStatus');
           if(ss2)ss2.style.display='';
         }
         sendHeartbeat('Submitted');
+      }
+
+      // Auto-export Google Doc right after save — student gets the link immediately
+      if (MODE !== 'free' && TOPIC_ID && sess.studentId) {
+        var docBtn = document.getElementById('docExportBtn');
+        if (docBtn) {
+          docBtn.disabled = true;
+          docBtn.innerHTML = '<span class="aw-spin"></span> Đang tạo Google Doc…';
+        }
+        AW.api('write.exportDoc', {
+          studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE
+        }).then(function(docRes){
+          var wrap = document.getElementById('docBtnWrap');
+          if (!wrap) return;
+          if (docRes && docRes.success && docRes.data && docRes.data.url) {
+            wrap.innerHTML =
+              '<a href="'+AW.esc(docRes.data.url)+'" target="_blank" rel="noopener" '+
+                'class="aw-btn aw-btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;font-size:.9rem;text-decoration:none">'+
+                '📄 Mở Feedback Google Doc →'+
+              '</a>'+
+              '<p style="font-size:.73rem;color:var(--aw-ink-3);margin:5px 0 0;text-align:center">Nhận xét chi tiết Grammar · LR · CC · '+c1label+'</p>';
+          } else {
+            wrap.innerHTML =
+              '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">'+
+                '📄 Tạo Google Doc (thử lại)'+
+              '</button>';
+            AW.toast('Không tạo được Google Doc tự động — thử lại thủ công.','err',4000);
+          }
+        }).catch(function(){
+          var wrap2 = document.getElementById('docBtnWrap');
+          if (wrap2) wrap2.innerHTML = '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc (thử lại)</button>';
+        });
+      } else {
+        // Free writing: show manual export button
+        var wrap3 = document.getElementById('docBtnWrap');
+        if (wrap3) wrap3.innerHTML =
+          '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc</button>';
       }
     })
     .catch(function(e){ AW.toast(e.message||'Grading error','err'); })
@@ -1009,12 +1071,63 @@ function renderFeedback(r){
       return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
     }).join('')+'</div>';
   }
-  // Vocabulary Profile (CEFR) — students only see it in an AI class; the
-  // teacher can still view it for every essay from the Results screen.
+  // Vocabulary Profile moved to side panel via renderVocabStats() above
+  // After submit: hide notepad, show score + vocab stats + Google Doc button
+  var notepad = document.getElementById('draftNote');
+  if (notepad) notepad.style.display = 'none';
+  document.querySelectorAll('.aw-notepad-label,.aw-notepad-hint').forEach(function(el){ el.style.display='none'; });
+
+  var vocabHtml = '';
   if (AW_AI_ON && window.AW && AW.analyseVocabulary && lastVocabProfile) {
-    html += renderVocabProfile(lastVocabProfile);
+    vocabHtml = renderVocabStats(lastVocabProfile);
   }
-  document.getElementById('sideBody').innerHTML=html;
+
+  var c1label = (TASK_TYPE === 'task1') ? 'Task Achievement' : 'Task Response';
+  // Score summary — shown immediately
+  var scoreSummaryHtml =
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--aw-border-2)">'+
+      '<div style="width:60px;height:60px;border-radius:50%;background:var(--aw-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 4px 12px rgba(10,110,189,.35)">'+
+        '<div style="font-size:1.5rem;font-weight:900;color:#fff;line-height:1">'+(r.overall||'—')+'</div>'+
+        '<div style="font-size:.5rem;color:rgba(255,255,255,.85);letter-spacing:.05em;margin-top:1px">BAND</div>'+
+      '</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:700;font-size:.92rem;color:var(--aw-ink);margin-bottom:4px">'+AW.esc(r.band_description||'AI Grading Complete')+'</div>'+
+        '<div style="font-size:.76rem;color:var(--aw-ink-3);display:flex;flex-wrap:wrap;gap:4px 10px">'+
+          '<span><b style="color:var(--aw-ink-2)">'+c1label+'</b> '+AW.esc(String(s.TR||'—'))+'</span>'+
+          '<span><b style="color:var(--aw-ink-2)">CC</b> '+AW.esc(String(s.CC||'—'))+'</span>'+
+          '<span><b style="color:var(--aw-ink-2)">LR</b> '+AW.esc(String(s.LR||'—'))+'</span>'+
+          '<span><b style="color:var(--aw-ink-2)">GRA</b> '+AW.esc(String(s.GRA||'—'))+'</span>'+
+        '</div>'+
+        (r.overall_feedback_vi
+          ? '<div style="font-size:.78rem;color:var(--aw-ink-2);margin-top:5px;line-height:1.4">'+AW.esc(r.overall_feedback_vi.slice(0,120))+(r.overall_feedback_vi.length>120?'…':'')+'</div>'
+          : '')+
+      '</div>'+
+    '</div>';
+
+  // Google Doc button placeholder — will be updated after export completes
+  var docBtnHtml =
+    '<div id="docBtnWrap" style="margin-bottom:14px">'+
+      '<button id="docExportBtn" class="aw-btn aw-btn-primary" style="width:100%;padding:12px;font-size:.9rem">'+
+        '<span id="docBtnSpinner" class="aw-spin" style="display:none"></span>'+
+        '📄 Đang tạo Google Doc…'+
+      '</button>'+
+    '</div>';
+
+  var sideHtml =
+    '<div class="aw-vocab-panel">'+
+    scoreSummaryHtml+
+    docBtnHtml+
+    (vocabHtml
+      ? '<div style="border-top:1px solid var(--aw-border-2);padding-top:12px;margin-top:2px">'+
+          '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--aw-ink-3);margin-bottom:8px">📊 Phân bố từ vựng</div>'+
+          vocabHtml+
+        '</div>'
+      : '')+
+    '</div>';
+
+  var sideBodyEl = document.getElementById('sideBody');
+  sideBodyEl.style.display = '';
+  sideBodyEl.innerHTML = sideHtml;
   setTimeout(function(){
     AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});
     // grow vocab bars from zero for a small reveal
@@ -1073,6 +1186,106 @@ function renderVocabWords(p){
   return '<div class="aw-voc-words">'+
     '<div class="aw-voc-whead">💡 Từ vựng nổi bật bạn đã dùng (B1+) — hãy phát huy!</div>'+
     blocks+'</div>';
+}
+
+/*──────── renderVocabStats — compact CEFR panel for side panel ──────────
+  Shown post-submit in the right panel instead of the notepad.
+  More visual than renderVocabProfile: stacked bar + word chips by level. */
+function manualExportDoc(){
+  if (!TOPIC_ID || !sess || !sess.studentId || MODE==='free') return;
+  var btn = event && event.target;
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span> Đang tạo…'; }
+  AW.api('write.exportDoc',{ studentId:sess.studentId, topicId:TOPIC_ID, mode:MODE })
+    .then(function(res){
+      var wrap = document.getElementById('docBtnWrap');
+      if (res&&res.success&&res.data&&res.data.url){
+        if (wrap) wrap.innerHTML =
+          '<a href="'+AW.esc(res.data.url)+'" target="_blank" rel="noopener" '+
+          'class="aw-btn aw-btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;font-size:.9rem;text-decoration:none">'+
+          '📄 Mở Feedback Google Doc →</a>';
+        window.open(res.data.url,'_blank');
+      } else {
+        if (btn){btn.disabled=false;btn.textContent='📄 Tạo Google Doc (thử lại)';}
+        AW.toast((res&&res.error)||'Không tạo được Google Doc','err',4000);
+      }
+    }).catch(function(){
+      if(btn){btn.disabled=false;btn.textContent='📄 Tạo Google Doc (thử lại)';}
+      AW.toast('Lỗi kết nối','err');
+    });
+}
+
+function renderVocabStats(p){
+  if (!p) return '';
+  var pct = vocabBandPct(p);
+
+  // Stacked bar
+  var barSegs = CEFR_BANDS.map(function(b){
+    var w = pct[b.key]; if (!w) return '';
+    return '<div class="aw-vocab-seg" style="flex:'+w+';background:'+b.color+'" title="'+b.label+': '+w+'%">'+
+      (w >= 8 ? w+'%' : '')+
+    '</div>';
+  }).join('');
+
+  // Legend
+  var legend = CEFR_BANDS.filter(function(b){ return pct[b.key] > 0; }).map(function(b){
+    return '<span class="aw-vocab-legend-item">'+
+      '<span class="aw-vocab-legend-dot" style="background:'+b.color+'"></span>'+
+      '<b>'+b.label+'</b> '+pct[b.key]+'%'+
+    '</span>';
+  }).join('');
+
+  // KPI row
+  var kpis =
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px">'+
+      kpi(p.pctAdvanced+'%', 'C1+', '#E8730C')+
+      kpi(p.pctUpperMid+'%', 'B2+', '#E0A32E')+
+      kpi(p.diversity+'%',   'Đa dạng', 'var(--aw-primary)')+
+      kpi(String(p.uniqueLemmas), 'Từ khác nhau', 'var(--aw-ink-2)')+
+    '</div>';
+
+  function kpi(val, label, color){
+    return '<div style="flex:1;min-width:60px;background:#fff;border:1px solid var(--aw-border-2);border-radius:8px;padding:7px 8px;text-align:center">'+
+      '<div style="font-size:1.1rem;font-weight:800;color:'+color+'">'+val+'</div>'+
+      '<div style="font-size:.65rem;color:var(--aw-ink-3);margin-top:1px">'+label+'</div>'+
+    '</div>';
+  }
+
+  // Word chips by level (B1 and up)
+  var wordBands = [
+    {key:'C2', label:'C2 · Thành thạo', color:'#D93025'},
+    {key:'C1', label:'C1 · Nâng cao',   color:'#E8730C'},
+    {key:'B2', label:'B2 · Trên TT',    color:'#E0A32E'},
+    {key:'B1', label:'B1 · Trung cấp',  color:'#0A6EBD'}
+  ];
+  var wordHtml = wordBands.map(function(b){
+    var words = (p.wordsByLevel && p.wordsByLevel[b.key]) || [];
+    if (!words.length) return '';
+    return '<div class="aw-vocab-wordlist">'+
+      '<h4 style="color:'+b.color+'">'+b.label+' <span style="font-weight:400">('+words.length+')</span></h4>'+
+      '<div class="aw-vocab-words">'+
+        words.map(function(w){
+          return '<span class="aw-vocab-word" style="background:'+b.color+'18;color:'+b.color+';border:1px solid '+b.color+'44">'+AW.esc(w)+'</span>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  }).join('');
+  if (!wordHtml) {
+    wordHtml = '<p style="font-size:.78rem;color:var(--aw-ink-3);margin:8px 0 0">Chưa nhận diện được từ B1 trở lên. Hãy thử dùng thêm từ vựng học thuật để nâng band LR.</p>';
+  }
+
+  return '<div>'+
+    '<div style="font-size:.8rem;font-weight:700;color:var(--aw-ink-2);margin-bottom:8px">📊 Phân bố từ vựng theo CEFR</div>'+
+    '<div class="aw-vocab-bar-wrap">'+
+      '<div class="aw-vocab-bar">'+barSegs+'</div>'+
+      '<div class="aw-vocab-legend">'+legend+'</div>'+
+    '</div>'+
+    kpis+
+    '<div style="font-size:.73rem;color:var(--aw-ink-3);margin-bottom:8px">'+p.listed+'/'+p.totalWords+' từ được nhận diện · '+p.diversity+'% đa dạng</div>'+
+    '<div style="border-top:1px solid var(--aw-border-2);padding-top:10px">'+
+      '<div style="font-size:.8rem;font-weight:700;color:var(--aw-ink-2);margin-bottom:4px">💡 Từ vựng bạn đã dùng (B1+)</div>'+
+      wordHtml+
+    '</div>'+
+  '</div>';
 }
 
 function renderVocabProfile(p){

@@ -309,7 +309,15 @@
         </div>
         <div class="aw-row" style="display:flex;gap:12px">
           <div class="aw-field" style="flex:1"><label class="aw-label">Required revisions</label><input class="aw-input" id="adEditReq" type="number" min="1" max="5"></div>
-          <div class="aw-field" style="flex:1"><label class="aw-label">Deadline</label><input class="aw-input" id="adEditDead" type="date"></div>
+          <div class="aw-field" style="flex:2">
+            <label class="aw-label">Deadline
+              <span style="font-weight:400;color:var(--aw-ink-3)"> — để trống giờ = mặc định 23:59</span>
+            </label>
+            <div style="display:flex;gap:6px">
+              <input class="aw-input" id="adEditDead" type="date" style="flex:1">
+              <input class="aw-input" id="adEditTime" type="time" value="23:59" style="width:110px">
+            </div>
+          </div>
         </div>
         <div class="aw-field"><label class="aw-label">Teacher Notes for AI</label><textarea class="aw-input" id="adEditNotes" rows="2"></textarea></div>
         <div style="display:flex;gap:8px;margin-top:4px">
@@ -319,7 +327,7 @@
       </div>
     </div>
     <div class="aw-assign-detail-actions">
-      <button class="aw-btn aw-btn-ghost" id="adEditBtn">✏️ Edit</button>
+      <button class="aw-btn aw-btn-ghost" id="adEditBtn" style="display:inline-flex">✏️ Edit</button>
       <button class="aw-btn aw-btn-ghost" id="adDeleteBtn" style="color:var(--aw-danger);border-color:var(--aw-danger)">🗑 Delete</button>
       <div style="flex:1"></div>
       <button class="aw-btn aw-btn-ghost" id="adClose2">Close</button>
@@ -443,7 +451,11 @@
       </div>
       <div class="aw-field" style="flex:1" id="deadField">
         <label class="aw-label">Deadline</label>
-        <input class="aw-input" id="aDead" type="date">
+        <div style="display:flex;gap:6px">
+          <input class="aw-input" id="aDead" type="date" style="flex:1">
+          <input class="aw-input" id="aDeadTime" type="time" value="23:59" style="width:110px">
+        </div>
+        <p style="margin:3px 0 0;font-size:.73rem;color:var(--aw-ink-3)">Giờ để trống = 23:59 (hết ngày)</p>
       </div>
     </div>
 
@@ -1762,13 +1774,25 @@ document.getElementById('assignDetailBg').onclick = function(e){
 document.getElementById('adEditBtn').onclick = function(){
   if (!_curDetailAssign) return;
   var a = _curDetailAssign;
-  document.getElementById('adEditTitle').value   = a.topic || '';
-  document.getElementById('adEditPrompt').innerHTML = a.prompt || '';
-  document.getElementById('adEditReq').value    = a.requiredAttempts || 1;
-  document.getElementById('adEditNotes').value  = ''; // aiNotes not returned by default
-  // Deadline: extract date part only
-  var dl = a.deadline ? String(a.deadline).slice(0,10) : '';
-  document.getElementById('adEditDead').value   = dl;
+  document.getElementById('adEditTitle').value     = a.topic || '';
+  document.getElementById('adEditPrompt').innerHTML= a.prompt || '';
+  document.getElementById('adEditReq').value       = a.requiredAttempts || 1;
+  document.getElementById('adEditNotes').value     = a.aiNotes || '';
+  // Parse deadline: split date and time
+  var dl = String(a.deadline || '');
+  var dlDate = '', dlTime = '23:59';
+  if (dl) {
+    // Could be ISO string like "2026-08-14T16:59:00.000Z" or "2026-08-14 23:59" or "2026-08-14"
+    var dlParsed = new Date(dl);
+    if (!isNaN(dlParsed)) {
+      dlDate = dlParsed.getFullYear()+'-'+String(dlParsed.getMonth()+1).padStart(2,'0')+'-'+String(dlParsed.getDate()).padStart(2,'0');
+      dlTime = String(dlParsed.getHours()).padStart(2,'0')+':'+String(dlParsed.getMinutes()).padStart(2,'0');
+    } else {
+      dlDate = dl.slice(0,10);
+    }
+  }
+  document.getElementById('adEditDead').value = dlDate;
+  document.getElementById('adEditTime').value = dlTime || '23:59';
   document.getElementById('adEditForm').style.display = '';
   document.getElementById('adEditBtn').style.display  = 'none';
 };
@@ -1785,19 +1809,22 @@ AW.els('#adEditTb button').forEach(function(b){
 document.getElementById('adSaveBtn').onclick = function(){
   if (!_curDetailAssign) return;
   var btn=this; btn.disabled=true; btn.textContent='Saving…';
+  // Combine date + time → ISO string; default time = 23:59 if blank
+  var dlDate = document.getElementById('adEditDead').value;
+  var dlTime = document.getElementById('adEditTime').value || '23:59';
+  var deadlineVal = dlDate ? (dlDate + 'T' + dlTime + ':00') : '';
   AW.api('teacher.updateAssignment',{
     topicId:          _curDetailAssign.topicId,
     topic:            document.getElementById('adEditTitle').value.trim(),
     prompt:           document.getElementById('adEditPrompt').innerHTML.trim(),
     requiredAttempts: parseInt(document.getElementById('adEditReq').value||'1',10),
-    deadline:         document.getElementById('adEditDead').value,
+    deadline:         deadlineVal,
     aiNotes:          document.getElementById('adEditNotes').value.trim()
   }).then(function(res){
     btn.disabled=false; btn.textContent='💾 Save changes';
     if (res&&res.success){
       AW.toast('Saved ✓','ok');
       document.getElementById('assignDetailBg').classList.remove('show');
-      // Reload assignment list
       var activeTab = document.querySelector('[data-amode].active');
       if (activeTab) loadAssignmentList(activeTab.dataset.amode);
     } else AW.toast((res&&res.error)||'Save failed','err');
@@ -1929,6 +1956,9 @@ window.newAssignment=function(mode){
   document.getElementById('aPrompt').innerHTML = '';
   document.getElementById('aAiNotes').value    = '';
   document.getElementById('aMinWords').value   = '';
+  // Reset deadline fields
+  if (document.getElementById('aDead'))     document.getElementById('aDead').value = '';
+  if (document.getElementById('aDeadTime')) document.getElementById('aDeadTime').value = '23:59';
   // reset task type to task2
   _taskType = 'task2'; _chartDataUrl = null; _chartFileId = null;
   _applyTaskType('task2');
@@ -1974,7 +2004,13 @@ function _aCreateHandler(){
       aiNotes:         aiNotes,
       requiredAttempts:assignMode==='homework'?parseInt(document.getElementById('aReq').value||'3',10):1,
       durationMin:     assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
-      deadline:        assignMode==='homework'?document.getElementById('aDead').value:''
+      deadline:        (function(){
+        if (assignMode !== 'homework') return '';
+        var d = document.getElementById('aDead').value;
+        if (!d) return '';
+        var t = document.getElementById('aDeadTime').value || '23:59';
+        return d + 'T' + t + ':00';
+      })()
     }).then(function(res){
       if(res&&res.success){
         AW.toast('Assignment created ✓','ok');
