@@ -1635,7 +1635,7 @@ function loadAssignmentList(mode){
           '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
-          '<td>'+(a.deadline?AW.esc(a.deadline):'—')+'</td></tr>';
+          '<td>'+(a.deadline ? AW.fmtDate(a.deadline) : '—')+'</td></tr>';
       }).join('')+'</tbody></table></div>';
   });
 }

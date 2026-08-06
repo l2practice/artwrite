@@ -280,7 +280,7 @@ function loadHistory(){
         : '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;margin-left:5px;vertical-align:middle">T2</span>';
       return '<div class="aw-hist"><div class="aw-hist-main">' +
         '<div class="aw-hist-topic">'+AW.esc(h.topic||'Untitled')+taskBadge+'</div>' +
-        '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · Band '+AW.esc(String(band))+' · '+(h.latestTime?new Date(h.latestTime).toLocaleDateString():(h.timestamp?new Date(h.timestamp).toLocaleDateString():''))+'</div>' +
+        '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · Band '+AW.esc(String(band))+' · '+(h.latestTime?AW.fmtDate(h.latestTime):(h.timestamp?AW.fmtDate(h.timestamp):''))+'</div>' +
         '</div><button class="aw-btn aw-btn-ghost" style="padding:7px 16px" data-tid="'+AW.esc(h.topicId)+'" data-topic="'+AW.esc(h.topic)+'" data-mode="'+AW.esc(h.mode)+'" data-ttype="'+(h.taskType||'task2')+'">Re-try</button></div>';
     }).join('');
     AW.els('[data-tid]').forEach(function(b){
@@ -386,8 +386,8 @@ function renderProgress(){
     var picks=[w[0],w[1],w[2],best];
     var idxs=[0,1,2,bestI];
     var groups=['pg-1','pg-2','pg-3','pg-b'];
-    var assigned=g.assignedDate?new Date(g.assignedDate).toLocaleDateString('en-GB'):'—';
-    var deadline=g.deadline?new Date(g.deadline).toLocaleDateString('en-GB'):'';
+    var assigned=g.assignedDate?AW.fmtDate(g.assignedDate):'—';
+    var deadline=g.deadline?AW.fmtDate(g.deadline):'';
     var dateCell='<div style="font-size:.78rem;line-height:1.5">'+
       '<div style="color:var(--aw-writing);font-weight:700">'+assigned+'</div>'+
       '<div style="font-size:.68rem;color:var(--aw-ink-3)">Assigned</div>'+

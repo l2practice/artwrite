@@ -7,7 +7,7 @@
   'use strict';
 
   // ── CONFIG ─────────────────────────────────────
-  var GAS = 'https://script.google.com/macros/s/AKfycbxgVhsy3WKU-hL7rW7GZaNsn0B-z6zt6iH2Q-UlpbJVqP9koAE49P175m0tR3ISGp-m/exec';
+  var GAS = 'https://script.google.com/macros/s/AKfycby6Ll3JeOg9jsfUnc94pr5clYOwnBFmQT9lX2V7hBkXMQj9_mQFKS4rbR2L2viskkF7/exec';
 
   var AW = {
     GAS: GAS,
@@ -255,6 +255,26 @@
     var tmp = document.createElement('div');
     tmp.innerHTML = html || '';
     return tmp.textContent || tmp.innerText || '';
+  };
+
+  /*  AW.fmtDate — format any date string/value as local dd/MM/yyyy HH:mm.
+      Uses the browser's timezone automatically (no hardcoded UTC+7).
+      If the value is just a date (yyyy-MM-dd), shows only the date part.
+      Falls back to the raw string if parsing fails.                        */
+  AW.fmtDate = function (val) {
+    if (!val) return '—';
+    var s = String(val).trim();
+    if (!s) return '—';
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return s; // unparseable → show raw
+    // Date-only input (yyyy-MM-dd): show as dd/MM/yyyy without time
+    var dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
+    if (dateOnly) {
+      return d.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+    }
+    // Full datetime: show dd/MM/yyyy HH:mm
+    return d.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }) +
+           ' ' + d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit', hour12:false });
   };
 
   /*──────── Today's Word widget ────────
