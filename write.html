@@ -833,6 +833,52 @@ document.getElementById('gradeBtn').onclick = function(){
     .finally(function(){ hideGradingOverlay(); btn.disabled=false; btn.textContent=orig; });
 };
 
+/*── renderChartViewer ─────────────────────────────────────────────
+  Uses Drive thumbnail URL (not uc?export=view which is blocked by
+  many browsers). Students can zoom ±20% or open full-screen.      */
+function renderChartViewer(fileId){
+  if (!fileId) return;
+  if (document.getElementById('chartViewerBox')) return;
+  var thumbUrl = 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1200';
+  var driveUrl = 'https://drive.google.com/file/d/' + fileId + '/view';
+  var box = document.createElement('div');
+  box.id  = 'chartViewerBox';
+  box.className = 'aw-chart-viewer';
+  box.innerHTML =
+    '<div class="aw-chart-viewer-head">'+
+      '<span style="font-size:.78rem;font-weight:700;text-transform:uppercase;color:#1A9E5C;letter-spacing:.04em">📊 Chart / Diagram</span>'+
+      '<span style="font-size:.72rem;color:var(--aw-ink-3);font-weight:400;margin-left:6px">— refer to this while writing</span>'+
+      '<div style="margin-left:auto;display:flex;align-items:center;gap:4px">'+
+        '<button id="chartZoomOut" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">−</button>'+
+        '<span id="chartPct" style="font-size:.75rem;font-weight:600;color:var(--aw-ink-3);min-width:38px;text-align:center">100%</span>'+
+        '<button id="chartZoomIn" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">+</button>'+
+        '<a href="'+driveUrl+'" target="_blank" style="padding:0 8px;height:28px;line-height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-size:.72rem;font-weight:600;text-decoration:none;color:var(--aw-ink-2)">⛶ Full</a>'+
+      '</div>'+
+    '</div>'+
+    '<div id="chartImgWrap" style="overflow:auto;max-height:460px;border-radius:6px;background:#fff;border:1px solid var(--aw-border-2);padding:4px;text-align:center">'+
+      '<img id="chartImg" src="'+thumbUrl+'" alt="Chart" style="display:block;margin:0 auto;width:100%;max-width:640px;cursor:zoom-in">'+
+    '</div>'+
+    '<p style="margin:5px 0 0;font-size:.72rem;color:var(--aw-ink-3)">'+
+      'Hình không hiện? <a href="'+driveUrl+'" target="_blank" style="color:var(--aw-primary)">Mở trên Drive</a> và để tab đó khi viết bài.'+
+    '</p>';
+  // Insert before prompt box
+  var promptBox = document.querySelector('.aw-prompt-box');
+  if (promptBox && promptBox.parentNode) {
+    promptBox.parentNode.insertBefore(box, promptBox);
+  } else {
+    var ed = document.getElementById('editor');
+    if (ed && ed.parentNode) ed.parentNode.insertBefore(box, ed);
+  }
+  // Zoom
+  var img = document.getElementById('chartImg');
+  var pctEl = document.getElementById('chartPct');
+  var curPct = 100;
+  function setZoom(p){ curPct=Math.max(40,Math.min(300,p)); img.style.width=curPct+'%'; img.style.maxWidth='none'; pctEl.textContent=curPct+'%'; }
+  document.getElementById('chartZoomIn').onclick  = function(){ setZoom(curPct+20); };
+  document.getElementById('chartZoomOut').onclick = function(){ setZoom(curPct-20); };
+  img.onclick = function(){ setZoom(curPct < 150 ? curPct+40 : 100); };
+}
+
 /*──────── fake grading progress overlay ────────*/
 var _gradeTimers=[];
 function showGradingOverlay(){

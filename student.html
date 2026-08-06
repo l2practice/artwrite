@@ -323,7 +323,7 @@ function loadAssignments(mode){
       var chartThumb = (isT1 && a.chartImageId)
         ? '<div class="aw-chart-thumb-wrap" title="Xem hình biểu đồ">'+
             '<span style="font-size:.72rem;color:#1A9E5C;cursor:pointer">📊 Chart</span>'+
-            '<img class="aw-chart-thumb-pop" src="https://drive.google.com/uc?export=view&id='+AW.esc(a.chartImageId)+'" alt="chart">'+
+            '<img class="aw-chart-thumb-pop" src="https://drive.google.com/thumbnail?id='+AW.esc(a.chartImageId)+'&sz=w600" alt="chart">'+
           '</div>'
         : '';
       return '<div class="aw-lib-card" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +

@@ -193,7 +193,17 @@
   .aw-ct-chip{padding:4px 12px;border:1.5px solid var(--aw-border);border-radius:var(--aw-r-pill);font-size:.76rem;font-weight:600;cursor:pointer;background:#fff;color:var(--aw-ink-2);transition:all .15s}
   .aw-ct-chip.active{background:#EAF7F0;border-color:#1A9E5C;color:#1A9E5C}
   .aw-ct-chip:hover:not(.active){border-color:var(--aw-primary);color:var(--aw-primary)}
-  /* ── Assignment list badge ── */
+  /* ── Assignment detail modal (click row → banner) ── */
+  .aw-assign-detail-bg{position:fixed;inset:0;background:rgba(16,34,46,.55);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+  .aw-assign-detail-bg.show{display:flex}
+  .aw-assign-detail{background:var(--aw-surface);border-radius:var(--aw-r-lg);max-width:680px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+  .aw-assign-detail-head{padding:18px 22px 14px;border-bottom:1px solid var(--aw-border-2);display:flex;align-items:flex-start;gap:10px}
+  .aw-assign-detail-head h2{margin:0;font-size:1.15rem;flex:1;font-family:var(--aw-font-display)}
+  .aw-assign-detail-body{padding:18px 22px}
+  .aw-assign-detail-chart{margin:12px 0;border-radius:var(--aw-r);overflow:hidden;border:1px solid var(--aw-border-2);background:#f8f9fa;text-align:center}
+  .aw-assign-detail-chart img{max-width:100%;max-height:360px;object-fit:contain;display:block;margin:0 auto;padding:8px}
+  .aw-assign-detail-actions{display:flex;gap:8px;padding:14px 22px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
+  .aw-assign-edit-form{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
   .aw-task-badge{display:inline-block;font-size:.65rem;font-weight:800;padding:2px 7px;border-radius:10px;letter-spacing:.03em;vertical-align:middle;margin-left:5px}
   .aw-task-badge.t1{background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0}
   .aw-task-badge.t2{background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8}
@@ -262,7 +272,60 @@
   <button id="popComment">💬 Comment</button>
 </div>
 
-<!-- assignment creation modal -->
+<!-- assignment detail modal -->
+<div class="aw-assign-detail-bg" id="assignDetailBg">
+  <div class="aw-assign-detail">
+    <div class="aw-assign-detail-head">
+      <div style="flex:1">
+        <div id="adTaskBadge" style="margin-bottom:6px"></div>
+        <h2 id="adTitle"></h2>
+        <div style="font-size:.8rem;color:var(--aw-ink-3);margin-top:3px" id="adMeta"></div>
+      </div>
+      <button id="adClose" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--aw-ink-3);flex:0 0 auto;padding:0 4px">✕</button>
+    </div>
+    <div class="aw-assign-detail-body">
+      <!-- Prompt -->
+      <div style="margin-bottom:10px">
+        <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;color:var(--aw-ink-3);letter-spacing:.05em;margin-bottom:5px">Prompt (đề bài)</div>
+        <div id="adPrompt" style="font-size:.92rem;color:var(--aw-ink);line-height:1.6;background:var(--aw-surface-2);padding:12px 14px;border-radius:var(--aw-r-sm);border:1px solid var(--aw-border-2)"></div>
+      </div>
+      <!-- Chart image (Task 1 only) -->
+      <div id="adChartWrap" class="aw-assign-detail-chart" style="display:none">
+        <img id="adChartImg" src="" alt="Chart">
+        <p style="font-size:.72rem;color:var(--aw-ink-3);margin:0 0 6px">
+          Hình không hiện? <a id="adChartLink" href="#" target="_blank" style="color:var(--aw-primary)">Mở trên Drive</a>
+        </p>
+      </div>
+      <!-- Edit form (hidden by default) -->
+      <div class="aw-assign-edit-form" id="adEditForm">
+        <div class="aw-field"><label class="aw-label">Title</label><input class="aw-input" id="adEditTitle"></div>
+        <div class="aw-field"><label class="aw-label">Prompt</label>
+          <div class="aw-editor-mini-tb" id="adEditTb">
+            <button type="button" data-c="bold"><b>B</b></button>
+            <button type="button" data-c="italic"><i>I</i></button>
+            <button type="button" data-c="underline"><u>U</u></button>
+          </div>
+          <div class="aw-prompt-edit" id="adEditPrompt" contenteditable="true" data-ph="Prompt…"></div>
+        </div>
+        <div class="aw-row" style="display:flex;gap:12px">
+          <div class="aw-field" style="flex:1"><label class="aw-label">Required revisions</label><input class="aw-input" id="adEditReq" type="number" min="1" max="5"></div>
+          <div class="aw-field" style="flex:1"><label class="aw-label">Deadline</label><input class="aw-input" id="adEditDead" type="date"></div>
+        </div>
+        <div class="aw-field"><label class="aw-label">Teacher Notes for AI</label><textarea class="aw-input" id="adEditNotes" rows="2"></textarea></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="aw-btn aw-btn-primary" id="adSaveBtn">💾 Save changes</button>
+          <button class="aw-btn aw-btn-ghost" id="adCancelEdit">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div class="aw-assign-detail-actions">
+      <button class="aw-btn aw-btn-ghost" id="adEditBtn">✏️ Edit</button>
+      <button class="aw-btn aw-btn-ghost" id="adDeleteBtn" style="color:var(--aw-danger);border-color:var(--aw-danger)">🗑 Delete</button>
+      <div style="flex:1"></div>
+      <button class="aw-btn aw-btn-ghost" id="adClose2">Close</button>
+    </div>
+  </div>
+</div>
 <div class="aw-modal-bg" id="assignModal">
   <div class="aw-amodal">
     <h2 id="assignTitle">New Homework</h2>
@@ -1634,18 +1697,128 @@ function loadAssignmentList(mode){
         var taskBadge = a.taskType==='task1'
           ? '<span class="aw-task-badge t1">Task 1</span>'
           : '<span class="aw-task-badge t2">Task 2</span>';
-        var chartHover = (a.taskType==='task1' && a.chartImageId)
-          ? ' <span class="aw-t1-chart-hover">📊<img src="https://drive.google.com/uc?export=view&id='+AW.esc(a.chartImageId)+'" class="aw-t1-chart-pop"></span>'
-          : '';
-        return '<tr>'+
-          '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartHover+'</td>'+
+        var chartIcon = (a.taskType==='task1' && a.chartImageId) ? ' <span style="color:#1A9E5C;font-size:.85rem" title="Has chart image">📊</span>' : '';
+        return '<tr class="aw-assign-row" style="cursor:pointer" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
+          '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartIcon+'</td>'+
           '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
           '<td>'+(a.deadline ? AW.fmtDate(a.deadline) : '—')+'</td></tr>';
       }).join('')+'</tbody></table></div>';
+    // Wire row click → detail modal
+    AW.els('.aw-assign-row').forEach(function(row){
+      row.onmouseover=function(){ row.style.background='var(--aw-primary-lt)'; };
+      row.onmouseout=function(){ row.style.background=''; };
+      row.onclick=function(){ showAssignDetail(JSON.parse(row.dataset.a)); };
+    });
   });
 }
+
+/*── Assignment detail modal ──*/
+var _curDetailAssign = null;
+function showAssignDetail(a){
+  _curDetailAssign = a;
+  var isT1 = a.taskType === 'task1';
+  // Badge
+  document.getElementById('adTaskBadge').innerHTML = isT1
+    ? '<span class="aw-task-badge t1">Task 1 — Data/Chart</span>'
+    : '<span class="aw-task-badge t2">Task 2 — Essay</span>';
+  document.getElementById('adTitle').textContent = a.topic || '(Untitled)';
+  // Meta
+  var metaParts = [];
+  if (a.mode) metaParts.push(a.mode==='homework'?'📋 Homework':'🏫 In-class Practice');
+  if (a.requiredAttempts) metaParts.push('🔁 '+a.requiredAttempts+' revisions');
+  if (a.deadline) metaParts.push('⏰ Deadline: '+AW.fmtDate(a.deadline));
+  document.getElementById('adMeta').textContent = metaParts.join('  ·  ');
+  // Prompt
+  document.getElementById('adPrompt').innerHTML = a.prompt || '<em style="color:var(--aw-ink-3)">No prompt set.</em>';
+  // Chart
+  var chartWrap = document.getElementById('adChartWrap');
+  if (isT1 && a.chartImageId) {
+    document.getElementById('adChartImg').src = 'https://drive.google.com/thumbnail?id='+a.chartImageId+'&sz=w1200';
+    document.getElementById('adChartLink').href = 'https://drive.google.com/file/d/'+a.chartImageId+'/view';
+    chartWrap.style.display = '';
+  } else {
+    chartWrap.style.display = 'none';
+  }
+  // Hide edit form
+  document.getElementById('adEditForm').style.display = 'none';
+  document.getElementById('adEditBtn').style.display = '';
+  document.getElementById('assignDetailBg').classList.add('show');
+}
+
+// Close
+['adClose','adClose2'].forEach(function(id){
+  document.getElementById(id).onclick = function(){
+    document.getElementById('assignDetailBg').classList.remove('show');
+    _curDetailAssign = null;
+  };
+});
+document.getElementById('assignDetailBg').onclick = function(e){
+  if (e.target === this) this.classList.remove('show');
+};
+
+// Edit
+document.getElementById('adEditBtn').onclick = function(){
+  if (!_curDetailAssign) return;
+  var a = _curDetailAssign;
+  document.getElementById('adEditTitle').value   = a.topic || '';
+  document.getElementById('adEditPrompt').innerHTML = a.prompt || '';
+  document.getElementById('adEditReq').value    = a.requiredAttempts || 1;
+  document.getElementById('adEditNotes').value  = ''; // aiNotes not returned by default
+  // Deadline: extract date part only
+  var dl = a.deadline ? String(a.deadline).slice(0,10) : '';
+  document.getElementById('adEditDead').value   = dl;
+  document.getElementById('adEditForm').style.display = '';
+  document.getElementById('adEditBtn').style.display  = 'none';
+};
+document.getElementById('adCancelEdit').onclick = function(){
+  document.getElementById('adEditForm').style.display = 'none';
+  document.getElementById('adEditBtn').style.display  = '';
+};
+// Mini toolbar in edit form
+AW.els('#adEditTb button').forEach(function(b){
+  b.onclick=function(){ document.execCommand(b.dataset.c,false,null); document.getElementById('adEditPrompt').focus(); };
+});
+
+// Save
+document.getElementById('adSaveBtn').onclick = function(){
+  if (!_curDetailAssign) return;
+  var btn=this; btn.disabled=true; btn.textContent='Saving…';
+  AW.api('teacher.updateAssignment',{
+    topicId:          _curDetailAssign.topicId,
+    topic:            document.getElementById('adEditTitle').value.trim(),
+    prompt:           document.getElementById('adEditPrompt').innerHTML.trim(),
+    requiredAttempts: parseInt(document.getElementById('adEditReq').value||'1',10),
+    deadline:         document.getElementById('adEditDead').value,
+    aiNotes:          document.getElementById('adEditNotes').value.trim()
+  }).then(function(res){
+    btn.disabled=false; btn.textContent='💾 Save changes';
+    if (res&&res.success){
+      AW.toast('Saved ✓','ok');
+      document.getElementById('assignDetailBg').classList.remove('show');
+      // Reload assignment list
+      var activeTab = document.querySelector('[data-amode].active');
+      if (activeTab) loadAssignmentList(activeTab.dataset.amode);
+    } else AW.toast((res&&res.error)||'Save failed','err');
+  });
+};
+
+// Delete
+document.getElementById('adDeleteBtn').onclick = function(){
+  if (!_curDetailAssign) return;
+  if (!confirm('Xoá bài "'+(_curDetailAssign.topic||'này')+'"?\n\nBài làm của sinh viên sẽ được giữ lại, chỉ bài tập bị ẩn.')) return;
+  var btn=this; btn.disabled=true;
+  AW.api('teacher.deleteAssignment',{ topicId:_curDetailAssign.topicId }).then(function(res){
+    btn.disabled=false;
+    if (res&&res.success){
+      AW.toast('Đã xoá bài tập','ok');
+      document.getElementById('assignDetailBg').classList.remove('show');
+      var activeTab = document.querySelector('[data-amode].active');
+      if (activeTab) loadAssignmentList(activeTab.dataset.amode);
+    } else AW.toast((res&&res.error)||'Delete failed','err');
+  });
+};
 
 /*── Assignment modal state ──*/
 var assignMode    = 'homework';
