@@ -7,7 +7,7 @@
   'use strict';
 
   // ── CONFIG ─────────────────────────────────────
-  var GAS = 'https://script.google.com/macros/s/AKfycby6Ll3JeOg9jsfUnc94pr5clYOwnBFmQT9lX2V7hBkXMQj9_mQFKS4rbR2L2viskkF7/exec';
+  var GAS = 'https://script.google.com/macros/s/AKfycbxgVhsy3WKU-hL7rW7GZaNsn0B-z6zt6iH2Q-UlpbJVqP9koAE49P175m0tR3ISGp-m/exec';
 
   var AW = {
     GAS: GAS,
