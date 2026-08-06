@@ -198,6 +198,10 @@
   .aw-task-badge.t1{background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0}
   .aw-task-badge.t2{background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8}
   .aw-amodal{max-width:680px!important}
+  /* Chart hover in assignment table (teacher) */
+  .aw-t1-chart-hover{position:relative;display:inline-block;cursor:pointer;margin-left:4px;font-size:.8rem;vertical-align:middle}
+  .aw-t1-chart-pop{display:none;position:absolute;top:22px;left:0;z-index:300;width:340px;max-width:70vw;border-radius:10px;border:2px solid #1A9E5C;box-shadow:0 8px 32px rgba(0,0,0,.25);background:#fff;object-fit:contain}
+  .aw-t1-chart-hover:hover .aw-t1-chart-pop{display:block}
 </style>
 </head>
 <body>
@@ -1630,8 +1634,11 @@ function loadAssignmentList(mode){
         var taskBadge = a.taskType==='task1'
           ? '<span class="aw-task-badge t1">Task 1</span>'
           : '<span class="aw-task-badge t2">Task 2</span>';
+        var chartHover = (a.taskType==='task1' && a.chartImageId)
+          ? ' <span class="aw-t1-chart-hover">📊<img src="https://drive.google.com/uc?export=view&id='+AW.esc(a.chartImageId)+'" class="aw-t1-chart-pop"></span>'
+          : '';
         return '<tr>'+
-          '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+'</td>'+
+          '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartHover+'</td>'+
           '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+

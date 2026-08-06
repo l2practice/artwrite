@@ -154,7 +154,10 @@ var MODE = qp.get('mode') || 'free';               // free | homework | inclass
 var TOPIC = qp.get('topic') || 'Free Writing';
 var PROMPT = qp.get('prompt') || 'Write about your opinion on the given topic.';
 var AI_NOTES = '';  // teacher's grading rules for this task (context)
-var TASK_TYPE = qp.get('type') || '';
+var TASK_TYPE      = qp.get('type') || 'task2';
+// Normalize: old URLs may have passed 'IELTS Task 2' as the type value
+if (TASK_TYPE !== 'task1') TASK_TYPE = 'task2';
+var CHART_IMAGE_ID = qp.get('chartImageId') || '';  // passed from student.html for Task 1
 var TOPIC_ID = qp.get('topicId') || ('T' + Date.now().toString(36));
 var RETRY = qp.get('retry') === '1';
 var DURATION_MIN = parseInt(qp.get('duration') || '0', 10);
@@ -184,6 +187,11 @@ var hasRealTopic = qp.get('topicId') && MODE !== 'free';
 // MIN_WORDS: default by task type, overridden by assignment's minWords field
 // GV có thể set minWords thấp hơn (VD: 80 nếu chỉ viết 1 đoạn thân bài)
 var MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
+
+// If chart image was passed via URL (Task 1 assigned), render immediately
+if (TASK_TYPE === 'task1' && CHART_IMAGE_ID) {
+  setTimeout(function(){ renderChartViewer(CHART_IMAGE_ID); }, 200);
+}
 
 if (hasRealTopic) {
   AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
@@ -225,7 +233,10 @@ content.innerHTML =
             'style="width:100%;min-height:70px;border:1px solid var(--aw-border);border-radius:8px;padding:10px;font-size:.92rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box"></textarea>' +
             '<p style="margin:8px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 No prompt? You can still write freely — the AI will assess general Task 2 quality.</p></div>';
         }
-        return '<div class="aw-prompt-box"><h4>'+AW.esc(TASK_TYPE || 'IELTS Task 2 Prompt')+'</h4>' +
+        var ttBadge = TASK_TYPE === 'task1'
+          ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
+          : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
+        return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt'+ttBadge+'</h4>' +
           '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +

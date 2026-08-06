@@ -20,6 +20,15 @@
   .aw-mode-free .aw-mode-ic{background:#E4F5EA}
   .aw-mode-inclass .aw-mode-ic{background:var(--aw-primary-lt)}
   .aw-mode-hw .aw-mode-ic{background:#FEF3D6}
+  /* Chart thumbnail hover in assignment card */
+  .aw-chart-thumb-wrap{position:relative;display:inline-flex;align-items:center}
+  .aw-chart-thumb-pop{
+    display:none;position:absolute;top:24px;right:0;z-index:200;
+    width:320px;max-width:80vw;border-radius:10px;
+    border:2px solid #1A9E5C;box-shadow:0 8px 32px rgba(0,0,0,.22);
+    background:#fff;object-fit:contain
+  }
+  .aw-chart-thumb-wrap:hover .aw-chart-thumb-pop{display:block}
   /* Free Writing task selector panel */
   .aw-free-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);padding:24px;margin-bottom:20px;box-shadow:var(--aw-shadow-sm)}
   .aw-free-panel h3{font-family:var(--aw-font-display);margin:0 0 6px;font-size:1.15rem}
@@ -303,17 +312,48 @@ function loadAssignments(mode){
     content.innerHTML='<button class="aw-btn aw-btn-ghost" style="margin-bottom:18px" onclick="showModes()">← Back</button>'+
       '<div class="aw-grid">'+res.data.map(function(a){
       var plain=AW.stripHtml(a.prompt||'').replace(/\s+/g,' ').trim();
+      var isT1 = a.taskType === 'task1';
+      var taskBadge = isT1
+        ? '<span class="aw-tag" style="background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;font-weight:700">Task 1</span>'
+        : '<span class="aw-tag" style="background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;font-weight:700">Task 2</span>';
+      var deadlineHtml = a.deadline
+        ? '<div style="margin-top:6px;font-size:.76rem;color:var(--aw-danger)">⏰ Deadline: <b>'+AW.fmtDate(a.deadline)+'</b></div>'
+        : '';
+      // Chart thumbnail for Task 1 — shown on hover via CSS tooltip
+      var chartThumb = (isT1 && a.chartImageId)
+        ? '<div class="aw-chart-thumb-wrap" title="Xem hình biểu đồ">'+
+            '<span style="font-size:.72rem;color:#1A9E5C;cursor:pointer">📊 Chart</span>'+
+            '<img class="aw-chart-thumb-pop" src="https://drive.google.com/uc?export=view&id='+AW.esc(a.chartImageId)+'" alt="chart">'+
+          '</div>'
+        : '';
       return '<div class="aw-lib-card" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
-        '<h3 class="aw-lib-title">'+AW.esc(a.topic)+'</h3>' +
-        '<span class="aw-tag aw-tag-type">'+AW.esc(a.mode)+'</span> '+
-        (a.requiredAttempts?'<span class="aw-tag aw-tag-medium">'+a.requiredAttempts+' revisions</span>':'')+
-        '<p class="aw-lib-desc">'+AW.esc(plain.slice(0,140))+(plain.length>140?'…':'')+'</p></div>';
+        '<div style="display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin-bottom:6px">'+
+          '<h3 class="aw-lib-title" style="margin:0;flex:1">'+AW.esc(a.topic)+'</h3>'+
+          chartThumb+
+        '</div>'+
+        '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'+
+          taskBadge+
+          '<span class="aw-tag aw-tag-type">'+AW.esc(a.mode)+'</span> '+
+          (a.requiredAttempts?'<span class="aw-tag aw-tag-medium">'+a.requiredAttempts+' revisions</span>':'')+
+        '</div>'+
+        '<p class="aw-lib-desc">'+AW.esc(plain.slice(0,140))+(plain.length>140?'…':'')+'</p>'+
+        deadlineHtml+
+      '</div>';
     }).join('')+'</div>';
     AW.els('[data-a]').forEach(function(c){
-      c.onclick=function(){
+      c.onclick=function(e){
+        // Don't navigate if clicking on the chart thumbnail
+        if (e.target.closest && e.target.closest('.aw-chart-thumb-wrap')) return;
         var a=JSON.parse(c.dataset.a);
-        var p=new URLSearchParams({mode:a.mode,topic:a.topic,prompt:a.prompt,topicId:a.topicId,type:'IELTS Task 2'});
-        if(a.durationMin) p.set('duration',a.durationMin);
+        var p=new URLSearchParams({
+          mode:    a.mode,
+          topic:   a.topic,
+          prompt:  a.prompt || '',
+          topicId: a.topicId,
+          type:    a.taskType || 'task2'   // ← fix: was hardcoded 'IELTS Task 2'
+        });
+        if(a.durationMin) p.set('duration', a.durationMin);
+        if(a.chartImageId) p.set('chartImageId', a.chartImageId);
         location.href='write.html?'+p.toString();
       };
     });
@@ -414,7 +454,7 @@ function renderProgress(){
       '<td><span class="aw-tag aw-tag-type" style="font-size:.7rem">'+AW.esc(modeLabel[g.mode]||g.mode)+'</span></td>';
     picks.forEach(function(p,pi){ tds+=scoreCell(p,gi,idxs[pi],groups[pi]); });
     tds+='<td class="pg-b">'+teacherCell+'</td>';
-    tds+='<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\')">Re-try</button></td>';
+    tds+='<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">Re-try</button></td>';
     return '<tr>'+tds+'</tr>';
   }).join('');
 
@@ -435,8 +475,8 @@ window.reviewGroupWrite=function(gi,wi){
   window._reviewRec=rec;
   reviewFeedbackRec(rec,gi);
 };
-window.retryFromProgress=function(mode,topicId,topic){
-  location.href='write.html?mode='+encodeURIComponent(mode)+'&retry=1&topicId='+encodeURIComponent(topicId)+'&topic='+encodeURIComponent(topic);
+window.retryFromProgress=function(mode,topicId,topic,taskType){
+  location.href='write.html?mode='+encodeURIComponent(mode)+'&retry=1&topicId='+encodeURIComponent(topicId)+'&topic='+encodeURIComponent(topic)+'&type='+encodeURIComponent(taskType||'task2');
 };
 window.reviewFeedback=function(i){
   var r=(window._myResults||[])[i]; if(!r)return;
