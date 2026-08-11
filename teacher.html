@@ -249,9 +249,10 @@
     </div>
     <div class="aw-modal-side">
       <h4>Teacher Suggestions</h4>
-      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 12px">Red strike = error · Green = suggested fix</p>
+      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 6px">Red strike = error · Green = suggested fix</p>
+      <button class="aw-btn aw-btn-ghost aw-btn-block" id="viewSentFb" style="margin-bottom:10px;font-size:.8rem;padding:6px 10px">📋 Xem feedback đã gửi</button>
       <div class="aw-suggest-list" id="suggestList"></div>
-      <h4>Scoring (IELTS)</h4>
+      <h4 style="margin-top:12px">Scoring (IELTS)</h4>
       <div class="aw-score-input"><label>TR</label><input type="number" id="sTR" min="0" max="9" step="0.5"></div>
       <div class="aw-score-input"><label>CC</label><input type="number" id="sCC" min="0" max="9" step="0.5"></div>
       <div class="aw-score-input"><label>LR</label><input type="number" id="sLR" min="0" max="9" step="0.5"></div>
@@ -1006,6 +1007,11 @@ function openFeedbackReview(s){
   });
 }
 
+document.getElementById('viewSentFb').onclick = function(){
+  if (currentAnnot.studentId) openFeedbackReview(currentAnnot);
+  else AW.toast('Mở bài của sinh viên trước.','err');
+};
+
 function openAnnotation(s){
   currentAnnot={ studentId:s.studentId, topicId:s.topicId, mode:s.mode, suggestions:[] };
   document.getElementById('mStudent').textContent=s.name||s.studentId;
@@ -1014,6 +1020,32 @@ function openAnnotation(s){
   mText.setAttribute('contenteditable','true');
   document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';
   ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
+
+  // Reset & auto-load previous annotation
+  var vBtn=document.getElementById('viewSentFb');
+  if(vBtn){vBtn.innerHTML='📋 Đang kiểm tra…';vBtn.removeAttribute('style');}
+  AW.api('teacher.getAnnotation',{studentId:s.studentId,topicId:s.topicId}).then(function(res){
+    var btn=document.getElementById('viewSentFb'); if(!btn) return;
+    if(res&&res.success&&res.data&&res.data.annotatedHtml){
+      var d=res.data;
+      if(d.tr)  document.getElementById('sTR').value=d.tr;
+      if(d.cc)  document.getElementById('sCC').value=d.cc;
+      if(d.lr)  document.getElementById('sLR').value=d.lr;
+      if(d.gra) document.getElementById('sGRA').value=d.gra;
+      var when=''; try{if(d.timestamp)when=AW.fmtDate(d.timestamp);}catch(e){}
+      btn.innerHTML='📋 Xem feedback đã gửi'+(when?' ('+when+')':'');
+      btn.style.background='var(--aw-primary-lt)';
+      btn.style.color='var(--aw-primary)';
+      btn.style.borderColor='var(--aw-primary)';
+      btn.style.fontWeight='600';
+    } else {
+      btn.innerHTML='📋 Chưa gửi feedback lần nào';
+      btn.style.color='var(--aw-ink-3)';
+    }
+  }).catch(function(){
+    var btn=document.getElementById('viewSentFb');
+    if(btn) btn.innerHTML='📋 Xem feedback đã gửi';
+  });
   // Overall fills itself in from the 4 criteria (IELTS rounding)
   wireAutoOverall(
     ['sTR','sCC','sLR','sGRA'].map(function(id){ return document.getElementById(id); }),
