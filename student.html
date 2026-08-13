@@ -272,17 +272,38 @@ function showFreePromptInput(taskType){
   });
 }
 
+// Cache getMyResults to avoid calling it twice (loadHistory + showProgress)
+var _myResultsCache = null;
+var _myResultsCacheTime = 0;
+var _myResultsCacheTTL = 60000; // 60s cache — fresh enough for a writing session
+
+function fetchMyResults(cb) {
+  var now = Date.now();
+  if (_myResultsCache && (now - _myResultsCacheTime) < _myResultsCacheTTL) {
+    cb(_myResultsCache); return;
+  }
+  AW.api('write.getMyResults',{studentId:sess.studentId}).then(function(res){
+    if (res && res.success) {
+      _myResultsCache = res.data || [];
+      _myResultsCacheTime = Date.now();
+    }
+    cb((res && res.data) || []);
+  });
+}
+// Invalidate cache after submit so fresh data shows immediately
+window._invalidateMyResults = function(){ _myResultsCache = null; };
+
 function loadHistory(){
   var box=document.getElementById('hist');
-  if(!box) return;  // #hist only exists on the Modes view
-  AW.api('write.getMyResults',{studentId:sess.studentId}).then(function(res){
+  if(!box) return;
+  fetchMyResults(function(data){
     var box2=document.getElementById('hist');
     if(!box2)return;
-    if(!res||!res.success||!res.data||!res.data.length){
+    if(!data||!data.length){
       box2.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No practice yet. Pick a mode above to start.</p></div>';
       return;
     }
-    box2.innerHTML=res.data.slice(0,8).map(function(h){
+    box2.innerHTML=data.slice(0,8).map(function(h){
       var band=h.bestResult||h.overall||h.teacher||'—';
       var taskBadge = (h.taskType==='task1')
         ? '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
@@ -364,9 +385,8 @@ var _progressSort='latest';
 function showProgress(){
   document.getElementById('awPageTitle').textContent='My Progress';
   content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
-  AW.api('write.getMyResults',{studentId:sess.studentId}).then(function(res){
-    var rows=(res&&res.data)||[];
-    if(!rows.length){
+  fetchMyResults(function(rows){
+    if(!rows||!rows.length){
       content.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No submissions yet. Start practicing to see your scores here.</p></div>';
       return;
     }
@@ -383,7 +403,7 @@ function showProgress(){
     document.getElementById('pMode').onchange=renderProgress;
     document.getElementById('pSort').onchange=function(){_progressSort=this.value;renderProgress();};
     renderProgress();
-  });
+  }); // end fetchMyResults
 }
 function renderProgress(){
   var box=document.getElementById('progressBox'); if(!box)return;

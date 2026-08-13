@@ -1580,73 +1580,86 @@ function renderResults(){
 // view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
 window.viewEssays=function(gkey, writeIdx){
   var g=findResult(gkey); if(!g){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
-  // opening it counts as reading it — drop the badge straight away rather than
-  // waiting for the next full re-render
   markResultSeen(gkey, groupLastTs(g));
   AW.els('tr[data-key]').forEach(function(tr){
     if(tr.dataset.key===gkey){ var b=tr.querySelector('.res-new'); if(b) b.remove(); }
   });
-  var w=g.writes||[];
-  var showList = (writeIdx==null || writeIdx<0) ? w.map(function(x,i){return {x:x,i:i};})
-                                                : (w[writeIdx]?[{x:w[writeIdx],i:writeIdx}]:[]);
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
-  // The title can be long, so it gets the flexible space (and ellipsis) while
-  // the buttons stay fixed-width on one line — previously a long topic pushed
-  // Close onto its own row.
   var header='<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:nowrap">'+
     '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem;flex:1 1 auto;min-width:0;'+
       'overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+AW.esc((g.name||g.studentId)+' — '+(g.topic||''))+'">'+
       AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
     '<div style="display:flex;gap:6px;flex:0 0 auto;white-space:nowrap">'+
-      '<button class="aw-btn aw-btn-accent" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\')" title="Mở file nhận xét trên Google Docs (giữ nguyên comment đã thêm)">📄 Open Doc</button>'+
-      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\',true)" title="Tạo lại file từ đầu — mọi comment và suggestion của bạn sẽ bị xoá">↻ Re-create Doc</button>'+
+      '<button class="aw-btn aw-btn-accent" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\')" title="Mở file nhận xét trên Google Docs">📄 Open Doc</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\',true)" title="Tạo lại file từ đầu">↻ Re-create Doc</button>'+
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="printTeacherFeedback()">⤓ PDF</button>'+
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="closeEssayModal()">Close</button>'+
     '</div></div>';
-  var body;
-  if(!showList.length){
-    body='<div class="aw-empty" style="padding:40px 20px">'+AW.icon('results')+'<p>Student has not completed this attempt yet.</p></div>';
-  } else {
-    body='<div id="teacherReviewContent">'+showList.map(function(item){
-      var x=item.x, i=item.i;
-      var fb=null; try{ fb=x.feedback?JSON.parse(x.feedback):null; }catch(e){}
-      var s=(fb&&fb.scores)||{tr:x.tr,cc:x.cc,lr:x.lr,gra:x.gra};
-      var subT='';
-      var _ts=x.timestamp||x.startTime;
-      if(_ts){ var _d=new Date(_ts); if(!isNaN(_d)){
-        subT='<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 Nộp lúc: '+
-          String(_d.getDate()).padStart(2,'0')+'/'+String(_d.getMonth()+1).padStart(2,'0')+'/'+_d.getFullYear()+
-          '  '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0')+'</div>'; } }
-      var out='<div class="rv-block"><h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+subT;
-      // score bars
-      out+='<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
-        '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
-        '<div style="flex:1">'+crit('Task Response',s.TR||x.tr)+crit('Coherence & Cohesion',s.CC||x.cc)+crit('Lexical Resource',s.LR||x.lr)+crit('Grammar',s.GRA||x.gra)+'</div>'+
+
+  // Show modal immediately with score summary (available from list data)
+  // Then lazy-load essay+feedback text — they were intentionally stripped from list response
+  var curMode = (document.querySelector('.aw-tab.active')||{}).dataset&&document.querySelector('.aw-tab.active').dataset.mode || 'inclass';
+  var scoreOnlyBody = '<div id="teacherReviewContent">'+
+    (g.writes||[]).map(function(x,i){
+      if (writeIdx!=null && writeIdx>=0 && i!==writeIdx) return '';
+      var c1label = (g.taskType==='task1') ? 'Task Achievement' : 'Task Response';
+      return '<div class="rv-block">'+
+        '<h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+
+        (x.timestamp?'<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 '+AW.fmtDate(x.timestamp)+'</div>':'')+
+        '<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
+          '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
+          '<div style="flex:1">'+crit(c1label,x.tr)+crit('Coherence & Cohesion',x.cc)+crit('Lexical Resource',x.lr)+crit('Grammar',x.gra)+'</div>'+
+        '</div>'+
+        '<div id="detail_'+i+'" style="color:var(--aw-ink-3);font-size:.85rem">'+
+          '<span class="aw-spin aw-spin-dark"></span> Đang tải nội dung bài viết…'+
+        '</div>'+
       '</div>';
-      // essay
-      out+=x.essay?'<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:10px">'+AW.esc(x.essay)+'</div>':'<p style="color:var(--aw-ink-3)">No essay text.</p>';
-      // vocabulary profile (CEFR, computed here from the essay text — no extra storage)
-      if(x.essay && window.AW && AW.analyseVocabulary){
-        out+=renderTeacherVocab(AW.analyseVocabulary(x.essay));
-      }
-      // feedback detail
-      if(fb){
-        out+='<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">AI Feedback</h4>';
-        if(fb.overall_feedback_vi) out+='<p style="margin:0 0 8px"><b>Overall:</b> '+AW.esc(fb.overall_feedback_vi)+'</p>';
-        if(fb.repeated_errors_vi) out+='<p style="margin:0 0 8px;background:#FFF8EC;padding:8px;border-radius:6px"><b>⚠ Repeated errors:</b> '+AW.esc(fb.repeated_errors_vi)+'</p>';
-        if((fb.tr_comments||[]).length) out+='<p style="margin:0 0 8px"><b>Task Response:</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';
-        if((fb.gra_errors||[]).length) out+='<p style="margin:0 0 8px"><b>Grammar:</b> '+fb.gra_errors.slice(0,8).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.correct)+'</span>';}).join('; ')+'</p>';
-        if((fb.lr_issues||[]).length) out+='<p style="margin:0 0 8px"><b>Vocabulary:</b> '+fb.lr_issues.slice(0,6).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.better)+'</span>';}).join('; ')+'</p>';
-        if(fb.cc_feedback&&fb.cc_feedback.assessment_vi) out+='<p style="margin:0 0 8px"><b>Coherence:</b> '+AW.esc(fb.cc_feedback.assessment_vi)+'</p>';
-      } else {
-        out+='<p style="color:var(--aw-ink-3);font-size:.85rem;background:#FFF8EC;padding:8px;border-radius:6px">No stored AI feedback for this attempt (submitted before feedback storage was enabled). New submissions will include full feedback.</p>';
-      }
-      return out+'</div>';
-    }).join('')+'</div>';
-  }
-  document.getElementById('essayModalBody').innerHTML=header+body;
+    }).join('')+
+  '</div>';
+
+  document.getElementById('essayModalBody').innerHTML = header + scoreOnlyBody;
   document.getElementById('essayModal').classList.add('show');
+
+  // Now fetch full essay+feedback lazily
+  AW.api('teacher.getAttemptDetail',{ studentId:g.studentId, topicId:g.topicId, mode:curMode })
+    .then(function(res){
+      if (!res||!res.success) return;
+      res.data.forEach(function(d, i){
+        if (writeIdx!=null && writeIdx>=0 && i!==writeIdx) return;
+        var el = document.getElementById('detail_'+i);
+        if (!el) return;
+        var fb=null; try{ fb=d.feedback?JSON.parse(d.feedback):null; }catch(e){}
+        var out='';
+        // Essay text
+        out+=d.essay
+          ?'<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4>'+
+            '<div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:10px">'+AW.esc(d.essay)+'</div>'
+          :'<p style="color:var(--aw-ink-3)">No essay text.</p>';
+        // Vocabulary profile
+        if(d.essay && window.AW && AW.analyseVocabulary){
+          out+=renderTeacherVocab(AW.analyseVocabulary(d.essay));
+        }
+        // AI Feedback
+        if(fb){
+          out+='<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">AI Feedback</h4>';
+          if(fb.overall_feedback_vi) out+='<p style="margin:0 0 8px"><b>Overall:</b> '+AW.esc(fb.overall_feedback_vi)+'</p>';
+          if(fb.repeated_errors_vi) out+='<p style="margin:0 0 8px;background:#FFF8EC;padding:8px;border-radius:6px"><b>⚠ Repeated errors:</b> '+AW.esc(fb.repeated_errors_vi)+'</p>';
+          var c1label2 = (g.taskType==='task1') ? 'Task Achievement' : 'Task Response';
+          if((fb.tr_comments||[]).length) out+='<p style="margin:0 0 8px"><b>'+c1label2+':</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';
+          if((fb.gra_errors||[]).length) out+='<p style="margin:0 0 8px"><b>Grammar:</b> '+fb.gra_errors.slice(0,8).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.correct)+'</span>';}).join('; ')+'</p>';
+          if((fb.lr_issues||[]).length) out+='<p style="margin:0 0 8px"><b>Vocabulary:</b> '+fb.lr_issues.slice(0,6).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.better)+'</span>';}).join('; ')+'</p>';
+          if(fb.cc_feedback&&fb.cc_feedback.assessment_vi) out+='<p style="margin:0 0 8px"><b>Coherence:</b> '+AW.esc(fb.cc_feedback.assessment_vi)+'</p>';
+        } else {
+          out+='<p style="color:var(--aw-ink-3);font-size:.85rem;background:#FFF8EC;padding:8px;border-radius:6px">'+
+            (d.essay ? 'No stored AI feedback for this attempt. ' : '')+
+            'New submissions include full feedback.</p>';
+        }
+        el.innerHTML = out;
+      });
+    }).catch(function(e){
+      console.error('getAttemptDetail failed', e);
+    });
 };
 window.closeEssayModal=function(){document.getElementById('essayModal').classList.remove('show');};
 window.printTeacherFeedback=function(){
