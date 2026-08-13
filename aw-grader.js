@@ -20,56 +20,9 @@
     }
     return r;
   }
-  /*──────── Task 1 system instruction ────────
-     Separate from Task 2 — Task 1 uses Task Achievement (TA), not Task Response (TR),
-     and the descriptors, content expectations, and word limit are all different.
-     The JSON output schema is identical (key "TR" is reused for TA score so the
-     rest of the app — renderFeedback, saveResult, exportDoc — needs zero changes).  */
-  var TASK1_SYSTEM =
-    'You are a strict IELTS Academic Writing Task 1 examiner.\n'+
-    'Grade ONLY the response provided. Every piece of feedback must quote directly from that response.\n\n'+
-    'TASK 1 SPECIFICS (enforce all rules below):\n'+
-    '- Minimum 150 words required. IF fewer THEN cap TA at Band 5 and flag "Under word count".\n'+
-    '- An OVERVIEW is MANDATORY. It must summarise the MOST IMPORTANT general trend(s) without data figures.\n'+
-    '  IF no overview THEN cap TA at Band 5 and flag "Missing Overview".\n'+
-    '  IF the overview is placed at the end (not after the introduction) THEN note as suboptimal.\n'+
-    '- Personal opinion is FORBIDDEN. IF the student writes opinion (I think/I believe/In my opinion) THEN cap TA at Band 5.\n\n'+
-    'BAND DESCRIPTORS (Task 1):\n'+
-    'TA: Band 7=covers requirements, clear overview, key features selected, relevant comparisons. Band 6=covers main features but some inadequately. Band 5=covers main features but with some inaccuracy. Band 4=minimal coverage.\n'+
-    'CC: Band 7=logically organised, cohesive devices used accurately, paragraphed well. Band 6=mostly coherent. Band 5=some organisation but may be repetitive. Band 4=lacks organisation.\n'+
-    'LR: Band 7=sufficient range for flexibility, minor errors. Band 6=adequate. Band 5=limited. Band 4=basic.\n'+
-    'GRA: Band 7=complex structures used accurately. Band 6=mix. Band 5=frequent errors. Band 4=many errors.\n\n'+
-    'SCORING RULES:\n'+
-    '- Components: whole numbers or X.5 if borderline.\n'+
-    '- Overall = average of 4, round per IELTS convention (0.25–0.74 → 0.5, otherwise nearest whole).\n'+
-    '- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n\n'+
-    '[CONDITIONAL HARD-CAP RULES — enforce strictly]\n'+
-    '1) DATA ACCURACY (TA): IF the student misreads figures significantly (wrong trend direction, fabricated percentages, wrong comparison) THEN flag as "Data Inaccuracy" and cap TA at Band 5.\n'+
-    '2) LEXICAL HARD LIMITS: Same as Task 2 — spelling >5 errors → cap LR ≤ 5; spelling 1-5 → cap LR ≤ 6. Contractions/informal vocabulary → penalise LR.\n'+
-    '3) GRAMMAR: Basic punctuation errors or failure to capitalise proper nouns → cap GRA ≤ 6. No complex sentences in any body paragraph → flag "Grammatical Variety".\n'+
-    '4) REPETITION: IF the same data point or phrase is repeated verbatim across paragraphs THEN flag as "Repetition" and deduct from both CC and LR.\n'+
-    '5) PARAPHRASE OF INSTRUCTIONS: The student must NOT copy the task rubric ("The chart below shows…") verbatim. IF they do THEN flag as "Copied rubric" and note it does not count towards word limit; cap TA at Band 6.\n\n'+
-    '[ANTI-OVER-CORRECTION]\n'+
-    'Do NOT penalise a student for not expressing an opinion — that is correct Task 1 behaviour.\n'+
-    'Do NOT penalise for simple sentences if the data description is clear and accurate.\n'+
-    'Reward accurate comparisons and well-selected key features even in short responses.\n\n'+
-    'Return ONLY a JSON object with these EXACT fields (same schema as Task 2 so the app works without changes):\n'+
-    'scores(TR,CC,LR,GRA) — TR here means TA (Task Achievement); overall; band_description;\n'+
-    'overall_feedback_vi; tr_comments(array of {paragraph_role,assessment_vi,suggestion_en,quote});\n'+
-    'gra_errors(array of {wrong,correct,explanation_vi}); lr_issues(array of {original,better,explanation_vi,alternatives});\n'+
-    'cc_feedback({assessment_vi,issues,suggestions}); corrected_text; repeated_errors_vi.\n\n'+
-    '[MINIMUM DEPTH]\n'+
-    'Always return at least 3 lr_issues and 2 gra_errors (use precision-upgrade slots if no outright errors).\n'+
-    'Always return a tr_comments entry for every paragraph (Introduction, Overview, Body 1, Body 2…, Conclusion if present).\n'+
-    'overall_feedback_vi must state both what the student did well AND the single most important improvement.';
-
   async function gradeWithGemini(payload, geminiKey){
     var text=payload.writing||'', question=payload.question||'';
-    var isTask1 = (payload.taskType === 'task1');
-
-    /* ── Task 2 system instruction (original, unchanged) ── */
-    var systemInstruction = isTask1 ? TASK1_SYSTEM :
-    'You are a strict IELTS Writing examiner. Grade only the essay provided by the student. Every piece of feedback must quote directly from that essay. Never invent examples or use content from other essays.\n\n'+
+    var systemInstruction='You are a strict IELTS Writing examiner. Grade only the essay provided by the student. Every piece of feedback must quote directly from that essay. Never invent examples or use content from other essays.\n\n'+
       'IELTS BAND DESCRIPTORS:\n'+
       'TR/TA: Band 7=covers all parts, clear position, ideas developed. Band 6=addresses parts but some inadequately. Band 5=partial, limited. Band 4=minimal.\n'+
       'CC: Band 7=logical, varied cohesion, good paragraphing. Band 6=mostly coherent. Band 5=some org. Band 4=incoherent.\n'+
@@ -123,19 +76,13 @@
       '- Do NOT quote whole paragraphs. For each comment set "paragraph_role" to the paragraph label ONLY: "Opening", "Body 1", "Body 2", "Body 3"... , or "Conclusion". Standard mapping: a 4-paragraph essay = Opening, Body 1, Body 2, Conclusion; a 5-paragraph essay = Opening, Body 1, Body 2, Body 3, Conclusion.\n'+
       '- Leave "quote" EMPTY unless you must point to ONE specific problematic sentence — then put ONLY that single sentence in "quote" (never the whole paragraph).\n'+
       '- "assessment_vi" is your comment on that paragraph. Keep it concise.';
-
     // Strip HTML tags from question (may contain <b>,<i> from rich text editor)
     var tmp=document.createElement('div'); tmp.innerHTML=question;
     var cleanQ=(tmp.textContent||tmp.innerText||question).replace(/\s+/g,' ').trim();
     var attemptNote = payload.attempt >= 2
       ? '\n\nThis is revision attempt '+payload.attempt+'. In "repeated_errors_vi" (Vietnamese), note whether the student repeated the same TYPES of mistakes as a typical earlier draft (grammar/vocab/coherence) and encourage improvement. For attempt 1, leave repeated_errors_vi empty.'
       : '\n\nThis is the first attempt. Leave repeated_errors_vi empty. Give COMPLETE feedback on all 4 criteria so the student learns from the start.';
-
-    var taskNote = isTask1
-      ? '\n\nAll feedback must reference the student response above. Task Achievement (TR field) MUST assess: overview presence, data accuracy, key features selected, comparisons made. TA ≤ 5 if no overview or opinion expressed.'
-      : '\n\nAll feedback must reference the student essay above and be thorough. Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.';
-    var userMessage=(isTask1 ? 'Grade this IELTS Task 1 response.' : 'Grade this IELTS essay.')+
-      '\n\nTASK PROMPT: '+cleanQ+'\n\nSTUDENT RESPONSE TO GRADE:\n---\n'+text+'\n---'+taskNote+attemptNote;
+    var userMessage='Grade this IELTS essay.\n\nTASK PROMPT: '+cleanQ+'\n\nSTUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\nAll feedback must reference the student essay above and be thorough. Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.'+attemptNote;
     // Teacher's context rules override default IELTS strictness
     if (payload.aiNotes && payload.aiNotes.trim()) {
       userMessage += '\n\n=== TEACHER\'S GRADING RULES (HIGHEST PRIORITY — these OVERRIDE the default IELTS strictness above) ===\n'+
@@ -148,26 +95,93 @@
       prompt += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
     }
 
-    // Grading must be as repeatable as possible, so decode near-greedily:
-    // temperature alone only sharpens the distribution — topK/topP are what
-    // actually stop the model sampling alternative wordings/scores.
-    // (Note: even at these settings the API is not bit-for-bit deterministic.)
-    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[{text:prompt}]}],
-        generationConfig:{ temperature:0.1, topK:1, topP:0.1, candidateCount:1, maxOutputTokens:12000 }
-      })
-    });
-    if(!resp.ok){var err=await resp.json().catch(function(){return{};});throw new Error('Gemini error: '+((err.error&&err.error.message)||resp.status));}
-    var data=await resp.json();
-    var raw=(((data.candidates||[])[0]||{}).content||{}).parts;
-    raw=raw&&raw[0]?raw[0].text:'';
-    if(!raw) throw new Error('Gemini returned empty. Try again.');
-    var clean=raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi,'').replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    var si=clean.indexOf('{'),depth=0,ei=-1;
-    for(var ci=si;ci<clean.length;ci++){if(clean[ci]==='{')depth++;else if(clean[ci]==='}'){depth--;if(depth===0){ei=ci;break;}}}
-    if(si===-1||ei===-1) throw new Error('Could not parse JSON from Gemini.');
+    // Model fallback chain — tries each in order if previous is unavailable/deprecated
+    var GEMINI_MODELS = [
+      'gemini-3.5-flash',   // primary: latest flagship Flash (May 2026), free tier
+      'gemini-3.6-flash',   // fallback 1: newer lightweight, free tier (Jul 2026)
+      'gemini-2.5-flash',   // fallback 2: older, shutting down Oct 2026
+    ];
+    var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+
+    var lastData = null;
+    var geminiOk = false;
+
+    for (var mi = 0; mi < GEMINI_MODELS.length; mi++) {
+      var modelName = GEMINI_MODELS[mi];
+      var resp = await fetch(GEMINI_BASE + modelName + ':generateContent?key=' + geminiKey, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature:0.1, topK:1, topP:0.1, candidateCount:1, maxOutputTokens:12000 }
+        })
+      });
+      if (resp.ok) {
+        lastData = await resp.json();
+        geminiOk = true;
+        break;
+      }
+      var errBody = await resp.json().catch(function(){ return {}; });
+      var errMsg  = (errBody.error && errBody.error.message) || String(resp.status);
+      var isModelErr = resp.status === 404 || resp.status === 400 ||
+                       errMsg.indexOf('no longer available') !== -1 ||
+                       errMsg.indexOf('deprecated') !== -1 ||
+                       errMsg.indexOf('not found') !== -1;
+      // Rate limit / quota → skip straight to Groq
+      var isQuota = resp.status === 429 || errMsg.indexOf('quota') !== -1 || errMsg.indexOf('RESOURCE_EXHAUSTED') !== -1;
+      if (isQuota || (!isModelErr && mi === GEMINI_MODELS.length - 1)) {
+        break; // fall through to Groq
+      }
+      if (!isModelErr) {
+        throw new Error('Gemini error: ' + errMsg); // auth/other — no point retrying
+      }
+      // model deprecated → try next Gemini model
+    }
+
+    // ── Groq fallback (llama-3.3-70b) ─────────────────────────────
+    // Used when: all Gemini models are rate-limited, deprecated, or unavailable.
+    // Groq's free tier is generous (14,400 req/day) and fast.
+    // The prompt is identical — same JSON schema expected.
+    if (!geminiOk) {
+      var groqKey = (window.AW && AW.groqKey) ? AW.groqKey.get() : '';
+      if (!groqKey) throw new Error('Gemini hết lượt và chưa có Groq API key. Vui lòng nhập Groq key trong phần cài đặt.');
+      var groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + groqKey },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.1, max_tokens: 12000, response_format: { type: 'json_object' }
+        })
+      });
+      if (!groqResp.ok) {
+        var groqErr = await groqResp.json().catch(function(){ return {}; });
+        throw new Error('Groq error: ' + ((groqErr.error && groqErr.error.message) || groqResp.status));
+      }
+      var groqData = await groqResp.json();
+      var groqRaw  = ((groqData.choices || [])[0] || {}).message;
+      groqRaw = groqRaw ? groqRaw.content : '';
+      if (!groqRaw) throw new Error('Groq trả về rỗng. Thử lại sau.');
+      var groqClean = groqRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+      var gsi = groqClean.indexOf('{'), gei = -1, gdepth = 0;
+      for (var gci = gsi; gci < groqClean.length; gci++) {
+        if (groqClean[gci]==='{') gdepth++;
+        else if (groqClean[gci]==='}') { gdepth--; if (gdepth===0){ gei=gci; break; } }
+      }
+      if (gsi===-1 || gei===-1) throw new Error('Lỗi định dạng phản hồi từ Groq. Vui lòng thử lại.');
+      return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
+    }
+
+    var raw = (((lastData.candidates || [])[0] || {}).content || {}).parts;
+    raw = raw && raw[0] ? raw[0].text : '';
+    if (!raw) throw new Error('Gemini trả về rỗng. Thử lại sau vài giây.');
+    var clean = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi,'')
+                   .replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    var si = clean.indexOf('{'), depth = 0, ei = -1;
+    for (var ci = si; ci < clean.length; ci++) {
+      if (clean[ci]==='{') depth++;
+      else if (clean[ci]==='}') { depth--; if (depth===0){ ei=ci; break; } }
+    }
+    if (si===-1 || ei===-1) throw new Error('Lỗi định dạng phản hồi từ Gemini. Vui lòng thử lại.');
     return normaliseScores(JSON.parse(clean.substring(si,ei+1)));
   }
   // Public API

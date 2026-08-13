@@ -577,7 +577,9 @@ function autoSubmitOnTimeout(){
         try { if(lastVocabProfile && window.AW && AW.renderVocabProfile) AW.renderVocabProfile(lastVocabProfile); } catch(e){}
       })
       .catch(function(e){
-        // AI failed — save plain submission anyway so student isn't penalised
+        // AI grading failed — still save essay so student isn't penalised,
+        // then show a friendly error so they understand what happened.
+        showGradeError(e, null, null);
         AW.api('write.saveResult', {
           studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
           taskType:TASK_TYPE,
@@ -587,8 +589,14 @@ function autoSubmitOnTimeout(){
           essay:text, class:(sess.class||''), feedback:''
         }).then(function(){
           sendHeartbeat('Submitted');
-          lockEditor('Hết giờ — bài đã nộp (AI chấm thất bại, GV sẽ chấm thủ công).');
-          showTimeUpBanner(wc, null);
+          var sideBodyEl=document.getElementById('sideBody');
+          if(sideBodyEl){ sideBodyEl.style.display=''; sideBodyEl.innerHTML=
+            '<div style="text-align:center;padding:20px 10px">'+
+            '<div style="font-size:2rem;margin-bottom:8px">📝</div>'+
+            '<b style="color:var(--aw-ink)">Bài đã được lưu</b>'+
+            '<p style="font-size:.82rem;color:var(--aw-ink-3);margin:8px 0 0;line-height:1.5">AI chưa chấm được lần này. Giáo viên sẽ xem và chấm thủ công cho bạn.</p>'+
+            '</div>';
+          }
         });
       })
       .finally(function(){ hideGradingOverlay(); });
@@ -891,8 +899,8 @@ document.getElementById('gradeBtn').onclick = function(){
           '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc</button>';
       }
     })
-    .catch(function(e){ AW.toast(e.message||'Grading error','err'); })
-    .finally(function(){ hideGradingOverlay(); btn.disabled=false; btn.textContent=orig; });
+    .catch(function(e){ showGradeError(e, btn, orig); })
+    .finally(function(){ hideGradingOverlay(); btn.disabled=false; });
 };
 
 /*── renderChartViewer ─────────────────────────────────────────────
@@ -943,6 +951,95 @@ function renderChartViewer(fileId){
 
 /*──────── fake grading progress overlay ────────*/
 var _gradeTimers=[];
+/*── friendlyGradeError — chuyển lỗi kỹ thuật → thông báo tiếng Việt dễ hiểu ──*/
+function friendlyGradeError(e) {
+  var raw = (e && (e.message || String(e))) || '';
+  var r   = raw.toLowerCase();
+
+  // Quota / rate limit
+  if (r.indexOf('quota') !== -1 || r.indexOf('resource_exhausted') !== -1 || r.indexOf('429') !== -1)
+    return { icon:'⏳', title:'AI đã dùng hết lượt miễn phí', msg:'Bạn đã gửi quá nhiều yêu cầu trong thời gian ngắn. Đợi 1–2 phút rồi bấm <b>Get AI Feedback</b> lại.', hint:'Nếu thường xuyên bị lỗi này, hãy tạo một Gemini API key khác tại ai.google.dev.', color:'#E0A32E', bg:'#FFF8EC', retry:true };
+
+  // Invalid / expired API key
+  if (r.indexOf('api_key') !== -1 || r.indexOf('invalid key') !== -1 || r.indexOf('api key') !== -1 || r.indexOf('401') !== -1 || r.indexOf('403') !== -1)
+    return { icon:'🔑', title:'API key không hợp lệ hoặc đã hết hạn', msg:'Gemini API key của bạn bị sai hoặc đã bị thu hồi. Hãy kiểm tra và nhập lại key mới.', hint:'Lấy key miễn phí tại: <a href="https://ai.google.dev" target="_blank" style="color:var(--aw-primary)">ai.google.dev</a>', color:'#B42318', bg:'#FEF2F2', retry:false };
+
+  // Model deprecated / not found
+  if (r.indexOf('no longer available') !== -1 || r.indexOf('deprecated') !== -1 || r.indexOf('not found') !== -1 || r.indexOf('404') !== -1)
+    return { icon:'🔄', title:'Phiên bản AI đã được cập nhật', msg:'Hệ thống đang chuyển sang phiên bản AI mới hơn. Vui lòng bấm lại để thử.', hint:'Nếu vẫn lỗi sau 2–3 lần thử, hãy báo giảng viên.', color:'#0A6EBD', bg:'#EBF4FF', retry:true };
+
+  // Empty response
+  if (r.indexOf('trống') !== -1 || r.indexOf('empty') !== -1 || r.indexOf('rỗng') !== -1)
+    return { icon:'🤔', title:'AI không trả về kết quả', msg:'AI đã nhận bài nhưng không tạo được phản hồi. Đây là lỗi tạm thời — bấm lại sau 30 giây.', hint:'', color:'#E8730C', bg:'#FFF3EA', retry:true };
+
+  // JSON parse error
+  if (r.indexOf('parse') !== -1 || r.indexOf('json') !== -1 || r.indexOf('định dạng') !== -1 || r.indexOf('format') !== -1)
+    return { icon:'⚙️', title:'AI trả lời không đúng định dạng', msg:'AI đã chấm nhưng phản hồi bị lỗi định dạng. Bấm lại để thử — thường tự khắc phục sau 1–2 lần.', hint:'', color:'#E8730C', bg:'#FFF3EA', retry:true };
+
+  // Network / timeout
+  if (r.indexOf('timeout') !== -1 || r.indexOf('network') !== -1 || r.indexOf('fetch') !== -1 || r.indexOf('failed to fetch') !== -1)
+    return { icon:'📶', title:'Mất kết nối mạng', msg:'Không thể kết nối đến máy chủ AI. Kiểm tra wifi/mạng rồi bấm lại.', hint:'', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
+
+  // Groq specific
+  if (r.indexOf('groq') !== -1)
+    return { icon:'⚡', title:'Groq AI gặp sự cố', msg:'Dịch vụ dự phòng Groq cũng đang có vấn đề. Vui lòng thử lại sau vài phút.', hint:'', color:'#E8730C', bg:'#FFF3EA', retry:true };
+
+  // Groq key missing
+  if (r.indexOf('chưa có groq') !== -1 || r.indexOf('groq api key') !== -1)
+    return { icon:'🔑', title:'Hết lượt AI — cần Groq API key', msg:'Gemini hết lượt miễn phí và bạn chưa nhập Groq API key dự phòng.', hint:'Lấy key miễn phí tại: <a href="https://console.groq.com/keys" target="_blank" style="color:var(--aw-primary)">console.groq.com</a> rồi nhập vào cài đặt.', color:'#B42318', bg:'#FEF2F2', retry:false };
+
+  // Generic fallback
+  return { icon:'⚠️', title:'AI chấm thất bại', msg:'Đã xảy ra lỗi không xác định khi chấm bài. Bấm lại để thử.', hint:'Nếu lỗi tiếp tục, hãy báo giảng viên biết.', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
+}
+
+/*── showGradeError — hiển thị lỗi chấm bài dạng banner + toast ──*/
+function showGradeError(e, gradeBtn, origBtnText) {
+  hideGradingOverlay();
+  var info = friendlyGradeError(e);
+
+  // Re-enable button
+  if (gradeBtn) {
+    gradeBtn.disabled  = false;
+    gradeBtn.textContent = info.retry ? (origBtnText || 'Get AI Feedback') : (origBtnText || 'Get AI Feedback');
+  }
+
+  // Remove old error banner if any
+  var old = document.getElementById('gradeErrBanner');
+  if (old) old.remove();
+
+  // Build banner above the submit button
+  var banner = document.createElement('div');
+  banner.id = 'gradeErrBanner';
+  banner.style.cssText =
+    'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:1400;'+
+    'background:'+info.bg+';border:1.5px solid '+info.color+';border-radius:14px;'+
+    'padding:14px 18px;max-width:480px;width:calc(100% - 32px);'+
+    'box-shadow:0 4px 24px rgba(0,0,0,.18);font-family:var(--aw-font-body)';
+  banner.innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:10px">'+
+      '<span style="font-size:1.5rem;flex:0 0 auto">'+info.icon+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+        '<b style="font-size:.92rem;color:'+info.color+';display:block;margin-bottom:4px">'+info.title+'</b>'+
+        '<p style="margin:0 0 4px;font-size:.82rem;color:#3D4D5A;line-height:1.5">'+info.msg+'</p>'+
+        (info.hint ? '<p style="margin:0;font-size:.76rem;color:#5B6B7A;line-height:1.4">'+info.hint+'</p>' : '')+
+      '</div>'+
+      '<button onclick="document.getElementById(\'gradeErrBanner\').remove()" '+
+        'style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:1.1rem;flex:0 0 auto;padding:0 2px">✕</button>'+
+    '</div>'+
+    (info.retry
+      ? '<button onclick="document.getElementById(\'gradeErrBanner\').remove();document.getElementById(\'gradeBtn\').click()" '+
+          'style="margin-top:10px;width:100%;padding:8px;background:'+info.color+';color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem">'+
+          '🔄 Thử lại ngay</button>'
+      : '');
+  document.body.appendChild(banner);
+
+  // Also show a shorter toast for quick visibility
+  AW.toast(info.icon + ' ' + info.title, 'err', 5000);
+
+  // Auto-dismiss after 20 seconds
+  setTimeout(function(){ var b=document.getElementById('gradeErrBanner'); if(b) b.remove(); }, 20000);
+}
+
 function showGradingOverlay(){
   var ov=document.getElementById('gradeOverlay');
   if(!ov){
