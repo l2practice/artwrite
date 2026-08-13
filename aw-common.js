@@ -61,52 +61,83 @@
     });
   }
 
-  /*── SESSION (localStorage) ───────────────────────*/
-  var SKEY = 'aw_session';
-  // Sessions expire so a device left signed in doesn't hand the next user
-  // someone else's account. "Remember me" = 12h in localStorage.
-  // Without it, the session lives in sessionStorage and dies with the tab.
-  var SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+  /*── SESSION ─────────────────────────────────────────────────────
+      Tab-close: "Remember me" = localStorage (survives close, 12h TTL).
+                 No "Remember me" = sessionStorage (dies with tab).
+      Idle-out:  45 min of no mouse/keyboard/touch → auto logout.
+      API keys (aw_gemini_key) are intentionally kept across sessions.
+  ─────────────────────────────────────────────────────────────────*/
+  var SKEY           = 'aw_session';
+  var IDLE_KEY       = 'aw_last_active';
+  var IDLE_LIMIT_MS  = 45 * 60 * 1000;   // 45 minutes
+  var SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours hard cap
+
+  function _refreshIdle() {
+    try { localStorage.setItem(IDLE_KEY, String(Date.now())); } catch(e) {}
+  }
+  function _isIdle() {
+    try {
+      var t = parseInt(localStorage.getItem(IDLE_KEY) || '0', 10);
+      // If IDLE_KEY never set (first visit), not idle
+      return t > 0 && (Date.now() - t) > IDLE_LIMIT_MS;
+    } catch(e) { return false; }
+  }
 
   AW.session = {
-    // set(obj) or set(obj, {remember:true})
-    set: function (obj, opts) {
-      var remember = !opts || opts.remember !== false;
-      var payload = JSON.stringify({ data: obj, exp: Date.now() + SESSION_TTL_MS });
-      try { sessionStorage.removeItem(SKEY); } catch (e) {}
-      try { localStorage.removeItem(SKEY); } catch (e) {}
-      if (remember) localStorage.setItem(SKEY, payload);
-      else sessionStorage.setItem(SKEY, payload);
+    // opts.remember = true  → localStorage (persists after tab close)
+    // opts.remember = false → sessionStorage (cleared when tab closes)
+    // Default is FALSE — safer for shared/lab computers
+    set: function(obj, opts) {
+      var remember = !!(opts && opts.remember === true);
+      var payload  = JSON.stringify({ data:obj, exp:Date.now()+SESSION_TTL_MS });
+      try { sessionStorage.removeItem(SKEY); } catch(e) {}
+      try { localStorage.removeItem(SKEY);   } catch(e) {}
+      try {
+        if (remember) localStorage.setItem(SKEY, payload);
+        else          sessionStorage.setItem(SKEY, payload);
+      } catch(e) {}
+      _refreshIdle();
     },
-    get: function () {
+    get: function() {
       var raw = null;
-      try { raw = sessionStorage.getItem(SKEY) || localStorage.getItem(SKEY); } catch (e) { raw = null; }
+      try { raw = sessionStorage.getItem(SKEY) || localStorage.getItem(SKEY); } catch(e) {}
       if (!raw) return null;
       try {
         var o = JSON.parse(raw);
-        // legacy sessions (pre-expiry) had no wrapper → treat as expired
         if (!o || !o.data || !o.exp) { AW.session.clear(); return null; }
-        if (Date.now() > o.exp) { AW.session.clear(); return null; }
+        if (Date.now() > o.exp)      { AW.session.clear(); return null; }
+        if (_isIdle())               { AW.session.clear(); return null; }
         return o.data;
-      } catch (e) { AW.session.clear(); return null; }
+      } catch(e) { AW.session.clear(); return null; }
     },
-    clear: function () {
-      try { localStorage.removeItem(SKEY); } catch (e) {}
-      try { sessionStorage.removeItem(SKEY); } catch (e) {}
+    clear: function() {
+      try { localStorage.removeItem(SKEY);   } catch(e) {}
+      try { sessionStorage.removeItem(SKEY); } catch(e) {}
+      // Keep: aw_gemini_key, aw_groq_key, aw_last_active
     },
-    role: function () { var s = AW.session.get(); return s ? s.role : null; },
-
-    // Redirect to login if not authenticated (optionally require a role)
-    require: function (role) {
+    role:   function() { var s = AW.session.get(); return s ? s.role : null; },
+    require: function(role) {
       var s = AW.session.get();
       if (!s || (role && s.role !== role)) {
         location.href = AW.LOGIN_PAGE;
         return null;
       }
+      _refreshIdle(); // reset idle clock on every page load
       return s;
     },
-    logout: function () { AW.session.clear(); location.href = AW.LOGIN_PAGE; },
+    logout: function() { AW.session.clear(); location.href = AW.LOGIN_PAGE; },
   };
+
+  // Activity listeners — reset idle clock on any interaction
+  // (throttled to once per minute to avoid excessive localStorage writes)
+  var _idleThrottle = 0;
+  function _onActivity() {
+    var now = Date.now();
+    if (now - _idleThrottle > 60000) { _idleThrottle = now; _refreshIdle(); }
+  }
+  ['click','keydown','touchstart','scroll'].forEach(function(ev) {
+    document.addEventListener(ev, _onActivity, { passive:true, capture:true });
+  });
 
   // Gemini key is stored separately (never leaves device)
   AW.geminiKey = {
@@ -216,6 +247,47 @@
 
     document.getElementById(opts.mount || 'app').innerHTML = html;
     document.getElementById('awLogout').onclick = function () { AW.session.logout(); };
+
+    // ── Idle auto-logout with 5-minute warning ──────────────────
+    // Check every 60s. Show banner at T-5min, logout at T=0.
+    var _idleWarned = false;
+    var _idleCheck = setInterval(function() {
+      try {
+        var t   = parseInt(localStorage.getItem(IDLE_KEY) || '0', 10);
+        if (!t) return;
+        var ago = Date.now() - t;
+        var warn5 = IDLE_LIMIT_MS - 5 * 60 * 1000; // 40 min
+
+        if (ago >= IDLE_LIMIT_MS) {
+          clearInterval(_idleCheck);
+          AW.session.clear();
+          // Show message before redirect so user understands what happened
+          var overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(16,34,46,.85);z-index:99999;display:flex;align-items:center;justify-content:center';
+          overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
+            '<div style="font-size:2rem;margin-bottom:10px">⏰</div>' +
+            '<h2 style="margin:0 0 8px;font-size:1.1rem">Phiên làm việc đã hết hạn</h2>' +
+            '<p style="color:#5B6B7A;font-size:.9rem;margin:0 0 18px">Bạn không hoạt động trong 45 phút. Vui lòng đăng nhập lại.</p>' +
+            '<a href="' + AW.LOGIN_PAGE + '" style="display:inline-block;background:#0A6EBD;color:#fff;padding:10px 24px;border-radius:24px;text-decoration:none;font-weight:700">Đăng nhập lại</a>' +
+          '</div>';
+          document.body.appendChild(overlay);
+          setTimeout(function(){ location.href = AW.LOGIN_PAGE; }, 3000);
+
+        } else if (!_idleWarned && ago >= warn5) {
+          _idleWarned = true;
+          var mins = Math.ceil((IDLE_LIMIT_MS - ago) / 60000);
+          // Show dismissible warning toast
+          var warn = document.createElement('div');
+          warn.id = 'aw-idle-warn';
+          warn.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);' +
+            'background:#B42318;color:#fff;padding:12px 20px;border-radius:12px;z-index:9998;' +
+            'font-size:.88rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);' +
+            'display:flex;align-items:center;gap:12px;max-width:360px;text-align:left';
+          warn.innerHTML = '⏰ Còn <b>' + mins + ' phút</b> trước khi tự động đăng xuất. <button onclick="this.parentNode.remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;padding:4px 10px;cursor:pointer;font-size:.8rem">Huỷ</button>';
+          document.body.appendChild(warn);
+        }
+      } catch(e) {}
+    }, 60000);
     var menuBtn = document.getElementById('awMenuBtn');
     if (menuBtn) menuBtn.onclick = function (e) {
       e.stopPropagation();  // prevent the outside-click listener from immediately closing it
