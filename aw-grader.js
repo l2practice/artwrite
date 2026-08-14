@@ -13,6 +13,11 @@
 
   function normaliseScores(r){
     if(r.scores){
+      // FIX: Component scores MUST be whole numbers per IELTS marking convention.
+      // Only the OVERALL band can be X.5. Round each component to nearest integer.
+      ['TR','CC','LR','GRA'].forEach(function(k){
+        if(r.scores[k] != null) r.scores[k] = Math.round(parseFloat(r.scores[k])||0);
+      });
       var avg=(r.scores.TR+r.scores.CC+r.scores.LR+r.scores.GRA)/4;
       // IELTS convention: .25–.74 → .5, otherwise nearest whole band
       var whole=Math.floor(avg), frac=avg-whole;
@@ -72,17 +77,46 @@
       '- ALWAYS return one tr_comments entry for EVERY paragraph of the essay (Opening, each Body, Conclusion), even when the paragraph is good: say specifically what works and what single change would strengthen it.\n'+
       '- "cc_feedback.assessment_vi" must name at least one concrete thing to improve, not only praise.\n'+
       '- "overall_feedback_vi" must state both what the student did well AND the single most important thing to work on next. Never end with praise only.\n'+
+      '\n[GRAMMAR & VOCABULARY DEPTH IN BODY PARAGRAPHS — HIGHEST PRIORITY]\n'+
+      'The primary learning goal is improving GRAMMAR ACCURACY and VOCABULARY PRECISION sentence by sentence.\n'+
+      'For EVERY body paragraph, go through EACH sentence and:\n'+
+      '  (a) GRAMMAR: identify subject-verb agreement errors, tense inconsistencies, article misuse (a/an/the), preposition errors, wrong word form (noun/verb/adj confusion), missing/extra words, run-on sentences, comma splices, dangling modifiers. Quote the exact wrong form → correct form → explain in Vietnamese WHY it is wrong.\n'+
+      '  (b) VOCABULARY: identify unnatural collocations, imprecise word choice, informal words in formal context, repetitive nouns that should be replaced by pronouns or synonyms, words that are close but not the best fit. Quote the original word/phrase → suggest a more precise/natural/academic alternative → explain in Vietnamese what the difference is.\n'+
+      'Do NOT summarise body paragraph grammar/vocab in one sentence. List individual errors and upgrades for each sentence that has room for improvement. A body paragraph with 4+ sentences should have at least 2–3 grammar items AND 2–3 vocabulary items reported.\n'+
+      'Return ALL grammar items in the "gra_errors" array and ALL vocabulary items in the "lr_issues" array (do NOT bury them in tr_comments). Aim for 5–8 items in each array for a typical 250–350 word essay.\n'+
       'TOKEN RULES for tr_comments — follow strictly to keep output short:\n'+
       '- Do NOT quote whole paragraphs. For each comment set "paragraph_role" to the paragraph label ONLY: "Opening", "Body 1", "Body 2", "Body 3"... , or "Conclusion". Standard mapping: a 4-paragraph essay = Opening, Body 1, Body 2, Conclusion; a 5-paragraph essay = Opening, Body 1, Body 2, Body 3, Conclusion.\n'+
       '- Leave "quote" EMPTY unless you must point to ONE specific problematic sentence — then put ONLY that single sentence in "quote" (never the whole paragraph).\n'+
       '- "assessment_vi" is your comment on that paragraph. Keep it concise.';
+
     // Strip HTML tags from question (may contain <b>,<i> from rich text editor)
     var tmp=document.createElement('div'); tmp.innerHTML=question;
     var cleanQ=(tmp.textContent||tmp.innerText||question).replace(/\s+/g,' ').trim();
+
+    var isTask1 = payload.taskType === 'task1';
     var attemptNote = payload.attempt >= 2
       ? '\n\nThis is revision attempt '+payload.attempt+'. In "repeated_errors_vi" (Vietnamese), note whether the student repeated the same TYPES of mistakes as a typical earlier draft (grammar/vocab/coherence) and encourage improvement. For attempt 1, leave repeated_errors_vi empty.'
       : '\n\nThis is the first attempt. Leave repeated_errors_vi empty. Give COMPLETE feedback on all 4 criteria so the student learns from the start.';
-    var userMessage='Grade this IELTS essay.\n\nTASK PROMPT: '+cleanQ+'\n\nSTUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\nAll feedback must reference the student essay above and be thorough. Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.'+attemptNote;
+
+    // FIX: userMessage must match task type so AI doesn't confuse Task 1 with Task 2
+    var userMessage;
+    if (isTask1) {
+      userMessage =
+        'Grade this IELTS Academic Writing Task 1 response (data/chart/diagram description).\n\n'+
+        'TASK PROMPT: '+cleanQ+'\n\n'+
+        'STUDENT RESPONSE TO GRADE:\n---\n'+text+'\n---\n\n'+
+        'This is Task 1 (NOT an opinion essay). Criterion 1 = Task Achievement (TA): assess overview presence, data accuracy, key features selected, comparisons made. '+
+        'Do NOT expect or reward a personal opinion/thesis statement — Task 1 must not have one. '+
+        'TA score (stored as TR field) MUST reflect: did the student cover the main features, include an overview, and make relevant comparisons?'+
+        attemptNote;
+    } else {
+      userMessage =
+        'Grade this IELTS Academic Writing Task 2 essay.\n\n'+
+        'TASK PROMPT: '+cleanQ+'\n\n'+
+        'STUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\n'+
+        'Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.'+
+        attemptNote;
+    }
     // Teacher's context rules override default IELTS strictness
     if (payload.aiNotes && payload.aiNotes.trim()) {
       userMessage += '\n\n=== TEACHER\'S GRADING RULES (HIGHEST PRIORITY — these OVERRIDE the default IELTS strictness above) ===\n'+
