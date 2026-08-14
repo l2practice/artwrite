@@ -129,97 +129,206 @@
       prompt += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
     }
 
-    // Model fallback chain — tries each in order if previous is unavailable/deprecated
+    // Gemini model chain: 3.5-flash → 3.5-flash-lite → 3.6-flash
+    // If ALL fail → prompt student to enter Groq key → grade with Groq
     var GEMINI_MODELS = [
-      'gemini-3.5-flash',   // primary: latest flagship Flash (May 2026), free tier
-      'gemini-3.6-flash',   // fallback 1: newer lightweight, free tier (Jul 2026)
-      'gemini-2.5-flash',   // fallback 2: older, shutting down Oct 2026
+      'gemini-3.5-flash',      // primary
+      'gemini-3.5-flash-lite', // fallback 1: lighter, same family
+      'gemini-3.6-flash',      // fallback 2: newest (Jul 2026)
     ];
     var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
-    var lastData = null;
-    var geminiOk = false;
+    // Gemini 3.x: do NOT override temperature/topK/topP (causes empty responses)
+    function buildGenerationConfig(modelName) {
+      var is3x = modelName.indexOf('gemini-3') === 0;
+      if (is3x) {
+        return { candidateCount:1, maxOutputTokens:12000,
+                 thinkingConfig:{ thinkingLevel:'minimal' } };
+      }
+      return { temperature:0.1, topK:1, topP:0.1, candidateCount:1, maxOutputTokens:12000 };
+    }
+
+    var lastData = null, geminiOk = false, lastGeminiErr = '';
 
     for (var mi = 0; mi < GEMINI_MODELS.length; mi++) {
       var modelName = GEMINI_MODELS[mi];
       var resp = await fetch(GEMINI_BASE + modelName + ':generateContent?key=' + geminiKey, {
-        method: 'POST', headers: {'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature:0.1, topK:1, topP:0.1, candidateCount:1, maxOutputTokens:12000 }
+          contents:[{parts:[{text:prompt}]}],
+          generationConfig: buildGenerationConfig(modelName)
         })
       });
-      if (resp.ok) {
-        lastData = await resp.json();
-        geminiOk = true;
-        break;
-      }
+      if (resp.ok) { lastData = await resp.json(); geminiOk = true; break; }
       var errBody = await resp.json().catch(function(){ return {}; });
-      var errMsg  = (errBody.error && errBody.error.message) || String(resp.status);
-      var isModelErr = resp.status === 404 || resp.status === 400 ||
-                       errMsg.indexOf('no longer available') !== -1 ||
-                       errMsg.indexOf('deprecated') !== -1 ||
-                       errMsg.indexOf('not found') !== -1;
-      // Rate limit / quota → skip straight to Groq
-      var isQuota = resp.status === 429 || errMsg.indexOf('quota') !== -1 || errMsg.indexOf('RESOURCE_EXHAUSTED') !== -1;
-      if (isQuota || (!isModelErr && mi === GEMINI_MODELS.length - 1)) {
-        break; // fall through to Groq
-      }
-      if (!isModelErr) {
-        throw new Error('Gemini error: ' + errMsg); // auth/other — no point retrying
-      }
-      // model deprecated → try next Gemini model
+      lastGeminiErr = (errBody.error && errBody.error.message) || String(resp.status);
+      var isModelErr = resp.status===404 || resp.status===400 ||
+                       lastGeminiErr.indexOf('no longer available')!==-1 ||
+                       lastGeminiErr.indexOf('deprecated')!==-1 ||
+                       lastGeminiErr.indexOf('not found')!==-1;
+      var isQuota    = resp.status===429 ||
+                       lastGeminiErr.indexOf('quota')!==-1 ||
+                       lastGeminiErr.indexOf('RESOURCE_EXHAUSTED')!==-1;
+      // quota/rate-limit → stop trying Gemini, go to Groq immediately
+      if (isQuota) break;
+      // auth error → no point retrying any model
+      if (!isModelErr) throw new Error('Gemini error: ' + lastGeminiErr);
+      // model deprecated → try next
     }
 
-    // ── Groq fallback (llama-3.3-70b) ─────────────────────────────
-    // Used when: all Gemini models are rate-limited, deprecated, or unavailable.
-    // Groq's free tier is generous (14,400 req/day) and fast.
-    // The prompt is identical — same JSON schema expected.
+    // ── Groq fallback ────────────────────────────────────────────────
     if (!geminiOk) {
-      var groqKey = (window.AW && AW.groqKey) ? AW.groqKey.get() : '';
-      if (!groqKey) throw new Error('Gemini hết lượt và chưa có Groq API key. Vui lòng nhập Groq key trong phần cài đặt.');
-      var groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + groqKey },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.1, max_tokens: 12000, response_format: { type: 'json_object' }
-        })
-      });
-      if (!groqResp.ok) {
-        var groqErr = await groqResp.json().catch(function(){ return {}; });
-        throw new Error('Groq error: ' + ((groqErr.error && groqErr.error.message) || groqResp.status));
-      }
-      var groqData = await groqResp.json();
-      var groqRaw  = ((groqData.choices || [])[0] || {}).message;
-      groqRaw = groqRaw ? groqRaw.content : '';
-      if (!groqRaw) throw new Error('Groq trả về rỗng. Thử lại sau.');
-      var groqClean = groqRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-      var gsi = groqClean.indexOf('{'), gei = -1, gdepth = 0;
-      for (var gci = gsi; gci < groqClean.length; gci++) {
-        if (groqClean[gci]==='{') gdepth++;
-        else if (groqClean[gci]==='}') { gdepth--; if (gdepth===0){ gei=gci; break; } }
-      }
-      if (gsi===-1 || gei===-1) throw new Error('Lỗi định dạng phản hồi từ Groq. Vui lòng thử lại.');
-      return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
+      // Try stored Groq key first (silent)
+      var storedGroqKey = (window.AW && AW.groqKey) ? AW.groqKey.get() : '';
+      var resolvedGroqKey = storedGroqKey || await requestGroqKey(lastGeminiErr);
+      return await gradeWithGroq(resolvedGroqKey, prompt);
     }
 
-    var raw = (((lastData.candidates || [])[0] || {}).content || {}).parts;
+    var raw = (((lastData.candidates||[])[0]||{}).content||{}).parts;
     raw = raw && raw[0] ? raw[0].text : '';
+    var finishReason = ((lastData.candidates||[])[0]||{}).finishReason || '';
+    if (!raw && finishReason==='STOP')
+      throw new Error('Gemini trả về rỗng (finish_reason: STOP). Thử lại sau vài giây.');
     if (!raw) throw new Error('Gemini trả về rỗng. Thử lại sau vài giây.');
     var clean = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi,'')
                    .replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    var si = clean.indexOf('{'), depth = 0, ei = -1;
-    for (var ci = si; ci < clean.length; ci++) {
-      if (clean[ci]==='{') depth++;
-      else if (clean[ci]==='}') { depth--; if (depth===0){ ei=ci; break; } }
+    var si=clean.indexOf('{'), depth=0, ei=-1;
+    for(var ci=si;ci<clean.length;ci++){
+      if(clean[ci]==='{') depth++;
+      else if(clean[ci]==='}'){depth--;if(depth===0){ei=ci;break;}}
     }
-    if (si===-1 || ei===-1) throw new Error('Lỗi định dạng phản hồi từ Gemini. Vui lòng thử lại.');
+    if(si===-1||ei===-1) throw new Error('Lỗi định dạng phản hồi từ Gemini. Vui lòng thử lại.');
     return normaliseScores(JSON.parse(clean.substring(si,ei+1)));
   }
+
+  /*── requestGroqKey: popup asking student to enter their Groq key ──
+     Returns a Promise<string> that resolves when the student submits a key,
+     or rejects if they cancel.                                         */
+  function requestGroqKey(geminiErrContext) {
+    return new Promise(function(resolve, reject) {
+      // Remove any existing popup
+      var old = document.getElementById('aw-groq-popup');
+      if (old) old.remove();
+
+      var popup = document.createElement('div');
+      popup.id = 'aw-groq-popup';
+      popup.style.cssText =
+        'position:fixed;inset:0;background:rgba(16,34,46,.7);z-index:9990;'+
+        'display:flex;align-items:center;justify-content:center;padding:20px;font-family:var(--aw-font-body,system-ui)';
+
+      popup.innerHTML =
+        '<div style="background:#fff;border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">'+
+          '<div style="background:#E8730C;color:#fff;padding:16px 20px">'+
+            '<b style="font-size:1rem">⚡ Chuyển sang Groq AI</b>'+
+          '</div>'+
+          '<div style="padding:20px 22px">'+
+            '<p style="margin:0 0 10px;font-size:.92rem;color:#1F2933;line-height:1.5">'+
+              'Gemini đã hết lượt miễn phí. Bài làm của bạn sẽ được chấm bằng <b>Groq AI</b> — '+
+              'chất lượng tương đương, hoàn toàn miễn phí.'+
+            '</p>'+
+            '<p style="margin:0 0 14px;font-size:.83rem;color:#5B6B7A;line-height:1.5">'+
+              'Lấy Groq API key miễn phí (30 giây): '+
+              '<a href="https://console.groq.com/keys" target="_blank" '+
+                'style="color:#E8730C;font-weight:700">console.groq.com/keys</a>'+
+              ' → Sign in → Create API Key → Copy.'+
+            '</p>'+
+            '<div style="position:relative;margin-bottom:6px">'+
+              '<input id="aw-groq-key-input" type="password" placeholder="gsk_..." '+
+                'style="width:100%;padding:11px 44px 11px 12px;border:1.5px solid #CBD5E0;'+
+                'border-radius:10px;font-size:.95rem;box-sizing:border-box;outline:none">'+
+              '<button id="aw-groq-show" type="button" '+
+                'style="position:absolute;right:10px;top:50%;transform:translateY(-50%);'+
+                'background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:.78rem">show</button>'+
+            '</div>'+
+            '<label style="display:flex;align-items:center;gap:7px;font-size:.8rem;color:#5B6B7A;margin-bottom:16px;cursor:pointer">'+
+              '<input type="checkbox" id="aw-groq-save" checked style="width:15px;height:15px">'+
+              'Lưu key vào thiết bị này (không cần nhập lại lần sau)'+
+            '</label>'+
+            '<div style="display:flex;gap:8px">'+
+              '<button id="aw-groq-cancel" '+
+                'style="flex:1;padding:11px;border:1px solid #CBD5E0;border-radius:10px;'+
+                'background:#fff;cursor:pointer;font-size:.88rem;color:#5B6B7A">Huỷ</button>'+
+              '<button id="aw-groq-submit" '+
+                'style="flex:2;padding:11px;border:none;border-radius:10px;'+
+                'background:#E8730C;color:#fff;cursor:pointer;font-size:.92rem;font-weight:700">'+
+                '⚡ Chấm bài bằng Groq →</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>';
+
+      document.body.appendChild(popup);
+
+      // show/hide toggle
+      var inp = document.getElementById('aw-groq-key-input');
+      document.getElementById('aw-groq-show').onclick = function() {
+        inp.type = inp.type==='password' ? 'text' : 'password';
+        this.textContent = inp.type==='password' ? 'show' : 'hide';
+      };
+      inp.focus();
+      inp.onkeydown = function(e){ if(e.key==='Enter') document.getElementById('aw-groq-submit').click(); };
+
+      document.getElementById('aw-groq-cancel').onclick = function() {
+        popup.remove();
+        reject(new Error('Sinh viên huỷ nhập Groq key. Bài chưa được chấm.'));
+      };
+
+      document.getElementById('aw-groq-submit').onclick = function() {
+        var key = (inp.value||'').trim();
+        if (!key || key.length < 10) {
+          inp.style.borderColor='#E53E3E';
+          inp.placeholder='Nhập key hợp lệ (bắt đầu bằng gsk_...)';
+          return;
+        }
+        if (document.getElementById('aw-groq-save').checked && window.AW && AW.groqKey) {
+          AW.groqKey.set(key); // persist for future sessions
+        }
+        popup.remove();
+        resolve(key);
+      };
+    });
+  }
+
+  /*── gradeWithGroq: call Groq API with same prompt, return normalised result ──*/
+  async function gradeWithGroq(groqKey, prompt) {
+    if (!groqKey) throw new Error('Không có Groq API key.');
+    var groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages:[{role:'user', content:prompt}],
+        temperature:0.1, max_tokens:12000,
+        response_format:{type:'json_object'}
+      })
+    });
+    if (!groqResp.ok) {
+      var groqErr = await groqResp.json().catch(function(){return{};});
+      var groqMsg = (groqErr.error && groqErr.error.message) || String(groqResp.status);
+      // Invalid key
+      if (groqResp.status===401||groqMsg.indexOf('invalid')!==-1||groqMsg.indexOf('auth')!==-1)
+        throw new Error('Groq key không hợp lệ. Kiểm tra lại và thử nhập key khác.');
+      // Rate limit
+      if (groqResp.status===429)
+        throw new Error('Groq cũng đã hết lượt miễn phí hôm nay. Vui lòng thử lại sau.');
+      throw new Error('Groq error: '+groqMsg);
+    }
+    var groqData = await groqResp.json();
+    var groqRaw  = ((groqData.choices||[])[0]||{}).message;
+    groqRaw = groqRaw ? groqRaw.content : '';
+    if (!groqRaw) throw new Error('Groq trả về rỗng. Thử lại sau.');
+    var groqClean = groqRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    var gsi=groqClean.indexOf('{'), gei=-1, gdepth=0;
+    for(var gci=gsi;gci<groqClean.length;gci++){
+      if(groqClean[gci]==='{') gdepth++;
+      else if(groqClean[gci]==='}'){gdepth--;if(gdepth===0){gei=gci;break;}}
+    }
+    if(gsi===-1||gei===-1) throw new Error('Lỗi định dạng phản hồi từ Groq. Vui lòng thử lại.');
+    return normaliseScores(JSON.parse(groqClean.substring(gsi,gei+1)));
+  }
+
   // Public API
-  AW.grade = gradeWithGemini;
-  AW.gradeNormalise = normaliseScores;
+  AW.grade          = gradeWithGemini;   // main entry point (Gemini → Groq fallback)
+  AW.gradeGroq      = gradeWithGroq;     // direct Groq grading
+  AW.gradeNormalise = normaliseScores;   // used by test.html
 
 })(window.AW = window.AW || {});
