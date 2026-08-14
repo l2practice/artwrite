@@ -1,4 +1,4 @@
-/*───────────────────────────────────────────────────────────────
+/*--------------------------------------------------------------─
   ArticuWrite — shared IELTS grader (aw-grader.js)
 
   The single source of truth for how an essay is graded. Both the student
@@ -7,19 +7,18 @@
   actually get — a copy would silently drift out of sync.
 
   Depends on: aw-common.js (loaded first)
-───────────────────────────────────────────────────────────────*/
+--------------------------------------------------------------─*/
 (function (AW) {
   'use strict';
 
   function normaliseScores(r){
     if(r.scores){
-      // FIX: Component scores MUST be whole numbers per IELTS marking convention.
-      // Only the OVERALL band can be X.5. Round each component to nearest integer.
+      // Round each component to whole number (IELTS: only overall can be X.5).
+      // No null-check here — parseFloat(undefined)||0 = 0, safe against missing keys.
       ['TR','CC','LR','GRA'].forEach(function(k){
-        if(r.scores[k] != null) r.scores[k] = Math.round(parseFloat(r.scores[k])||0);
+        r.scores[k] = Math.round(parseFloat(r.scores[k])||0);
       });
       var avg=(r.scores.TR+r.scores.CC+r.scores.LR+r.scores.GRA)/4;
-      // IELTS convention: .25–.74 → .5, otherwise nearest whole band
       var whole=Math.floor(avg), frac=avg-whole;
       r.overall = frac<0.25 ? whole : (frac<0.75 ? whole+0.5 : whole+1);
     }
@@ -142,16 +141,17 @@
     function buildGenerationConfig(modelName) {
       var is3x = modelName.indexOf('gemini-3') === 0;
       if (is3x) {
-        return { candidateCount:1, maxOutputTokens:12000,
+        return { candidateCount:1, maxOutputTokens:8000,
                  thinkingConfig:{ thinkingLevel:'minimal' } };
       }
-      return { temperature:0.1, topK:1, topP:0.1, candidateCount:1, maxOutputTokens:12000 };
+      return { temperature:0.1, topK:1, topP:0.1, candidateCount:1, maxOutputTokens:8000 };
     }
 
     var lastData = null, geminiOk = false, lastGeminiErr = '';
 
     for (var mi = 0; mi < GEMINI_MODELS.length; mi++) {
       var modelName = GEMINI_MODELS[mi];
+
       var resp = await fetch(GEMINI_BASE + modelName + ':generateContent?key=' + geminiKey, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
@@ -159,29 +159,50 @@
           generationConfig: buildGenerationConfig(modelName)
         })
       });
+
       if (resp.ok) { lastData = await resp.json(); geminiOk = true; break; }
+
       var errBody = await resp.json().catch(function(){ return {}; });
       lastGeminiErr = (errBody.error && errBody.error.message) || String(resp.status);
-      var isModelErr = resp.status===404 || resp.status===400 ||
-                       lastGeminiErr.indexOf('no longer available')!==-1 ||
-                       lastGeminiErr.indexOf('deprecated')!==-1 ||
-                       lastGeminiErr.indexOf('not found')!==-1;
-      var isQuota    = resp.status===429 ||
-                       lastGeminiErr.indexOf('quota')!==-1 ||
-                       lastGeminiErr.indexOf('RESOURCE_EXHAUSTED')!==-1;
-      // quota/rate-limit → stop trying Gemini, go to Groq immediately
-      if (isQuota) break;
-      // auth error → no point retrying any model
+
+      var isModelErr  = resp.status===404 || resp.status===400 ||
+                        lastGeminiErr.indexOf('no longer available')!==-1 ||
+                        lastGeminiErr.indexOf('deprecated')!==-1 ||
+                        lastGeminiErr.indexOf('not found')!==-1;
+      var isQuota     = resp.status===429 ||
+                        lastGeminiErr.indexOf('quota')!==-1 ||
+                        lastGeminiErr.indexOf('RESOURCE_EXHAUSTED')!==-1;
+      var isOverloaded = resp.status===503 || resp.status===502 || resp.status===500;
+
+      if (isOverloaded) {
+        // Toast immediately so student knows what's happening, then fall to Groq
+        if (window.AW && AW.toast)
+          AW.toast('⏳ Gemini AI đang quá tải — đang chuyển sang AI dự phòng…', 'err', 4000);
+        lastGeminiErr = 'overloaded:' + resp.status;
+        break; // skip remaining Gemini models, go straight to Groq
+      }
+      if (isQuota) {
+        if (window.AW && AW.toast)
+          AW.toast('⏳ Gemini AI hết lượt — đang chuyển sang AI dự phòng…', 'err', 4000);
+        lastGeminiErr = 'quota:' + resp.status;
+        break;
+      }
+      // auth/unknown error → throw immediately, no point trying other models
       if (!isModelErr) throw new Error('Gemini error: ' + lastGeminiErr);
-      // model deprecated → try next
+      // deprecated model → try next model silently
     }
 
-    // ── Groq fallback ────────────────────────────────────────────────
+    // -- Groq fallback ------------------------------------------------
     if (!geminiOk) {
-      // Try stored Groq key first (silent)
       var storedGroqKey = (window.AW && AW.groqKey) ? AW.groqKey.get() : '';
-      var resolvedGroqKey = storedGroqKey || await requestGroqKey(lastGeminiErr);
-      return await gradeWithGroq(resolvedGroqKey, prompt);
+      if (storedGroqKey) {
+        // Silent fallback — already have a key
+        return gradeWithGroq(storedGroqKey, prompt);
+      }
+      // No key stored → show popup, then grade
+      return requestGroqKey(lastGeminiErr).then(function(key) {
+        return gradeWithGroq(key, prompt);
+      });
     }
 
     var raw = (((lastData.candidates||[])[0]||{}).content||{}).parts;
@@ -192,18 +213,25 @@
     if (!raw) throw new Error('Gemini trả về rỗng. Thử lại sau vài giây.');
     var clean = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi,'')
                    .replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    var si=clean.indexOf('{'), depth=0, ei=-1;
-    for(var ci=si;ci<clean.length;ci++){
-      if(clean[ci]==='{') depth++;
-      else if(clean[ci]==='}'){depth--;if(depth===0){ei=ci;break;}}
+    // Fix 4: exit early if no JSON object found (avoids useless loop)
+    var si = clean.indexOf('{');
+    if (si === -1) throw new Error('Lỗi định dạng: AI không trả về JSON. Vui lòng thử lại.');
+    var depth = 0, ei = -1;
+    for (var ci = si; ci < clean.length; ci++) {
+      if (clean[ci]==='{') depth++;
+      else if (clean[ci]==='}') { depth--; if (depth===0) { ei=ci; break; } }
     }
-    if(si===-1||ei===-1) throw new Error('Lỗi định dạng phản hồi từ Gemini. Vui lòng thử lại.');
-    return normaliseScores(JSON.parse(clean.substring(si,ei+1)));
+    if (ei === -1) throw new Error('Lỗi định dạng: JSON từ AI bị không hoàn chỉnh. Vui lòng thử lại.');
+    // Fix 3: wrap JSON.parse in try-catch to show friendly error instead of crashing
+    try {
+      return normaliseScores(JSON.parse(clean.substring(si, ei+1)));
+    } catch(parseErr) {
+      throw new Error('Lỗi đọc kết quả từ AI (JSON sai cú pháp). Vui lòng thử lại.');
+    }
   }
 
-  /*── requestGroqKey: popup asking student to enter their Groq key ──
-     Returns a Promise<string> that resolves when the student submits a key,
-     or rejects if they cancel.                                         */
+  // requestGroqKey: shows popup asking student to enter their Groq key.
+  // Returns a Promise<string> that resolves when key is submitted, rejects on cancel.
   function requestGroqKey(geminiErrContext) {
     return new Promise(function(resolve, reject) {
       // Remove any existing popup
@@ -288,7 +316,7 @@
     });
   }
 
-  /*── gradeWithGroq: call Groq API with same prompt, return normalised result ──*/
+  /*-- gradeWithGroq: call Groq API with same prompt, return normalised result --*/
   async function gradeWithGroq(groqKey, prompt) {
     if (!groqKey) throw new Error('Không có Groq API key.');
     var groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -297,7 +325,7 @@
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages:[{role:'user', content:prompt}],
-        temperature:0.1, max_tokens:12000,
+        temperature:0.1, max_tokens:6000,
         response_format:{type:'json_object'}
       })
     });
@@ -317,13 +345,19 @@
     groqRaw = groqRaw ? groqRaw.content : '';
     if (!groqRaw) throw new Error('Groq trả về rỗng. Thử lại sau.');
     var groqClean = groqRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    var gsi=groqClean.indexOf('{'), gei=-1, gdepth=0;
-    for(var gci=gsi;gci<groqClean.length;gci++){
-      if(groqClean[gci]==='{') gdepth++;
-      else if(groqClean[gci]==='}'){gdepth--;if(gdepth===0){gei=gci;break;}}
+    var gsi = groqClean.indexOf('{');
+    if (gsi === -1) throw new Error('Lỗi định dạng: Groq không trả về JSON. Vui lòng thử lại.');
+    var gdepth = 0, gei = -1;
+    for (var gci = gsi; gci < groqClean.length; gci++) {
+      if (groqClean[gci]==='{') gdepth++;
+      else if (groqClean[gci]==='}') { gdepth--; if (gdepth===0) { gei=gci; break; } }
     }
-    if(gsi===-1||gei===-1) throw new Error('Lỗi định dạng phản hồi từ Groq. Vui lòng thử lại.');
-    return normaliseScores(JSON.parse(groqClean.substring(gsi,gei+1)));
+    if (gei === -1) throw new Error('Lỗi định dạng: JSON từ Groq bị không hoàn chỉnh. Vui lòng thử lại.');
+    try {
+      return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
+    } catch(parseErr) {
+      throw new Error('Lỗi đọc kết quả từ Groq (JSON sai cú pháp). Vui lòng thử lại.');
+    }
   }
 
   // Public API

@@ -956,9 +956,23 @@ function friendlyGradeError(e) {
   var raw = (e && (e.message || String(e))) || '';
   var r   = raw.toLowerCase();
 
-  // Quota / rate limit
+  // Server overloaded (503/502/500) — highest priority, check before generic patterns
+  if (r.indexOf('overloaded') !== -1 || r.indexOf('503') !== -1 || r.indexOf('502') !== -1 ||
+      r.indexOf('500') !== -1 || r.indexOf('service unavailable') !== -1 ||
+      r.indexOf('overload') !== -1)
+    return { icon:'🌐', title:'Máy chủ AI đang quá tải', msg:'Gemini AI đang bị quá tải do nhiều người dùng cùng lúc. Hệ thống đã tự động chuyển sang AI dự phòng — nếu vẫn lỗi, hãy đợi 1–2 phút và bấm lại.', hint:'Đây là lỗi phía Google, không phải lỗi ứng dụng. Bài của bạn vẫn được lưu.', color:'#E8730C', bg:'#FFF3EA', retry:true };
+
+  // Quota / rate limit — Groq fallback was triggered but also failed, or Groq not set up
+  if (r.indexOf('quota:') !== -1)
+    return { icon:'⏳', title:'AI hết lượt miễn phí hôm nay', msg:'Gemini đã hết lượt và AI dự phòng cũng chưa sẵn sàng. Đợi vài phút rồi bấm lại — lượt sẽ được làm mới sớm.', hint:'Nếu thường xuyên bị lỗi này, hãy tạo Gemini API key mới tại <a href="https://ai.google.dev" target="_blank" style="color:var(--aw-primary)">ai.google.dev</a>.', color:'#E0A32E', bg:'#FFF8EC', retry:true };
+
+  // Quota / rate limit (generic)
   if (r.indexOf('quota') !== -1 || r.indexOf('resource_exhausted') !== -1 || r.indexOf('429') !== -1)
     return { icon:'⏳', title:'AI đã dùng hết lượt miễn phí', msg:'Bạn đã gửi quá nhiều yêu cầu trong thời gian ngắn. Đợi 1–2 phút rồi bấm <b>Get AI Feedback</b> lại.', hint:'Nếu thường xuyên bị lỗi này, hãy tạo một Gemini API key khác tại ai.google.dev.', color:'#E0A32E', bg:'#FFF8EC', retry:true };
+
+  // Student cancelled Groq popup
+  if (r.indexOf('huỷ') !== -1 || r.indexOf('cancel') !== -1)
+    return { icon:'↩️', title:'Chưa nhập Groq key', msg:'Bài chưa được chấm. Bấm <b>Get AI Feedback</b> lại, nhập Groq API key để tiếp tục.', hint:'Lấy key miễn phí tại <a href="https://console.groq.com/keys" target="_blank" style="color:var(--aw-primary)">console.groq.com/keys</a>', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
 
   // Invalid / expired API key
   if (r.indexOf('api_key') !== -1 || r.indexOf('invalid key') !== -1 || r.indexOf('api key') !== -1 || r.indexOf('401') !== -1 || r.indexOf('403') !== -1)
@@ -980,19 +994,27 @@ function friendlyGradeError(e) {
   if (r.indexOf('timeout') !== -1 || r.indexOf('network') !== -1 || r.indexOf('fetch') !== -1 || r.indexOf('failed to fetch') !== -1)
     return { icon:'📶', title:'Mất kết nối mạng', msg:'Không thể kết nối đến máy chủ AI. Kiểm tra wifi/mạng rồi bấm lại.', hint:'', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
 
-  // Groq specific
+  // Groq invalid key
+  if (r.indexOf('groq key') !== -1 || r.indexOf('groq') !== -1 && (r.indexOf('không hợp lệ') !== -1 || r.indexOf('invalid') !== -1))
+    return { icon:'🔑', title:'Groq API key không đúng', msg:'Key bạn nhập không hợp lệ. Bấm lại và nhập đúng key từ console.groq.com.', hint:'', color:'#B42318', bg:'#FEF2F2', retry:true };
+
+  // Groq overloaded/rate limit
+  if (r.indexOf('groq') !== -1 && (r.indexOf('hết lượt') !== -1 || r.indexOf('rate') !== -1 || r.indexOf('429') !== -1))
+    return { icon:'⚡', title:'Groq AI cũng đang quá tải', msg:'Cả Gemini và Groq đều đang bận. Đây là hiện tượng bình thường khi nhiều người dùng cùng lúc. Đợi 2–3 phút và thử lại.', hint:'', color:'#E8730C', bg:'#FFF3EA', retry:true };
+
+  // Groq generic error
   if (r.indexOf('groq') !== -1)
-    return { icon:'⚡', title:'Groq AI gặp sự cố', msg:'Dịch vụ dự phòng Groq cũng đang có vấn đề. Vui lòng thử lại sau vài phút.', hint:'', color:'#E8730C', bg:'#FFF3EA', retry:true };
+    return { icon:'⚡', title:'AI dự phòng (Groq) gặp sự cố', msg:'Dịch vụ dự phòng Groq tạm thời không phản hồi. Vui lòng thử lại sau vài phút.', hint:'', color:'#E8730C', bg:'#FFF3EA', retry:true };
 
   // Groq key missing
   if (r.indexOf('chưa có groq') !== -1 || r.indexOf('groq api key') !== -1)
-    return { icon:'🔑', title:'Hết lượt AI — cần Groq API key', msg:'Gemini hết lượt miễn phí và bạn chưa nhập Groq API key dự phòng.', hint:'Lấy key miễn phí tại: <a href="https://console.groq.com/keys" target="_blank" style="color:var(--aw-primary)">console.groq.com</a> rồi nhập vào cài đặt.', color:'#B42318', bg:'#FEF2F2', retry:false };
+    return { icon:'🔑', title:'Cần Groq API key dự phòng', msg:'Gemini hết lượt và bạn chưa có Groq key dự phòng. Bấm lại để nhập key Groq miễn phí.', hint:'Lấy key tại: <a href="https://console.groq.com/keys" target="_blank" style="color:var(--aw-primary)">console.groq.com/keys</a>', color:'#B42318', bg:'#FEF2F2', retry:true };
 
-  // Generic fallback
-  return { icon:'⚠️', title:'AI chấm thất bại', msg:'Đã xảy ra lỗi không xác định khi chấm bài. Bấm lại để thử.', hint:'Nếu lỗi tiếp tục, hãy báo giảng viên biết.', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
+  // Generic fallback — now with more context
+  return { icon:'⚠️', title:'AI chấm thất bại', msg:'Đã xảy ra lỗi tạm thời. Bấm <b>Thử lại ngay</b> — thường tự khắc phục.', hint:'Nếu lỗi tiếp tục sau 3 lần thử, hãy báo giảng viên biết.', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
 }
 
-/*── showGradeError — hiển thị lỗi chấm bài dạng banner + toast ──*/
+/*── showGradeError ──*/
 function showGradeError(e, gradeBtn, origBtnText) {
   hideGradingOverlay();
   var info = friendlyGradeError(e);
