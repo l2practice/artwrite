@@ -1008,8 +1008,77 @@ function openFeedbackReview(s){
 }
 
 document.getElementById('viewSentFb').onclick = function(){
-  if (currentAnnot.studentId) openFeedbackReview(currentAnnot);
-  else AW.toast('Mở bài của sinh viên trước.','err');
+  var history = this._annotHistory;
+  if (!history || !history.length) {
+    AW.toast('Chưa có nhận xét nào được gửi.','err'); return;
+  }
+  // Build history panel modal
+  var old = document.getElementById('annotHistoryPanel');
+  if (old) old.remove();
+  var panel = document.createElement('div');
+  panel.id = 'annotHistoryPanel';
+  panel.style.cssText =
+    'position:fixed;inset:0;background:rgba(16,34,46,.65);z-index:2100;'+
+    'display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto';
+  var inner = document.createElement('div');
+  inner.style.cssText =
+    'background:#fff;border-radius:16px;max-width:780px;width:100%;'+
+    'box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;margin:auto';
+  inner.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px;'+
+      'border-bottom:1px solid var(--aw-border-2);background:var(--aw-surface-2)">'+
+      '<b style="font-size:1rem;font-family:var(--aw-font-display)">'+
+        '📋 Lịch sử nhận xét ('+history.length+' lần)'+
+      '</b>'+
+      '<button onclick="document.getElementById(\'annotHistoryPanel\').remove()" '+
+        'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--aw-ink-3)">✕</button>'+
+    '</div>'+
+    '<div style="padding:18px 22px;max-height:72vh;overflow-y:auto">'+
+    history.map(function(item){
+      var when=''; try{when=AW.fmtDate(item.timestamp);}catch(e){}
+      var hasAnnot = item.annotatedHtml && item.annotatedHtml.trim();
+      var scoreStr = [
+        item.tr  ? 'TR '+item.tr   : '',
+        item.cc  ? 'CC '+item.cc   : '',
+        item.lr  ? 'LR '+item.lr   : '',
+        item.gra ? 'GRA '+item.gra : ''
+      ].filter(Boolean).join(' · ');
+      return '<div style="border:1px solid var(--aw-border-2);border-radius:12px;'+
+               'margin-bottom:14px;overflow:hidden">'+
+        '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;'+
+          'background:var(--aw-surface-2);cursor:pointer" '+
+          'onclick="var b=this.nextElementSibling;b.style.display=b.style.display===\'none\'?\'block\':\'none\'">'+
+          '<span style="background:var(--aw-primary);color:#fff;border-radius:50%;width:28px;height:28px;'+
+            'display:grid;place-items:center;font-size:.8rem;font-weight:800;flex:0 0 auto">'+
+            item.index+'</span>'+
+          '<div style="flex:1">'+
+            '<b style="font-size:.9rem">'+AW.esc(when)+'</b>'+
+            (item.teacher ? '<span style="font-size:.78rem;color:var(--aw-ink-3);margin-left:8px">by '+AW.esc(item.teacher)+'</span>' : '')+
+            (scoreStr ? '<div style="font-size:.75rem;color:var(--aw-primary);margin-top:2px">'+scoreStr+'</div>' : '')+
+          '</div>'+
+          '<span style="font-size:.75rem;color:var(--aw-ink-3)">▼ xem</span>'+
+        '</div>'+
+        '<div style="display:none;padding:14px 16px">'+
+          (hasAnnot
+            ? '<div style="background:#fffdf4;border:1px solid var(--aw-border-2);border-radius:8px;'+
+                'padding:12px;font-size:.88rem;line-height:1.6;margin-bottom:8px">'+
+                item.annotatedHtml+'</div>'
+            : '<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 8px">(Không có markup trong lần nhận xét này)</p>')+
+          (item.suggestions && item.suggestions.length
+            ? '<div style="font-size:.8rem;color:var(--aw-ink-2)"><b>Gợi ý đã gửi:</b> '+
+                item.suggestions.map(function(sg){
+                  return '<span style="background:#EBF4FF;border-radius:6px;padding:2px 8px;margin:2px;display:inline-block">'+
+                    AW.esc(sg.original||sg.type||'')+'</span>';
+                }).join('')+'</div>'
+            : '')+
+        '</div>'+
+      '</div>';
+    }).join('')+
+    '</div>';
+  panel.appendChild(inner);
+  // Click outside to close
+  panel.onclick = function(e){ if(e.target===panel) panel.remove(); };
+  document.body.appendChild(panel);
 };
 
 function openAnnotation(s){
@@ -1021,30 +1090,43 @@ function openAnnotation(s){
   document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';
   ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
 
-  // Reset & auto-load previous annotation
+  // Always show LIVE snapshot (most current student text) — not old annotation
+  mText.textContent = s.snapshot||'(chưa có nội dung)';
+  mText.setAttribute('contenteditable','true');
+  document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất nào.</p>';
+  ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
+
+  // Load annotation history — pre-fill scores + update history button label
   var vBtn=document.getElementById('viewSentFb');
   if(vBtn){vBtn.innerHTML='📋 Đang kiểm tra…';vBtn.removeAttribute('style');}
   AW.api('teacher.getAnnotation',{studentId:s.studentId,topicId:s.topicId}).then(function(res){
     var btn=document.getElementById('viewSentFb'); if(!btn) return;
-    if(res&&res.success&&res.data&&res.data.annotatedHtml){
+    if(res&&res.success&&res.data&&res.data.pushCount){
       var d=res.data;
+      // Pre-fill latest scores so GV doesn't start from scratch
       if(d.tr)  document.getElementById('sTR').value=d.tr;
       if(d.cc)  document.getElementById('sCC').value=d.cc;
       if(d.lr)  document.getElementById('sLR').value=d.lr;
       if(d.gra) document.getElementById('sGRA').value=d.gra;
-      var when=''; try{if(d.timestamp)when=AW.fmtDate(d.timestamp);}catch(e){}
-      btn.innerHTML='📋 Xem feedback đã gửi'+(when?' ('+when+')':'');
+      // Store history on button for use in panel
+      btn._annotHistory = d.history;
+      var when=''; try{if(d.latestAt)when=AW.fmtDate(d.latestAt);}catch(e){}
+      var label = d.pushCount===1
+        ? '📋 Xem nhận xét cũ (1 lần — '+when+')'
+        : '📋 Xem nhận xét cũ ('+d.pushCount+' lần, mới nhất: '+when+')';
+      btn.innerHTML=label;
       btn.style.background='var(--aw-primary-lt)';
       btn.style.color='var(--aw-primary)';
       btn.style.borderColor='var(--aw-primary)';
       btn.style.fontWeight='600';
     } else {
-      btn.innerHTML='📋 Chưa gửi feedback lần nào';
+      btn.innerHTML='📋 Chưa gửi nhận xét lần nào';
       btn.style.color='var(--aw-ink-3)';
+      btn._annotHistory = null;
     }
   }).catch(function(){
     var btn=document.getElementById('viewSentFb');
-    if(btn) btn.innerHTML='📋 Xem feedback đã gửi';
+    if(btn) btn.innerHTML='📋 Xem nhận xét cũ';
   });
   // Overall fills itself in from the 4 criteria (IELTS rounding)
   wireAutoOverall(
