@@ -21,7 +21,7 @@
   .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-canvas img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;cursor:pointer}
   .aw-canvas img.selected{outline:2px solid var(--aw-primary);outline-offset:2px}
-  .aw-img-controls{position:fixed;z-index:60;display:none;gap:4px;background:var(--aw-primary-dk);border-radius:8px;padding:4px;box-shadow:var(--aw-shadow-lg)}
+  .aw-img-controls{position:fixed;z-index:60;display:none;gap:3px;background:#10222E;border-radius:10px;padding:5px 6px;box-shadow:0 4px 20px rgba(0,0,0,.4);flex-wrap:wrap;max-width:340px;align-items:center}
   /*── student help tools (raise hand / ask teacher) ──*/
   .bd-hand{position:fixed;bottom:78px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3);font-family:var(--aw-font-body)}
   .bd-hand:hover{transform:translateY(-2px)}
@@ -53,10 +53,16 @@
 <div id="app"></div>
 
 <div class="aw-img-controls" id="imgCtrl">
-  <button id="imgSmaller">A▼ Smaller</button>
-  <button id="imgLarger">A▲ Larger</button>
-  <button id="imgFull">⇔ Full width</button>
-  <button id="imgRemove">✕ Remove</button>
+  <button id="imgSmaller">▼ Nhỏ</button>
+  <button id="imgLarger">▲ Lớn</button>
+  <button id="imgHalf">½ 50%</button>
+  <button id="imgFull">⇔ 100%</button>
+  <span style="width:1px;background:#ddd;align-self:stretch;margin:4px 2px"></span>
+  <button id="imgMatchPrev" title="Đồng bộ kích thước với ảnh liền trước">↕ Same size</button>
+  <button id="imgSideBySide" title="Xếp tất cả ảnh trong board thành 2 cột ngang">⊞ Side-by-side</button>
+  <button id="imgStack" title="Trở về bố cục dọc">☰ Dọc</button>
+  <span style="width:1px;background:#ddd;align-self:stretch;margin:4px 2px"></span>
+  <button id="imgRemove" style="color:#B42318">✕</button>
 </div>
 
 <div class="aw-modal-bg" id="boardModal"><div class="aw-modal2 bm-body"></div></div>
@@ -641,18 +647,88 @@ if(isTeacher){
   });
   document.getElementById('imgSmaller').onclick=function(){
     if(!selectedImg)return;
-    var w=selectedImg.width||selectedImg.offsetWidth||200;
-    selectedImg.style.width=Math.max(80,w*0.75)+'px';scheduleSave();
+    var w=selectedImg.offsetWidth||200;
+    selectedImg.style.width=Math.max(80,Math.round(w*0.75))+'px';
+    selectedImg.style.maxWidth='none'; scheduleSave();
   };
   document.getElementById('imgLarger').onclick=function(){
     if(!selectedImg)return;
-    var w=selectedImg.width||selectedImg.offsetWidth||200;
-    selectedImg.style.width=Math.min(1200,w*1.33)+'px';scheduleSave();
+    var w=selectedImg.offsetWidth||200;
+    selectedImg.style.width=Math.min(1400,Math.round(w*1.33))+'px';
+    selectedImg.style.maxWidth='none'; scheduleSave();
+  };
+  document.getElementById('imgHalf').onclick=function(){
+    if(!selectedImg)return;
+    selectedImg.style.width='50%'; selectedImg.style.maxWidth='none'; scheduleSave();
   };
   document.getElementById('imgFull').onclick=function(){
     if(!selectedImg)return;
-    selectedImg.style.width='100%';scheduleSave();
+    selectedImg.style.width='100%'; selectedImg.style.maxWidth='100%'; scheduleSave();
   };
+
+  // Same size — match selected img to the nearest other img in the canvas
+  document.getElementById('imgMatchPrev').onclick=function(){
+    if(!selectedImg)return;
+    var canvas=document.getElementById('canvas'); if(!canvas)return;
+    var imgs=Array.prototype.slice.call(canvas.querySelectorAll('img'));
+    var others=imgs.filter(function(i){return i!==selectedImg;});
+    if(!others.length){AW.toast('Chỉ có 1 ảnh trong board','err');return;}
+    // Find the closest img by DOM position
+    var ref = others[0];
+    var refW = ref.offsetWidth || parseInt(ref.style.width)||200;
+    selectedImg.style.width = refW+'px';
+    selectedImg.style.maxWidth='none';
+    scheduleSave();
+    AW.toast('Đã đồng bộ kích thước với ảnh trên','ok',2000);
+  };
+
+  // Side-by-side — wrap all images in canvas into a flex row
+  document.getElementById('imgSideBySide').onclick=function(){
+    var canvas=document.getElementById('canvas'); if(!canvas)return;
+    var imgs=Array.prototype.slice.call(canvas.querySelectorAll('img'));
+    if(imgs.length<2){AW.toast('Cần ít nhất 2 ảnh để xếp ngang','err');return;}
+    // Create a flex wrapper if not already one
+    var existing=canvas.querySelector('.aw-img-row');
+    if(existing){
+      // Already have a row — add selected img to it
+      if(selectedImg && !existing.contains(selectedImg)){
+        existing.appendChild(selectedImg);
+      }
+    } else {
+      // Wrap all images in a flex div
+      var row=document.createElement('div');
+      row.className='aw-img-row';
+      row.style.cssText='display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin:8px 0';
+      // Insert row before first img, then move all imgs into it
+      var firstImg=imgs[0];
+      firstImg.parentNode.insertBefore(row, firstImg);
+      imgs.forEach(function(img){
+        img.style.width=''; img.style.maxWidth='100%';
+        img.style.flex='1 1 0'; img.style.minWidth='0';
+        row.appendChild(img);
+      });
+    }
+    scheduleSave();
+    AW.toast('Đã xếp ảnh sang 2 cột ngang','ok',2000);
+  };
+
+  // Stack — revert side-by-side back to vertical
+  document.getElementById('imgStack').onclick=function(){
+    var canvas=document.getElementById('canvas'); if(!canvas)return;
+    var rows=canvas.querySelectorAll('.aw-img-row');
+    rows.forEach(function(row){
+      while(row.firstChild){
+        var child=row.firstChild;
+        child.style.flex=''; child.style.minWidth='';
+        child.style.width='100%'; child.style.maxWidth='100%';
+        row.parentNode.insertBefore(child, row);
+      }
+      row.parentNode.removeChild(row);
+    });
+    scheduleSave();
+    AW.toast('Đã chuyển về bố cục dọc','ok',2000);
+  };
+
   document.getElementById('imgRemove').onclick=function(){
     if(!selectedImg)return;
     selectedImg.parentNode&&selectedImg.parentNode.removeChild(selectedImg);
