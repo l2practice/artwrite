@@ -213,7 +213,10 @@ function renderBoard(){
       (isTeacher
         ? '<input class="aw-board-title-in" id="boardTitle" value="'+AW.esc(curBoard.title)+'">'
         : '<span class="aw-board-title-in" style="flex:1">'+AW.esc(curBoard.title)+'</span>') +
-      '<span class="aw-save-dot" id="saveDot">'+(isTeacher?'Saved':'View only')+'</span>' +
+      (isTeacher
+        ? '<span class="aw-save-dot" id="saveDot">✓ Đã lưu</span>' +
+          '<button class="aw-btn aw-btn-primary" id="saveBtn" style="padding:8px 18px;font-weight:700" onclick="saveNow()">💾 Save</button>'
+        : '<span class="aw-save-dot">View only</span>') +
       '<button class="aw-btn aw-btn-accent" style="padding:8px 16px" onclick="exportPDF()">Export PDF</button>' +
     '</div>' +
     toolbar +
@@ -229,6 +232,14 @@ function renderBoard(){
     document.getElementById('boardTitle').oninput=scheduleSave;
     canvas.addEventListener('input', scheduleSave);
     canvas.addEventListener('paste', onPaste);
+    // Ctrl+S / Cmd+S → save immediately
+    document.addEventListener('keydown', function(e){
+      if((e.ctrlKey||e.metaKey) && e.key==='s'){
+        e.preventDefault();
+        clearTimeout(saveTimer);
+        saveNow();
+      }
+    });
   } else {
     wireStudentZoom();
     mountBoardHelp();
@@ -512,19 +523,82 @@ if(isTeacher){
   };
 }
 function scheduleSave(){
-  var dot=document.getElementById('saveDot'); if(dot)dot.textContent='Saving…';
-  clearTimeout(saveTimer); saveTimer=setTimeout(saveNow, 1500);
+  // Show unsaved indicator immediately so teacher knows there are pending changes
+  var dot = document.getElementById('saveDot');
+  var btn = document.getElementById('saveBtn');
+  if(dot) dot.textContent = '● Chưa lưu';
+  if(dot) dot.style.color = '#E8730C';
+  if(btn) { btn.textContent = '💾 Save'; btn.style.background = ''; }
+  clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500);
 }
 function saveNow(){
-  if(!curBoard||!isTeacher)return;
-  var canvas=document.getElementById('canvas'); if(!canvas)return;
-  var title=document.getElementById('boardTitle'); title=title?title.value:curBoard.title;
-  curBoard.content=canvas.innerHTML; curBoard.title=title;
-  AW.api('board.save',{boardId:curBoard.boardId,title:title,content:canvas.innerHTML}).then(function(res){
-    var dot=document.getElementById('saveDot');
-    if(dot)dot.textContent = (res&&res.success)?'Saved':'Save failed';
+  if(!curBoard||!isTeacher) return;
+  var canvas = document.getElementById('canvas'); if(!canvas) return;
+  var title = document.getElementById('boardTitle'); title = title ? title.value : curBoard.title;
+  var dot = document.getElementById('saveDot');
+  var btn = document.getElementById('saveBtn');
+  if(dot) dot.textContent = '⏳ Đang lưu…';
+  if(dot) dot.style.color = 'var(--aw-ink-3)';
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ Đang lưu…'; }
+  curBoard.content = canvas.innerHTML; curBoard.title = title;
+  AW.api('board.save',{boardId:curBoard.boardId, title:title, content:canvas.innerHTML}).then(function(res){
+    var dot2 = document.getElementById('saveDot');
+    var btn2 = document.getElementById('saveBtn');
+    if(res && res.success){
+      if(dot2){ dot2.textContent='✓ Đã lưu'; dot2.style.color='#1A9E5C'; }
+      if(btn2){ btn2.disabled=false; btn2.textContent='💾 Save'; btn2.style.background=''; }
+      AW.toast('Đã lưu bảng — sinh viên sẽ thấy ngay.','ok', 2500);
+    } else {
+      if(dot2){ dot2.textContent='✗ Lưu thất bại'; dot2.style.color='var(--aw-danger)'; }
+      if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; btn2.style.background='var(--aw-danger)'; }
+      AW.toast('Lưu thất bại — kiểm tra kết nối mạng.','err');
+    }
+  }).catch(function(){
+    var dot2 = document.getElementById('saveDot');
+    var btn2 = document.getElementById('saveBtn');
+    if(dot2){ dot2.textContent='✗ Lỗi kết nối'; dot2.style.color='var(--aw-danger)'; }
+    if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; }
+    AW.toast('Không kết nối được máy chủ.','err');
   });
 }
+// Force-save immediately (no debounce) — used on tab close / sign out / visibility hidden
+function saveNowImmediate(){
+  if(!curBoard||!isTeacher) return;
+  var canvas=document.getElementById('canvas'); if(!canvas) return;
+  var title=document.getElementById('boardTitle'); title=title?title.value:curBoard.title;
+  if(canvas.innerHTML===curBoard.content && title===curBoard.title) return; // no changes
+  curBoard.content=canvas.innerHTML; curBoard.title=title;
+  var gasUrl = window.AW && AW._gasUrl ? AW._gasUrl : '';
+  if (!gasUrl) return;
+  var payload = JSON.stringify({
+    action:'board.save',
+    payload:{boardId:curBoard.boardId, title:title, content:canvas.innerHTML}
+  });
+  // keepalive:true tells browser to complete the request even when the page is closing
+  try {
+    fetch(gasUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: payload,
+      keepalive: true   // key: survives tab close / navigation away
+    });
+  } catch(e){}
+}
+
+// Save when tab becomes hidden (user switches app, closes tab, or signs out)
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='hidden' && curBoard && isTeacher){
+    clearTimeout(saveTimer); // cancel debounced save
+    saveNowImmediate();
+  }
+});
+// Save before page unload (back button, close tab, navigate away)
+window.addEventListener('beforeunload', function(){
+  if(curBoard && isTeacher){
+    clearTimeout(saveTimer);
+    saveNowImmediate();
+  }
+});
 
 /*──── export PDF (print) ────*/
 window.exportPDF=function(){
