@@ -451,57 +451,176 @@ function onPaste(e){
     }
   }
 }
+// ImgBB API key — free tier, 32MB/image, permanent storage, direct CDN links
+// Get a free key at https://api.imgbb.com/ (takes 30 seconds)
+// Stored in localStorage so teacher enters once and it persists
+var IMGBB_KEY = (function(){
+  try { return localStorage.getItem('aw_imgbb_key') || ''; } catch(e){ return ''; }
+})();
+
 function handleImage(file){
-  var reader=new FileReader();
-  reader.onload=function(){
-    compress(reader.result, function(dataUrl, sizeKB){
-      // Google Sheets cell limit: ~50,000 chars = ~37KB base64.
-      // Keep only tiny icons inline (<20KB); everything else goes to Drive.
-      if(sizeKB < 20){
-        insertImg(dataUrl);
-        scheduleSave();
-      } else {
-        var dot=document.getElementById('saveDot');
-        var btn=document.getElementById('saveBtn');
-        if(dot){ dot.textContent='⏳ Uploading image…'; dot.style.color='var(--aw-ink-3)'; }
-        if(btn){ btn.disabled=true; btn.textContent='⏳ Uploading…'; }
-        AW.toast('Đang upload ảnh lên Drive…');
-        AW.api('board.uploadImage',{dataUrl:dataUrl, name:(file&&file.name)||('img-'+Date.now()+'.jpg')}).then(function(res){
-          if(res&&res.success){
-            insertImg(res.data.url);
-            scheduleSave();
-            AW.toast('✓ Ảnh đã được upload và chèn vào board.','ok');
-          } else {
-            if(dot){ dot.textContent='✗ Upload lỗi'; dot.style.color='var(--aw-danger)'; }
-            if(btn){ btn.disabled=false; btn.textContent='💾 Save'; }
-            AW.toast((res&&res.error)||'Upload ảnh thất bại — thử lại.','err');
-          }
-        }).catch(function(){
-          if(dot){ dot.textContent='✗ Upload lỗi'; dot.style.color='var(--aw-danger)'; }
-          if(btn){ btn.disabled=false; btn.textContent='💾 Save'; }
-          AW.toast('Không kết nối được để upload ảnh.','err');
-        });
+  // Step 1 — Optimistic UI: show image instantly via local object URL (0ms delay)
+  var localUrl = URL.createObjectURL(file);
+  var placeholder = insertImgPlaceholder(localUrl);
+
+  // Step 2 — Compress with Canvas (client-side, before any upload)
+  compress(file, function(compressedDataUrl, sizeKB){
+
+    // Step 3 — Upload to ImgBB (direct from browser, fast CDN) or Drive fallback
+    uploadImage(compressedDataUrl, file.name || 'board-img.jpg', function(finalUrl, err){
+      if (err) {
+        // Upload failed — keep the local blob URL so teacher still sees the image
+        // but warn that it won't persist after page refresh
+        AW.toast('⚠️ Upload thất bại — ảnh chỉ hiển thị tạm thời trên máy này. Thử paste lại.', 'err', 7000);
+        // Remove placeholder — browser will GC the object URL
+        if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+        URL.revokeObjectURL(localUrl);
+        return;
       }
+      // Step 4 — Swap local URL with permanent CDN URL (silent, no flicker)
+      if (placeholder) placeholder.src = finalUrl;
+      URL.revokeObjectURL(localUrl);
+      scheduleSave();
     });
+  });
+}
+
+/*── compress: resize + JPEG 0.72 quality using HTML5 Canvas ──*/
+function compress(file, cb){
+  var reader = new FileReader();
+  reader.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      var MAX = 1200, w = img.width, h = img.height;
+      if (w > MAX){ h = Math.round(h * MAX / w); w = MAX; }
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      var out = cv.toDataURL('image/jpeg', 0.72);
+      var sizeKB = Math.round(out.length * 0.75 / 1024);
+      cb(out, sizeKB);
+    };
+    img.onerror = function(){ cb(reader.result, 9999); };
+    img.src = reader.result;
   };
   reader.readAsDataURL(file);
 }
-function compress(dataUrl, cb){
-  var img=new Image();
-  img.onload=function(){
-    var max=1000, w=img.width, h=img.height; // max 1000px wide (was 1200)
-    if(w>max){ h=Math.round(h*max/w); w=max; }
-    var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-    cv.getContext('2d').drawImage(img,0,0,w,h);
-    var out=cv.toDataURL('image/jpeg', 0.75); // quality 0.75 (was 0.82)
-    cb(out, Math.round(out.length*0.75/1024));
+
+/*── insertImgPlaceholder: insert <img> at cursor, return the element ──*/
+function insertImgPlaceholder(url){
+  var canvas = document.getElementById('canvas'); if(!canvas) return null;
+  canvas.focus();
+  // Create img node directly so we can return a reference
+  var img = document.createElement('img');
+  img.src = url; img.alt = 'board image';
+  img.style.maxWidth = '100%';
+  // Insert at current cursor position
+  var sel = window.getSelection();
+  if (sel && sel.rangeCount) {
+    var range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(img);
+    // Move cursor after img
+    range.setStartAfter(img); range.setEndAfter(img);
+    sel.removeAllRanges(); sel.addRange(range);
+  } else {
+    canvas.appendChild(img);
+  }
+  return img;
+}
+
+/*── uploadImage: try ImgBB first, fall back to Google Drive ──*/
+function uploadImage(dataUrl, fileName, cb){
+  if (IMGBB_KEY && IMGBB_KEY.length > 8) {
+    uploadToImgBB(dataUrl, cb);
+  } else if (!IMGBB_KEY) {
+    // First time: show a small banner prompting teacher to set up ImgBB key
+    showImgBBSetup(function(key){
+      if (key) {
+        IMGBB_KEY = key;
+        try { localStorage.setItem('aw_imgbb_key', key); } catch(e){}
+        uploadToImgBB(dataUrl, cb);
+      } else {
+        // Skipped → use Drive
+        uploadToDrive(dataUrl, fileName, cb);
+      }
+    });
+  } else {
+    uploadToDrive(dataUrl, fileName, cb);
+  }
+}
+
+function showImgBBSetup(callback){
+  var old = document.getElementById('imgbbSetup');
+  if (old) { old.remove(); }
+  var div = document.createElement('div');
+  div.id = 'imgbbSetup';
+  div.style.cssText =
+    'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);'+
+    'background:#fff;border:2px solid var(--aw-primary);border-radius:14px;'+
+    'padding:16px 20px;max-width:440px;width:calc(100%-32px);z-index:2000;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:var(--aw-font-body)';
+  div.innerHTML =
+    '<b style="font-size:.92rem;color:var(--aw-primary);display:block;margin-bottom:6px">🖼 Cài đặt ImgBB để ảnh không bao giờ bị vỡ</b>'+
+    '<p style="font-size:.8rem;color:var(--aw-ink-2);margin:0 0 10px;line-height:1.5">'+
+      'Lấy API key miễn phí tại <a href="https://api.imgbb.com/" target="_blank" style="color:var(--aw-primary);font-weight:700">api.imgbb.com</a> '+
+      '(30 giây) → Sign up → Get API Key → Copy.'+
+    '</p>'+
+    '<div style="display:flex;gap:8px">'+
+      '<input id="imgbbKeyIn" placeholder="Paste API key…" style="flex:1;padding:8px 12px;border:1px solid var(--aw-border);border-radius:8px;font-size:.88rem;outline:none">'+
+      '<button id="imgbbSave" style="padding:8px 14px;background:var(--aw-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem">Lưu</button>'+
+      '<button id="imgbbSkip" style="padding:8px 14px;background:none;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;font-size:.82rem;color:var(--aw-ink-3)">Bỏ qua</button>'+
+    '</div>';
+  document.body.appendChild(div);
+  document.getElementById('imgbbKeyIn').focus();
+  document.getElementById('imgbbSave').onclick = function(){
+    var k = (document.getElementById('imgbbKeyIn').value||'').trim();
+    div.remove();
+    callback(k || null);
   };
-  img.onerror=function(){ cb(dataUrl, 999); }; // if compress fails → force Drive upload
-  img.src=dataUrl;
+  document.getElementById('imgbbSkip').onclick = function(){
+    div.remove(); callback(null);
+  };
+  document.getElementById('imgbbKeyIn').onkeydown = function(e){
+    if (e.key==='Enter') document.getElementById('imgbbSave').click();
+  };
+}
+
+function uploadToImgBB(dataUrl, cb){
+  // Strip the data:image/...;base64, prefix — ImgBB wants raw base64
+  var base64 = dataUrl.split(',')[1];
+  if (!base64) { cb(null, 'Invalid image data'); return; }
+  var form = new FormData();
+  form.append('key', IMGBB_KEY);
+  form.append('image', base64);
+  fetch('https://api.imgbb.com/1/upload', { method:'POST', body:form })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (data && data.success && data.data && data.data.url) {
+        cb(data.data.url, null); // permanent direct link
+      } else {
+        // ImgBB returned error — fallback to Drive
+        uploadToDrive(dataUrl, 'board-img.jpg', cb);
+      }
+    })
+    .catch(function(){ uploadToDrive(dataUrl, 'board-img.jpg', cb); });
+}
+
+function uploadToDrive(dataUrl, fileName, cb){
+  AW.api('board.uploadImage', { dataUrl:dataUrl, name:fileName || 'board-img.jpg' })
+    .then(function(res){
+      if (res && res.success && res.data && res.data.url) {
+        cb(res.data.url, null);
+      } else {
+        cb(null, (res && res.error) || 'Drive upload failed');
+      }
+    })
+    .catch(function(e){ cb(null, e.message || 'Network error'); });
 }
 function insertImg(url){
-  var canvas=document.getElementById('canvas'); canvas.focus();
-  document.execCommand('insertHTML',false,'<img src="'+url+'" alt="board image">');
+  var canvas=document.getElementById('canvas'); if(!canvas) return;
+  canvas.focus();
+  document.execCommand('insertHTML',false,'<img src="'+url+'" alt="board image" style="max-width:100%">');
 }
 
 /*──── image resize & select (teacher only) ────*/
