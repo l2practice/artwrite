@@ -452,16 +452,34 @@ function onPaste(e){
   }
 }
 function handleImage(file){
-  // small (<200KB) → compress to base64 inline; larger → upload to Drive
   var reader=new FileReader();
   reader.onload=function(){
     compress(reader.result, function(dataUrl, sizeKB){
-      if(sizeKB < 180){ insertImg(dataUrl); scheduleSave(); }
-      else {
-        AW.toast('Uploading image…');
-        AW.api('board.uploadImage',{dataUrl:dataUrl,name:file.name}).then(function(res){
-          if(res&&res.success){ insertImg(res.data.url); scheduleSave(); AW.toast('Đã chèn ảnh','ok'); }
-          else AW.toast((res&&res.error)||'Upload lỗi','err');
+      // Google Sheets cell limit: ~50,000 chars = ~37KB base64.
+      // Keep only tiny icons inline (<20KB); everything else goes to Drive.
+      if(sizeKB < 20){
+        insertImg(dataUrl);
+        scheduleSave();
+      } else {
+        var dot=document.getElementById('saveDot');
+        var btn=document.getElementById('saveBtn');
+        if(dot){ dot.textContent='⏳ Uploading image…'; dot.style.color='var(--aw-ink-3)'; }
+        if(btn){ btn.disabled=true; btn.textContent='⏳ Uploading…'; }
+        AW.toast('Đang upload ảnh lên Drive…');
+        AW.api('board.uploadImage',{dataUrl:dataUrl, name:(file&&file.name)||('img-'+Date.now()+'.jpg')}).then(function(res){
+          if(res&&res.success){
+            insertImg(res.data.url);
+            scheduleSave();
+            AW.toast('✓ Ảnh đã được upload và chèn vào board.','ok');
+          } else {
+            if(dot){ dot.textContent='✗ Upload lỗi'; dot.style.color='var(--aw-danger)'; }
+            if(btn){ btn.disabled=false; btn.textContent='💾 Save'; }
+            AW.toast((res&&res.error)||'Upload ảnh thất bại — thử lại.','err');
+          }
+        }).catch(function(){
+          if(dot){ dot.textContent='✗ Upload lỗi'; dot.style.color='var(--aw-danger)'; }
+          if(btn){ btn.disabled=false; btn.textContent='💾 Save'; }
+          AW.toast('Không kết nối được để upload ảnh.','err');
         });
       }
     });
@@ -471,14 +489,14 @@ function handleImage(file){
 function compress(dataUrl, cb){
   var img=new Image();
   img.onload=function(){
-    var max=1200, w=img.width, h=img.height;
-    if(w>max){ h=h*max/w; w=max; }
+    var max=1000, w=img.width, h=img.height; // max 1000px wide (was 1200)
+    if(w>max){ h=Math.round(h*max/w); w=max; }
     var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
     cv.getContext('2d').drawImage(img,0,0,w,h);
-    var out=cv.toDataURL('image/jpeg',0.82);
+    var out=cv.toDataURL('image/jpeg', 0.75); // quality 0.75 (was 0.82)
     cb(out, Math.round(out.length*0.75/1024));
   };
-  img.onerror=function(){ cb(dataUrl, 999); };
+  img.onerror=function(){ cb(dataUrl, 999); }; // if compress fails → force Drive upload
   img.src=dataUrl;
 }
 function insertImg(url){
@@ -548,6 +566,10 @@ function saveNow(){
       if(dot2){ dot2.textContent='✓ Đã lưu'; dot2.style.color='#1A9E5C'; }
       if(btn2){ btn2.disabled=false; btn2.textContent='💾 Save'; btn2.style.background=''; }
       AW.toast('Đã lưu bảng — sinh viên sẽ thấy ngay.','ok', 2500);
+    } else if(res && res.error==='CONTENT_TOO_LARGE') {
+      if(dot2){ dot2.textContent='✗ Board quá nặng'; dot2.style.color='var(--aw-danger)'; }
+      if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; btn2.style.background='var(--aw-danger)'; }
+      AW.toast('⚠️ ' + (res.detail || 'Nội dung board quá lớn — hãy xóa bớt ảnh.'), 'err', 8000);
     } else {
       if(dot2){ dot2.textContent='✗ Lưu thất bại'; dot2.style.color='var(--aw-danger)'; }
       if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; btn2.style.background='var(--aw-danger)'; }
