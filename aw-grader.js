@@ -319,45 +319,53 @@
   /*-- gradeWithGroq: call Groq API with same prompt, return normalised result --*/
   async function gradeWithGroq(groqKey, prompt) {
     if (!groqKey) throw new Error('Không có Groq API key.');
-    var groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages:[{role:'user', content:prompt}],
-        temperature:0.1, max_tokens:6000,
-        response_format:{type:'json_object'}
-      })
-    });
-    if (!groqResp.ok) {
+    // Model fallback: gpt-oss-120b (primary) → qwen3.6-27b (fallback)
+    var GROQ_MODELS = ['openai/gpt-oss-120b', 'qwen/qwen3.6-27b'];
+    var lastErr = '';
+    for (var gmi = 0; gmi < GROQ_MODELS.length; gmi++) {
+      var groqModel = GROQ_MODELS[gmi];
+      var groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
+        body: JSON.stringify({
+          model: groqModel,
+          messages:[{role:'user', content:prompt}],
+          temperature:0.1, max_tokens:6000,
+          response_format:{type:'json_object'}
+        })
+      });
+      if (groqResp.ok) {
+        var groqData = await groqResp.json();
+        var groqRaw  = ((groqData.choices||[])[0]||{}).message;
+        groqRaw = groqRaw ? groqRaw.content : '';
+        if (!groqRaw) throw new Error('Groq trả về rỗng. Thử lại sau.');
+        var groqClean = groqRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+        var gsi = groqClean.indexOf('{');
+        if (gsi === -1) throw new Error('Lỗi định dạng: Groq không trả về JSON. Vui lòng thử lại.');
+        var gdepth = 0, gei = -1;
+        for (var gci = gsi; gci < groqClean.length; gci++) {
+          if (groqClean[gci]==='{') gdepth++;
+          else if (groqClean[gci]==='}') { gdepth--; if (gdepth===0) { gei=gci; break; } }
+        }
+        if (gei === -1) throw new Error('Lỗi định dạng: JSON từ Groq bị không hoàn chỉnh. Vui lòng thử lại.');
+        try {
+          return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
+        } catch(parseErr) {
+          throw new Error('Lỗi đọc kết quả từ Groq (JSON sai cú pháp). Vui lòng thử lại.');
+        }
+      }
       var groqErr = await groqResp.json().catch(function(){return{};});
-      var groqMsg = (groqErr.error && groqErr.error.message) || String(groqResp.status);
-      // Invalid key
-      if (groqResp.status===401||groqMsg.indexOf('invalid')!==-1||groqMsg.indexOf('auth')!==-1)
+      lastErr = (groqErr.error && groqErr.error.message) || String(groqResp.status);
+      var isModelErr = groqResp.status===404 || lastErr.indexOf('decommission')!==-1 ||
+                       lastErr.indexOf('deprecated')!==-1 || lastErr.indexOf('not found')!==-1;
+      if (groqResp.status===401 || lastErr.indexOf('invalid')!==-1 || lastErr.indexOf('auth')!==-1)
         throw new Error('Groq key không hợp lệ. Kiểm tra lại và thử nhập key khác.');
-      // Rate limit
       if (groqResp.status===429)
         throw new Error('Groq cũng đã hết lượt miễn phí hôm nay. Vui lòng thử lại sau.');
-      throw new Error('Groq error: '+groqMsg);
+      if (!isModelErr) throw new Error('Groq error: ' + lastErr);
+      // model deprecated → try next
     }
-    var groqData = await groqResp.json();
-    var groqRaw  = ((groqData.choices||[])[0]||{}).message;
-    groqRaw = groqRaw ? groqRaw.content : '';
-    if (!groqRaw) throw new Error('Groq trả về rỗng. Thử lại sau.');
-    var groqClean = groqRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    var gsi = groqClean.indexOf('{');
-    if (gsi === -1) throw new Error('Lỗi định dạng: Groq không trả về JSON. Vui lòng thử lại.');
-    var gdepth = 0, gei = -1;
-    for (var gci = gsi; gci < groqClean.length; gci++) {
-      if (groqClean[gci]==='{') gdepth++;
-      else if (groqClean[gci]==='}') { gdepth--; if (gdepth===0) { gei=gci; break; } }
-    }
-    if (gei === -1) throw new Error('Lỗi định dạng: JSON từ Groq bị không hoàn chỉnh. Vui lòng thử lại.');
-    try {
-      return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
-    } catch(parseErr) {
-      throw new Error('Lỗi đọc kết quả từ Groq (JSON sai cú pháp). Vui lòng thử lại.');
-    }
+    throw new Error('Groq error: ' + lastErr);
   }
 
   // Public API
