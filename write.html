@@ -1553,16 +1553,17 @@ if (MODE === 'inclass' || MODE === 'homework') {
 
 /*──────── Teacher feedback pushed from Live Observation ────────
   The teacher marks up a snapshot of the essay and clicks "Push to Student".
-  We show it read-only in a modal — never write it into the editor, which
-  would clobber whatever the student has typed since the snapshot. */
+  We show ALL pushes (history) in a modal — newest first — so students can
+  see every round of feedback the teacher gave, not just the latest.
+  We never write teacher feedback into the editor. */
 if (MODE === 'inclass' || MODE === 'homework') {
   (function(){
-    var lastSeen = null, primed = false;
+    var lastPushCount = 0, primed = false;
     function ensureUi(){
       if(document.getElementById('tfbFab')) return;
       var fab=document.createElement('button');
       fab.id='tfbFab'; fab.className='aw-tfb-fab';
-      fab.textContent='\ud83d\udce9 Teacher feedback';
+      fab.textContent='\ud83d\udce9 Nhận xét của GV';
       fab.onclick=openTeacherFeedback;
       document.body.appendChild(fab);
       var bg=document.createElement('div');
@@ -1571,34 +1572,55 @@ if (MODE === 'inclass' || MODE === 'homework') {
       bg.onclick=function(e){ if(e.target===bg) bg.classList.remove('show'); };
       document.body.appendChild(bg);
     }
-    window._tfbData = null;
+    window._tfbHistory = [];
     window.openTeacherFeedback = function(){
-      var d=window._tfbData; if(!d) return;
-      document.getElementById('tfbModal').innerHTML=
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
-          '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem">\ud83d\udce9 Your teacher\'s feedback</h2>'+
+      var hist=window._tfbHistory; if(!hist||!hist.length) return;
+      var modal=document.getElementById('tfbModal');
+      modal.innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'+
+          '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.15rem">\ud83d\udce9 Nhận xét của giáo viên ('+hist.length+' lần)</h2>'+
           '<button class="aw-btn" style="background:#E5484D;color:#fff;font-weight:600;padding:6px 18px" '+
-            'onclick="document.getElementById(\'tfbBg\').classList.remove(\'show\')">\u2715 Close</button>'+
+            'onclick="document.getElementById(\'tfbBg\').classList.remove(\'show\')">\u2715 Đóng</button>'+
         '</div>'+
-        '<p style="margin:8px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+
-          (d.teacher?AW.esc(d.teacher)+' \u00b7 ':'')+new Date(d.timestamp).toLocaleString('vi-VN')+
-          ' \u00b7 <span style="color:var(--aw-danger)">red strike = error</span>, '+
-          '<span style="color:var(--aw-writing)">green = suggested fix</span>, yellow = highlight</p>'+
-        '<p style="margin:6px 0 0;font-size:.82rem;color:var(--aw-ink-3)">This is a snapshot of your essay when your teacher reviewed it \u2014 your current text is untouched.</p>'+
-        '<div class="aw-tfb-body">'+d.annotatedHtml+'</div>';
+        '<p style="margin:0 0 12px;font-size:.78rem;color:var(--aw-ink-3)">'+
+          '<span style="color:var(--aw-danger)">gạch đỏ = lỗi</span>, '+
+          '<span style="color:var(--aw-writing)">xanh = sửa đúng</span>, vàng = highlight — '+
+          'đây là snapshot bài lúc GV nhận xét, không ảnh hưởng bài bạn đang viết.</p>'+
+        hist.map(function(d, i){
+          var when=''; try{when=new Date(d.timestamp).toLocaleString('vi-VN');}catch(e){}
+          var isLatest = i===0;
+          return '<details'+(isLatest?' open':'')+' style="border:1px solid var(--aw-border-2);border-radius:10px;margin-bottom:8px;overflow:hidden">'+
+            '<summary style="padding:10px 14px;cursor:pointer;background:'+(isLatest?'var(--aw-primary-lt)':'var(--aw-surface-2)')+';'+
+              'font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:8px">'+
+              '<span style="background:var(--aw-primary);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;flex:0 0 auto">'+
+                (hist.length - i)+'</span>'+
+              (d.teacher?AW.esc(d.teacher)+' · ':'')+ AW.esc(when)+
+              (isLatest?' <span style="background:var(--aw-primary);color:#fff;border-radius:8px;padding:1px 7px;font-size:.68rem;margin-left:auto">Mới nhất</span>':'')+
+            '</summary>'+
+            '<div class="aw-tfb-body" style="padding:12px 14px">'+d.annotatedHtml+'</div>'+
+          '</details>';
+        }).join('');
       document.getElementById('tfbBg').classList.add('show');
     };
     function poll(){
-      AW.api('write.getAnnotation',{studentId:sess.studentId, topicId:TOPIC_ID}).then(function(res){
-        if(!res||!res.success||!res.data) return;
-        var d=res.data;
-        if(d.timestamp===lastSeen) return;
-        lastSeen=d.timestamp;
-        window._tfbData=d;
+      AW.api('teacher.getAnnotation',{studentId:sess.studentId, topicId:TOPIC_ID}).then(function(res){
+        if(!res||!res.success||!res.data||!res.data.history) return;
+        var history = res.data.history; // array, newest first
+        if(!history.length) return;
+        var newCount = history.length;
+        window._tfbHistory = history;
         ensureUi();
-        document.getElementById('tfbFab').classList.add('show');
-        if(primed){ AW.toast('Your teacher sent you feedback','ok',5000); openTeacherFeedback(); }
-        primed=true;  // don't auto-open feedback that already existed on load
+        var fab = document.getElementById('tfbFab');
+        if(fab){
+          fab.classList.add('show');
+          fab.textContent = '\ud83d\udce9 Nhận xét GV' + (newCount>1?' ('+newCount+')':'');
+        }
+        if(primed && newCount > lastPushCount){
+          AW.toast('Giáo viên vừa gửi nhận xét mới!','ok',5000);
+          openTeacherFeedback();
+        }
+        lastPushCount = newCount;
+        primed = true;
       });
     }
     setInterval(poll, 10000);
