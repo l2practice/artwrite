@@ -630,8 +630,8 @@ function showOverview(){
     var d=(res&&res.data)||{activeStudents:0,totalAssignments:0,hwAssignments:0,icAssignments:0};
     content.innerHTML=
       '<div class="aw-kpi-row">' +
-        kpi('Total Students', d.activeStudents) +
-        kpi('Total Assignments', d.totalAssignments) +
+        kpi('Sinh viên trong lớp', d.activeStudents) +
+        kpi('Tổng bài đã giao', d.totalAssignments) +
         kpi('Homework', d.hwAssignments) +
         kpi('In-class Practice', d.icAssignments) +
       '</div>' +
@@ -829,7 +829,17 @@ function showLive(){
     document.getElementById('viewList').onclick=function(){setView('list');};
     setView('list');  // default list view for live (easier to scan word count)
     pollLive();
-    livePoll=setInterval(pollLive, 6000);
+    livePoll = setInterval(pollLive, 10000);
+    // Pause live poll when teacher switches tabs; resume immediately on return
+    function _onLiveVisibility(){
+      clearInterval(livePoll); livePoll = null;
+      if (document.visibilityState === 'visible') {
+        pollLive();
+        livePoll = setInterval(pollLive, 10000);
+      }
+    }
+    document.removeEventListener('visibilitychange', _onLiveVisibility);
+    document.addEventListener('visibilitychange', _onLiveVisibility);
   });
 }
 function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
@@ -2328,7 +2338,15 @@ function pollNotifications(){
     _notifPrimed=true; // first pass only records existing state — no popup flood on load
   });
 }
-setInterval(pollNotifications, 8000);
+// Poll every 20s; pause when tab is hidden to save quota
+var _notifInterval = setInterval(pollNotifications, 20000);
+document.addEventListener('visibilitychange', function(){
+  clearInterval(_notifInterval);
+  if (document.visibilityState === 'visible') {
+    pollNotifications(); // immediate catch-up poll on refocus
+    _notifInterval = setInterval(pollNotifications, 20000);
+  }
+});
 // Tell the floating AI assistant what the teacher is currently looking at
 if (window.AW && AW.teacherAI) {
   AW.teacherAI.setContextProvider(function(){
@@ -2605,10 +2623,18 @@ window.archiveStudent=function(studentId,name){
 /*═══════════ global alerts: raised hands + new questions ═══════════
   Runs on every teacher view so a raised hand is never missed, and stays
   lightweight (no essay snapshots) to keep Apps Script quota happy. */
-var _seenHands={}, _seenQs={}, _alertFirstRun=true;
+var _seenHands={}, _seenQs={}, _alertFirstRun=true, _alertInterval=null;
 function startAlerts(){
   pollAlerts();
-  setInterval(pollAlerts, 12000);
+  _alertInterval = setInterval(pollAlerts, 25000);
+  // Pause when hidden; resume immediately on focus
+  document.addEventListener('visibilitychange', function(){
+    clearInterval(_alertInterval);
+    if (document.visibilityState === 'visible') {
+      pollAlerts();
+      _alertInterval = setInterval(pollAlerts, 25000);
+    }
+  });
 }
 function pollAlerts(){
   if(!curClass())return;

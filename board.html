@@ -192,13 +192,39 @@ function openBoard(id){
     if(!res||!res.success){AW.toast('Không mở được bảng','err');return;}
     curBoard=res.data; zoom=1;
     renderBoard();
-    if(!isTeacher){ pollTimer=setInterval(refreshBoard, 6000); } // students poll for updates
+    if(!isTeacher){ startStudentPoll(); }
+  });
+}
+
+/*── Student board polling ──────────────────────────────────────
+  Uses meta-first pattern: poll board.meta (lightweight — only boardId + updatedAt)
+  every 15s. Only fetch the full board.get when updatedAt has changed.
+  Pauses when the tab is hidden to reduce Apps Script quota usage.              */
+function startStudentPoll(){
+  stopPoll();
+  pollTimer = setInterval(refreshBoardMeta, 15000);
+  document.addEventListener('visibilitychange', _onBoardVisibility);
+}
+function _onBoardVisibility(){
+  clearInterval(pollTimer); pollTimer = null;
+  if(document.visibilityState === 'visible'){
+    refreshBoardMeta(); // catch up immediately on refocus
+    pollTimer = setInterval(refreshBoardMeta, 15000);
+  }
+}
+function refreshBoardMeta(){
+  if(!curBoard) return;
+  AW.api('board.meta',{boardId:curBoard.boardId}).then(function(res){
+    if(!res||!res.success) return;
+    if(res.data.updatedAt !== curBoard.updatedAt){
+      refreshBoard(); // content changed → fetch full board
+    }
   });
 }
 function refreshBoard(){
   if(!curBoard)return;
   AW.api('board.get',{boardId:curBoard.boardId}).then(function(res){
-    if(res&&res.success && res.data.updatedAt!==curBoard.updatedAt){
+    if(res&&res.success){
       curBoard=res.data;
       var canvas=document.getElementById('canvas');
       if(canvas){
@@ -208,7 +234,10 @@ function refreshBoard(){
     }
   });
 }
-function stopPoll(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
+function stopPoll(){
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+  document.removeEventListener('visibilitychange', _onBoardVisibility);
+}
 
 function renderBoard(){
   document.getElementById('awPageTitle').textContent='Interactive Board';
