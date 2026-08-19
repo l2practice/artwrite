@@ -629,7 +629,6 @@ function showOverview(){
   AW.api('teacher.getOverview',{class:curClass()}).then(function(res){
     var d=(res&&res.data)||{avgScore:0,totalEssays:0,activeStudents:0,feedbackPending:0};
     content.innerHTML=
-      '<div id="todaysWord"></div>' +
       '<div class="aw-kpi-row">' +
         kpi('Average Class Score', d.avgScore||'—') +
         kpi('Total Essays Submitted', d.totalEssays) +
@@ -644,9 +643,11 @@ function showOverview(){
           '<button class="aw-btn aw-btn-ghost aw-btn-block" onclick="showClasses()">Manage Classes</button>' +
         '</div>' +
       '</div>';
-    loadRecent();
+    // loadRecent removed — it called getResults with no filter (slow).
+    // Teacher uses Results tab with topic+day filter instead.
     loadRoster();
-    AW.renderTodaysWord('todaysWord');
+    // Vocab word of the day — non-critical, load last so it doesn't block UI
+    try { AW.renderTodaysWord && AW.renderTodaysWord('todaysWord'); } catch(e){}
   });
 }
 function kpi(label,val){return '<div class="aw-kpi"><div class="aw-kpi-label">'+label+'</div><div class="aw-kpi-value">'+val+'</div></div>';}
