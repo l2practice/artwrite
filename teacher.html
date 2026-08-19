@@ -630,8 +630,8 @@ function showOverview(){
     var d=(res&&res.data)||{activeStudents:0,totalAssignments:0,hwAssignments:0,icAssignments:0};
     content.innerHTML=
       '<div class="aw-kpi-row">' +
-        kpi('Sinh viên trong lớp', d.activeStudents) +
-        kpi('Tổng bài đã giao', d.totalAssignments) +
+        kpi('Total Students', d.activeStudents) +
+        kpi('Total Assignments', d.totalAssignments) +
         kpi('Homework', d.hwAssignments) +
         kpi('In-class Practice', d.icAssignments) +
       '</div>' +
