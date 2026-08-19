@@ -1405,23 +1405,103 @@ function findResult(key){
 function showResults(){
   document.getElementById('awPageTitle').textContent='Results';
   content.innerHTML=
-    // Tabs
-    '<div class="aw-tabs" id="resTabs">' +
-      '<button class="aw-tab active" data-mode="inclass">In-Class Practice</button>' +
-      '<button class="aw-tab" data-mode="homework">Homework</button>' +
-      '<button class="aw-tab" data-mode="free">Free Writing</button>' +
-    '</div>' +
-    // Filter bar — Topic picker + Load button (primary actions)
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px" id="resPrimaryBar">'+
-      '<select class="aw-select" id="fTopic" style="flex:1;min-width:220px;max-width:400px">'+
-        '<option value="">⌛ Đang tải danh sách bài…</option>'+
-      '</select>'+
-      '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load kết quả</button>'+
+    '<div class="aw-tabs" id="resTabs">'+
+      '<button class="aw-tab" data-mode="inclass">In-Class Practice</button>'+
+      '<button class="aw-tab" data-mode="homework">Homework</button>'+
+      '<button class="aw-tab" data-mode="free">Free Writing</button>'+
     '</div>'+
-    // Secondary filters (hidden until results loaded)
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;display:none" id="resSecBar">'+
+    '<div id="resFilterBar" style="display:none"></div>'+
+    '<div id="resultsBox">'+
+      '<div class="aw-empty" style="padding:60px 20px">'+
+        '<p style="font-size:1rem;color:var(--aw-ink-3)">Chọn một tab bên trên để bắt đầu</p>'+
+      '</div>'+
+    '</div>';
+
+  var _mode = null;
+  var _assignments = [];   // list from write.getAssignments
+  var _loadedTopicId = null;
+  var _loadedDays = null;
+
+  AW.els('.aw-tab').forEach(function(t){
+    t.onclick = function(){
+      AW.els('.aw-tab').forEach(function(x){ x.classList.remove('active'); });
+      t.classList.add('active');
+      _mode = t.dataset.mode;
+      resultsData = [];
+      _loadedTopicId = null;
+      _loadedDays = null;
+      renderFilterBar();
+    };
+  });
+
+  function renderFilterBar(){
+    var bar = document.getElementById('resFilterBar');
+    bar.style.display = '';
+    var isFree = (_mode === 'free');
+
+    if(isFree){
+      // Free writing: no topic selector, just days + Load
+      bar.innerHTML =
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
+          '<select class="aw-select" id="fDays">'+
+            '<option value="6">6 ngày gần nhất</option>'+
+            '<option value="14">14 ngày gần nhất</option>'+
+            '<option value="0">Tất cả kết quả</option>'+
+          '</select>'+
+          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load kết quả</button>'+
+          '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">Free Writing — không cần chọn topic</span>'+
+        '</div>'+
+        '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
+          secFiltersHtml()+
+        '</div>';
+      document.getElementById('loadResBtn').onclick = function(){ doLoad(null); };
+
+    } else {
+      // In-class / Homework: topic selector required + days + Load
+      bar.innerHTML =
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
+          '<select class="aw-select" id="fTopicSel" style="flex:1;min-width:240px;max-width:440px">'+
+            '<option value="">⌛ Đang tải danh sách bài…</option>'+
+          '</select>'+
+          '<select class="aw-select" id="fDays">'+
+            '<option value="6">6 ngày gần nhất</option>'+
+            '<option value="14">14 ngày gần nhất</option>'+
+            '<option value="0">Tất cả kết quả</option>'+
+          '</select>'+
+          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load kết quả</button>'+
+        '</div>'+
+        '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
+          secFiltersHtml()+
+        '</div>';
+      // Load assignment list into topic dropdown
+      var sel = document.getElementById('fTopicSel');
+      AW.api('write.getAssignments',{class:curClass(), mode:_mode}).then(function(res){
+        _assignments = (res&&res.data)||[];
+        sel.innerHTML = '<option value="">📋 Chọn bài tập…</option>'+
+          _assignments.map(function(a){
+            var badge = a.taskType==='task1' ? ' [T1]' : ' [T2]';
+            return '<option value="'+AW.esc(a.topicId)+'">'+AW.esc(a.topic)+badge+'</option>';
+          }).join('');
+      }).catch(function(){
+        sel.innerHTML='<option value="">⚠ Lỗi tải — thử lại</option>';
+      });
+      document.getElementById('loadResBtn').onclick = function(){
+        var topicId = document.getElementById('fTopicSel').value;
+        if(!topicId){ AW.toast('Vui lòng chọn một bài tập trước.','err'); return; }
+        doLoad(topicId);
+      };
+    }
+    // Show empty state until load
+    document.getElementById('resultsBox').innerHTML=
+      '<div class="aw-empty" style="padding:60px 20px;color:var(--aw-ink-3)">'+
+        '<p style="font-size:.95rem">'+(isFree?'Chọn khoảng thời gian rồi bấm <b>Load kết quả</b>':'Chọn bài tập rồi bấm <b>Load kết quả</b>')+'</p>'+
+      '</div>';
+    wireSecFilters();
+  }
+
+  function secFiltersHtml(){
+    return '<div class="aw-search" style="flex:1;min-width:180px">'+AW.icon('search')+'<input id="resSearch" placeholder="Tên / Student ID…"></div>'+
       '<select class="aw-select" id="fTaskType"><option value="">All task types</option><option value="task1">Task 1</option><option value="task2">Task 2</option></select>'+
-      '<div class="aw-search" style="flex:1;min-width:180px">'+AW.icon('search')+'<input id="resSearch" placeholder="Tên / Student ID…"></div>'+
       '<select class="aw-select" id="fSort">'+
         '<option value="latest">Sort: Ngày nộp</option>'+
         '<option value="name">Sort: Tên</option>'+
@@ -1429,120 +1509,74 @@ function showResults(){
         '<option value="bestResult">Sort: Best band</option>'+
         '<option value="attemptCount">Sort: Số lần</option>'+
       '</select>'+
-      '<button class="aw-btn aw-btn-ghost" id="fSortDir" style="padding:8px 12px;font-weight:700" title="Đảo thứ tự">↓</button>'+
+      '<button class="aw-btn aw-btn-ghost" id="fSortDir" style="padding:8px 12px;font-weight:700">↓</button>'+
       '<button class="aw-btn aw-btn-ghost" id="clearFilters" style="padding:8px 12px">Clear</button>'+
       '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px">⤓ Export</button>'+
-      '<span id="resCount" style="color:var(--aw-ink-3);font-size:.85rem"></span>'+
-    '</div>'+
-    '<div id="resultsBox">'+
-      '<div class="aw-empty" style="padding:60px 20px;color:var(--aw-ink-3)">'+
-        '<p style="font-size:1rem;margin:0">Chọn bài tập ở trên rồi bấm <b>Load kết quả</b></p>'+
-        '<p style="font-size:.85rem;margin:8px 0 0">Hoặc chọn "Tất cả" để xem toàn bộ</p>'+
-      '</div>'+
-    '</div>';
-
-  var currentMode = 'inclass';
-
-  // Wire tabs — switching tab reloads topic list, clears results
-  AW.els('.aw-tab').forEach(function(t){
-    t.onclick=function(){
-      AW.els('.aw-tab').forEach(function(x){x.classList.remove('active');});
-      t.classList.add('active');
-      currentMode = t.dataset.mode;
-      resultsData = [];
-      document.getElementById('resultsBox').innerHTML=
-        '<div class="aw-empty" style="padding:60px 20px;color:var(--aw-ink-3)">'+
-          '<p style="font-size:1rem;margin:0">Chọn bài tập rồi bấm <b>Load kết quả</b></p>'+
-        '</div>';
-      document.getElementById('resSecBar').style.display='none';
-      populateTopicDropdown(currentMode);
-    };
-  });
-
-  // Populate topic dropdown from assignments (lightweight — no result data)
-  function populateTopicDropdown(mode){
-    var ft = document.getElementById('fTopic');
-    ft.innerHTML='<option value="">⌛ Đang tải…</option>';
-    AW.api('write.getAssignments',{class:curClass(), mode:mode}).then(function(res){
-      var assignments = (res&&res.data)||[];
-      ft.innerHTML =
-        '<option value="">📋 Tất cả bài ('+mode+')</option>'+
-        assignments.map(function(a){
-          return '<option value="'+AW.esc(a.topicId)+'">'+AW.esc(a.topic)+'</option>';
-        }).join('');
-    }).catch(function(){
-      ft.innerHTML='<option value="">⚠ Lỗi tải danh sách — thử lại</option>';
-    });
+      '<span id="resCount" style="font-size:.85rem;color:var(--aw-ink-3)"></span>';
   }
-  populateTopicDropdown('inclass');
 
-  // Load button — fetch results only when teacher clicks
-  document.getElementById('loadResBtn').onclick=function(){
-    var selectedTopicId = document.getElementById('fTopic').value;
-    loadResults(currentMode, selectedTopicId);
-  };
-
-  // Also allow pressing Enter in topic dropdown
-  document.getElementById('fTopic').onkeydown=function(e){
-    if(e.key==='Enter') document.getElementById('loadResBtn').click();
-  };
-
-  // Wire secondary filters (only matter after results loaded)
   function wireSecFilters(){
-    var srch=document.getElementById('resSearch');
-    var ftt=document.getElementById('fTaskType');
-    var fs=document.getElementById('fSort');
-    var fsd=document.getElementById('fSortDir');
-    var clf=document.getElementById('clearFilters');
-    var exp=document.getElementById('exportResults');
-    if(srch) srch.oninput=function(){ renderResults(); };
-    if(ftt)  ftt.onchange=function(){ renderResults(); };
-    if(fs){  fs.value=resultsSort.key; fs.onchange=function(){ resultsSort.key=this.value; resultsSort.dir=resDefaultDir(this.value); renderResults(); }; }
-    if(fsd){ fsd.onclick=function(){ resultsSort.dir=-resultsSort.dir; renderResults(); }; }
-    syncSortDirBtn();
-    if(clf){ clf.onclick=function(){
-      var s=document.getElementById('resSearch'); if(s) s.value='';
-      var ft=document.getElementById('fTaskType'); if(ft) ft.value='';
-      renderResults();
-    };}
-    if(exp){ exp.onclick=function(){
-      var btn=this; btn.disabled=true; var o=btn.textContent; btn.textContent='Exporting…';
-      AW.toast('Creating Google Sheet…');
-      AW.api('teacher.exportResults',{mode:currentMode,class:curClass()}).then(function(res){
-        if(res&&res.success){ AW.toast('Sheet ready! ('+res.data.rows+' rows)','ok'); window.open(res.data.url,'_blank'); }
-        else AW.toast((res&&res.error)||'Export failed','err',4000);
-      }).finally(function(){ btn.disabled=false; btn.textContent=o; });
-    };}
+    // These are wired lazily after the sec bar becomes visible
+    setTimeout(function(){
+      var srch=document.getElementById('resSearch');
+      var ftt=document.getElementById('fTaskType');
+      var fs=document.getElementById('fSort');
+      var fsd=document.getElementById('fSortDir');
+      var clf=document.getElementById('clearFilters');
+      var exp=document.getElementById('exportResults');
+      if(srch) srch.oninput=renderResults;
+      if(ftt)  ftt.onchange=renderResults;
+      if(fs){  fs.value=resultsSort.key; fs.onchange=function(){ resultsSort.key=this.value; resultsSort.dir=resDefaultDir(this.value); renderResults(); }; }
+      if(fsd){ fsd.onclick=function(){ resultsSort.dir=-resultsSort.dir; renderResults(); }; }
+      syncSortDirBtn();
+      if(clf){ clf.onclick=function(){
+        var s=document.getElementById('resSearch'); if(s)s.value='';
+        var ft=document.getElementById('fTaskType'); if(ft)ft.value='';
+        renderResults();
+      };}
+      if(exp){ exp.onclick=function(){
+        var btn=this; btn.disabled=true; var o=btn.textContent; btn.textContent='⏳';
+        AW.api('teacher.exportResults',{mode:_mode,class:curClass()}).then(function(res){
+          if(res&&res.success){ AW.toast('Sheet ready!','ok'); window.open(res.data.url,'_blank'); }
+          else AW.toast((res&&res.error)||'Export failed','err',4000);
+        }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+      };}
+    },0);
   }
-  wireSecFilters();
+
+  function doLoad(topicId){
+    var daysEl = document.getElementById('fDays');
+    var days = daysEl ? parseInt(daysEl.value,10) : 6;
+    _loadedTopicId = topicId;
+    _loadedDays = days;
+    loadResults(_mode, topicId, days);
+  }
 }
 
-function loadResults(mode, topicId){
-  var box=document.getElementById('resultsBox');
-  var loadBtn=document.getElementById('loadResBtn');
+function loadResults(mode, topicId, days){
+  var box = document.getElementById('resultsBox');
+  var loadBtn = document.getElementById('loadResBtn');
   if(loadBtn){ loadBtn.disabled=true; loadBtn.textContent='⏳ Đang tải…'; }
-  box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p>Đang tải kết quả…</p></div>';
+  box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p style="margin:10px 0 0">Đang tải kết quả…</p></div>';
 
-  var params = {class:curClass(), mode:mode};
-  if(topicId) params.topicId = topicId;  // filter by topic on server side
+  var params = { class:curClass(), mode:mode };
+  if(topicId) params.topicId = topicId;           // server-side topic filter
+  if(days && days > 0) params.days = days;         // server-side date range filter
 
   AW.api('teacher.getResults', params).then(function(res){
     if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load kết quả'; }
-    resultsData=(res&&res.data)||[];
-
-    // Show secondary filter bar now that data is loaded
+    resultsData = (res&&res.data)||[];
     var secBar = document.getElementById('resSecBar');
-    if(secBar) secBar.style.display='';
-
-    // Populate task type counts for display
+    if(secBar) secBar.style.display='flex';
     if(!resultsData.length){
-      box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>Chưa có kết quả nào cho bài này.</p></div>';
+      box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>Không có kết quả nào trong khoảng thời gian này.</p></div>';
       return;
     }
     renderResults();
   }).catch(function(e){
     if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load kết quả'; }
-    box.innerHTML='<div class="aw-empty" style="color:var(--aw-danger)">⚠ Lỗi tải dữ liệu: '+(e.message||'')+'</div>';
+    box.innerHTML='<div class="aw-empty" style="color:var(--aw-danger)">⚠ Lỗi: '+(e.message||'')+'</div>';
+    AW.toast('Lỗi tải kết quả','err');
   });
 }
 
