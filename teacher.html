@@ -627,13 +627,13 @@ function showOverview(){
   document.getElementById('awPageTitle').textContent='Class Overview';
   content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
   AW.api('teacher.getOverview',{class:curClass()}).then(function(res){
-    var d=(res&&res.data)||{avgScore:0,totalEssays:0,activeStudents:0,feedbackPending:0};
+    var d=(res&&res.data)||{activeStudents:0,totalAssignments:0,hwAssignments:0,icAssignments:0};
     content.innerHTML=
       '<div class="aw-kpi-row">' +
-        kpi('Average Class Score', d.avgScore||'—') +
-        kpi('Total Essays Submitted', d.totalEssays) +
-        kpi('Active Students', d.activeStudents) +
-        kpi('Feedback Pending', d.feedbackPending) +
+        kpi('Sinh viên trong lớp', d.activeStudents) +
+        kpi('Tổng bài đã giao', d.totalAssignments) +
+        kpi('Homework', d.hwAssignments) +
+        kpi('In-class Practice', d.icAssignments) +
       '</div>' +
       '<div class="aw-two-col">' +
         '<div class="aw-panel"><h3 style="margin:0 0 14px">Class Roster <span id="rosterCount" style="color:var(--aw-ink-3);font-weight:400;font-size:.85rem"></span></h3><div id="roster"></div></div>' +
