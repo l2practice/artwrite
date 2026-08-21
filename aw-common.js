@@ -356,10 +356,11 @@
   AW.renderTodaysWord = function (mountId) {
     var mount = document.getElementById(mountId || 'todaysWord');
     if (!mount) return;
-    var LK = 'aw_login_count';
-    var logins = parseInt(localStorage.getItem(LK) || '0', 10);
-    var forceIdx = Math.floor(logins / 5);
-    AW.api('vocab.today', { index: forceIdx }).then(function (res) {
+    // Don't force an index — let the server pick by epochDay (UTC+7 after 3am)
+    // so every student sees the same word each calendar day.
+    // Only pass index when the teacher/student explicitly requests a different word
+    // (e.g. a "Next word" button passes { force: true, index: N }).
+    AW.api('vocab.today', {}).then(function (res) {
       if (!res || !res.success || !res.data) { mount.innerHTML = ''; return; }
       var d = res.data, c = d.current, prev = d.previous;
       mount.innerHTML =

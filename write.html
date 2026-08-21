@@ -179,6 +179,14 @@ var TASK_TYPE      = qp.get('type') || 'task2';
 // Normalize: old URLs may have passed 'IELTS Task 2' as the type value
 if (TASK_TYPE !== 'task1') TASK_TYPE = 'task2';
 var CHART_IMAGE_ID = qp.get('chartImageId') || '';  // passed from student.html for Task 1
+// Free Writing Task 1: chart image passed via sessionStorage (Data URL)
+var FREE_CHART_DATA_URL = '';
+if (MODE === 'free' && TASK_TYPE === 'task1' && qp.get('hasFreeChart') === '1') {
+  try {
+    FREE_CHART_DATA_URL = sessionStorage.getItem('aw_free_chart') || '';
+    sessionStorage.removeItem('aw_free_chart'); // clean up after reading
+  } catch(e) {}
+}
 var TOPIC_ID = qp.get('topicId') || ('T' + Date.now().toString(36));
 var RETRY = qp.get('retry') === '1';
 var DURATION_MIN = parseInt(qp.get('duration') || '0', 10);
@@ -213,6 +221,10 @@ var MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
 if (TASK_TYPE === 'task1' && CHART_IMAGE_ID) {
   setTimeout(function(){ renderChartViewer(CHART_IMAGE_ID); }, 200);
 }
+// Free Writing Task 1: render chart from Data URL stored in sessionStorage
+if (TASK_TYPE === 'task1' && FREE_CHART_DATA_URL) {
+  setTimeout(function(){ renderChartViewerDataUrl(FREE_CHART_DATA_URL); }, 200);
+}
 
 if (hasRealTopic) {
   AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
@@ -223,11 +235,16 @@ if (hasRealTopic) {
         if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
       }
       AI_NOTES = res.data.aiNotes || '';
-      // Override MIN_WORDS if teacher specified a custom limit for this task
       if (res.data.minWords && parseInt(res.data.minWords, 10) > 0) {
         MIN_WORDS = parseInt(res.data.minWords, 10);
-        // Update the word counter label to reflect custom limit
         updateWordCount();
+      }
+      // ── Deadline guard (Issues 2 & 3) ──────────────────────────────
+      // Lock the editor immediately if the student navigated directly via URL
+      // to a homework or inclass assignment that is past its deadline.
+      if (res.data.isPastDeadline && (MODE === 'homework' || MODE === 'inclass')) {
+        var dlStr = res.data.deadline ? ' (deadline: ' + AW.fmtDate(res.data.deadline) + ')' : '';
+        lockEditor('Bài tập đã quá hạn nộp' + dlStr + '. Liên hệ giáo viên nếu cần nộp trễ.');
       }
     }
   });
@@ -824,7 +841,8 @@ document.getElementById('gradeBtn').onclick = function(){
     }
   } catch(e) { lastVocabProfile = null; }
 
-  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key)
+  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary,
+             chartImageUrl: CHART_IMAGE_ID ? ('https://drive.google.com/thumbnail?id='+CHART_IMAGE_ID+'&sz=w1200') : (FREE_CHART_DATA_URL || '') }, key)
     .then(function(result){
       lastResult=result;
       renderFeedback(result);
@@ -949,7 +967,43 @@ function renderChartViewer(fileId){
   img.onclick = function(){ setZoom(curPct < 150 ? curPct+40 : 100); };
 }
 
-/*──────── fake grading progress overlay ────────*/
+/*── renderChartViewerDataUrl — same as renderChartViewer but for Data URLs
+  (free writing Task 1 where there's no Drive file ID)                  */
+function renderChartViewerDataUrl(dataUrl) {
+  if (!dataUrl) return;
+  if (document.getElementById('chartViewerBox')) return;
+  var box = document.createElement('div');
+  box.id  = 'chartViewerBox';
+  box.className = 'aw-chart-viewer';
+  box.innerHTML =
+    '<div class="aw-chart-viewer-head">'+
+      '<span style="font-size:.78rem;font-weight:700;text-transform:uppercase;color:#1A9E5C;letter-spacing:.04em">📊 Chart / Diagram</span>'+
+      '<span style="font-size:.72rem;color:var(--aw-ink-3);font-weight:400;margin-left:6px">— refer to this while writing</span>'+
+      '<div style="margin-left:auto;display:flex;align-items:center;gap:4px">'+
+        '<button id="chartZoomOut" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">−</button>'+
+        '<span id="chartPct" style="font-size:.75rem;font-weight:600;color:var(--aw-ink-3);min-width:38px;text-align:center">100%</span>'+
+        '<button id="chartZoomIn" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">+</button>'+
+      '</div>'+
+    '</div>'+
+    '<div id="chartImgWrap" style="overflow:auto;max-height:460px;border-radius:6px;background:#fff;border:1px solid var(--aw-border-2);padding:4px;text-align:center">'+
+      '<img id="chartImg" src="'+dataUrl+'" alt="Chart" style="display:block;margin:0 auto;width:100%;max-width:640px;cursor:zoom-in">'+
+    '</div>'+
+    '<p style="margin:5px 0 0;font-size:.72rem;color:var(--aw-ink-3)">Ảnh do bạn tải lên — chỉ lưu tạm trong phiên này.</p>';
+  var promptBox = document.querySelector('.aw-prompt-box');
+  if (promptBox && promptBox.parentNode) {
+    promptBox.parentNode.insertBefore(box, promptBox);
+  } else {
+    var ed = document.getElementById('editor');
+    if (ed && ed.parentNode) ed.parentNode.insertBefore(box, ed);
+  }
+  var img = document.getElementById('chartImg');
+  var pctEl = document.getElementById('chartPct');
+  var curPct = 100;
+  function setZoom(p){ curPct=Math.max(40,Math.min(300,p)); img.style.width=curPct+'%'; img.style.maxWidth='none'; pctEl.textContent=curPct+'%'; }
+  document.getElementById('chartZoomIn').onclick  = function(){ setZoom(curPct+20); };
+  document.getElementById('chartZoomOut').onclick = function(){ setZoom(curPct-20); };
+  img.onclick = function(){ setZoom(curPct < 150 ? curPct+40 : 100); };
+}
 var _gradeTimers=[];
 /*── friendlyGradeError — chuyển lỗi kỹ thuật → thông báo tiếng Việt dễ hiểu ──*/
 function friendlyGradeError(e) {

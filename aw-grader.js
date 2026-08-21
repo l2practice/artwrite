@@ -152,10 +152,29 @@
     for (var mi = 0; mi < GEMINI_MODELS.length; mi++) {
       var modelName = GEMINI_MODELS[mi];
 
+    // Build Gemini content parts — add chart image if available (Task 1)
+    function buildContentParts(promptText, chartImageUrl) {
+      var parts = [{ text: promptText }];
+      if (chartImageUrl && chartImageUrl.trim()) {
+        if (chartImageUrl.startsWith('data:')) {
+          // Data URL — split into mimeType and base64
+          var m = chartImageUrl.match(/^data:([^;]+);base64,(.+)$/);
+          if (m) {
+            parts.unshift({ inline_data: { mime_type: m[1], data: m[2] } });
+            parts.unshift({ text: 'The student has provided the following chart/diagram for Task 1. Grade their description against this chart.\n\n' });
+          }
+        } else {
+          // Remote URL (Drive thumbnail) — use image_url part if supported, else inject as text note
+          parts.unshift({ text: 'Chart/diagram URL for this Task 1 (student was looking at this while writing): ' + chartImageUrl + '\n\n' });
+        }
+      }
+      return parts;
+    }
+
       var resp = await fetch(GEMINI_BASE + modelName + ':generateContent?key=' + geminiKey, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          contents:[{parts:[{text:prompt}]}],
+          contents:[{parts: buildContentParts(prompt, payload.chartImageUrl)}],
           generationConfig: buildGenerationConfig(modelName)
         })
       });

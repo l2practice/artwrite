@@ -81,6 +81,20 @@
 <div class="aw-rev-bg" id="discussModal"><div class="aw-rev-modal dm-body" style="max-width:480px"></div></div>
 
 <script src="aw-common.js"></script>
+<script src="aw-cefr.js"></script>
+<style>
+  /* CEFR vocab profile — shared with write.html */
+  .aw-vocab-bar-wrap{margin:10px 0 14px}
+  .aw-vocab-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;gap:1px;margin-bottom:6px}
+  .aw-vocab-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff;transition:flex .4s;min-width:0;overflow:hidden;white-space:nowrap}
+  .aw-vocab-legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px}
+  .aw-vocab-legend-item{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--aw-ink-2)}
+  .aw-vocab-legend-dot{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+  .aw-vocab-wordlist{margin-top:12px}
+  .aw-vocab-wordlist h4{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--aw-ink-3);margin:10px 0 5px}
+  .aw-vocab-words{display:flex;flex-wrap:wrap;gap:4px}
+  .aw-vocab-word{font-size:.75rem;padding:2px 8px;border-radius:12px;font-weight:600}
+</style>
 <script>
 if (window.AW && !AW.groqKey) {
   AW.groqKey = {
@@ -242,12 +256,84 @@ function showFreePromptInput(taskType){
       '<div class="aw-field">'+
         '<label class="aw-label">Đề bài (Prompt) <span style="font-weight:400;color:var(--aw-ink-3)">— tuỳ chọn, có thể để trống</span></label>'+
         '<textarea id="freePromptInput" rows="3" class="aw-input" style="resize:vertical" placeholder="'+AW.esc(placeholder)+'"></textarea>'+
-        '<p style="margin:6px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 Nếu để trống, bạn có thể nhập đề bài trong trang viết, hoặc AI sẽ chấm theo chất lượng Task '+( isT1 ? '1' : '2')+' chung.</p>'+
+        '<p style="margin:6px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 Nếu để trống, bạn có thể nhập đề bài trong trang viết, hoặc AI sẽ chấm theo chất lượng Task '+(isT1 ? '1' : '2')+' chung.</p>'+
       '</div>'+
-      '<div style="display:flex;gap:10px;margin-top:4px">'+
+      (isT1 ?
+        '<div class="aw-field" style="margin-top:14px" id="chartUploadBlock">'+
+          '<label class="aw-label">📊 Biểu đồ / hình <span style="font-weight:400;color:var(--aw-ink-3)">— tuỳ chọn</span></label>'+
+          '<div id="chartDropZone" style="border:2px dashed var(--aw-border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;background:var(--aw-surface-2);transition:border-color .18s">'+
+            '<div id="chartPreviewWrap" style="display:none;margin-bottom:10px">'+
+              '<img id="chartPreviewImg" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--aw-border-2)" alt="Chart preview">'+
+              '<button id="chartRemoveBtn" style="display:block;margin:8px auto 0;font-size:.75rem;color:var(--aw-danger);border:none;background:none;cursor:pointer">✕ Xoá hình</button>'+
+            '</div>'+
+            '<div id="chartPlaceholder">'+
+              '<div style="font-size:1.8rem;margin-bottom:6px">📊</div>'+
+              '<div style="font-size:.85rem;color:var(--aw-ink-2)">Kéo thả hoặc <b>chọn file</b> ảnh biểu đồ</div>'+
+              '<div style="font-size:.75rem;color:var(--aw-ink-3);margin-top:4px">JPG · PNG · WebP · GIF — tối đa 4MB</div>'+
+            '</div>'+
+            '<input type="file" id="chartFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">'+
+          '</div>'+
+          '<p style="margin:5px 0 0;font-size:.76rem;color:var(--aw-ink-3)">Hoặc <b>dán ảnh từ clipboard</b> (Ctrl+V / Cmd+V) sau khi chụp màn hình biểu đồ.</p>'+
+        '</div>'
+      : '')+
+      '<div style="display:flex;gap:10px;margin-top:14px">'+
         '<button class="aw-btn aw-btn-primary" id="freeStartBtn" style="flex:1;padding:13px">'+taskIcon+' Bắt đầu viết →</button>'+
       '</div>'+
     '</div>';
+
+  // ── Chart image handling (Task 1 only) ──
+  var _chartDataUrl = '';
+  if (isT1) {
+    var dropZone = document.getElementById('chartDropZone');
+    var fileInput = document.getElementById('chartFileInput');
+    var previewWrap = document.getElementById('chartPreviewWrap');
+    var previewImg  = document.getElementById('chartPreviewImg');
+    var placeholder = document.getElementById('chartPlaceholder');
+
+    function loadChartFile(file) {
+      if (!file || !file.type.startsWith('image/')) { AW.toast('Vui lòng chọn file ảnh (JPG/PNG/WebP/GIF).','err'); return; }
+      if (file.size > 4 * 1024 * 1024) { AW.toast('Ảnh quá lớn (tối đa 4MB). Hãy resize lại trước.','err'); return; }
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        _chartDataUrl = ev.target.result;
+        previewImg.src = _chartDataUrl;
+        previewWrap.style.display = '';
+        placeholder.style.display = 'none';
+        dropZone.style.borderColor = '#1A9E5C';
+        AW.toast('Đã tải ảnh biểu đồ.','ok');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    dropZone.onclick = function(e) { if (e.target.id !== 'chartRemoveBtn') fileInput.click(); };
+    fileInput.onchange = function() { if (fileInput.files[0]) loadChartFile(fileInput.files[0]); };
+
+    // Drag & drop
+    dropZone.addEventListener('dragover', function(e){ e.preventDefault(); dropZone.style.borderColor='var(--aw-primary)'; });
+    dropZone.addEventListener('dragleave', function(){ dropZone.style.borderColor = _chartDataUrl ? '#1A9E5C' : 'var(--aw-border)'; });
+    dropZone.addEventListener('drop', function(e){ e.preventDefault(); dropZone.style.borderColor = 'var(--aw-border)'; var f=e.dataTransfer.files[0]; if(f) loadChartFile(f); });
+
+    // Paste from clipboard (anywhere on the page while this screen is visible)
+    var _pasteHandler = function(e) {
+      var items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      for (var i=0; i<items.length; i++) {
+        if (items[i].type.startsWith('image/')) { loadChartFile(items[i].getAsFile()); break; }
+      }
+    };
+    document.addEventListener('paste', _pasteHandler);
+
+    // Remove chart
+    document.getElementById('chartRemoveBtn').onclick = function(e) {
+      e.stopPropagation();
+      _chartDataUrl = '';
+      previewImg.src = '';
+      previewWrap.style.display = 'none';
+      placeholder.style.display = '';
+      dropZone.style.borderColor = 'var(--aw-border)';
+      fileInput.value = '';
+    };
+  }
 
   document.getElementById('freeStartBtn').onclick = function(){
     var prompt = (document.getElementById('freePromptInput').value||'').trim();
@@ -260,10 +346,24 @@ function showFreePromptInput(taskType){
       topic:  topic
     });
     if (prompt) params.set('prompt', prompt);
+    // Task 1: pass chart image via sessionStorage (avoids URL length limits)
+    if (isT1 && _chartDataUrl) {
+      try {
+        sessionStorage.setItem('aw_free_chart', _chartDataUrl);
+        params.set('hasFreeChart', '1');
+      } catch(e) {
+        // sessionStorage full (rare) — proceed without chart
+        console.warn('Could not store chart in sessionStorage:', e);
+      }
+    } else {
+      sessionStorage.removeItem('aw_free_chart');
+    }
+    // Remove paste listener before leaving
+    document.removeEventListener('paste', _pasteHandler || function(){});
     location.href = 'write.html?' + params.toString();
   };
 
-  // Also allow Enter in textarea to submit (Shift+Enter for newline)
+  // Allow Enter in textarea to submit (Shift+Enter for newline)
   document.getElementById('freePromptInput').addEventListener('keydown', function(e){
     if (e.key === 'Enter' && !e.shiftKey){
       e.preventDefault();
@@ -338,7 +438,9 @@ function loadAssignments(mode){
         ? '<span class="aw-tag" style="background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;font-weight:700">Task 1</span>'
         : '<span class="aw-tag" style="background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;font-weight:700">Task 2</span>';
       var deadlineHtml = a.deadline
-        ? '<div style="margin-top:6px;font-size:.76rem;color:var(--aw-danger)">⏰ Deadline: <b>'+AW.fmtDate(a.deadline)+'</b></div>'
+        ? (a.isPastDeadline
+            ? '<div style="margin-top:6px;font-size:.76rem;background:#FFF2F2;border:1px solid #FFC7C7;border-radius:6px;padding:4px 8px;color:var(--aw-danger)">🔒 <b>Đã hết hạn</b> · Deadline: '+AW.fmtDate(a.deadline)+'</div>'
+            : '<div style="margin-top:6px;font-size:.76rem;color:var(--aw-danger)">⏰ Deadline: <b>'+AW.fmtDate(a.deadline)+'</b></div>')
         : '';
       // Chart thumbnail for Task 1 — shown on hover via CSS tooltip
       var chartThumb = (isT1 && a.chartImageId)
@@ -363,15 +465,19 @@ function loadAssignments(mode){
     }).join('')+'</div>';
     AW.els('[data-a]').forEach(function(c){
       c.onclick=function(e){
-        // Don't navigate if clicking on the chart thumbnail
         if (e.target.closest && e.target.closest('.aw-chart-thumb-wrap')) return;
         var a=JSON.parse(c.dataset.a);
+        // Block past-deadline assignments
+        if (a.isPastDeadline) {
+          AW.toast('Bài tập này đã quá hạn nộp (deadline: '+AW.fmtDate(a.deadline)+'). Liên hệ giáo viên nếu cần nộp trễ.','err',5000);
+          return;
+        }
         var p=new URLSearchParams({
           mode:    a.mode,
           topic:   a.topic,
           prompt:  a.prompt || '',
           topicId: a.topicId,
-          type:    a.taskType || 'task2'   // ← fix: was hardcoded 'IELTS Task 2'
+          type:    a.taskType || 'task2'
         });
         if(a.durationMin) p.set('duration', a.durationMin);
         if(a.chartImageId) p.set('chartImageId', a.chartImageId);
@@ -535,6 +641,59 @@ function reviewFeedbackRec(r, refIdx){
   var s=fb.scores||{};
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
+
+  // ── Fix: repeated_errors_vi may be a string, object, or array ──
+  function formatRepeated(err) {
+    if (!err) return '';
+    if (typeof err === 'string') return AW.esc(err);
+    if (Array.isArray(err)) return err.map(function(e){
+      if (typeof e === 'string') return '• ' + AW.esc(e);
+      return '• ' + AW.esc(e.message || e.text || e.error || JSON.stringify(e));
+    }).join('<br>');
+    if (typeof err === 'object') return AW.esc(err.message || err.text || err.error || JSON.stringify(err));
+    return AW.esc(String(err));
+  }
+
+  // ── Build CEFR vocab block (client-side, free) ──
+  function buildCefrBlock(essay) {
+    if (!essay || !window.AW || !AW.analyseVocabulary) return '';
+    try {
+      var vp = AW.analyseVocabulary(essay);
+      if (!vp || !vp.totalWords) return '';
+      var BANDS = [
+        {key:'C2',label:'C2',color:'#D93025'},{key:'C1',label:'C1',color:'#E8730C'},
+        {key:'B2',label:'B2',color:'#E0A32E'},{key:'B1',label:'B1',color:'#0A6EBD'},
+        {key:'A2',label:'A2',color:'#1A9E5C'},{key:'A1',label:'A1',color:'#888'}
+      ];
+      var total = vp.listed || 1;
+      function pct(key){ return Math.round(((vp.countByLevel&&vp.countByLevel[key])||0)/total*100); }
+      var bar = BANDS.map(function(b){ var w=pct(b.key); return w?'<div class="aw-vocab-seg" style="flex:'+w+';background:'+b.color+'" title="'+b.label+': '+w+'%">'+(w>=8?w+'%':'')+'</div>':''; }).join('');
+      var legend = BANDS.filter(function(b){ return pct(b.key)>0; }).map(function(b){
+        return '<span class="aw-vocab-legend-item"><span class="aw-vocab-legend-dot" style="background:'+b.color+'"></span><b>'+b.label+'</b> '+pct(b.key)+'%</span>';
+      }).join('');
+      var chips = [{key:'C2',label:'C2',color:'#D93025'},{key:'C1',label:'C1',color:'#E8730C'},
+                   {key:'B2',label:'B2',color:'#E0A32E'},{key:'B1',label:'B1',color:'#0A6EBD'}].map(function(b){
+        var words=(vp.wordsByLevel&&vp.wordsByLevel[b.key])||[];
+        if(!words.length) return '';
+        return '<div class="aw-vocab-wordlist"><h4 style="color:'+b.color+'">'+b.label+' <span style="font-weight:400">('+words.length+')</span></h4>'+
+          '<div class="aw-vocab-words">'+words.map(function(w){ return '<span class="aw-vocab-word" style="background:'+b.color+'18;color:'+b.color+';border:1px solid '+b.color+'44">'+AW.esc(w)+'</span>'; }).join('')+'</div></div>';
+      }).join('');
+      var kpi = function(val,lbl,col){ return '<div style="flex:1;min-width:60px;background:#fff;border:1px solid var(--aw-border-2);border-radius:8px;padding:7px 8px;text-align:center"><div style="font-size:1.1rem;font-weight:800;color:'+col+'">'+val+'</div><div style="font-size:.65rem;color:var(--aw-ink-3);margin-top:1px">'+lbl+'</div></div>'; };
+      return '<div class="rv-block">'+
+        '<h4>📊 Vocabulary Profile (CEFR)</h4>'+
+        '<div class="aw-vocab-bar-wrap"><div class="aw-vocab-bar">'+bar+'</div><div class="aw-vocab-legend">'+legend+'</div></div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px">'+
+          kpi((vp.pctAdvanced||0)+'%','C1+','#E8730C')+
+          kpi((vp.pctUpperMid||0)+'%','B2+','#E0A32E')+
+          kpi((vp.diversity||0)+'%','Đa dạng','var(--aw-primary)')+
+          kpi(vp.uniqueLemmas||0,'Từ khác nhau','var(--aw-ink-2)')+
+        '</div>'+
+        '<div style="font-size:.73rem;color:var(--aw-ink-3);margin-bottom:8px">'+vp.listed+'/'+vp.totalWords+' từ nhận diện được</div>'+
+        (chips ? '<div style="border-top:1px solid var(--aw-border-2);padding-top:10px"><div style="font-size:.8rem;font-weight:700;color:var(--aw-ink-2);margin-bottom:4px">💡 Từ vựng bạn đã dùng (B1+)</div>'+chips+'</div>' : '')+
+      '</div>';
+    } catch(e) { return ''; }
+  }
+
   var body='<div id="reviewContent">'+
     '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'+
       '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff"><b style="font-size:1.5rem">'+(fb.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
@@ -542,10 +701,11 @@ function reviewFeedbackRec(r, refIdx){
     '</div>'+
     crit('Task Response',s.TR)+crit('Coherence & Cohesion',s.CC)+crit('Lexical Resource',s.LR)+crit('Grammar',s.GRA)+
     (fb.overall_feedback_vi?'<div class="rv-block"><h4>Overall assessment</h4><p>'+AW.esc(fb.overall_feedback_vi)+'</p></div>':'')+
-    (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Repeated errors</h4><p>'+AW.esc(fb.repeated_errors_vi)+'</p></div>':'')+
+    (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Repeated errors</h4><p>'+formatRepeated(fb.repeated_errors_vi)+'</p></div>':'')+
     ((fb.gra_errors||[]).length?'<div class="rv-block"><h4>Grammar</h4>'+fb.gra_errors.slice(0,10).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
     ((fb.lr_issues||[]).length?'<div class="rv-block"><h4>Lexical Resource</h4>'+fb.lr_issues.slice(0,8).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
     (fb.cc_feedback&&fb.cc_feedback.assessment_vi?'<div class="rv-block"><h4>Coherence & Cohesion</h4><p>'+AW.esc(fb.cc_feedback.assessment_vi)+'</p></div>':'')+
+    buildCefrBlock(r.essay)+
     (r.essay?'<div class="rv-block"><h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'')+
   '</div>';
   document.getElementById('reviewModalBody').innerHTML=
