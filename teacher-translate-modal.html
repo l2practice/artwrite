@@ -240,13 +240,18 @@
           <label class="aw-label">Pass Score (%)</label>
           <input class="aw-input" id="tr-pass" type="number" min="50" max="100" value="85">
         </div>
-        <div class="aw-field" style="flex:1;min-width:180px">
+        <div class="aw-field" style="flex:1;min-width:140px">
           <label class="aw-label">Session Start <span style="color:var(--aw-danger)">*</span></label>
           <input class="aw-input" id="tr-start" type="datetime-local">
         </div>
-        <div class="aw-field" style="flex:1;min-width:180px">
-          <label class="aw-label">Deadline</label>
+        <div class="aw-field" style="flex:0 0 110px">
+          <label class="aw-label">Thời gian (phút)</label>
+          <input class="aw-input" id="tr-duration" type="number" min="10" max="300" placeholder="VD: 90">
+        </div>
+        <div class="aw-field" style="flex:1;min-width:160px">
+          <label class="aw-label">Deadline (thay thế)</label>
           <input class="aw-input" id="tr-deadline" type="datetime-local">
+          <p style="margin:3px 0 0;font-size:.72rem;color:var(--aw-ink-3)">Nếu có thời gian → tự tính Deadline</p>
         </div>
       </div>
 
@@ -1667,11 +1672,20 @@ function openTrModal(){
       (state.classes||[]).map(function(c){
         return '<option value="'+AW.esc(c.classId)+'">'+AW.esc(c.className)+'</option>';
       }).join('');
+    // Auto-select the class currently shown in the Results / Assignments filter if available
+    var activeCls = (function(){
+      var r = document.getElementById('rsCls'); if (r && r.value) return r.value;
+      var a = document.getElementById('aClass'); if (a && a.value) return a.value;
+      if (state.classes && state.classes.length === 1) return state.classes[0].classId;
+      return '';
+    })();
+    if (activeCls) sel.value = activeCls;
   }
   document.getElementById('tr-target-words').value = '';
   document.getElementById('tr-title').value = '';
   var pp = parseInt(document.getElementById('tr-pass').value, 10);
   if (!pp) document.getElementById('tr-pass').value = '85';
+  document.getElementById('tr-duration').value = '';
 
   // Default session start = now + 5 min (local time)
   var d = new Date(Date.now() + 5*60000);
@@ -1788,12 +1802,29 @@ function saveTrSet(){
   var words   = (document.getElementById('tr-target-words').value||'').trim();
   var pass    = parseInt(document.getElementById('tr-pass').value,10)||85;
   var start   = document.getElementById('tr-start').value;
+  var dur     = parseInt(document.getElementById('tr-duration').value,10)||0;
   var dl      = document.getElementById('tr-deadline').value;
 
   if (!classId)       { AW.toast('Chọn lớp.','warn'); return; }
   if (!title)         { AW.toast('Nhập tiêu đề.','warn'); return; }
   if (!start)         { AW.toast('Nhập giờ bắt đầu.','warn'); return; }
+  if (!dur && !dl)    { AW.toast('Nhập thời gian (phút) hoặc Deadline.','warn'); return; }
   if (!_trItems.length){ AW.toast('Sinh câu AI trước.','warn'); return; }
+
+  // Compute sessionEnd: prefer start+duration; fall back to deadline
+  var sessionEnd = '';
+  if (dur > 0 && start) {
+    var startMs = new Date(start).getTime();
+    if (!isNaN(startMs)) {
+      var endD = new Date(startMs + dur * 60000);
+      var off2 = endD.getTimezoneOffset() * 60000;
+      sessionEnd = new Date(endD.getTime() - off2).toISOString().slice(0,16);
+      // Also set deadline display to match if not manually set
+      if (!dl) dl = sessionEnd;
+    }
+  } else if (dl) {
+    sessionEnd = dl;
+  }
 
   var setId = 'tr_' + Date.now().toString(36).toUpperCase();
   var payload = {
@@ -1803,7 +1834,9 @@ function saveTrSet(){
     targetWords:  words,
     passScore:    pass,
     sessionStart: start,
-    deadline:     dl || '',
+    sessionEnd:   sessionEnd,
+    deadline:     dl || sessionEnd,
+    durationMin:  dur || '',
     items:        _trItems,
     teacherEmail: sess.email || '',
   };
