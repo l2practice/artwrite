@@ -179,14 +179,6 @@ var TASK_TYPE      = qp.get('type') || 'task2';
 // Normalize: old URLs may have passed 'IELTS Task 2' as the type value
 if (TASK_TYPE !== 'task1') TASK_TYPE = 'task2';
 var CHART_IMAGE_ID = qp.get('chartImageId') || '';  // passed from student.html for Task 1
-// Free Writing Task 1: chart image passed via sessionStorage (Data URL)
-var FREE_CHART_DATA_URL = '';
-if (MODE === 'free' && TASK_TYPE === 'task1' && qp.get('hasFreeChart') === '1') {
-  try {
-    FREE_CHART_DATA_URL = sessionStorage.getItem('aw_free_chart') || '';
-    sessionStorage.removeItem('aw_free_chart'); // clean up after reading
-  } catch(e) {}
-}
 var TOPIC_ID = qp.get('topicId') || ('T' + Date.now().toString(36));
 var RETRY = qp.get('retry') === '1';
 var DURATION_MIN = parseInt(qp.get('duration') || '0', 10);
@@ -209,6 +201,10 @@ var content = AW.renderShell({
 
 var startTime = new Date();
 var attempt = 1;
+var hasSubmittedThisSession = false; // true after saveResult succeeds (hw/inclass only)
+var isGrading = false;               // true while AW.grade / saveResult is in flight
+var timerInterval = null;            // ref to the countdown setInterval
+var lastPlainEssay = '';             // snapshot of clean essay text BEFORE renderFeedback annotates editor
 
 // If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
 // fetch the official prompt from the backend so the student sees the real đề bài.
@@ -221,10 +217,6 @@ var MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
 if (TASK_TYPE === 'task1' && CHART_IMAGE_ID) {
   setTimeout(function(){ renderChartViewer(CHART_IMAGE_ID); }, 200);
 }
-// Free Writing Task 1: render chart from Data URL stored in sessionStorage
-if (TASK_TYPE === 'task1' && FREE_CHART_DATA_URL) {
-  setTimeout(function(){ renderChartViewerDataUrl(FREE_CHART_DATA_URL); }, 200);
-}
 
 if (hasRealTopic) {
   AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
@@ -235,16 +227,11 @@ if (hasRealTopic) {
         if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
       }
       AI_NOTES = res.data.aiNotes || '';
+      // Override MIN_WORDS if teacher specified a custom limit for this task
       if (res.data.minWords && parseInt(res.data.minWords, 10) > 0) {
         MIN_WORDS = parseInt(res.data.minWords, 10);
+        // Update the word counter label to reflect custom limit
         updateWordCount();
-      }
-      // ── Deadline guard (Issues 2 & 3) ──────────────────────────────
-      // Lock the editor immediately if the student navigated directly via URL
-      // to a homework or inclass assignment that is past its deadline.
-      if (res.data.isPastDeadline && (MODE === 'homework' || MODE === 'inclass')) {
-        var dlStr = res.data.deadline ? ' (deadline: ' + AW.fmtDate(res.data.deadline) + ')' : '';
-        lockEditor('Bài tập đã quá hạn nộp' + dlStr + '. Liên hệ giáo viên nếu cần nộp trễ.');
       }
     }
   });
@@ -494,10 +481,10 @@ if (DURATION_MIN) {
   var remain = DURATION_MIN*60;
   var tEl = document.getElementById('timer');
   var timeUp = false;
-  var tick = setInterval(function(){
+  timerInterval = setInterval(function(){
     remain--;
     if (remain<=0){
-      clearInterval(tick);
+      clearInterval(timerInterval); timerInterval = null;
       if (tEl) tEl.textContent = '0:00';
       if (!timeUp){
         timeUp = true;
@@ -520,13 +507,34 @@ if (DURATION_MIN) {
   },1000);
 }
 
+function stopTimer(){
+  if (timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+}
+
 /* Fired once when the countdown reaches zero.
    Always saves the attempt — even if short/incomplete — so the teacher
    sees every student in Results. Shows an encouragement banner after grading
    so the student knows to use Free Writing to improve.                      */
 function autoSubmitOnTimeout(){
+  // ── Guard: already submitted manually in this session ──
+  if (hasSubmittedThisSession) {
+    stopTimer();
+    lockEditor('Hết giờ. Bài đã được nộp trước đó.');
+    return;
+  }
+  // ── Guard: manual grade/save is currently in flight — don't double-save ──
+  if (isGrading) {
+    stopTimer();
+    // The in-flight .then/.finally will lock the editor when it resolves
+    return;
+  }
+
+  stopTimer(); // cancel the interval now so it can't fire again
+  isGrading = true;
+
   var gb   = document.getElementById('gradeBtn');
-  var text = editor ? editor.innerText.trim() : '';
+  // Use the clean snapshot if available (editor may already be annotated)
+  var text = lastPlainEssay || (editor ? editor.innerText.trim() : '');
   var wc   = AW.wordCount(text);
 
   // Lock editor immediately so student can't keep writing past time
@@ -547,10 +555,12 @@ function autoSubmitOnTimeout(){
       essay: text || '(Không có nội dung — chưa viết được gì)',
       class:(sess.class||''), feedback:''
     }).then(function(){
+      hasSubmittedThisSession = true;
+      isGrading = false;
       sendHeartbeat('Submitted');
       lockEditor('Hết giờ. Bài đã được ghi nhận.');
       showTimeUpBanner(wc, null);
-    });
+    }).catch(function(){ isGrading = false; });
     return;
   }
 
@@ -585,6 +595,7 @@ function autoSubmitOnTimeout(){
         });
       })
       .then(function(saveRes){
+        hasSubmittedThisSession = true;
         if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
         sendHeartbeat('Submitted');
         if(window.clearDraft) window.clearDraft();
@@ -605,6 +616,7 @@ function autoSubmitOnTimeout(){
           tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
           essay:text, class:(sess.class||''), feedback:''
         }).then(function(){
+          hasSubmittedThisSession = true;
           sendHeartbeat('Submitted');
           var sideBodyEl=document.getElementById('sideBody');
           if(sideBodyEl){ sideBodyEl.style.display=''; sideBodyEl.innerHTML=
@@ -614,9 +626,9 @@ function autoSubmitOnTimeout(){
             '<p style="font-size:.82rem;color:var(--aw-ink-3);margin:8px 0 0;line-height:1.5">AI chưa chấm được lần này. Giáo viên sẽ xem và chấm thủ công cho bạn.</p>'+
             '</div>';
           }
-        });
+        }).catch(function(){ /* already locked — nothing more to do */ });
       })
-      .finally(function(){ hideGradingOverlay(); });
+      .finally(function(){ hideGradingOverlay(); isGrading = false; });
   } else {
     // Control class or no key: save plain
     AW.api('write.saveResult', {
@@ -627,11 +639,13 @@ function autoSubmitOnTimeout(){
       tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
       essay:text, class:(sess.class||''), feedback:''
     }).then(function(){
+      hasSubmittedThisSession = true;
+      isGrading = false;
       sendHeartbeat('Submitted');
       if(window.clearDraft) window.clearDraft();
       lockEditor('Hết giờ — bài đã được nộp cho giáo viên.');
       showTimeUpBanner(wc, null);
-    });
+    }).catch(function(){ isGrading = false; });
   }
 }
 
@@ -764,6 +778,9 @@ sendHeartbeat('Writing'); // initial ping
    Same storage path as a graded attempt, minus every AI field, so the teacher
    marks it by hand in Results and the export keeps AI and teacher scores apart. */
 function submitWithoutAI(btn, text){
+  if (MODE !== 'free' && hasSubmittedThisSession) {
+    AW.toast('Bạn đã nộp bài này rồi. Re-try từ My Progress.','err',4000); return;
+  }
   if(!confirm('Nộp bài này cho giáo viên?\n\nBạn vẫn có thể viết lại và nộp thêm (tối đa 3 lần). Giáo viên sẽ chấm BẢN NỘP MỚI NHẤT.')) return;
   var orig=btn.textContent; btn.disabled=true;
   btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
@@ -778,6 +795,7 @@ function submitWithoutAI(btn, text){
     if (!res || !res.success) { AW.toast((res&&res.error)||'Nộp bài thất bại','err'); btn.disabled=false; btn.textContent=orig; return; }
     attempt = (res.data.attempt||attempt)+1;
     var used = attempt-1;
+    if (MODE !== 'free') { hasSubmittedThisSession = true; stopTimer(); }
     if(window.clearDraft) window.clearDraft();
     // Hide notepad, show submission status in side panel
     var noteEl = document.getElementById('draftNote');
@@ -811,6 +829,13 @@ function submitWithoutAI(btn, text){
 /*──────── grading ────────*/
 var lastResult=null;
 document.getElementById('gradeBtn').onclick = function(){
+  // ── Guard: already submitted this session (hw/inclass) ──
+  if (MODE !== 'free' && hasSubmittedThisSession) {
+    AW.toast('Bạn đã nộp bài này rồi. Re-try từ My Progress.','err',4000); return;
+  }
+  // ── Guard: grade/save already in flight ──
+  if (isGrading) return;
+
   var text = editor.innerText.trim();
   if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
   // Control class: plain submission, graded by the teacher by hand
@@ -828,11 +853,15 @@ document.getElementById('gradeBtn').onclick = function(){
     btn.disabled=false; btn.textContent=orig;
     return;
   }
+
+  // ── Snapshot CLEAN essay text BEFORE renderFeedback annotates the editor ──
+  lastPlainEssay = text;
+  isGrading = true;
+
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
   showGradingOverlay();
 
-  // Measure vocabulary against the CEFR list (client-side, free). Show it in
-  // the profile widget, and hand a short summary to the grader for reference.
+  // Measure vocabulary against the CEFR list (client-side, free).
   var vocabSummary = '';
   try {
     if (window.AW && AW.analyseVocabulary) {
@@ -841,8 +870,8 @@ document.getElementById('gradeBtn').onclick = function(){
     }
   } catch(e) { lastVocabProfile = null; }
 
-  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary,
-             chartImageUrl: CHART_IMAGE_ID ? ('https://drive.google.com/thumbnail?id='+CHART_IMAGE_ID+'&sz=w1200') : (FREE_CHART_DATA_URL || '') }, key)
+  // Use the clean snapshot — not editor.innerText — for grade + save
+  AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key)
     .then(function(result){
       lastResult=result;
       renderFeedback(result);
@@ -852,7 +881,7 @@ document.getElementById('gradeBtn').onclick = function(){
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
         tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
-        aiGrading:result.overall, teacherGrading:'', essay:text, class:(sess.class||''),
+        aiGrading:result.overall, teacherGrading:'', essay:lastPlainEssay, class:(sess.class||''),
         feedback: JSON.stringify(result)
       });
     })
@@ -867,6 +896,8 @@ document.getElementById('gradeBtn').onclick = function(){
       AW.toast('Graded & saved (attempt '+(attempt-1)+'/3)','ok');
       if(window.clearDraft) window.clearDraft();
       if(MODE!=='free'){
+        hasSubmittedThisSession = true;
+        stopTimer();
         if(done){
           lockEditor('Bạn đã hoàn thành đủ 3 lần cho bài này.');
         } else {
@@ -917,8 +948,20 @@ document.getElementById('gradeBtn').onclick = function(){
           '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc</button>';
       }
     })
-    .catch(function(e){ showGradeError(e, btn, orig); })
-    .finally(function(){ hideGradingOverlay(); btn.disabled=false; });
+    .catch(function(e){ isGrading = false; showGradeError(e, btn, orig); })
+    .finally(function(){
+      hideGradingOverlay();
+      isGrading = false;
+      // Only re-enable button for Free Writing or when NOT yet submitted (error path)
+      if (MODE === 'free') {
+        btn.disabled = false;
+      } else if (!hasSubmittedThisSession) {
+        // Grade/save failed — allow retry
+        btn.disabled = false;
+        btn.textContent = orig;
+      }
+      // hw/inclass submitted: button stays disabled (already set in .then success)
+    });
 };
 
 /*── renderChartViewer ─────────────────────────────────────────────
@@ -967,43 +1010,7 @@ function renderChartViewer(fileId){
   img.onclick = function(){ setZoom(curPct < 150 ? curPct+40 : 100); };
 }
 
-/*── renderChartViewerDataUrl — same as renderChartViewer but for Data URLs
-  (free writing Task 1 where there's no Drive file ID)                  */
-function renderChartViewerDataUrl(dataUrl) {
-  if (!dataUrl) return;
-  if (document.getElementById('chartViewerBox')) return;
-  var box = document.createElement('div');
-  box.id  = 'chartViewerBox';
-  box.className = 'aw-chart-viewer';
-  box.innerHTML =
-    '<div class="aw-chart-viewer-head">'+
-      '<span style="font-size:.78rem;font-weight:700;text-transform:uppercase;color:#1A9E5C;letter-spacing:.04em">📊 Chart / Diagram</span>'+
-      '<span style="font-size:.72rem;color:var(--aw-ink-3);font-weight:400;margin-left:6px">— refer to this while writing</span>'+
-      '<div style="margin-left:auto;display:flex;align-items:center;gap:4px">'+
-        '<button id="chartZoomOut" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">−</button>'+
-        '<span id="chartPct" style="font-size:.75rem;font-weight:600;color:var(--aw-ink-3);min-width:38px;text-align:center">100%</span>'+
-        '<button id="chartZoomIn" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">+</button>'+
-      '</div>'+
-    '</div>'+
-    '<div id="chartImgWrap" style="overflow:auto;max-height:460px;border-radius:6px;background:#fff;border:1px solid var(--aw-border-2);padding:4px;text-align:center">'+
-      '<img id="chartImg" src="'+dataUrl+'" alt="Chart" style="display:block;margin:0 auto;width:100%;max-width:640px;cursor:zoom-in">'+
-    '</div>'+
-    '<p style="margin:5px 0 0;font-size:.72rem;color:var(--aw-ink-3)">Ảnh do bạn tải lên — chỉ lưu tạm trong phiên này.</p>';
-  var promptBox = document.querySelector('.aw-prompt-box');
-  if (promptBox && promptBox.parentNode) {
-    promptBox.parentNode.insertBefore(box, promptBox);
-  } else {
-    var ed = document.getElementById('editor');
-    if (ed && ed.parentNode) ed.parentNode.insertBefore(box, ed);
-  }
-  var img = document.getElementById('chartImg');
-  var pctEl = document.getElementById('chartPct');
-  var curPct = 100;
-  function setZoom(p){ curPct=Math.max(40,Math.min(300,p)); img.style.width=curPct+'%'; img.style.maxWidth='none'; pctEl.textContent=curPct+'%'; }
-  document.getElementById('chartZoomIn').onclick  = function(){ setZoom(curPct+20); };
-  document.getElementById('chartZoomOut').onclick = function(){ setZoom(curPct-20); };
-  img.onclick = function(){ setZoom(curPct < 150 ? curPct+40 : 100); };
-}
+/*──────── fake grading progress overlay ────────*/
 var _gradeTimers=[];
 /*── friendlyGradeError — chuyển lỗi kỹ thuật → thông báo tiếng Việt dễ hiểu ──*/
 function friendlyGradeError(e) {
