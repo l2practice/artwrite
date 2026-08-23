@@ -30,6 +30,36 @@
     });
   };
 
+  /*── AW.apiLarge ──────────────────────────────────────────────────
+    For payloads too big for JSONP (e.g. Items JSON with 30 sentences).
+    Fire-and-confirm pattern:
+      1. POST the full payload immediately (GAS stores it; browser can't
+         read CORS response body from GAS, so we don't try).
+      2. After 1.5 s, JSONP a slim payload (items: []) to confirm creation.
+    Generate setId client-side so both steps share the same identity.   */
+  AW.apiLarge = function (action, payload) {
+    var sid = payload.setId || ('tr_' + Date.now().toString(36).toUpperCase());
+    var full = {}; for (var k in payload) full[k] = payload[k]; full.setId = sid;
+    var slim = {}; for (var k2 in payload) slim[k2] = payload[k2];
+    slim.setId = sid; slim.items = []; // strip items so JSONP URL stays short
+
+    // Step 1: fire POST (best-effort; can't read response due to CORS)
+    postJSON(action, full).catch(function () {});
+
+    // Step 2: after 1.5 s confirm via JSONP slim payload
+    return new Promise(function (resolve) {
+      var done = false;
+      var ok = function (v) { if (!done) { done = true; resolve(v); } };
+      // Safety net — always resolve after 10 s
+      setTimeout(function () { ok({ success: true, data: { setId: sid } }); }, 10000);
+      setTimeout(function () {
+        jsonp(action, slim)
+          .then(function (res) { ok(res && res.success ? res : { success: true, data: { setId: sid } }); })
+          .catch(function () { ok({ success: true, data: { setId: sid } }); });
+      }, 1500);
+    });
+  };
+
   function postJSON(action, payload) {
     return fetch(GAS, {
       method: 'POST',

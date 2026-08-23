@@ -123,6 +123,7 @@ var nav = [
   { id:'board',   label:'Interactive Board', icon:'modes', href:'board.html' },
   { id:'library', label:'Library', icon:'library', href:'library.html' },
   { id:'progress',label:'My Progress', icon:'progress' },
+  { id:'translate',label:'Translation Practice', icon:'results' },
   { id:'qa',      label:'Q&A with Teacher', icon:'results' },
   { id:'settings',label:'Settings', icon:'settings' },
 ];
@@ -147,6 +148,7 @@ function showModes(){
         'aw-mode-free' + (AW_AI_ON ? '' : ' aw-mode-locked')) +
       modeCard('inclass','⏱️','In-class Practice','Timed writing assigned by your teacher, with live guidance.','aw-mode-inclass') +
       modeCard('homework','📝','Homework','Complete assigned essays with the required number of revisions.','aw-mode-hw') +
+      modeCard('translate','🔄','Translation Practice','Translate EN↔VI sentences graded by AI on meaning. Complete rounds of 5 sentences until all are cleared.','aw-mode-translate') +
     '</div>' +
     '<h2 class="aw-sec-title">Recent Practice</h2>' +
     '<div id="hist" class="aw-hist-list"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
@@ -160,6 +162,7 @@ function showModes(){
         return;
       }
       if(m==='free'){ showFreeTaskSelector(); }
+      else if(m==='translate'){ location.hash='translate'; }
       else { loadAssignments(m); }
     };
   });
@@ -881,6 +884,7 @@ function showSettings(){
 function routeFromHash(){
   var h=(location.hash||'').replace('#','');
   if(h==='progress'){ showProgress(); AW.setActiveNav('progress'); }
+  else if(h==='translate'){ showTranslate(); AW.setActiveNav('translate'); }
   else if(h==='qa'){ showQA(); AW.setActiveNav('qa'); }
   else if(h==='settings'){ showSettings(); AW.setActiveNav('settings'); }
   else { showModes(); AW.setActiveNav('modes'); }   // '' or 'modes'
@@ -890,6 +894,491 @@ AW.loadClassAI(sess.class, function(on){
   AW_AI_ON = on;
   routeFromHash();
 });
+
+/*═══════════ TRANSLATE PRACTICE ═══════════*/
+var _trSet=null, _trProgress=null, _trBatch=[], _trBatchResults=[], _trBatchIdx=0, _trRunStart=0;
+
+function fmtTrTime(str){
+  if(!str) return '—';
+  var d=new Date(str); if(isNaN(d)) return str;
+  return d.toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+}
+
+function showTranslate(){
+  document.getElementById('awPageTitle').textContent='Translation Practice';
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('translate.forStudent',{classId:sess.class||''}).then(function(res){
+    var sets=(res&&res.success)?res.data:[];
+    if(!sets.length){
+      content.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No Translation Practice sets yet. Your teacher will create one.</p></div>';
+      return;
+    }
+    content.innerHTML='<div class="aw-mode-grid">'+sets.map(function(s){
+      var st=s.sessionStatus;
+      var badgeTxt=st==='open'?'● Đang mở':st==='upcoming'?'⏳ Chưa mở':'✓ Đã đóng';
+      var badgeCol=st==='open'?'var(--aw-writing)':st==='upcoming'?'#A66B00':'var(--aw-ink-3)';
+      var btnLabel=st==='upcoming'?'Chưa mở':st==='open'?'Bắt đầu →':'Xem kết quả';
+      return '<div class="aw-mode-card aw-mode-translate'+(st==='upcoming'?' aw-mode-locked':'')+'" data-tr-sid="'+AW.esc(s.setId)+'" data-tr-st="'+AW.esc(st)+'">'+
+        '<div class="aw-mode-ic">🔄</div>'+
+        '<h3>'+AW.esc(s.title)+'</h3>'+
+        '<p style="font-size:.78rem;color:'+badgeCol+';font-weight:700;margin:0 0 4px">'+badgeTxt+'</p>'+
+        '<p style="font-size:.8rem;color:var(--aw-ink-3);margin:0">🎯 Pass: '+s.passScore+'% · '+s.itemCount+' câu<br>'+
+          (s.sessionStart?'📅 '+fmtTrTime(s.sessionStart):'')+
+          (s.deadline?'<br>⏰ '+fmtTrTime(s.deadline):'')+
+        '</p>'+
+      '</div>';
+    }).join('')+'</div>';
+    AW.els('[data-tr-sid]').forEach(function(card){
+      card.onclick=function(){
+        var sid=card.getAttribute('data-tr-sid');
+        var st=card.getAttribute('data-tr-st');
+        if(st==='upcoming'){AW.toast('Chưa đến giờ làm bài.','warn');return;}
+        var s=sets.find(function(x){return x.setId===sid;});
+        openTrSet(sid,s,st);
+      };
+    });
+  }).catch(function(){content.innerHTML='<div class="aw-empty"><p>Lỗi kết nối.</p></div>';});
+}
+
+function openTrSet(setId,preview,status){
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('translate.get',{setId:setId}).then(function(r1){
+    AW.api('translate.myProgress',{setId:setId,studentId:sess.studentId}).then(function(r2){
+      _trSet=r1.data;
+      _trProgress=r2.success?r2.data:{runs:0,clearedItemIds:[],bestScore:0,nextRunIndex:1};
+      renderTrIntro(status);
+    }).catch(function(){AW.toast('Lỗi tải tiến độ.','err');});
+  }).catch(function(){AW.toast('Lỗi tải bài dịch.','err');});
+}
+
+function renderTrIntro(status){
+  var cleared=_trProgress.clearedItemIds.length;
+  var total=(_trSet.items||[]).length;
+  var pct=total?Math.round(cleared/total*100):0;
+  var isClosed=(status||_trSet.sessionStatus)==='closed';
+  document.getElementById('awPageTitle').textContent=_trSet.title;
+  content.innerHTML=
+    '<button class="aw-btn aw-btn-ghost" onclick="showTranslate()" style="margin-bottom:14px;padding:6px 14px">← Danh sách</button>'+
+    '<div style="max-width:520px;margin:0 auto;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:26px 28px">'+
+      '<h3 style="font-family:var(--aw-font-display);font-size:1.1rem;margin:0 0 10px">🔄 '+AW.esc(_trSet.title)+'</h3>'+
+      (isClosed?
+        '<div style="background:#FFF3CD;border:1px solid #F0D060;border-radius:8px;padding:8px 12px;font-size:.82rem;color:#7A5000;margin:0 0 14px">⏰ Bài này đã đóng.</div>'
+        :'<ul style="font-size:.88rem;color:var(--aw-ink-2);line-height:1.8;padding-left:18px;margin:10px 0 14px">'+
+          '<li>Each round: <b>5 sentences</b> alternating EN↔VI</li>'+
+          '<li>Score ≥ <b>'+_trSet.passScore+'%</b> to pass each sentence</li>'+
+          '<li>AI grades on meaning — paraphrasing is fine</li>'+
+          '<li>💎 sentences have grammar patterns worth learning!</li>'+
+        '</ul>')+
+      '<div style="margin-bottom:16px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px">'+
+          '<span style="color:var(--aw-ink-2)">Tiến độ</span><b>'+cleared+'/'+total+' câu clear</b>'+
+        '</div>'+
+        '<div style="height:8px;background:var(--aw-border-2);border-radius:4px">'+
+          '<div style="width:'+pct+'%;height:100%;background:var(--aw-writing);border-radius:4px"></div>'+
+        '</div>'+
+      '</div>'+
+      (cleared>=total&&!isClosed?'<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:.85rem;color:var(--aw-writing);font-weight:700">🎉 All sentences cleared! Play again to practise more.</div>':'')+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+        (!isClosed&&cleared<total?
+          '<button class="aw-btn aw-btn-primary" id="trStartBtn" style="padding:11px 28px">Start round '+(_trProgress.nextRunIndex||1)+' →</button>'
+          :(!isClosed&&cleared>=total?
+            '<button class="aw-btn aw-btn-primary" id="trStartBtn" style="padding:11px 28px">🔄 Play again</button>':
+            ''
+          )
+        )+
+        (_trProgress.runs>0?'<button class="aw-btn aw-btn-ghost" onclick="showTrHistory()" style="padding:11px 18px">📊 My history</button>':'')+
+      '</div>'+
+    '</div>';
+  var sb=document.getElementById('trStartBtn');
+  if(sb) sb.onclick=function(){
+    if(cleared >= total){
+      // Play again: reset clearedItemIds so all 20 sentences come back
+      _trProgress.clearedItemIds = [];
+    }
+    startTrRun();
+  };
+}
+
+function pickTrBatch(items, clearedIds, n, shuffle){
+  var cs={}; clearedIds.forEach(function(id){cs[id]=true;});
+  function sh(a){ for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;} return a; }
+  var pending = items.filter(function(it){return !cs[it.id];});
+  // Ordered mode: keep original array order; Random mode: shuffle
+  if(shuffle !== false) pending = sh(pending.slice());
+  var batch = pending.slice(0,n);
+  if(batch.length < n){
+    var rest = items.filter(function(it){return !pending.some(function(p){return p.id===it.id;});});
+    if(shuffle !== false) rest = sh(rest.slice());
+    batch = batch.concat(rest.slice(0, n-batch.length));
+  }
+  return batch;
+}
+
+function startTrRun(){
+  var doShuffle = _trSet.shuffle !== false; // default true
+  _trBatch=pickTrBatch(_trSet.items||[],_trProgress.clearedItemIds||[],5,doShuffle);
+  _trBatchResults=[]; _trBatchIdx=0; _trRunStart=Date.now();
+  renderTrQuestion();
+}
+
+/* Send a lightweight heartbeat so teacher can see progress in real time.
+   Reuses write.heartbeat action → LiveSessions tab (1 row per student, upserted). */
+function trHeartbeat(questionsAnswered, clearedCount){
+  var totalItems = (_trSet&&_trSet.items&&_trSet.items.length)||20;
+  AW.api('write.heartbeat',{
+    studentId: sess.studentId,
+    name:      sess.name||'',
+    class:     sess.class||'',
+    topicId:   (_trSet&&_trSet.setId)||'',
+    topic:     (_trSet&&_trSet.title)||'Translation Practice',
+    mode:      'translate',
+    status:    'Translating',
+    wordCount: questionsAnswered,   // repurpose wordCount field as questions answered
+    snapshot:  JSON.stringify({
+      setId:             (_trSet&&_trSet.setId)||'',
+      title:             (_trSet&&_trSet.title)||'',
+      questionsAnswered: questionsAnswered,
+      clearedCount:      clearedCount,
+      totalItems:        totalItems,
+      runIndex:          (_trProgress&&_trProgress.nextRunIndex)||1,
+    })
+  });
+}
+
+function renderTrQuestion(){
+  var q=_trBatch[_trBatchIdx];
+  if(!q){renderTrRunResult();return;}
+  var total=_trBatch.length;
+  var dirBadge=q.direction==='en2vi'?'EN → VI':'VI → EN';
+  var dirColor=q.direction==='en2vi'?'var(--aw-primary)':'#8B5CF6';
+  var ttl=(_trSet.items||[]).length; // total items in set
+  var cleared=(_trProgress.clearedItemIds||[]).length;
+  document.getElementById('awPageTitle').textContent='Q'+(_trBatchIdx+1)+'/'+total+' · '+cleared+'/'+ttl+' cleared';
+  content.innerHTML=
+    '<button class="aw-btn aw-btn-ghost" onclick="showTranslate()" style="margin-bottom:10px;padding:6px 14px">← List</button>'+
+    '<div style="max-width:600px;margin:0 auto">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<span style="font-size:.82rem;font-weight:700;padding:3px 9px;border-radius:12px;background:'+dirColor+'22;color:'+dirColor+'">'+dirBadge+'</span>'+
+          '<span style="font-size:.8rem;color:var(--aw-ink-3)">Q '+(_trBatchIdx+1)+'/'+total+'</span>'+
+          (q.isTreasure?'<span>💎</span>':'')+
+        '</div>'+
+        '<span style="font-size:.78rem;color:var(--aw-ink-3)">Round '+(_trProgress.nextRunIndex||1)+' · '+cleared+'/'+ttl+' cleared</span>'+
+      '</div>'+
+      '<div style="background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:18px 20px;font-size:1.12rem;line-height:1.6;margin-bottom:12px">'+
+        AW.esc(q.source)+
+      '</div>'+
+      '<p style="font-size:.8rem;color:var(--aw-ink-3);text-align:center;margin:0 0 10px">'+
+        (q.direction==='en2vi'?'Translate to Vietnamese':'Translate to English')+
+      '</p>'+
+      '<textarea class="aw-input" id="trAns" rows="3" autocomplete="off" placeholder="Enter your translation…" '+
+        'style="resize:vertical;font-size:.95rem;line-height:1.6;width:100%;box-sizing:border-box"></textarea>'+
+      '<div id="trGradeSt" style="font-size:.8rem;color:var(--aw-ink-3);min-height:16px;margin-top:6px"></div>'+
+      '<button class="aw-btn aw-btn-primary" id="trSubmitBtn" style="width:100%;padding:12px;margin-top:12px">Submit</button>'+
+      '<div id="trFbWrap" style="display:none;margin-top:16px;padding:16px 18px;background:var(--aw-surface-2);border-radius:var(--aw-r);border:1px solid var(--aw-border-2)">'+
+        '<div id="trFbContent"></div>'+
+        '<div id="trChestWrap" style="display:none;margin-top:10px">'+
+          '<button class="aw-btn aw-btn-ghost" id="trAddChest" style="padding:7px 14px;font-size:.82rem">💎 Save to chest</button>'+
+        '</div>'+
+        '<button class="aw-btn aw-btn-primary" id="trNextBtn" style="width:100%;padding:11px;margin-top:12px">Next →</button>'+
+      '</div>'+
+    '</div>';
+  var ansEl=document.getElementById('trAns'); ansEl.focus();
+  ansEl.addEventListener('keydown',function(e){ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();document.getElementById('trSubmitBtn').click();} });
+  document.getElementById('trSubmitBtn').onclick=function(){
+    var answer=(ansEl.value||'').trim();
+    if(!answer){AW.toast('Enter a translation first.','warn');return;}
+    this.disabled=true;
+    document.getElementById('trGradeSt').textContent='⚡ Grading…';
+    gradeTrItem(q,answer,function(result){
+      document.getElementById('trGradeSt').textContent='';
+      ansEl.disabled=true;
+      _trBatchResults.push({itemId:q.id,score:result.score,feedback:result.feedback,answer:answer,modelAnswer:q.modelAnswer});
+      showTrFeedback(q,answer,result);
+      // Heartbeat: teacher sees progress immediately after each question
+      var prevCleared = (_trProgress.clearedItemIds||[]).length;
+      var thisRoundCleared = _trBatchResults.filter(function(r){ return r.score >= ((_trSet&&_trSet.passScore)||85); }).length;
+      trHeartbeat(_trBatchResults.length, prevCleared + thisRoundCleared);
+    });
+  };
+}
+
+/*── Offline-first grading ─────────────────────────────────────────
+  1. Score instantly with token-overlap (shows result immediately).
+  2. Fire AI verify in background — if score differs significantly,
+     silently update the display and stored result.
+  This gives near-instant UX while AI refines edge cases.          */
+function gradeTrItem(item,answer,cb){
+  var key=AW.geminiKey.get();
+  var groq=AW.groqKey&&AW.groqKey.get?AW.groqKey.get():'';
+
+  // Step 1: immediate offline score
+  var offlineResult = offlineTrGrade(item, answer);
+
+  // If no AI key at all — return offline immediately, done
+  if(!key && !groq){
+    cb(offlineResult);
+    return;
+  }
+
+  // Step 2: show offline result right away
+  cb(offlineResult);
+
+  // Step 3: AI refines in background (fire-and-update)
+  var prompt=[
+    'You are an EFL translation grader. Evaluate semantic meaning accuracy only.',
+    'Direction: '+(item.direction==='en2vi'?'EN→VI':'VI→EN'),
+    'Source: '+item.source,
+    'Model answer: '+item.modelAnswer,
+    'Student answer: '+answer,
+    'Target words to check: '+(item.targetWords||[]).join(', '),
+    'Be generous: partial answers that convey the main meaning score 60–75.',
+    'Return ONLY valid JSON, no markdown:',
+    '{"score":0-100,"feedback":"1-2 sentences in Vietnamese","usedTargets":[],"missedTargets":[]}'
+  ].join('\n');
+
+  function parse(text){
+    text=text.replace(/```json[\n]?/g,'').replace(/```[\n]?/g,'').trim();
+    var o=JSON.parse(text);
+    return {score:Math.max(0,Math.min(100,parseInt(o.score,10)||0)),feedback:o.feedback||'',
+            usedTargets:o.usedTargets||[],missedTargets:o.missedTargets||[]};
+  }
+
+  function aiUpdate(aiResult){
+    // Only update if score differs by more than 5 points or has real feedback
+    if(Math.abs(aiResult.score - offlineResult.score) > 5 || aiResult.missedTargets.length){
+      // Find the stored result and update it
+      var ps=(_trSet&&_trSet.passScore)||85;
+      var wasOfflinePassed = offlineResult.score >= ps;
+      var isAiPassed = aiResult.score >= ps;
+      // Update in _trBatchResults
+      for(var i=0;i<_trBatchResults.length;i++){
+        if(_trBatchResults[i].itemId===item.id){
+          _trBatchResults[i].score=aiResult.score;
+          _trBatchResults[i].feedback=aiResult.feedback;
+          break;
+        }
+      }
+      // Update feedback UI if still visible
+      var fbWrap=document.getElementById('trFbWrap');
+      var fbContent=document.getElementById('trFbContent');
+      if(fbWrap&&fbContent&&fbWrap.style.display!=='none'){
+        showTrFeedbackContent(item, answer, aiResult);
+        // If pass/fail changed, update next button too
+        if(wasOfflinePassed !== isAiPassed){
+          updateNextBtn(item, isAiPassed);
+        }
+        // Subtle AI-updated indicator
+        var indicator = document.createElement('div');
+        indicator.style.cssText='font-size:.7rem;color:var(--aw-ink-3);margin-top:4px;text-align:right';
+        indicator.textContent='✓ AI verified';
+        if(fbContent.parentNode) fbContent.parentNode.appendChild(indicator);
+        setTimeout(function(){ if(indicator.parentNode) indicator.parentNode.removeChild(indicator); }, 3000);
+      }
+    }
+  }
+
+  if(key){
+    var MODELS=['gemini-2.0-flash','gemini-1.5-flash'];
+    var mi=0;
+    function tryG(){
+      if(mi>=MODELS.length){if(groq)tryGroq();return;}
+      var m=MODELS[mi++];
+      fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:200,temperature:0.1}})
+      }).then(function(r){return r.json();}).then(function(d){
+        var t=((((d.candidates||[])[0]||{}).content||{}).parts||[]).map(function(p){return p.text||'';}).join('');
+        if(!t) throw new Error('empty'); aiUpdate(parse(t));
+      }).catch(function(){tryG();});
+    }
+    tryG();
+  } else {
+    function tryGroq(){
+      fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groq},
+        body:JSON.stringify({model:'llama3-8b-8192',messages:[{role:'user',content:prompt}],max_tokens:200,temperature:0.1})
+      }).then(function(r){return r.json();}).then(function(d){
+        var t=((d.choices||[])[0]||{}).message&&d.choices[0].message.content||'';
+        if(!t) throw new Error('empty'); aiUpdate(parse(t));
+      }).catch(function(){});
+    }
+    tryGroq();
+  }
+}
+
+function offlineTrGrade(item,answer){
+  function tok(s){return (s||'').toLowerCase().replace(/[^a-záàảãạăắặẳẵâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ\s]/g,'').split(/\s+/).filter(Boolean);}
+  var ref=tok(item.modelAnswer),ans=tok(answer);
+  var m=ans.filter(function(t){return ref.indexOf(t)>=0;}).length;
+  var sc=ref.length?Math.round(Math.min(100,m/ref.length*100)):0;
+  // offline is optimistic: boost by 10 to account for paraphrasing the model misses
+  sc=Math.min(100, sc + 10);
+  return {score:sc,feedback:'Đang chờ AI xác nhận…',usedTargets:[],missedTargets:[]};
+}
+
+function showTrFeedbackContent(item, answer, result){
+  var sc=result.score, ps=(_trSet&&_trSet.passScore)||85;
+  var col=sc>=ps?'var(--aw-writing)':(sc>=60?'#A66B00':'var(--aw-danger)');
+  var passed=sc>=ps;
+  document.getElementById('trFbContent').innerHTML=
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'+
+      '<div style="font-size:1.6rem;font-weight:800;color:'+col+'">'+sc+'%</div>'+
+      '<div><div style="font-size:.82rem;font-weight:700;color:'+col+';margin-bottom:2px">'+
+        (passed?'✅ Passed':'❌ Not passed — try again')+'</div>'+
+        '<div style="font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(result.feedback)+'</div></div>'+
+    '</div>'+
+    '<div style="font-size:.82rem;background:var(--aw-surface);border-radius:8px;padding:10px 12px;border-left:3px solid var(--aw-writing);margin-bottom:4px">'+
+      '<b style="font-size:.72rem;color:var(--aw-ink-3);display:block;margin-bottom:3px">MODEL ANSWER</b>'+AW.esc(item.modelAnswer)+
+    '</div>'+
+    (item.pattern?'<div style="font-size:.78rem;color:#8B5CF6;margin-top:8px">💡 Pattern: <b>'+AW.esc(item.pattern)+'</b></div>':'')+
+    (result.missedTargets&&result.missedTargets.length?
+      '<div style="font-size:.76rem;color:var(--aw-danger);margin-top:6px">Missed words: '+AW.esc(result.missedTargets.join(', '))+'</div>':'');
+}
+
+function updateNextBtn(item, passed){
+  var nextBtn=document.getElementById('trNextBtn');
+  if(!nextBtn) return;
+  if(!passed){
+    nextBtn.textContent='🔄 Try again';
+    nextBtn.style.background='var(--aw-danger)';
+    nextBtn.onclick=function(){
+      _trBatchResults=_trBatchResults.filter(function(r){return r.itemId!==item.id;});
+      document.getElementById('trFbWrap').style.display='none';
+      var sb=document.getElementById('trSubmitBtn'); if(sb){sb.style.display='';sb.disabled=false;}
+      var ans2=document.getElementById('trAns'); if(ans2){ans2.disabled=false;ans2.value='';ans2.focus();}
+      document.getElementById('trGradeSt').textContent='';
+    };
+  } else {
+    nextBtn.textContent='Next →'; nextBtn.style.background='';
+    nextBtn.onclick=function(){ _trBatchIdx++; if(_trBatchIdx>=_trBatch.length) renderTrRunResult(); else renderTrQuestion(); };
+  }
+}
+
+function showTrFeedback(item,answer,result){
+  showTrFeedbackContent(item, answer, result);
+  document.getElementById('trFbWrap').style.display='';
+  if(item.isTreasure){
+    document.getElementById('trChestWrap').style.display='';
+    document.getElementById('trAddChest').onclick=function(){
+      AW.toast('💎 Saved to chest!','ok');
+      _trBatch[_trBatchIdx]._savedToChest=true;
+      this.disabled=true; this.textContent='✓ Saved';
+    };
+  }
+  var passed=result.score>=( (_trSet&&_trSet.passScore)||85 );
+  updateNextBtn(item, passed);
+  document.getElementById('trSubmitBtn').style.display='none';
+}
+
+function renderTrRunResult(){
+  var total=_trBatchResults.length||1;
+  var runScore=Math.round(_trBatchResults.reduce(function(a,r){return a+(r.score||0);},0)/total);
+  var passed=runScore>=(_trSet.passScore||85);
+  var durSec=Math.round((Date.now()-_trRunStart)/1000);
+  var prev={}; (_trProgress.clearedItemIds||[]).forEach(function(id){prev[id]=true;});
+  _trBatchResults.forEach(function(r){if((r.score||0)>=(_trSet.passScore||85)) prev[r.itemId]=true;});
+  var newCleared=Object.keys(prev);
+  var chest=_trBatch.filter(function(it){return it._savedToChest;}).map(function(it){
+    return {itemId:it.id,source:it.source,modelAnswer:it.modelAnswer,pattern:it.pattern||null};
+  });
+  var runIdx=_trProgress.nextRunIndex||1;
+  var sessionOpen=(_trSet.sessionStatus||'open')==='open';
+  if(sessionOpen){
+    AW.api('translate.saveResult',{
+      studentId:sess.studentId,name:sess.name||'',class:sess.class||'',
+      setId:_trSet.setId,title:_trSet.title,
+      runIndex:runIdx,score:runScore,passed:passed,durationSec:durSec,
+      itemScores:_trBatchResults,clearedItemIds:newCleared,chest:chest
+    }).then(function(r){
+      if(r&&r.success){_trProgress.clearedItemIds=newCleared;_trProgress.nextRunIndex=runIdx+1;_trProgress.runs=(_trProgress.runs||0)+1;}
+      else if(r&&r.error) AW.toast(r.error,'err',4000);
+    }).catch(function(){AW.toast('Lỗi lưu kết quả.','err');});
+    // Final heartbeat marking run complete
+    AW.api('write.heartbeat',{
+      studentId:sess.studentId, name:sess.name||'', class:sess.class||'',
+      topicId:_trSet.setId, topic:_trSet.title, mode:'translate',
+      status:'Submitted',
+      wordCount: _trBatchResults.length,
+      snapshot: JSON.stringify({
+        setId:_trSet.setId, title:_trSet.title,
+        questionsAnswered: _trBatchResults.length,
+        clearedCount: newCleared.length,
+        totalItems: (_trSet.items||[]).length,
+        runIndex: runIdx, runScore: runScore,
+      })
+    });
+  }
+  var cleared=newCleared.length, ttl=(_trSet.items||[]).length, pct=ttl?Math.round(cleared/ttl*100):0;
+  var scCol=runScore>=85?'var(--aw-writing)':(runScore>=60?'#A66B00':'var(--aw-danger)');
+  var allCleared = cleared >= ttl;
+  document.getElementById('awPageTitle').textContent='Round '+runIdx+' result';
+  content.innerHTML=
+    '<div style="max-width:520px;margin:16px auto;text-align:center;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:28px 24px">'+
+      '<div style="font-size:2.8rem;font-weight:800;color:'+scCol+'">'+runScore+'%</div>'+
+      '<div style="font-size:.95rem;font-weight:700;margin:6px 0 4px;color:'+scCol+'">'+
+        (passed?'✅ Passed!':'❌ Not passed')+' · Round '+runIdx+' · '+cleared+'/'+ttl+' cleared</div>'+
+      '<div style="font-size:.78rem;color:var(--aw-ink-3);margin-bottom:14px">Attempt #'+runIdx+'</div>'+
+      '<div style="height:8px;background:var(--aw-border-2);border-radius:4px;margin-bottom:16px">'+
+        '<div style="width:'+pct+'%;height:100%;background:var(--aw-writing);border-radius:4px"></div>'+
+      '</div>'+
+      (allCleared?
+        '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 14px;margin-bottom:16px">'+
+          '<p style="font-size:.9rem;color:var(--aw-writing);font-weight:700;margin:0 0 4px">🎉 All '+ttl+' sentences cleared!</p>'+
+          '<p style="font-size:.82rem;color:var(--aw-ink-2);margin:0">Play again to reinforce — sentences restart from the beginning.</p>'+
+        '</div>'
+        :(passed&&cleared<ttl?'<p style="font-size:.86rem;color:var(--aw-ink-2);margin-bottom:16px">'+(ttl-cleared)+' sentences left. Keep going!</p>':
+        '<p style="font-size:.86rem;color:var(--aw-ink-3);margin-bottom:16px">Need ≥ '+(_trSet.passScore||85)+'% per sentence to clear. Try again!</p>'))+
+      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'+
+        // Always show a "continue" or "play again" button — no completion lock
+        (passed&&cleared<ttl?
+          '<button class="aw-btn aw-btn-primary" id="trCont" style="padding:11px 24px">Continue 5 more →</button>':'')+
+        (allCleared?
+          '<button class="aw-btn aw-btn-primary" id="trPlayAgain" style="padding:11px 24px">🔄 Play again</button>':'')+
+        (!passed?
+          '<button class="aw-btn aw-btn-primary" id="trRetry" style="padding:11px 22px">Retry this round</button>':'')+
+        '<button class="aw-btn aw-btn-ghost" onclick="showTranslate()" style="padding:11px 18px">← List</button>'+
+      '</div>'+
+    '</div>';
+
+  // Continue (still sentences left)
+  var cb=document.getElementById('trCont');
+  if(cb) cb.onclick=function(){ startTrRun(); };
+
+  // Play again — reset cleared so all 20 sentences come back fresh
+  var pa=document.getElementById('trPlayAgain');
+  if(pa) pa.onclick=function(){
+    _trProgress.clearedItemIds=[];  // reset for a fresh full run
+    startTrRun();
+  };
+
+  // Retry same round (didn't pass)
+  var rb=document.getElementById('trRetry');
+  if(rb) rb.onclick=function(){_trBatchResults=[];_trBatchIdx=0;_trRunStart=Date.now();renderTrQuestion();};
+}
+
+function showTrHistory(){
+  AW.api('translate.myProgress',{setId:_trSet.setId,studentId:sess.studentId}).then(function(r){
+    var p=r.success?r.data:_trProgress;
+    var cleared=(p.clearedItemIds||[]).length, total=(_trSet.items||[]).length;
+    var pct=total?Math.round(cleared/total*100):0;
+    content.innerHTML=
+      '<button class="aw-btn aw-btn-ghost" onclick="renderTrIntro(\'closed\')" style="margin-bottom:14px;padding:6px 14px">← Giới thiệu</button>'+
+      '<div style="max-width:520px;margin:0 auto;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:22px 24px">'+
+        '<h4 style="font-family:var(--aw-font-display);margin:0 0 14px">📊 Kết quả của bạn</h4>'+
+        '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px">'+
+          '<div style="text-align:center"><b style="font-size:1.3rem">'+p.runs+'</b><br><span style="font-size:.72rem;color:var(--aw-ink-3)">Lượt làm</span></div>'+
+          '<div style="text-align:center"><b style="font-size:1.3rem;color:var(--aw-writing)">'+p.bestScore+'%</b><br><span style="font-size:.72rem;color:var(--aw-ink-3)">Best score</span></div>'+
+          '<div style="text-align:center"><b style="font-size:1.3rem">'+cleared+'/'+total+'</b><br><span style="font-size:.72rem;color:var(--aw-ink-3)">Câu cleared</span></div>'+
+        '</div>'+
+        '<div style="height:8px;background:var(--aw-border-2);border-radius:4px;margin-bottom:14px">'+
+          '<div style="width:'+pct+'%;height:100%;background:var(--aw-writing);border-radius:4px"></div>'+
+        '</div>'+
+        (pct===100?'<p style="color:var(--aw-writing);font-weight:700;margin:0">🎉 Đã hoàn thành 100%!</p>':
+          '<p style="font-size:.85rem;color:var(--aw-ink-3);margin:0">Còn '+(total-cleared)+' câu chưa clear.</p>')+
+      '</div>';
+  });
+}
 </script>
 </body>
 </html>
