@@ -1164,7 +1164,11 @@ function gradeTrItem(item,answer,cb){
       var fbContent=document.getElementById('trFbContent');
       if(fbWrap&&fbContent&&fbWrap.style.display!=='none'){
         showTrFeedbackContent(item, answer, aiResult);
-        // If pass/fail changed, update next button too
+        // If AI upgraded fail→pass, push progress now (offline didn't push because it failed)
+        if(!wasOfflinePassed && isAiPassed){
+          pushTrProgress(item.id);
+        }
+        // If pass/fail changed, update next button
         if(wasOfflinePassed !== isAiPassed){
           updateNextBtn(item, isAiPassed);
         }
@@ -1250,9 +1254,41 @@ function updateNextBtn(item, passed){
       document.getElementById('trGradeSt').textContent='';
     };
   } else {
+    // Passed — push progress to server immediately (fire-and-forget)
+    pushTrProgress(item.id);
     nextBtn.textContent='Next →'; nextBtn.style.background='';
     nextBtn.onclick=function(){ _trBatchIdx++; if(_trBatchIdx>=_trBatch.length) renderTrRunResult(); else renderTrQuestion(); };
   }
+}
+
+/*── pushTrProgress — fire-and-forget after each passed sentence ──────────
+  Upserts the partial row in TranslateResults so teacher sees x/20 in real
+  time without waiting for the student to finish a full batch of 5.        */
+function pushTrProgress(justPassedItemId){
+  if(!_trSet||!sess) return;
+  // Build cumulative cleared set: previous progress + items passed in current batch
+  var cumCleared = {};
+  (_trProgress.clearedItemIds||[]).forEach(function(id){ cumCleared[id]=true; });
+  // Include ALL items passed so far in this batch (not just the current one)
+  _trBatchResults.forEach(function(r){
+    if(r.score >= ((_trSet&&_trSet.passScore)||85)) cumCleared[r.itemId]=true;
+  });
+  // Also add the item we just received the pass verdict for (may not be in _trBatchResults yet)
+  if(justPassedItemId) cumCleared[justPassedItemId]=true;
+
+  var clearedArr   = Object.keys(cumCleared);
+  var currentIndex = Math.min(20, clearedArr.length);
+
+  AW.api('translate.saveProgress',{
+    studentId:    sess.studentId,
+    name:         sess.name  || '',
+    class:        sess.class || '',
+    setId:        _trSet.setId,
+    title:        _trSet.title || '',
+    clearedItemIds: clearedArr,
+    currentIndex:   currentIndex,
+    // don't send full itemScores to keep payload small
+  });
 }
 
 function showTrFeedback(item,answer,result){

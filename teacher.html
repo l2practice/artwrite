@@ -1486,43 +1486,45 @@ function showResults(){
       box.innerHTML =
         '<div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 16px;'+
           'background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);margin-bottom:16px">'+
-          '<div><div style="font-size:1.4rem;font-weight:700">'+d.studentCount+'</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">SV đã làm</div></div>'+
-          '<div><div style="font-size:1.4rem;font-weight:700">'+d.runsCount+'</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Total attempts</div></div>'+
+          '<div><div style="font-size:1.4rem;font-weight:700">'+d.studentCount+'</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Students</div></div>'+
+          '<div><div style="font-size:1.4rem;font-weight:700">'+d.runsCount+'</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Complete runs</div></div>'+
           '<div><div style="font-size:1.4rem;font-weight:700;color:var(--aw-writing)">'+d.avgScore+'%</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Avg score</div></div>'+
           '<div><div style="font-size:1.4rem;font-weight:700">'+d.avgCleared+'/20</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Avg cleared</div></div>'+
+          (d.inProgressCount?'<div><div style="font-size:1.4rem;font-weight:700;color:var(--aw-primary)">'+d.inProgressCount+'</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">In progress</div></div>':'')+
         '</div>'+
         '<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
-          '<th>Student ID</th><th>Tên</th><th>Attempts</th><th>Best %</th><th>Last %</th><th>Cleared</th><th>In Progress</th><th>Last active</th>'+
+          '<th>Student ID</th><th>Tên</th><th>Attempts</th><th>Best %</th><th>Last %</th><th>Cleared / 20</th><th>In Progress</th><th>Last active</th>'+
           '</tr></thead><tbody>'+
         (stArr.length ? stArr.map(function(s){
           var cc=s.clearedCount, ttl=20, pct=Math.round(cc/ttl*100);
           var col=cc>=ttl?'var(--aw-writing)':(cc>=15?'#A66B00':'var(--aw-ink)');
           var sc=s.bestScore>=85?'var(--aw-writing)':(s.bestScore>=60?'#A66B00':'var(--aw-danger)');
-          // In Progress cell: show current question in latest run
+          // Cleared / 20 bar
+          var clearedCell='<div style="display:flex;align-items:center;gap:6px">'+
+            '<b style="color:'+col+';white-space:nowrap">'+cc+'/20</b>'+
+            '<div style="flex:1;height:5px;background:var(--aw-border-2);border-radius:3px;min-width:44px">'+
+              '<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px"></div></div></div>';
+          // In Progress cell
           var inProgressCell;
-          if(s.inProgress && s.currentQ > 0){
-            inProgressCell = '<span style="color:var(--aw-primary);font-weight:700">Q'+s.currentQ+'/20</span>'+
+          if(s.inProgress){
+            inProgressCell='<span style="color:var(--aw-primary);font-weight:700">'+s.clearedCount+'/20</span>'+
               '<span style="font-size:.72rem;color:var(--aw-ink-3);margin-left:4px">đang làm</span>';
-          } else if(s.runs > 0 && !s.inProgress){
-            inProgressCell = '<span style="color:var(--aw-writing);font-size:.82rem">✓ Done</span>';
-          } else if(s.currentQ > 0){
-            inProgressCell = '<span style="color:var(--aw-ink-3);font-size:.82rem">Q'+s.currentQ+'/20</span>';
+          } else if(s.runs>0){
+            inProgressCell='<span style="color:var(--aw-writing);font-size:.82rem">✓ Done</span>';
           } else {
-            inProgressCell = '<span style="color:var(--aw-ink-3);font-size:.78rem">—</span>';
+            inProgressCell='<span style="color:var(--aw-ink-3);font-size:.78rem">—</span>';
           }
           return '<tr>'+
             '<td><b>'+AW.esc(s.studentId)+'</b></td>'+
             '<td>'+AW.esc(s.name)+'</td>'+
             '<td style="text-align:center"><b>'+s.runs+'</b></td>'+
             '<td style="text-align:center"><b style="color:'+sc+'">'+s.bestScore+'%</b></td>'+
-            '<td style="text-align:center">'+s.lastScore+'%</td>'+
-            '<td><div style="display:flex;align-items:center;gap:6px"><b style="color:'+col+'">'+cc+'/'+ttl+'</b>'+
-              '<div style="flex:1;height:5px;background:var(--aw-border-2);border-radius:3px;min-width:44px">'+
-                '<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px"></div></div></div></td>'+
+            '<td style="text-align:center">'+(s.lastScore||'—')+'%</td>'+
+            '<td>'+clearedCell+'</td>'+
             '<td>'+inProgressCell+'</td>'+
             '<td style="font-size:.78rem;color:var(--aw-ink-3)">'+AW.fmtDate(s.lastTimestamp)+'</td>'+
           '</tr>';
-        }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--aw-ink-3)">Chưa có kết quả.</td></tr>')+
+        }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--aw-ink-3)">No results yet.</td></tr>')+
         '</tbody></table></div>';
     }).catch(function(){ box.innerHTML='<div class="aw-empty"><p>Lỗi kết nối.</p></div>'; });
   }
