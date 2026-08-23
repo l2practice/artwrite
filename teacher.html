@@ -777,7 +777,6 @@ function wireAutoOverall(critInputs, overallInput){
 }
 
 var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all', liveView='grid';
-var translateLiveData=[];
 function showLive(){
   document.getElementById('awPageTitle').textContent='Live Observation';
   // load inclass assignments for filter
@@ -848,14 +847,8 @@ function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
 function pollLive(){
   AW.api('teacher.getLive',{class:curClass()}).then(function(res){
     var all = (res&&res.data)||[];
-    // Separate inclass (writing) from translate students
     liveData = all.filter(function(s){ return s.mode==='inclass'; });
-    // Store translate live data globally for translate live panel
-    translateLiveData = all.filter(function(s){ return s.mode==='translate'; });
     renderLive();
-    // Refresh translate live panel if it's currently shown
-    var tlBox = document.getElementById('trLiveBox');
-    if(tlBox) renderTranslateLive(tlBox);
   });
   pollLiveQuestions();
 }
@@ -1499,12 +1492,24 @@ function showResults(){
           '<div><div style="font-size:1.4rem;font-weight:700">'+d.avgCleared+'/20</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Avg cleared</div></div>'+
         '</div>'+
         '<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
-          '<th>Student ID</th><th>Tên</th><th>Attempts</th><th>Best %</th><th>Last %</th><th>Cleared</th><th>Last active</th>'+
+          '<th>Student ID</th><th>Tên</th><th>Attempts</th><th>Best %</th><th>Last %</th><th>Cleared</th><th>In Progress</th><th>Last active</th>'+
           '</tr></thead><tbody>'+
         (stArr.length ? stArr.map(function(s){
           var cc=s.clearedCount, ttl=20, pct=Math.round(cc/ttl*100);
           var col=cc>=ttl?'var(--aw-writing)':(cc>=15?'#A66B00':'var(--aw-ink)');
           var sc=s.bestScore>=85?'var(--aw-writing)':(s.bestScore>=60?'#A66B00':'var(--aw-danger)');
+          // In Progress cell: show current question in latest run
+          var inProgressCell;
+          if(s.inProgress && s.currentQ > 0){
+            inProgressCell = '<span style="color:var(--aw-primary);font-weight:700">Q'+s.currentQ+'/20</span>'+
+              '<span style="font-size:.72rem;color:var(--aw-ink-3);margin-left:4px">đang làm</span>';
+          } else if(s.runs > 0 && !s.inProgress){
+            inProgressCell = '<span style="color:var(--aw-writing);font-size:.82rem">✓ Done</span>';
+          } else if(s.currentQ > 0){
+            inProgressCell = '<span style="color:var(--aw-ink-3);font-size:.82rem">Q'+s.currentQ+'/20</span>';
+          } else {
+            inProgressCell = '<span style="color:var(--aw-ink-3);font-size:.78rem">—</span>';
+          }
           return '<tr>'+
             '<td><b>'+AW.esc(s.studentId)+'</b></td>'+
             '<td>'+AW.esc(s.name)+'</td>'+
@@ -1514,9 +1519,10 @@ function showResults(){
             '<td><div style="display:flex;align-items:center;gap:6px"><b style="color:'+col+'">'+cc+'/'+ttl+'</b>'+
               '<div style="flex:1;height:5px;background:var(--aw-border-2);border-radius:3px;min-width:44px">'+
                 '<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px"></div></div></div></td>'+
+            '<td>'+inProgressCell+'</td>'+
             '<td style="font-size:.78rem;color:var(--aw-ink-3)">'+AW.fmtDate(s.lastTimestamp)+'</td>'+
           '</tr>';
-        }).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--aw-ink-3)">Chưa có kết quả.</td></tr>')+
+        }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--aw-ink-3)">Chưa có kết quả.</td></tr>')+
         '</tbody></table></div>';
     }).catch(function(){ box.innerHTML='<div class="aw-empty"><p>Lỗi kết nối.</p></div>'; });
   }
@@ -2011,8 +2017,6 @@ function showAssignments(){
       t.classList.add('active');
       if(t.dataset.amode==='translate'){
         loadTranslateList();
-        // Start live poll so the Live Progress panel auto-refreshes
-        if(!livePoll){ pollLive(); livePoll=setInterval(pollLive,10000); }
       } else loadAssignmentList(t.dataset.amode);
     };
   });
@@ -2845,21 +2849,8 @@ function loadTranslateList(){
       box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>No Translation Sets yet. Click "New Translate Set" to create one.</p></div>';
       return;
     }
-    // Separate active/upcoming from closed for live panel
-    var activeSets = sets.filter(function(s){ return s.sessionStatus==='open'||s.sessionStatus==='upcoming'; });
-    var html = '';
-    // ── Live progress panel (only if any set is open/upcoming) ────
-    if(activeSets.length){
-      html += '<div id="trLiveBox" style="margin-bottom:18px;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:14px 16px">'+
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
-          '<h4 style="margin:0;font-size:.9rem">🟢 Live Progress</h4>'+
-          '<span style="font-size:.72rem;color:var(--aw-ink-3)">Updates every 10s</span>'+
-        '</div>'+
-        '<div id="trLiveGrid" style="font-size:.82rem;color:var(--aw-ink-3)">Chờ sinh viên bắt đầu làm…</div>'+
-      '</div>';
-    }
     // ── Assignment list table ─────────────────────────────────────
-    html += '<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
+    var html = '<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
       '<th>Title</th><th>Items</th><th>Pass</th><th>Order</th><th>Session Start</th><th>Deadline</th><th>Status</th><th style="min-width:160px"></th>'+
       '</tr></thead><tbody>'+
       sets.map(function(s){
@@ -2927,49 +2918,10 @@ function loadTranslateList(){
       };
     });
 
-    // Render live panel from cached data immediately, then poll
-    var tlBox = document.getElementById('trLiveBox');
-    if(tlBox){
-      renderTranslateLive(tlBox, sets.filter(function(s){ return s.sessionStatus==='open'; }));
-    }
   }).catch(function(){ AW.toast('Error loading translate list.','err'); });
 }
 
-function renderTranslateLive(container, openSets){
-  var box = document.getElementById('trLiveGrid');
-  if(!box) return;
-  // Filter live data to translate mode students in current class
-  var data = translateLiveData.filter(function(s){ return String(s.class)===String(curClass()); });
-  if(!data.length){
-    box.innerHTML = '<span style="color:var(--aw-ink-3)">Chờ sinh viên bắt đầu làm…</span>';
-    return;
-  }
-  // Group by setId from snapshot
-  box.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">'+
-    data.map(function(s){
-      var snap = {};
-      try{ snap=JSON.parse(s.snapshot||'{}'); }catch(e){}
-      var qAns = parseInt(snap.questionsAnswered||s.wordCount||0,10);
-      var cleared = parseInt(snap.clearedCount||0,10);
-      var total = parseInt(snap.totalItems||20,10);
-      var pct = total ? Math.round(cleared/total*100) : 0;
-      var isSubmitted = s.status==='Submitted';
-      var isStale = s.status==='Offline';
-      var statusColor = isSubmitted?'var(--aw-writing)':isStale?'var(--aw-ink-3)':'var(--aw-primary)';
-      var statusIcon = isSubmitted?'✅':isStale?'💤':'✍️';
-      return '<div style="background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:8px;padding:10px 11px">'+
-        '<div style="font-weight:700;font-size:.82rem;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+AW.esc(s.name||s.studentId)+'</div>'+
-        '<div style="font-size:.72rem;color:'+statusColor+';margin-bottom:6px">'+statusIcon+' '+(isSubmitted?'Completed':isStale?'Offline':'Active')+' · Q'+qAns+'</div>'+
-        '<div style="font-size:.72rem;color:var(--aw-ink-3);margin-bottom:4px">Cleared: <b style="color:var(--aw-ink)">'+cleared+'/'+total+'</b></div>'+
-        '<div style="height:5px;background:var(--aw-border-2);border-radius:3px">'+
-          '<div style="width:'+pct+'%;height:100%;background:var(--aw-writing);border-radius:3px"></div>'+
-        '</div>'+
-        (snap.title?'<div style="font-size:.68rem;color:var(--aw-ink-3);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+AW.esc(snap.title)+'</div>':'')+
-      '</div>';
-    }).join('')+
-  '</div>'+
-  '<div style="font-size:.7rem;color:var(--aw-ink-3);margin-top:8px;text-align:right">'+data.length+' student(s) active · '+new Date().toLocaleTimeString('vi-VN')+'</div>';
-}
+function renderTranslateLive(){} // stub — kept for compatibility, no-op
 
 /* ── Create Translate Set modal ── */
 var _trItems=[], _trGenBoxHtml='';
