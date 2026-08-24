@@ -78,6 +78,11 @@
   /* annotation modal */
   .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
   .aw-modal-bg.show{display:flex}
+  /* Toolbar buttons — uniform 30×30, no inline overrides needed */
+  .aw-tbtn{height:30px;min-width:30px;padding:0 8px;border:1.5px solid var(--aw-border-2);border-radius:6px;background:var(--aw-surface);cursor:pointer;color:var(--aw-ink-2);font-weight:700;font-size:.82rem;font-family:var(--aw-font-body);display:inline-flex;align-items:center;justify-content:center;gap:3px;box-sizing:border-box;line-height:1;white-space:nowrap;vertical-align:middle}
+  .aw-tbtn:hover{background:var(--aw-primary-lt);border-color:var(--aw-primary);color:var(--aw-primary)}
+  .aw-tbtn.on{background:var(--aw-primary);color:#fff;border-color:var(--aw-primary)}
+  .ann-sep{width:1px;background:var(--aw-border-2);align-self:stretch;margin:2px 2px;display:inline-block}
   .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:80vw;max-width:1400px;height:80vh;max-height:80vh;overflow:hidden;display:grid;grid-template-columns:1fr 320px;box-shadow:var(--aw-shadow-lg)}
   .aw-modal-card{background:var(--aw-surface);border-radius:var(--aw-r-lg);padding:24px 26px;box-shadow:var(--aw-shadow-lg)}
   .aw-modal .aw-modal-doc{overflow-y:auto}
@@ -90,7 +95,18 @@
   .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
   .aw-sug-ins{color:var(--aw-writing);font-weight:600}
   .aw-hl{background:#FFF1A8;border-radius:2px;padding:0 1px}
-  .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help}
+  .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help;position:relative}
+  /* Color picker dropdown */
+  .ann-color-pop{position:absolute;z-index:700;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:8px;padding:8px;box-shadow:var(--aw-shadow-lg);display:none;flex-wrap:wrap;gap:4px;width:168px}
+  .ann-color-pop.show{display:flex}
+  .ann-color-swatch{width:22px;height:22px;border-radius:4px;border:1.5px solid transparent;cursor:pointer;transition:transform .1s}
+  .ann-color-swatch:hover{transform:scale(1.2);border-color:var(--aw-ink)}
+  .ann-color-sep{width:100%;height:1px;background:var(--aw-border-2);margin:2px 0}
+  /* Inline comment popup */
+  .ann-comment-pop{position:fixed;z-index:800;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:10px 12px;box-shadow:var(--aw-shadow-lg);display:none;flex-direction:column;gap:8px;min-width:260px;max-width:320px}
+  .ann-comment-pop.show{display:flex}
+  .ann-comment-pop textarea{border:1px solid var(--aw-border);border-radius:6px;padding:7px 9px;font-family:var(--aw-font-body);font-size:.85rem;resize:none;outline:none;width:100%;box-sizing:border-box}
+  .ann-comment-pop textarea:focus{border-color:var(--aw-primary)}
   .aw-modal-side{background:var(--aw-surface-2);padding:20px;border-left:1px solid var(--aw-border-2);overflow-y:auto;max-height:90vh}
   .aw-modal-side h4{margin:0 0 12px;font-size:.95rem}
   .aw-suggest-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
@@ -225,28 +241,81 @@
         <div><b id="mStudent">Student</b> <span style="color:var(--aw-ink-3)" id="mTopic"></span></div>
         <button class="aw-btn" style="padding:6px 18px;background:#E5484D;color:#fff;font-weight:600" id="mClose">✕ Close</button>
       </div>
-      <!-- annotation toolbar -->
-      <div style="display:flex;gap:2px;flex-wrap:wrap;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;margin-bottom:8px">
+      <!-- annotation toolbar — uniform 30px buttons, mousedown preventDefault preserves selection -->
+      <div id="annToolbar" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;margin-bottom:8px;position:relative;user-select:none">
         <button class="aw-tbtn" id="annBold" title="Bold"><b>B</b></button>
         <button class="aw-tbtn" id="annItalic" title="Italic"><i>I</i></button>
         <button class="aw-tbtn" id="annUnder" title="Underline"><u>U</u></button>
-        <span style="width:1px;background:var(--aw-border-2);margin:2px 4px;display:inline-block"></span>
-        <button class="aw-tbtn" id="annSug" title="Suggest edit (red strike + green insert)">✎ Suggest</button>
-        <button class="aw-tbtn" id="annStrike" title="Strike (delete suggestion)">S̶ Strike</button>
-        <button class="aw-tbtn" id="annHl" title="Highlight">🖍</button>
+        <button class="aw-tbtn" id="annStrike" title="Strikethrough">S̶</button>
+        <span class="ann-sep"></span>
+        <!-- Text Color -->
+        <div style="position:relative">
+          <button class="aw-tbtn" id="annTextColorBtn" title="Text color">
+            <b>A</b><span id="annTextColorBar" style="width:12px;height:3px;border-radius:1px;background:#E8360C"></span>
+          </button>
+          <div class="ann-color-pop" id="textColorPop">
+            <div style="font-size:.7rem;color:var(--aw-ink-3);width:100%;margin-bottom:2px">Text color</div>
+            <span class="ann-color-swatch" style="background:#1a1a1a" data-tc="#1a1a1a" title="Black"></span>
+            <span class="ann-color-swatch" style="background:#E8360C" data-tc="#E8360C" title="Red"></span>
+            <span class="ann-color-swatch" style="background:#0A6EBD" data-tc="#0A6EBD" title="Blue"></span>
+            <span class="ann-color-swatch" style="background:#1A9E5C" data-tc="#1A9E5C" title="Green"></span>
+            <span class="ann-color-swatch" style="background:#D97706" data-tc="#D97706" title="Orange"></span>
+            <span class="ann-color-swatch" style="background:#7C3AED" data-tc="#7C3AED" title="Purple"></span>
+            <span class="ann-color-swatch" style="background:#6B7280" data-tc="#6B7280" title="Gray"></span>
+            <span class="ann-color-swatch" style="background:#F87171" data-tc="#F87171" title="Light red"></span>
+            <span class="ann-color-swatch" style="background:#60A5FA" data-tc="#60A5FA" title="Light blue"></span>
+            <span class="ann-color-swatch" style="background:#34D399" data-tc="#34D399" title="Light green"></span>
+            <span class="ann-color-swatch" style="background:#FBBF24" data-tc="#FBBF24" title="Yellow"></span>
+            <span class="ann-color-swatch" style="background:#A78BFA" data-tc="#A78BFA" title="Lavender"></span>
+            <div class="ann-color-sep"></div>
+            <input type="color" value="#E8360C" id="annTextColorCustom" title="Custom" style="width:22px;height:22px;padding:0;border:none;border-radius:4px;cursor:pointer">
+          </div>
+        </div>
+        <!-- Highlight Color -->
+        <div style="position:relative">
+          <button class="aw-tbtn" id="annHlColorBtn" title="Highlight color">
+            🖍<span id="annHlColorBar" style="width:12px;height:3px;border-radius:1px;background:#FFF1A8"></span>
+          </button>
+          <div class="ann-color-pop" id="hlColorPop">
+            <div style="font-size:.7rem;color:var(--aw-ink-3);width:100%;margin-bottom:2px">Highlight</div>
+            <span class="ann-color-swatch" style="background:#FFF1A8" data-hc="#FFF1A8" title="Yellow"></span>
+            <span class="ann-color-swatch" style="background:#BFDBFE" data-hc="#BFDBFE" title="Blue"></span>
+            <span class="ann-color-swatch" style="background:#BBF7D0" data-hc="#BBF7D0" title="Green"></span>
+            <span class="ann-color-swatch" style="background:#FECACA" data-hc="#FECACA" title="Red"></span>
+            <span class="ann-color-swatch" style="background:#FDE68A" data-hc="#FDE68A" title="Amber"></span>
+            <span class="ann-color-swatch" style="background:#E9D5FF" data-hc="#E9D5FF" title="Purple"></span>
+            <span class="ann-color-swatch" style="background:#FCE7F3" data-hc="#FCE7F3" title="Pink"></span>
+            <span class="ann-color-swatch" style="background:#D1FAE5" data-hc="#D1FAE5" title="Mint"></span>
+            <span class="ann-color-swatch" style="background:#FFEDD5" data-hc="#FFEDD5" title="Peach"></span>
+            <div class="ann-color-sep"></div>
+            <span class="ann-color-swatch" style="background:transparent;border:1.5px solid var(--aw-border);font-size:.7rem;line-height:22px;text-align:center" data-hc="transparent" title="Remove">✕</span>
+            <input type="color" value="#FFF1A8" id="annHlColorCustom" title="Custom" style="width:22px;height:22px;padding:0;border:none;border-radius:4px;cursor:pointer">
+          </div>
+        </div>
         <button class="aw-tbtn" id="annComment" title="Comment">💬</button>
-        <span style="width:1px;background:var(--aw-border-2);margin:2px 4px;display:inline-block"></span>
-        <button class="aw-tbtn" id="annFontDown" title="Smaller text (selection)">A−</button>
-        <button class="aw-tbtn" id="annFontUp" title="Larger text (selection, up to 120px)" style="font-size:1.05rem">A+</button>
+        <span class="ann-sep"></span>
+        <button class="aw-tbtn" id="annFontDown" title="Smaller text">A−</button>
+        <button class="aw-tbtn" id="annFontUp" title="Larger text">A+</button>
         <button class="aw-tbtn" id="annClear" title="Clear formatting">✕ Clear</button>
-        <span style="width:1px;background:var(--aw-border-2);margin:2px 4px;display:inline-block"></span>
-        <button class="aw-tbtn" id="annZoomOut" title="Zoom out — your view only">🔍−</button>
-        <span id="annZoomLbl" style="align-self:center;font-size:.75rem;color:var(--aw-ink-3);min-width:38px;text-align:center">100%</span>
-        <button class="aw-tbtn" id="annZoomIn" title="Zoom in for the class to see — your view only">🔍+</button>
-        <button class="aw-tbtn" id="annZoomReset" title="Reset zoom" style="font-size:.75rem">Reset</button>
+        <span class="ann-sep"></span>
+        <button class="aw-tbtn" id="annZoomOut" title="Zoom out">−</button>
+        <span id="annZoomLbl" style="font-size:.75rem;color:var(--aw-ink-3);min-width:36px;text-align:center">100%</span>
+        <button class="aw-tbtn" id="annZoomIn" title="Zoom in">+</button>
+        <button class="aw-tbtn" id="annZoomReset" title="Reset zoom">↺</button>
       </div>
       <div class="aw-doc-text" id="mText" contenteditable="false"></div>
-      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Select text then use the toolbar to suggest edits, highlight or comment. When done, click <b>Push to Student</b> so students can see your feedback.</p>
+      <!-- Realtime sync indicators -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+        <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
+        <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
+      </div>
+      <div id="mTextUpdateBanner" style="display:none;margin-top:8px;padding:8px 12px;
+        background:#FFF8EC;border:1px solid #F0D9A0;border-radius:8px;cursor:pointer;
+        font-size:.8rem;color:#7A5000" onclick="void(0)">
+        <span>⚡ Student added new content while you were annotating.</span>
+        <b style="color:var(--aw-primary);white-space:nowrap">Click to load →</b>
+      </div>
+      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done.</p>
     </div>
     <div class="aw-modal-side">
       <h4>Teacher Suggestions</h4>
@@ -268,10 +337,20 @@
 <div class="aw-essay-bg" id="essayModal"><div class="aw-essay-modal" id="essayModalBody"></div></div>
 
 <div class="aw-sel-pop" id="selPop">
-  <button id="popSuggest">✎ Suggest</button>
   <button id="popStrike">S̶ Strike</button>
+  <button id="popTextColor">A Color</button>
   <button id="popHl">🖍 Highlight</button>
   <button id="popComment">💬 Comment</button>
+</div>
+
+<!-- Inline comment popup (replaces prompt()) -->
+<div class="ann-comment-pop" id="annCommentPop">
+  <div style="font-size:.8rem;font-weight:700;color:var(--aw-ink)">💬 Add comment</div>
+  <textarea id="annCommentText" rows="3" placeholder="Write your comment…" maxlength="400"></textarea>
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="aw-btn aw-btn-ghost" style="padding:5px 14px;font-size:.82rem" id="annCommentCancel">Cancel</button>
+    <button class="aw-btn aw-btn-primary" style="padding:5px 14px;font-size:.82rem" id="annCommentOk">Add</button>
+  </div>
 </div>
 
 <!-- assignment detail modal -->
@@ -777,6 +856,66 @@ function wireAutoOverall(critInputs, overallInput){
 }
 
 var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all', liveView='grid';
+// ── Realtime modal sync ───────────────────────────────────────────
+var _annotLastSnapshot = ''; // snapshot text at modal-open time
+var _annotModalDirty   = false; // true once teacher edits mText
+
+/*  syncAnnotModal — called every time renderLive() finishes with fresh liveData.
+    If the annotation modal is open, push the newest snapshot into mText.
+    Guard: only auto-update when teacher has not yet started annotating
+    (mText still equals _annotLastSnapshot). If dirty, show a banner instead. */
+function syncAnnotModal(){
+  if(!liveSelected) return; // modal not open
+  var modal = document.getElementById('modalBg');
+  if(!modal || !modal.classList.contains('show')) return;
+
+  // Find freshest data for the student currently open
+  var fresh = liveData.filter(function(s){
+    return String(s.studentId) === String(liveSelected);
+  })[0];
+  if(!fresh || !fresh.snapshot) return;
+
+  var newText = fresh.snapshot;
+  if(newText === _annotLastSnapshot) return; // nothing changed
+
+  var mText = document.getElementById('mText');
+  if(!mText) return;
+
+  // Decide: auto-update or show banner
+  var currentText = mText.innerText || mText.textContent || '';
+  var isDirty = currentText.trim() !== _annotLastSnapshot.trim();
+
+  if(!isDirty){
+    // Teacher hasn't touched mText — silently update
+    mText.textContent = newText;
+    _annotLastSnapshot = newText;
+    // Update the word count indicator
+    var wc = AW.wordCount ? AW.wordCount(newText) : newText.split(/\s+/).filter(Boolean).length;
+    var indicator = document.getElementById('mTextSyncBadge');
+    if(indicator){
+      indicator.textContent = '↻ '+wc+' words · just updated';
+      indicator.style.color = 'var(--aw-writing)';
+      clearTimeout(indicator._t);
+      indicator._t = setTimeout(function(){
+        indicator.textContent = wc+' words';
+        indicator.style.color = 'var(--aw-ink-3)';
+      }, 2000);
+    }
+  } else {
+    // Teacher is annotating — show a subtle banner, don't overwrite
+    var banner = document.getElementById('mTextUpdateBanner');
+    if(!banner) return;
+    banner.style.display = '';
+    banner.dataset.pending = newText;
+    banner.onclick = function(){
+      if(!confirm('Load the student\'s latest text? Your current annotations will be lost.')) return;
+      mText.textContent = banner.dataset.pending;
+      _annotLastSnapshot = banner.dataset.pending;
+      _annotModalDirty = false;
+      banner.style.display = 'none';
+    };
+  }
+}
 function showLive(){
   document.getElementById('awPageTitle').textContent='Live Observation';
   // load inclass assignments for filter
@@ -932,6 +1071,8 @@ function renderLive(){
       if(s) openAnnotation(s);
     };
   });
+  // ── Sync open annotation modal if student data just refreshed ──
+  syncAnnotModal();
   AW.els('.aw-lower-hand').forEach(function(b){
     b.onclick=function(e){
       e.stopPropagation();               // don't open the student's essay
@@ -1097,14 +1238,21 @@ function openAnnotation(s){
   currentAnnot={ studentId:s.studentId, topicId:s.topicId, mode:s.mode, suggestions:[] };
   document.getElementById('mStudent').textContent=s.name||s.studentId;
   document.getElementById('mTopic').textContent=s.topic?('· '+s.topic):'';
-  mText.textContent=s.snapshot||'(chưa có nội dung)';
-  mText.setAttribute('contenteditable','true');
-  document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';
-  ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
 
-  // Always show LIVE snapshot (most current student text) — not old annotation
-  mText.textContent = s.snapshot||'(chưa có nội dung)';
+  // Load the live snapshot
+  var snapshot = s.snapshot || '';
+  mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
+
+  // ── Realtime sync state ──────────────────────────────────────────
+  _annotLastSnapshot = snapshot;
+  _annotModalDirty   = false;
+  mText.oninput = function(){ _annotModalDirty = true; };
+
+  // Hide any pending update banner
+  var banner = document.getElementById('mTextUpdateBanner');
+  if(banner) banner.style.display = 'none';
+
   document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất nào.</p>';
   ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
 
@@ -1146,22 +1294,185 @@ function openAnnotation(s){
     document.getElementById('sOverall')
   );
   document.getElementById('modalBg').classList.add('show');
-  // wire toolbar buttons to trigger same actions as popup
-  document.getElementById('annBold').onclick=function(){ document.execCommand('bold'); };
-  document.getElementById('annItalic').onclick=function(){ document.execCommand('italic'); };
-  document.getElementById('annUnder').onclick=function(){ document.execCommand('underline'); };
-  document.getElementById('annSug').onclick=function(){ triggerAnnotation('suggest'); };
-  document.getElementById('annStrike').onclick=function(){ triggerAnnotation('strike'); };
-  document.getElementById('annHl').onclick=function(){ triggerAnnotation('highlight'); };
-  document.getElementById('annComment').onclick=function(){ triggerAnnotation('comment'); };
-  // font size on the SELECTION (this is part of the essay HTML → pushed to student)
-  document.getElementById('annFontUp').onclick=function(){ annChangeFont(1); };
-  document.getElementById('annFontDown').onclick=function(){ annChangeFont(-1); };
-  document.getElementById('annClear').onclick=annClearFormat;
-  // zoom = TEACHER VIEW ONLY (inline style on the container, never part of innerHTML)
-  document.getElementById('annZoomIn').onclick=function(){ annZoom(1); };
-  document.getElementById('annZoomOut').onclick=function(){ annZoom(-1); };
-  document.getElementById('annZoomReset').onclick=function(){ annZoomLevel=100; applyAnnZoom(); };
+  // ── CRITICAL: Prevent toolbar clicks from stealing focus and killing selection ──
+  // When a user clicks a toolbar button, the browser fires mousedown on the button,
+  // which would normally move focus away from mText — destroying the selection BEFORE
+  // onclick fires. preventDefault() on mousedown stops focus transfer while still
+  // allowing onclick to run normally.
+  document.getElementById('annToolbar').addEventListener('mousedown', function(e){
+    // Allow mousedown on <input type="color"> (needs focus to open picker)
+    if(e.target.tagName === 'INPUT') return;
+    e.preventDefault(); // preserve mText selection
+  });
+
+  // ── Basic formatting ──────────────────────────────────────────────
+  document.getElementById('annBold').onclick   = function(){ document.execCommand('bold'); };
+  document.getElementById('annItalic').onclick = function(){ document.execCommand('italic'); };
+  document.getElementById('annUnder').onclick  = function(){ document.execCommand('underline'); };
+  document.getElementById('annStrike').onclick = function(){
+    var orig = wrapSelection('aw-sug-del','');
+    if(orig) recordSuggestion(orig,'','strike');
+  };
+
+  // ── Text Color picker ────────────────────────────────────────────
+  var _activeTextColor = '#E8360C';
+  var textColorPop = document.getElementById('textColorPop');
+
+  function applyTextColor(color){
+    _activeTextColor = color;
+    document.getElementById('annTextColorBar').style.background = color;
+    textColorPop.classList.remove('show');
+    // Restore selection (may have been lost when dropdown opened)
+    if(savedRange){
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+    var sel2 = window.getSelection();
+    if(!sel2 || sel2.isCollapsed){ AW.toast('Select text first','err'); return; }
+    document.execCommand('foreColor', false, color);
+  }
+
+  document.getElementById('annTextColorBtn').onclick = function(e){
+    e.stopPropagation();
+    // Save current selection before opening dropdown (it persists as savedRange)
+    var sel = window.getSelection();
+    if(sel && sel.rangeCount && sel.toString().trim()) savedRange = sel.getRangeAt(0).cloneRange();
+    hlColorPop.classList.remove('show');
+    textColorPop.classList.toggle('show');
+  };
+  textColorPop.querySelectorAll('[data-tc]').forEach(function(sw){
+    sw.onclick = function(e){ e.stopPropagation(); applyTextColor(sw.getAttribute('data-tc')); };
+  });
+  document.getElementById('annTextColorCustom').oninput = function(){
+    applyTextColor(this.value);
+  };
+  // Quick-apply on second click if already open
+  document.getElementById('annTextColorBtn').ondblclick = function(){
+    applyTextColor(_activeTextColor);
+  };
+
+  // ── Highlight (background) Color picker ─────────────────────────
+  var _activeHlColor = '#FFF1A8';
+  var hlColorPop = document.getElementById('hlColorPop');
+
+  function applyHighlightColor(color){
+    _activeHlColor = color;
+    document.getElementById('annHlColorBar').style.background = color==='transparent'?'var(--aw-surface-2)':color;
+    hlColorPop.classList.remove('show');
+    // Restore selection that was saved when the dropdown opened
+    if(savedRange){
+      var sel0 = window.getSelection();
+      sel0.removeAllRanges();
+      sel0.addRange(savedRange);
+    }
+    var sel = window.getSelection();
+    if(!sel || sel.isCollapsed){ AW.toast('Select text first','err'); return; }
+    if(color === 'transparent'){
+      // Remove highlight — strip any aw-hl spans + clear backColor
+      document.execCommand('hiliteColor', false, 'transparent');
+      document.execCommand('backColor', false, 'transparent');
+      var range = sel.getRangeAt(0);
+      var tmp = document.createElement('div'); tmp.appendChild(range.cloneContents());
+      tmp.querySelectorAll('.aw-hl').forEach(function(el){
+        var t = document.createTextNode(el.textContent); el.parentNode.replaceChild(t, el);
+      });
+      range.deleteContents();
+      range.insertNode(range.createContextualFragment(tmp.innerHTML));
+    } else {
+      // Wrap in a span with inline background
+      var r2 = sel.getRangeAt(0);
+      var sp = document.createElement('span');
+      sp.style.backgroundColor = color;
+      sp.style.borderRadius = '2px';
+      sp.style.padding = '0 1px';
+      try{
+        sp.appendChild(r2.extractContents()); r2.insertNode(sp);
+      } catch(e){ document.execCommand('hiliteColor', false, color); }
+      recordSuggestion(sel.toString(),'','highlight');
+    }
+    hlColorPop.classList.remove('show');
+  }
+
+  document.getElementById('annHlColorBtn').onclick = function(e){
+    e.stopPropagation();
+    // Save current selection before dropdown steals focus
+    var sel = window.getSelection();
+    if(sel && sel.rangeCount && sel.toString().trim()) savedRange = sel.getRangeAt(0).cloneRange();
+    textColorPop.classList.remove('show');
+    hlColorPop.classList.toggle('show');
+  };
+  hlColorPop.querySelectorAll('[data-hc]').forEach(function(sw){
+    sw.onclick = function(e){ e.stopPropagation(); applyHighlightColor(sw.getAttribute('data-hc')); };
+  });
+  document.getElementById('annHlColorCustom').oninput = function(){
+    applyHighlightColor(this.value);
+  };
+
+  // Close pickers when clicking elsewhere
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('#textColorPop') && !e.target.closest('#annTextColorBtn'))
+      textColorPop.classList.remove('show');
+    if(!e.target.closest('#hlColorPop') && !e.target.closest('#annHlColorBtn'))
+      hlColorPop.classList.remove('show');
+    if(!e.target.closest('#annCommentPop') && !e.target.closest('#annComment') && !e.target.closest('#popComment'))
+      document.getElementById('annCommentPop').classList.remove('show');
+  });
+
+  // ── Comment — inline popup (no prompt()) ────────────────────────
+  var _commentPop = document.getElementById('annCommentPop');
+
+  function openCommentPop(anchorEl){
+    var sel = window.getSelection();
+    if(sel && sel.rangeCount && sel.toString().trim()) savedRange = sel.getRangeAt(0).cloneRange();
+    // Position popup near the button or anchor
+    var rect = anchorEl ? anchorEl.getBoundingClientRect() : {left:300,bottom:200};
+    _commentPop.style.left = Math.min(rect.left, window.innerWidth-340)+'px';
+    _commentPop.style.top  = (rect.bottom + 6)+'px';
+    document.getElementById('annCommentText').value = '';
+    _commentPop.classList.add('show');
+    setTimeout(function(){ document.getElementById('annCommentText').focus(); }, 50);
+  }
+
+  function commitComment(){
+    var note = (document.getElementById('annCommentText').value||'').trim();
+    if(!note){ AW.toast('Enter a comment first','warn'); return; }
+    var orig = savedRange ? savedRange.toString() : '';
+    var range = restoreSelection();
+    if(range){
+      var span = document.createElement('span');
+      span.className = 'aw-doc-comment';
+      span.title = note;
+      span.setAttribute('data-comment', note);
+      try{ range.surroundContents(span); }
+      catch(e){ var f=range.extractContents(); span.appendChild(f); range.insertNode(span); }
+    }
+    recordSuggestion(orig, note, 'comment');
+    _commentPop.classList.remove('show');
+    selPop.classList.remove('show');
+  }
+
+  document.getElementById('annComment').onclick = function(){
+    openCommentPop(this);
+  };
+  document.getElementById('annCommentOk').onclick = commitComment;
+  document.getElementById('annCommentCancel').onclick = function(){
+    _commentPop.classList.remove('show');
+  };
+  document.getElementById('annCommentText').addEventListener('keydown', function(e){
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); commitComment(); }
+    if(e.key==='Escape') _commentPop.classList.remove('show');
+  });
+
+  // ── Font size ────────────────────────────────────────────────────
+  document.getElementById('annFontUp').onclick   = function(){ annChangeFont(1); };
+  document.getElementById('annFontDown').onclick = function(){ annChangeFont(-1); };
+  document.getElementById('annClear').onclick    = annClearFormat;
+
+  // ── Zoom (teacher-view only) ─────────────────────────────────────
+  document.getElementById('annZoomIn').onclick    = function(){ annZoom(1); };
+  document.getElementById('annZoomOut').onclick   = function(){ annZoom(-1); };
+  document.getElementById('annZoomReset').onclick = function(){ annZoomLevel=100; applyAnnZoom(); };
   annZoomLevel=100; applyAnnZoom();
 }
 /*── teacher-only zoom: scales what the teacher (and the class projector) sees.
@@ -1202,23 +1513,31 @@ function annClearFormat(){
   document.execCommand('removeFormat', false, null);
   document.execCommand('hiliteColor', false, 'transparent');
   document.execCommand('backColor', false, 'transparent');
-  // strip leftover inline styles (font-size spans, suggestion marks) inside the selection
+  document.execCommand('foreColor', false, 'inherit');
+  // Strip leftover inline styles + annotation spans inside the selection
   var r=sel.getRangeAt(0);
   var tmp=document.createElement('div'); tmp.appendChild(r.cloneContents());
-  tmp.querySelectorAll('[style]').forEach(function(el){ el.removeAttribute('style'); });
+  tmp.querySelectorAll('[style]').forEach(function(el){
+    el.removeAttribute('style');
+    // Keep text, remove wrapper span if it has no semantic class
+    if(el.tagName==='SPAN' && !el.className) {
+      el.outerHTML = el.innerHTML;
+    }
+  });
+  tmp.querySelectorAll('.aw-hl').forEach(function(el){
+    el.outerHTML = el.innerHTML;
+  });
   var plain=tmp.innerHTML;
   r.deleteContents();
   r.insertNode(document.createRange().createContextualFragment(plain));
   AW.toast('Formatting cleared','ok',1000);
 }
 function triggerAnnotation(type){
-  // save current selection if any, or re-use savedRange
   var sel=window.getSelection();
-  if(sel.rangeCount && sel.toString().trim()) savedRange=sel.getRangeAt(0).cloneRange();
-  if(type==='suggest') document.getElementById('popSuggest').onclick();
-  else if(type==='strike') document.getElementById('popStrike').onclick();
-  else if(type==='highlight') document.getElementById('popHl').onclick();
-  else if(type==='comment') document.getElementById('popComment').onclick();
+  if(sel&&sel.rangeCount&&sel.toString().trim()) savedRange=sel.getRangeAt(0).cloneRange();
+  if(type==='strike') document.getElementById('popStrike').onclick();
+  else if(type==='highlight') applyHighlightColor(_activeHlColor||'#FFF1A8');
+  else if(type==='comment') openCommentPop(document.getElementById('annComment'));
 }
 // Push to Student — saves the marked-up snapshot to the Annotations tab.
 // write.html polls write.getAnnotation and shows it to the student read-only.
@@ -1236,7 +1555,10 @@ document.getElementById('pushFb').onclick=function(){
   }).finally(function(){ btn.disabled=false; btn.innerHTML=o; });
 };
 document.getElementById('mClose').onclick=function(){
-  document.getElementById('modalBg').classList.remove('show');liveSelected=null;selPop.classList.remove('show');
+  document.getElementById('modalBg').classList.remove('show');
+  liveSelected=null;
+  selPop.classList.remove('show');
+  _annotLastSnapshot=''; _annotModalDirty=false;
 };
 
 // show popup on selection within the doc
@@ -1281,33 +1603,25 @@ function wrapSelection(cls, insertAfterText){
   return original;
 }
 
-// Suggest edit: strike original (red) + insert replacement (green)
-document.getElementById('popSuggest').onclick=function(){
-  var orig=savedRange?savedRange.toString():'';
-  var sug=prompt('Đề xuất sửa "'+orig+'" thành:');
-  if(sug){ wrapSelection('aw-sug-del', sug); recordSuggestion(orig,sug,'edit'); }
-  else selPop.classList.remove('show');
-};
-// Strikethrough only (delete suggestion)
+// Strikethrough only (delete mark)
 document.getElementById('popStrike').onclick=function(){
   var orig=wrapSelection('aw-sug-del',''); if(orig)recordSuggestion(orig,'','strike');
 };
-// Highlight
-document.getElementById('popHl').onclick=function(){
-  var orig=wrapSelection('aw-hl',''); if(orig)recordSuggestion(orig,'','highlight');
-};
-// Comment (dotted underline + note)
-document.getElementById('popComment').onclick=function(){
-  var orig=savedRange?savedRange.toString():'';
-  var note=prompt('Bình luận cho "'+orig+'":');
-  if(note){
-    var range=restoreSelection();
-    var span=document.createElement('span');
-    span.className='aw-doc-comment'; span.title=note;
-    try{range.surroundContents(span);}catch(e){var f=range.extractContents();span.appendChild(f);range.insertNode(span);}
-    recordSuggestion(orig,note,'comment');
-  }
+// Text color from selPop (apply last used text color)
+document.getElementById('popTextColor').onclick=function(){
+  var sel=window.getSelection();
+  if(sel&&!sel.isCollapsed) document.execCommand('foreColor',false,_activeTextColor||'#E8360C');
   selPop.classList.remove('show');
+};
+// Highlight from selPop (apply last used highlight color)
+document.getElementById('popHl').onclick=function(){
+  selPop.classList.remove('show');
+  applyHighlightColor(_activeHlColor||'#FFF1A8');
+};
+// Comment from selPop
+document.getElementById('popComment').onclick=function(){
+  selPop.classList.remove('show');
+  openCommentPop(document.getElementById('annComment'));
 };
 
 function recordSuggestion(orig,sug,type){
