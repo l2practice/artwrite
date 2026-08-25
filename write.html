@@ -201,10 +201,6 @@ var content = AW.renderShell({
 
 var startTime = new Date();
 var attempt = 1;
-var hasSubmittedThisSession = false; // true after saveResult succeeds (hw/inclass only)
-var isGrading = false;               // true while AW.grade / saveResult is in flight
-var timerInterval = null;            // ref to the countdown setInterval
-var lastPlainEssay = '';             // snapshot of clean essay text BEFORE renderFeedback annotates editor
 
 // If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
 // fetch the official prompt from the backend so the student sees the real đề bài.
@@ -481,10 +477,10 @@ if (DURATION_MIN) {
   var remain = DURATION_MIN*60;
   var tEl = document.getElementById('timer');
   var timeUp = false;
-  timerInterval = setInterval(function(){
+  var tick = setInterval(function(){
     remain--;
     if (remain<=0){
-      clearInterval(timerInterval); timerInterval = null;
+      clearInterval(tick);
       if (tEl) tEl.textContent = '0:00';
       if (!timeUp){
         timeUp = true;
@@ -507,34 +503,29 @@ if (DURATION_MIN) {
   },1000);
 }
 
-function stopTimer(){
-  if (timerInterval){ clearInterval(timerInterval); timerInterval = null; }
-}
-
 /* Fired once when the countdown reaches zero.
    Always saves the attempt — even if short/incomplete — so the teacher
    sees every student in Results. Shows an encouragement banner after grading
    so the student knows to use Free Writing to improve.                      */
 function autoSubmitOnTimeout(){
-  // ── Guard: already submitted manually in this session ──
-  if (hasSubmittedThisSession) {
-    stopTimer();
-    lockEditor('Hết giờ. Bài đã được nộp trước đó.');
-    return;
-  }
-  // ── Guard: manual grade/save is currently in flight — don't double-save ──
-  if (isGrading) {
-    stopTimer();
-    // The in-flight .then/.finally will lock the editor when it resolves
-    return;
-  }
-
-  stopTimer(); // cancel the interval now so it can't fire again
+  // Guard: don't double-submit if already grading or graded
+  if (writePhase === 'graded') return;
+  if (isGrading) return;
   isGrading = true;
+  writePhase = 'grading';
 
   var gb   = document.getElementById('gradeBtn');
-  // Use the clean snapshot if available (editor may already be annotated)
-  var text = lastPlainEssay || (editor ? editor.innerText.trim() : '');
+  // Use lastPlainEssay if we already have it (student had started grading);
+  // otherwise strip annotations from current editor state.
+  var text;
+  if (lastPlainEssay) {
+    text = lastPlainEssay;
+  } else {
+    var clone2 = document.createElement('div');
+    clone2.innerHTML = editor.innerHTML;
+    clone2.querySelectorAll('.fix-mark, span[style*="→"], span[style*="wavy"]').forEach(function(sp){ sp.remove(); });
+    text = (clone2.innerText || clone2.textContent || '').trim();
+  }
   var wc   = AW.wordCount(text);
 
   // Lock editor immediately so student can't keep writing past time
@@ -555,12 +546,10 @@ function autoSubmitOnTimeout(){
       essay: text || '(Không có nội dung — chưa viết được gì)',
       class:(sess.class||''), feedback:''
     }).then(function(){
-      hasSubmittedThisSession = true;
-      isGrading = false;
       sendHeartbeat('Submitted');
       lockEditor('Hết giờ. Bài đã được ghi nhận.');
       showTimeUpBanner(wc, null);
-    }).catch(function(){ isGrading = false; });
+    });
     return;
   }
 
@@ -595,8 +584,8 @@ function autoSubmitOnTimeout(){
         });
       })
       .then(function(saveRes){
-        hasSubmittedThisSession = true;
         if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
+        writePhase = 'graded'; isGrading = false;
         sendHeartbeat('Submitted');
         if(window.clearDraft) window.clearDraft();
         lockEditor('Hết giờ — bài đã được nộp và chấm tự động.');
@@ -616,7 +605,6 @@ function autoSubmitOnTimeout(){
           tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
           essay:text, class:(sess.class||''), feedback:''
         }).then(function(){
-          hasSubmittedThisSession = true;
           sendHeartbeat('Submitted');
           var sideBodyEl=document.getElementById('sideBody');
           if(sideBodyEl){ sideBodyEl.style.display=''; sideBodyEl.innerHTML=
@@ -626,9 +614,9 @@ function autoSubmitOnTimeout(){
             '<p style="font-size:.82rem;color:var(--aw-ink-3);margin:8px 0 0;line-height:1.5">AI chưa chấm được lần này. Giáo viên sẽ xem và chấm thủ công cho bạn.</p>'+
             '</div>';
           }
-        }).catch(function(){ /* already locked — nothing more to do */ });
+        });
       })
-      .finally(function(){ hideGradingOverlay(); isGrading = false; });
+      .finally(function(){ hideGradingOverlay(); });
   } else {
     // Control class or no key: save plain
     AW.api('write.saveResult', {
@@ -639,13 +627,11 @@ function autoSubmitOnTimeout(){
       tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
       essay:text, class:(sess.class||''), feedback:''
     }).then(function(){
-      hasSubmittedThisSession = true;
-      isGrading = false;
       sendHeartbeat('Submitted');
       if(window.clearDraft) window.clearDraft();
       lockEditor('Hết giờ — bài đã được nộp cho giáo viên.');
       showTimeUpBanner(wc, null);
-    }).catch(function(){ isGrading = false; });
+    });
   }
 }
 
@@ -778,12 +764,14 @@ sendHeartbeat('Writing'); // initial ping
    Same storage path as a graded attempt, minus every AI field, so the teacher
    marks it by hand in Results and the export keeps AI and teacher scores apart. */
 function submitWithoutAI(btn, text){
-  if (MODE !== 'free' && hasSubmittedThisSession) {
-    AW.toast('Bạn đã nộp bài này rồi. Re-try từ My Progress.','err',4000); return;
-  }
+  // Phase guard: reject if not editing
+  if (writePhase !== 'editing') return;
   if(!confirm('Nộp bài này cho giáo viên?\n\nBạn vẫn có thể viết lại và nộp thêm (tối đa 3 lần). Giáo viên sẽ chấm BẢN NỘP MỚI NHẤT.')) return;
-  var orig=btn.textContent; btn.disabled=true;
+  var orig=btn.textContent;
+  btn.disabled=true;
   btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
+  writePhase = 'grading';
+
   AW.api('write.saveResult', {
     studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
     startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
@@ -791,13 +779,22 @@ function submitWithoutAI(btn, text){
     tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
     essay:text, class:(sess.class||''), feedback:''
   }).then(function(res){
-    if (res && res.locked) { AW.toast(res.error||'Bài này đã khoá.','err',4000); lockEditor(res.error||'Bài này đã khoá.'); return; }
-    if (!res || !res.success) { AW.toast((res&&res.error)||'Nộp bài thất bại','err'); btn.disabled=false; btn.textContent=orig; return; }
+    if (res && res.locked) {
+      writePhase = 'graded'; isGrading = false;
+      AW.toast(res.error||'Bài này đã khoá.','err',4000);
+      lockEditor(res.error||'Bài này đã khoá.');
+      return;
+    }
+    if (!res || !res.success) {
+      writePhase = 'editing';    // allow retry on error
+      AW.toast((res&&res.error)||'Nộp bài thất bại','err');
+      btn.disabled=false; btn.textContent=orig;
+      return;
+    }
     attempt = (res.data.attempt||attempt)+1;
     var used = attempt-1;
-    if (MODE !== 'free') { hasSubmittedThisSession = true; stopTimer(); }
     if(window.clearDraft) window.clearDraft();
-    // Hide notepad, show submission status in side panel
+
     var noteEl = document.getElementById('draftNote');
     if (noteEl) noteEl.style.display = 'none';
     document.querySelectorAll('.aw-notepad-label,.aw-notepad-hint').forEach(function(el){ el.style.display='none'; });
@@ -811,16 +808,10 @@ function submitWithoutAI(btn, text){
         '<p style="color:var(--aw-ink-3);font-size:.8rem;margin:0">Lần nộp: <b>'+used+'/3</b>. Giáo viên chấm bản nộp mới nhất.</p>' +
       '</div>';
     }
-    editor.setAttribute('contenteditable','false');
-    editor.style.background='var(--aw-surface-2)';
-    if(used>=3){
-      lockEditor('Bạn đã dùng hết 3 lần nộp cho bài này.');
-    } else {
-      btn.textContent='Đã nộp lần '+used+'/3 — viết lại từ My Progress';
-      btn.disabled=true;
-    }
-    if(MODE!=='free') sendHeartbeat('Submitted');
+    // Transition to GRADED (locks button, locks editor)
+    transitionToGraded(btn, used, used >= 3);
   }).catch(function(e){
+    writePhase = 'editing';    // allow retry on network error
     AW.toast(e.message||'Nộp bài thất bại','err');
     btn.disabled=false; btn.textContent=orig;
   });
@@ -828,40 +819,120 @@ function submitWithoutAI(btn, text){
 
 /*──────── grading ────────*/
 var lastResult=null;
-document.getElementById('gradeBtn').onclick = function(){
-  // ── Guard: already submitted this session (hw/inclass) ──
-  if (MODE !== 'free' && hasSubmittedThisSession) {
-    AW.toast('Bạn đã nộp bài này rồi. Re-try từ My Progress.','err',4000); return;
+
+/*═══════════════════════════════════════════════════════════════════
+  ANTI-CHEAT STATE MACHINE
+  ─────────────────────────────────────────────────────────────────
+  writePhase: 'editing' | 'grading' | 'graded'
+
+  Rules:
+  • gradeBtnHandler / submitWithoutAI only run when phase==='editing'
+  • Once phase==='graded', NO path reaches AW.grade() or saveResult
+    for the same essay — even if student calls from DevTools.
+  • Only resetForRetry() returns phase to 'editing'.
+  • isGrading is a secondary in-flight guard (race protection).
+  • Both guards must pass to proceed.
+  ═══════════════════════════════════════════════════════════════════*/
+var writePhase = 'editing'; // 'editing' | 'grading' | 'graded'
+var isGrading = false;
+var lastPlainEssay = '';
+
+/* resetForRetry — clears everything and returns to editing state.
+   This is the ONLY way back from 'graded'. */
+function resetForRetry(){
+  editor.innerHTML = '';
+  editor.setAttribute('contenteditable','true');
+  editor.style.background = '';
+  editor.focus();
+
+  var sideBody = document.getElementById('sideBody');
+  if (sideBody) { sideBody.style.display='none'; sideBody.innerHTML=''; }
+  var docBtnWrap = document.getElementById('docBtnWrap');
+  if (docBtnWrap) docBtnWrap.innerHTML='';
+
+  if (window.clearDraft) window.clearDraft();
+
+  lastPlainEssay = '';
+  lastResult = null;
+  startTime = new Date();
+  isGrading = false;
+  writePhase = 'editing';   // ← only place this resets
+
+  var btn = document.getElementById('gradeBtn');
+  if (btn) {
+    btn.textContent = AW_AI_ON ? 'Get AI Feedback' : 'Nộp bài';
+    btn.disabled = false;
+    btn.onclick = gradeBtnHandler;
   }
-  // ── Guard: grade/save already in flight ──
+  AW.toast('Đã xoá — viết bài mới để chấm lại.','ok',2000);
+}
+
+/* transitionToGraded — called once per attempt after saveResult succeeds.
+   Sets phase, swaps the button to Re-try (Free) or locks it (hw/inclass). */
+function transitionToGraded(btn, usedAttempts, done){
+  writePhase = 'graded';
+  isGrading  = false;
+
+  if (MODE === 'free') {
+    btn.disabled = false;
+    btn.textContent = '↺ Re-try (viết lại)';
+    btn.onclick = function(){
+      if (!confirm('Bắt đầu lượt mới?\nBài viết và feedback hiện tại sẽ bị xoá.\nBạn sẽ phải viết lại từ đầu.')) return;
+      resetForRetry();
+    };
+  } else {
+    // hw / inclass
+    if (done) {
+      lockEditor('Bạn đã hoàn thành đủ 3 lần cho bài này.');
+      btn.disabled=true; btn.textContent='Đã hoàn thành 3/3';
+    } else {
+      editor.setAttribute('contenteditable','false');
+      editor.style.background='var(--aw-surface-2)';
+      btn.disabled=true;
+      btn.textContent='Đã nộp lần '+usedAttempts+'/3 – Re-try trong My Progress';
+      var ss=document.getElementById('submitStatus');
+      if(ss) ss.style.display='';
+    }
+    sendHeartbeat('Submitted');
+  }
+}
+
+function gradeBtnHandler(){
+  // ── GUARD 1: phase check (chống DevTools / double-click race) ───
+  if (writePhase !== 'editing') return;
+  // ── GUARD 2: in-flight check ─────────────────────────────────────
   if (isGrading) return;
 
-  var text = editor.innerText.trim();
+  // ── Capture CLEAN essay text ─────────────────────────────────────
+  var rawHTML = editor.innerHTML;
+  var clone = document.createElement('div');
+  clone.innerHTML = rawHTML;
+  clone.querySelectorAll('.fix-mark, [class*="err-mark"], span[style*="→"], span[style*="wavy"]').forEach(function(sp){ sp.remove(); });
+  var text = (clone.innerText || clone.textContent || '').trim();
+  if (!text) text = rawHTML.replace(/<[^>]+>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim();
+
   if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
-  // Control class: plain submission, graded by the teacher by hand
   if (!AW_AI_ON) { submitWithoutAI(this, text); return; }
   var key = AW.geminiKey.get();
   if (!key) { AW.toast('Please enter your Gemini API key first.','err'); return; }
 
-  // free-writing: use the prompt the student typed (if any)
   var fp = document.getElementById('freePrompt');
   if (fp && fp.value.trim()) { PROMPT = fp.value.trim(); TOPIC = fp.value.trim().slice(0,60); }
 
   var btn=this; btn.disabled=true; var orig=btn.textContent;
   if (typeof AW.grade !== 'function') {
     AW.toast('Lỗi tải bộ chấm (aw-grader.js). Hãy tải lại trang; nếu vẫn lỗi, báo giáo viên.', 'err', 6000);
-    btn.disabled=false; btn.textContent=orig;
+    btn.disabled=false;
     return;
   }
 
-  // ── Snapshot CLEAN essay text BEFORE renderFeedback annotates the editor ──
+  // ── Enter GRADING phase ───────────────────────────────────────────
   lastPlainEssay = text;
-  isGrading = true;
-
+  writePhase = 'grading';
+  isGrading  = true;
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
   showGradingOverlay();
 
-  // Measure vocabulary against the CEFR list (client-side, free).
   var vocabSummary = '';
   try {
     if (window.AW && AW.analyseVocabulary) {
@@ -870,12 +941,14 @@ document.getElementById('gradeBtn').onclick = function(){
     }
   } catch(e) { lastVocabProfile = null; }
 
-  // Use the clean snapshot — not editor.innerText — for grade + save
   AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key)
     .then(function(result){
       lastResult=result;
+      if (MODE === 'free') {
+        editor.innerHTML = '';
+        editor.innerText = lastPlainEssay;
+      }
       renderFeedback(result);
-      // save each graded attempt WITH full feedback JSON for later review
       return AW.api('write.saveResult', {
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
@@ -887,82 +960,59 @@ document.getElementById('gradeBtn').onclick = function(){
     })
     .then(function(saveRes){
       if (saveRes && saveRes.locked) {
+        writePhase = 'graded'; isGrading = false;
         AW.toast(saveRes.error||'This task is locked.','err',4000);
         lockEditor(saveRes.error||'This task is locked.');
+        btn.disabled=true; btn.textContent='Đã khoá';
         return;
       }
       if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
-      var done = (attempt-1) >= 3;
-      AW.toast('Graded & saved (attempt '+(attempt-1)+'/3)','ok');
+      var usedAttempts = attempt - 1;
+      AW.toast(MODE==='free' ? 'Graded & saved ✓' : 'Graded & saved (attempt '+usedAttempts+'/3)','ok');
       if(window.clearDraft) window.clearDraft();
-      if(MODE!=='free'){
-        hasSubmittedThisSession = true;
-        stopTimer();
-        if(done){
-          lockEditor('Bạn đã hoàn thành đủ 3 lần cho bài này.');
-        } else {
-          editor.setAttribute('contenteditable','false');
-          editor.style.background='var(--aw-surface-2)';
-          var gb=document.getElementById('gradeBtn');
-          if(gb){gb.textContent='Đã nộp lần '+(attempt-1)+'/3 – Re-try trong My Progress';gb.disabled=true;}
-          var ss2=document.getElementById('submitStatus');
-          if(ss2)ss2.style.display='';
-        }
-        sendHeartbeat('Submitted');
-      }
 
-      // Auto-export Google Doc right after save — student gets the link immediately
+      // ── Transition to GRADED (sets phase, swaps button) ──────────
+      transitionToGraded(btn, usedAttempts, usedAttempts >= 3);
+
+      // Google Doc export (hw/inclass only)
       if (MODE !== 'free' && TOPIC_ID && sess.studentId) {
-        var docBtn = document.getElementById('docExportBtn');
-        if (docBtn) {
-          docBtn.disabled = true;
-          docBtn.innerHTML = '<span class="aw-spin"></span> Đang tạo Google Doc…';
-        }
-        AW.api('write.exportDoc', {
-          studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE
-        }).then(function(docRes){
-          var wrap = document.getElementById('docBtnWrap');
-          if (!wrap) return;
-          if (docRes && docRes.success && docRes.data && docRes.data.url) {
-            wrap.innerHTML =
-              '<a href="'+AW.esc(docRes.data.url)+'" target="_blank" rel="noopener" '+
+        var docBtnEl = document.getElementById('docExportBtn');
+        if (docBtnEl) { docBtnEl.disabled=true; docBtnEl.innerHTML='<span class="aw-spin"></span> Đang tạo Google Doc…'; }
+        AW.api('write.exportDoc', { studentId:sess.studentId, topicId:TOPIC_ID, mode:MODE })
+          .then(function(docRes){
+            var wrap = document.getElementById('docBtnWrap');
+            if (!wrap) return;
+            if (docRes && docRes.success && docRes.data && docRes.data.url) {
+              wrap.innerHTML='<a href="'+AW.esc(docRes.data.url)+'" target="_blank" rel="noopener" '+
                 'class="aw-btn aw-btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;font-size:.9rem;text-decoration:none">'+
-                '📄 Mở Feedback Google Doc →'+
-              '</a>'+
-              '<p style="font-size:.73rem;color:var(--aw-ink-3);margin:5px 0 0;text-align:center">Nhận xét chi tiết Grammar · LR · CC · '+c1label+'</p>';
-          } else {
-            wrap.innerHTML =
-              '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">'+
-                '📄 Tạo Google Doc (thử lại)'+
-              '</button>';
-            AW.toast('Không tạo được Google Doc tự động — thử lại thủ công.','err',4000);
-          }
-        }).catch(function(){
-          var wrap2 = document.getElementById('docBtnWrap');
-          if (wrap2) wrap2.innerHTML = '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc (thử lại)</button>';
-        });
-      } else {
-        // Free writing: show manual export button
-        var wrap3 = document.getElementById('docBtnWrap');
-        if (wrap3) wrap3.innerHTML =
-          '<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc</button>';
+                '📄 Mở Feedback Google Doc →</a>'+
+                '<p style="font-size:.73rem;color:var(--aw-ink-3);margin:5px 0 0;text-align:center">Nhận xét chi tiết Grammar · LR · CC · '+c1label+'</p>';
+            } else {
+              wrap.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc (thử lại)</button>';
+              AW.toast('Không tạo được Google Doc tự động — thử lại thủ công.','err',4000);
+            }
+          }).catch(function(){
+            var wrap2=document.getElementById('docBtnWrap');
+            if(wrap2) wrap2.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc (thử lại)</button>';
+          });
+      } else if (MODE === 'free') {
+        var wrap3=document.getElementById('docBtnWrap');
+        if(wrap3) wrap3.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc</button>';
       }
     })
-    .catch(function(e){ isGrading = false; showGradeError(e, btn, orig); })
+    .catch(function(e){
+      // Error: return to editing so student can retry
+      writePhase = 'editing';
+      isGrading  = false;
+      showGradeError(e, btn, orig);
+    })
     .finally(function(){
       hideGradingOverlay();
-      isGrading = false;
-      // Only re-enable button for Free Writing or when NOT yet submitted (error path)
-      if (MODE === 'free') {
-        btn.disabled = false;
-      } else if (!hasSubmittedThisSession) {
-        // Grade/save failed — allow retry
-        btn.disabled = false;
-        btn.textContent = orig;
-      }
-      // hw/inclass submitted: button stays disabled (already set in .then success)
+      // Phase and isGrading already set above — do not touch btn here
     });
-};
+}
+
+document.getElementById('gradeBtn').onclick = gradeBtnHandler;
 
 /*── renderChartViewer ─────────────────────────────────────────────
   Uses Drive thumbnail URL (not uc?export=view which is blocked by

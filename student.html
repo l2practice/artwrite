@@ -825,48 +825,122 @@ function qaCard(q){
 
 function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
-  var hasKey=!!AW.geminiKey.get();
-  // Control classes have no AI features, so the key fields would only confuse
+  var gKey = AW.geminiKey.get();
+  var qKey = AW.groqKey ? AW.groqKey.get() : '';
+
   var keyCards = !AW_AI_ON ? '' : (
-    '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">' +
-      '<h3 style="margin:0 0 6px">Gemini API Key</h3>' +
-      '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Stored on your device, never sent to the server. Needed for AI grading.</p>' +
-      '<div class="aw-pass-wrap" style="margin-bottom:6px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (saved)':'AIza…')+'"></div>' +
-      '<p style="margin:0 0 12px"><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="font-size:.8rem;color:var(--aw-primary);font-weight:600;text-decoration:none">→ Get a free Gemini key at Google AI Studio</a></p>' +
-      '<button class="aw-btn aw-btn-primary" id="keyBtn">Save key</button>' +
-      (hasKey?' <button class="aw-btn aw-btn-ghost" id="keyClear">Remove</button>':'') +
-    '</div>' +
-    '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">' +
-      '<h3 style="margin:0 0 6px">Groq API Key <span style="font-size:.78rem;font-weight:400;color:var(--aw-ink-3)">(optional — AI Tutor in Free Writing)</span></h3>' +
-      '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Stored on your device. Used only for the Free Writing AI Tutor chat.</p>' +
-      '<div class="aw-pass-wrap" style="margin-bottom:6px"><input class="aw-input" id="gqIn" type="password" placeholder="'+(AW.groqKey.get()?'•••••••• (saved)':'gsk_…')+'"></div>' +
-      '<p style="margin:0 0 12px"><a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="font-size:.8rem;color:var(--aw-primary);font-weight:600;text-decoration:none">→ Get a free Groq key</a></p>' +
-      '<button class="aw-btn aw-btn-primary" id="gqBtn">Save key</button>' +
-      (AW.groqKey.get()?' <button class="aw-btn aw-btn-ghost" id="gqClear">Remove</button>':'') +
+    '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+        '<h3 style="margin:0">Gemini API Key</h3>'+
+        '<span style="font-size:.82rem;font-weight:700;color:'+(gKey?'var(--aw-writing)':'var(--aw-danger)')+'">'+
+          (gKey ? '✓ Đã lưu' : '⚠ Chưa có key')+
+        '</span>'+
+      '</div>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">Lưu trên thiết bị này, không gửi lên server. Cần cho AI grading.</p>'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
+        '<div class="aw-pass-wrap" style="flex:1;margin:0">'+
+          '<input class="aw-input" id="keyIn" type="password" autocomplete="off" '+
+            'placeholder="'+(gKey?'•••••••• (đã lưu)':'AIza…')+'" style="padding-right:40px">'+
+          '<button id="skGemShowHide" type="button" title="Show/hide" '+
+            'style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px">👁</button>'+
+        '</div>'+
+        '<button class="aw-btn aw-btn-primary" id="keyBtn" style="padding:9px 18px">Save</button>'+
+        (gKey?'<button class="aw-btn aw-btn-ghost" id="keyClear" style="padding:9px 14px">Remove</button>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+        '<button class="aw-btn aw-btn-ghost" id="skGemTest" style="padding:7px 14px;font-size:.82rem">🔍 Test key</button>'+
+        '<span id="skGemTestResult" style="font-size:.82rem"></span>'+
+      '</div>'+
+      '<p style="margin:10px 0 0;font-size:.78rem;color:var(--aw-ink-3)">'+
+        '→ <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Lấy key miễn phí tại Google AI Studio</a>'+
+      '</p>'+
+    '</div>'+
+    '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+        '<h3 style="margin:0;font-size:1rem">Groq API Key <span style="font-size:.78rem;font-weight:400;color:var(--aw-ink-3)">(optional)</span></h3>'+
+        '<span style="font-size:.82rem;color:'+(qKey?'var(--aw-writing)':'var(--aw-ink-3)')+'">'+
+          (qKey ? '✓ Đã lưu' : '—')+
+        '</span>'+
+      '</div>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">Dùng cho AI Tutor trong Free Writing.</p>'+
+      '<div style="display:flex;gap:8px;align-items:center">'+
+        '<div class="aw-pass-wrap" style="flex:1;margin:0">'+
+          '<input class="aw-input" id="gqIn" type="password" autocomplete="off" '+
+            'placeholder="'+(qKey?'•••••••• (đã lưu)':'gsk_…')+'" style="padding-right:40px">'+
+          '<button id="skGroqShowHide" type="button" title="Show/hide" '+
+            'style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px">👁</button>'+
+        '</div>'+
+        '<button class="aw-btn aw-btn-primary" id="gqBtn" style="padding:9px 18px">Save</button>'+
+        (qKey?'<button class="aw-btn aw-btn-ghost" id="gqClear" style="padding:9px 14px">Remove</button>':'')+
+      '</div>'+
+      '<p style="margin:10px 0 0;font-size:.78rem;color:var(--aw-ink-3)">'+
+        '→ <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Get a free Groq key</a>'+
+      '</p>'+
     '</div>');
+
   content.innerHTML=
     keyCards +
-    '<div class="aw-card" style="padding:24px;max-width:520px">' +
-      '<h3 style="margin:0 0 14px">Change Password</h3>' +
-      '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="pwOld" type="password"></div>' +
-      '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="pwNew" type="password"></div>' +
-      '<div class="aw-field"><label class="aw-label">Confirm new password</label><input class="aw-input" id="pwNew2" type="password"></div>' +
-      '<button class="aw-btn aw-btn-primary" id="pwBtn">Update password</button>' +
+    '<div class="aw-card" style="padding:24px;max-width:520px">'+
+      '<h3 style="margin:0 0 14px">Change Password</h3>'+
+      '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="pwOld" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="pwNew" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">Confirm new password</label><input class="aw-input" id="pwNew2" type="password"></div>'+
+      '<button class="aw-btn aw-btn-primary" id="pwBtn">Update password</button>'+
     '</div>';
-  var keyBtn=document.getElementById('keyBtn');
-  if(keyBtn) keyBtn.onclick=function(){
-    var k=document.getElementById('keyIn').value.trim();
-    if(k){AW.geminiKey.set(k);AW.toast('API key saved','ok');showSettings();}
-  };
-  var clr=document.getElementById('keyClear');
-  if(clr)clr.onclick=function(){AW.geminiKey.set('');AW.toast('Key removed','ok');showSettings();};
-  var gqBtn=document.getElementById('gqBtn');
-  if(gqBtn) gqBtn.onclick=function(){
-    var k=document.getElementById('gqIn').value.trim();
-    if(k){AW.groqKey.set(k);AW.toast('Groq key saved','ok');showSettings();}
-  };
-  var gclr=document.getElementById('gqClear');
-  if(gclr)gclr.onclick=function(){AW.groqKey.set('');AW.toast('Groq key removed','ok');showSettings();};
+
+  if (AW_AI_ON) {
+    var keyIn = document.getElementById('keyIn');
+    document.getElementById('skGemShowHide').onclick = function(){
+      keyIn.type = keyIn.type==='password'?'text':'password';
+      this.textContent = keyIn.type==='password'?'👁':'🙈';
+    };
+    keyIn.oninput = function(){
+      var v = keyIn.value.trim(), res = document.getElementById('skGemTestResult');
+      if(!v){ res.textContent=''; return; }
+      if(!v.startsWith('AIza')||v.length<20)
+        res.innerHTML='<span style="color:var(--aw-danger)">⚠ Key phải bắt đầu bằng "AIza"</span>';
+      else res.textContent='';
+    };
+    keyIn.onkeydown = function(e){ if(e.key==='Enter') document.getElementById('keyBtn').click(); };
+    document.getElementById('keyBtn').onclick = function(){
+      var k=keyIn.value.trim();
+      if(!k){ AW.toast('Nhập key trước.','warn'); return; }
+      if(!k.startsWith('AIza')){ AW.toast('Key không đúng định dạng.','err'); return; }
+      AW.geminiKey.set(k); AW.toast('API key đã lưu ✓','ok'); showSettings();
+    };
+    var clr=document.getElementById('keyClear');
+    if(clr) clr.onclick=function(){
+      if(!confirm('Xoá Gemini key?')) return;
+      AW.geminiKey.set(''); AW.toast('Key đã xoá.','ok'); showSettings();
+    };
+    document.getElementById('skGemTest').onclick = function(){
+      var k=keyIn.value.trim()||AW.geminiKey.get();
+      if(!k){ AW.toast('Nhập key trước.','warn'); return; }
+      var res=document.getElementById('skGemTestResult');
+      res.innerHTML='<span style="color:var(--aw-ink-3)">⏳ Đang kiểm tra…</span>';
+      fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(k)+'&pageSize=1')
+        .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,data:d}; }); })
+        .then(function(r){
+          if(r.ok&&r.data.models)
+            res.innerHTML='<span style="color:var(--aw-writing);font-weight:700">✓ Key hợp lệ</span>';
+          else
+            res.innerHTML='<span style="color:var(--aw-danger)">✗ '+(r.data.error&&AW.esc(r.data.error.message)||'Key không hợp lệ')+'</span>';
+        }).catch(function(){ res.innerHTML='<span style="color:var(--aw-danger)">✗ Lỗi kết nối</span>'; });
+    };
+    var gqIn=document.getElementById('gqIn');
+    document.getElementById('skGroqShowHide').onclick=function(){
+      gqIn.type=gqIn.type==='password'?'text':'password';
+      this.textContent=gqIn.type==='password'?'👁':'🙈';
+    };
+    gqIn.onkeydown=function(e){ if(e.key==='Enter') document.getElementById('gqBtn').click(); };
+    document.getElementById('gqBtn').onclick=function(){
+      var k=gqIn.value.trim();
+      if(k){AW.groqKey.set(k);AW.toast('Groq key đã lưu ✓','ok');showSettings();}
+    };
+    var gclr=document.getElementById('gqClear');
+    if(gclr) gclr.onclick=function(){AW.groqKey.set('');AW.toast('Groq key đã xoá.','ok');showSettings();};
+  }
+
   document.getElementById('pwBtn').onclick=function(){
     var o=document.getElementById('pwOld').value, n=document.getElementById('pwNew').value, n2=document.getElementById('pwNew2').value;
     if(!o||!n){AW.toast('Please fill all fields.','err');return;}
@@ -877,10 +951,6 @@ function showSettings(){
     });
   };
 }
-
-/*──────── deep-link routing ────────
-  Other pages (e.g. board.html) link back here with a hash, so honour it
-  instead of always dropping the student on Practice Modes. */
 function routeFromHash(){
   var h=(location.hash||'').replace('#','');
   if(h==='progress'){ showProgress(); AW.setActiveNav('progress'); }
