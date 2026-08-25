@@ -1768,7 +1768,7 @@ function showResults(){
     bar.innerHTML =
       '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
         '<select class="aw-select" id="trSetSel" style="flex:1;min-width:240px;max-width:440px">'+
-          '<option value="">⌛ Đang tải danh sách bài dịch…</option>'+
+          '<option value="">⌛ Loading topics…</option>'+
         '</select>'+
         '<button class="aw-btn aw-btn-primary" id="loadTrResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
       '</div>';
@@ -1776,16 +1776,16 @@ function showResults(){
       var sets = (res&&res.data)||[];
       var sel = document.getElementById('trSetSel');
       if(!sel) return;
-      sel.innerHTML = '<option value="">📋 Chọn bài dịch…</option>'+
+      sel.innerHTML = '<option value="">📋 Pick a topic…</option>'+
         sets.map(function(s){ return '<option value="'+AW.esc(s.setId)+'">'+AW.esc(s.title)+' ('+s.sessionStatus+')</option>'; }).join('');
     }).catch(function(){
       var sel = document.getElementById('trSetSel');
-      if(sel) sel.innerHTML='<option value="">⚠ Lỗi tải — thử lại</option>';
+      if(sel) sel.innerHTML='<option value="">⚠ Loading Error - Retry</option>';
     });
     var btn = document.getElementById('loadTrResBtn');
     if(btn) btn.onclick = function(){
       var setId = document.getElementById('trSetSel').value;
-      if(!setId){ AW.toast('Chọn một bài dịch trước.','warn'); return; }
+      if(!setId){ AW.toast('Pick a translation practice.','warn'); return; }
       renderTranslateResults(setId);
     };
   }
@@ -1853,9 +1853,9 @@ function showResults(){
       bar.innerHTML =
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
           '<select class="aw-select" id="fDays">'+
-            '<option value="6">6 ngày gần nhất</option>'+
-            '<option value="14">14 ngày gần nhất</option>'+
-            '<option value="0">Tất cả kết quả</option>'+
+            '<option value="6">last 6 days</option>'+
+            '<option value="14">last 14 days</option>'+
+            '<option value="0">All results</option>'+
           '</select>'+
           '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
           '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">Free Writing — No topic to choose</span>'+
@@ -1870,12 +1870,12 @@ function showResults(){
       bar.innerHTML =
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
           '<select class="aw-select" id="fTopicSel" style="flex:1;min-width:240px;max-width:440px">'+
-            '<option value="">⌛ Đang tải danh sách bài…</option>'+
+            '<option value="">⌛ Loading topics…</option>'+
           '</select>'+
           '<select class="aw-select" id="fDays">'+
-            '<option value="6">6 ngày gần nhất</option>'+
-            '<option value="14">14 ngày gần nhất</option>'+
-            '<option value="0">Tất cả kết quả</option>'+
+            '<option value="6">last 6 days</option>'+
+            '<option value="14">last 14 days</option>'+
+            '<option value="0">All results</option>'+
           '</select>'+
           '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
         '</div>'+
@@ -1892,18 +1892,18 @@ function showResults(){
             return '<option value="'+AW.esc(a.topicId)+'">'+AW.esc(a.topic)+badge+'</option>';
           }).join('');
       }).catch(function(){
-        sel.innerHTML='<option value="">⚠ Lỗi tải — thử lại</option>';
+        sel.innerHTML='<option value="">⚠ Loading error — Retry</option>';
       });
       document.getElementById('loadResBtn').onclick = function(){
         var topicId = document.getElementById('fTopicSel').value;
-        if(!topicId){ AW.toast('Vui lòng chọn một bài tập trước.','err'); return; }
+        if(!topicId){ AW.toast('Please a topic first.','err'); return; }
         doLoad(topicId);
       };
     }
     // Show empty state until load
     document.getElementById('resultsBox').innerHTML=
       '<div class="aw-empty" style="padding:60px 20px;color:var(--aw-ink-3)">'+
-        '<p style="font-size:.95rem">'+(isFree?'Chọn khoảng thời gian rồi bấm <b>Load Results</b>':'Chọn bài tập rồi bấm <b>Load Results</b>')+'</p>'+
+        '<p style="font-size:.95rem">'+(isFree?'Choose the timeline and click <b>Load Results</b>':'Pick a topic and click <b>Load Results</b>')+'</p>'+
       '</div>';
     wireSecFilters();
   }
@@ -1978,7 +1978,7 @@ function loadResults(mode, topicId, days){
     var secBar = document.getElementById('resSecBar');
     if(secBar) secBar.style.display='flex';
     if(!resultsData.length){
-      box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>Không có kết quả nào trong khoảng thời gian này.</p></div>';
+      box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results found in this timeline.</p></div>';
       return;
     }
     renderResults();
