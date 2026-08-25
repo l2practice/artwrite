@@ -192,39 +192,13 @@ function openBoard(id){
     if(!res||!res.success){AW.toast('Không mở được bảng','err');return;}
     curBoard=res.data; zoom=1;
     renderBoard();
-    if(!isTeacher){ startStudentPoll(); }
-  });
-}
-
-/*── Student board polling ──────────────────────────────────────
-  Uses meta-first pattern: poll board.meta (lightweight — only boardId + updatedAt)
-  every 15s. Only fetch the full board.get when updatedAt has changed.
-  Pauses when the tab is hidden to reduce Apps Script quota usage.              */
-function startStudentPoll(){
-  stopPoll();
-  pollTimer = setInterval(refreshBoardMeta, 15000);
-  document.addEventListener('visibilitychange', _onBoardVisibility);
-}
-function _onBoardVisibility(){
-  clearInterval(pollTimer); pollTimer = null;
-  if(document.visibilityState === 'visible'){
-    refreshBoardMeta(); // catch up immediately on refocus
-    pollTimer = setInterval(refreshBoardMeta, 15000);
-  }
-}
-function refreshBoardMeta(){
-  if(!curBoard) return;
-  AW.api('board.meta',{boardId:curBoard.boardId}).then(function(res){
-    if(!res||!res.success) return;
-    if(res.data.updatedAt !== curBoard.updatedAt){
-      refreshBoard(); // content changed → fetch full board
-    }
+    if(!isTeacher){ pollTimer=setInterval(refreshBoard, 6000); } // students poll for updates
   });
 }
 function refreshBoard(){
   if(!curBoard)return;
   AW.api('board.get',{boardId:curBoard.boardId}).then(function(res){
-    if(res&&res.success){
+    if(res&&res.success && res.data.updatedAt!==curBoard.updatedAt){
       curBoard=res.data;
       var canvas=document.getElementById('canvas');
       if(canvas){
@@ -234,10 +208,7 @@ function refreshBoard(){
     }
   });
 }
-function stopPoll(){
-  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
-  document.removeEventListener('visibilitychange', _onBoardVisibility);
-}
+function stopPoll(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
 
 function renderBoard(){
   document.getElementById('awPageTitle').textContent='Interactive Board';
@@ -789,7 +760,7 @@ function saveNow(){
     if(res && res.success){
       if(dot2){ dot2.textContent='✓ Đã lưu'; dot2.style.color='#1A9E5C'; }
       if(btn2){ btn2.disabled=false; btn2.textContent='💾 Save'; btn2.style.background=''; }
-      AW.toast('Đã lưu bảng — sinh viên sẽ thấy ngay.','ok', 2500);
+      // Toast removed — teacher can see save state from the Save button itself
     } else if(res && res.error==='CONTENT_TOO_LARGE') {
       if(dot2){ dot2.textContent='✗ Board quá nặng'; dot2.style.color='var(--aw-danger)'; }
       if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; btn2.style.background='var(--aw-danger)'; }

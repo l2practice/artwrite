@@ -568,9 +568,19 @@ function autoSubmitOnTimeout(){
       }
     } catch(e){ lastVocabProfile = null; }
 
-    AW.grade({ writing:text, question:PROMPT, attempt:attempt,
-               aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE }, key)
+    var _autoGradeTimeout;
+    var autoGradePromise = Promise.race([
+      AW.grade({ writing:text, question:PROMPT, attempt:attempt,
+                 aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE }, key),
+      new Promise(function(_, reject){
+        _autoGradeTimeout = setTimeout(function(){
+          reject(new Error('timeout: AI không phản hồi sau 90 giây.'));
+        }, 90000);
+      })
+    ]);
+    autoGradePromise
       .then(function(result){
+        clearTimeout(_autoGradeTimeout);
         lastResult = result;
         renderFeedback(result);
         return AW.api('write.saveResult', {
@@ -594,6 +604,7 @@ function autoSubmitOnTimeout(){
         try { if(lastVocabProfile && window.AW && AW.renderVocabProfile) AW.renderVocabProfile(lastVocabProfile); } catch(e){}
       })
       .catch(function(e){
+        clearTimeout(_autoGradeTimeout);
         // AI grading failed — still save essay so student isn't penalised,
         // then show a friendly error so they understand what happened.
         showGradeError(e, null, null);
@@ -955,8 +966,23 @@ function gradeBtnHandler(){
     }
   } catch(e) { lastVocabProfile = null; }
 
-  AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key)
+  // Wrap AW.grade in a 90-second timeout so the spinner never hangs forever.
+  // Gemini API occasionally stalls without rejecting; this ensures the student
+  // always gets a recoverable error instead of an infinite spinner.
+  var GRADE_TIMEOUT_MS = 90000;
+  var gradeTimeoutId;
+  var gradeWithTimeout = Promise.race([
+    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key),
+    new Promise(function(_, reject){
+      gradeTimeoutId = setTimeout(function(){
+        reject(new Error('timeout: AI không phản hồi sau 90 giây. Vui lòng thử lại.'));
+      }, GRADE_TIMEOUT_MS);
+    })
+  ]);
+
+  gradeWithTimeout
     .then(function(result){
+      clearTimeout(gradeTimeoutId);
       lastResult=result;
       if (MODE === 'free') {
         // Restore clean essay with paragraph structure before annotations
@@ -1023,6 +1049,7 @@ function gradeBtnHandler(){
       }
     })
     .catch(function(e){
+      clearTimeout(gradeTimeoutId);
       // Error: return to editing so student can retry
       writePhase = 'editing';
       isGrading  = false;
