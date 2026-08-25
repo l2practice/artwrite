@@ -710,8 +710,8 @@ function showOverview(){
     var d=(res&&res.data)||{activeStudents:0,totalAssignments:0,hwAssignments:0,icAssignments:0};
     content.innerHTML=
       '<div class="aw-kpi-row">' +
-        kpi('Sinh viên trong lớp', d.activeStudents) +
-        kpi('Tổng bài đã giao', d.totalAssignments) +
+        kpi('Total Students', d.activeStudents) +
+        kpi('Total Assignments', d.totalAssignments) +
         kpi('Homework', d.hwAssignments) +
         kpi('In-class Practice', d.icAssignments) +
       '</div>' +
@@ -1735,12 +1735,12 @@ function showResults(){
       '<button class="aw-tab" data-mode="inclass">In-Class Practice</button>'+
       '<button class="aw-tab" data-mode="homework">Homework</button>'+
       '<button class="aw-tab" data-mode="free">Free Writing</button>'+
-      '<button class="aw-tab" data-mode="translate">🔄 Translation Practice</button>'+
+      '<button class="aw-tab" data-mode="translate">Translation Practice</button>'+
     '</div>'+
     '<div id="resFilterBar" style="display:none"></div>'+
     '<div id="resultsBox">'+
       '<div class="aw-empty" style="padding:60px 20px">'+
-        '<p style="font-size:1rem;color:var(--aw-ink-3)">Chọn một tab bên trên để bắt đầu</p>'+
+        '<p style="font-size:1rem;color:var(--aw-ink-3)">Pick a tab to start</p>'+
       '</div>'+
     '</div>';
 
@@ -1770,7 +1770,7 @@ function showResults(){
         '<select class="aw-select" id="trSetSel" style="flex:1;min-width:240px;max-width:440px">'+
           '<option value="">⌛ Đang tải danh sách bài dịch…</option>'+
         '</select>'+
-        '<button class="aw-btn aw-btn-primary" id="loadTrResBtn" style="padding:9px 22px;font-weight:700">🔍 Load kết quả</button>'+
+        '<button class="aw-btn aw-btn-primary" id="loadTrResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
       '</div>';
     AW.api('translate.list', { classId: curClass() }).then(function(res){
       var sets = (res&&res.data)||[];
@@ -1857,8 +1857,8 @@ function showResults(){
             '<option value="14">14 ngày gần nhất</option>'+
             '<option value="0">Tất cả kết quả</option>'+
           '</select>'+
-          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load kết quả</button>'+
-          '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">Free Writing — không cần chọn topic</span>'+
+          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
+          '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">Free Writing — No topic to choose</span>'+
         '</div>'+
         '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
           secFiltersHtml()+
@@ -1877,7 +1877,7 @@ function showResults(){
             '<option value="14">14 ngày gần nhất</option>'+
             '<option value="0">Tất cả kết quả</option>'+
           '</select>'+
-          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load kết quả</button>'+
+          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
         '</div>'+
         '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
           secFiltersHtml()+
@@ -1886,7 +1886,7 @@ function showResults(){
       var sel = document.getElementById('fTopicSel');
       AW.api('write.getAssignments',{class:curClass(), mode:_mode}).then(function(res){
         _assignments = (res&&res.data)||[];
-        sel.innerHTML = '<option value="">📋 Chọn bài tập…</option>'+
+        sel.innerHTML = '<option value="">📋 Pick a topic…</option>'+
           _assignments.map(function(a){
             var badge = a.taskType==='task1' ? ' [T1]' : ' [T2]';
             return '<option value="'+AW.esc(a.topicId)+'">'+AW.esc(a.topic)+badge+'</option>';
@@ -1903,7 +1903,7 @@ function showResults(){
     // Show empty state until load
     document.getElementById('resultsBox').innerHTML=
       '<div class="aw-empty" style="padding:60px 20px;color:var(--aw-ink-3)">'+
-        '<p style="font-size:.95rem">'+(isFree?'Chọn khoảng thời gian rồi bấm <b>Load kết quả</b>':'Chọn bài tập rồi bấm <b>Load kết quả</b>')+'</p>'+
+        '<p style="font-size:.95rem">'+(isFree?'Chọn khoảng thời gian rồi bấm <b>Load Results</b>':'Chọn bài tập rồi bấm <b>Load Results</b>')+'</p>'+
       '</div>';
     wireSecFilters();
   }
@@ -1965,15 +1965,15 @@ function showResults(){
 function loadResults(mode, topicId, days){
   var box = document.getElementById('resultsBox');
   var loadBtn = document.getElementById('loadResBtn');
-  if(loadBtn){ loadBtn.disabled=true; loadBtn.textContent='⏳ Đang tải…'; }
-  box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p style="margin:10px 0 0">Đang tải kết quả…</p></div>';
+  if(loadBtn){ loadBtn.disabled=true; loadBtn.textContent='⏳ Loading…'; }
+  box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p style="margin:10px 0 0">Loading Results…</p></div>';
 
   var params = { class:curClass(), mode:mode };
   if(topicId) params.topicId = topicId;           // server-side topic filter
   if(days && days > 0) params.days = days;         // server-side date range filter
 
   AW.api('teacher.getResults', params).then(function(res){
-    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load kết quả'; }
+    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load Results'; }
     resultsData = (res&&res.data)||[];
     var secBar = document.getElementById('resSecBar');
     if(secBar) secBar.style.display='flex';
@@ -1983,7 +1983,7 @@ function loadResults(mode, topicId, days){
     }
     renderResults();
   }).catch(function(e){
-    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load kết quả'; }
+    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load Results'; }
     box.innerHTML='<div class="aw-empty" style="color:var(--aw-danger)">⚠ Lỗi: '+(e.message||'')+'</div>';
     AW.toast('Lỗi tải kết quả','err');
   });
@@ -2319,12 +2319,12 @@ function showAssignments(){
     '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">'+
       '<button class="aw-btn aw-btn-primary" onclick="newAssignment(\'homework\')">+ New Homework</button>'+
       '<button class="aw-btn aw-btn-ghost" onclick="newAssignment(\'inclass\')">+ New In-class Task</button>'+
-      '<button class="aw-btn aw-btn-ghost" style="color:#8B5CF6;border-color:#8B5CF6" onclick="openTrModal()">🔄 New Translate Set</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="color:#8B5CF6;border-color:#8B5CF6" onclick="openTrModal()">New Translate Set</button>'+
     '</div>'+
     '<div class="aw-tabs" id="assignTabs">'+
       '<button class="aw-tab active" data-amode="inclass">In-class Practice</button>'+
       '<button class="aw-tab" data-amode="homework">Homework</button>'+
-      '<button class="aw-tab" data-amode="translate">🔄 Translation Practice</button>'+
+      '<button class="aw-tab" data-amode="translate">Translation Practice</button>'+
     '</div>'+
     '<div id="assignList"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
   AW.els('[data-amode]').forEach(function(t){
@@ -2858,7 +2858,7 @@ function showSettings(){
         '<span id="tkTestResult" style="font-size:.82rem"></span>'+
       '</div>'+
       '<p style="margin:10px 0 0;font-size:.78rem;color:var(--aw-ink-3)">'+
-        '→ <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Lấy key miễn phí tại Google AI Studio</a>'+
+        '→ <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Get free key at Google AI Studio</a>'+
       '</p>'+
     '</div>'+
     /* ── Account ── */
