@@ -30,7 +30,7 @@
   .aw-grade-bar{height:8px;background:var(--aw-surface-2);border-radius:5px;overflow:hidden;margin:6px 0}
   .aw-grade-fill{height:100%;width:0;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:5px;transition:width .6s ease}
   .aw-grade-sub{font-size:.82rem;color:var(--aw-ink-3);margin:12px 0 0}
-  .aw-editor{min-height:calc(100vh - 300px);border:none;border-top:1px solid var(--aw-border);padding:20px 24px;font-family:var(--aw-font-body);font-size:1rem;line-height:1.8;color:var(--aw-ink);background:var(--aw-surface);outline:none;overflow-y:auto;resize:none}
+  .aw-editor{min-height:calc(100vh - 300px);border:none;border-top:1px solid var(--aw-border);padding:20px 24px;font-family:var(--aw-font-body);font-size:1rem;line-height:1.8;color:var(--aw-ink);background:var(--aw-surface);outline:none;overflow-y:auto;resize:none;white-space:pre-wrap}
   .aw-editor:focus{border-color:var(--aw-primary);box-shadow:inset 0 0 0 1px var(--aw-primary)}
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
@@ -903,12 +903,26 @@ function gradeBtnHandler(){
   // ── GUARD 2: in-flight check ─────────────────────────────────────
   if (isGrading) return;
 
-  // ── Capture CLEAN essay text ─────────────────────────────────────
+  // ── Capture CLEAN essay text — preserve paragraph structure ─────
+  // Convert block elements to \n before innerText so paragraph breaks
+  // survive as double-newlines in the saved plain text.
   var rawHTML = editor.innerHTML;
   var clone = document.createElement('div');
   clone.innerHTML = rawHTML;
+  // Remove annotation spans (keep their text)
   clone.querySelectorAll('.fix-mark, [class*="err-mark"], span[style*="→"], span[style*="wavy"]').forEach(function(sp){ sp.remove(); });
+  // Ensure block elements become newlines in innerText
+  clone.querySelectorAll('p, div, br').forEach(function(el){
+    if (el.tagName === 'BR') {
+      el.parentNode.insertBefore(document.createTextNode('\n'), el);
+    } else {
+      el.insertAdjacentText('afterbegin', '');
+      el.insertAdjacentText('afterend', '\n');
+    }
+  });
   var text = (clone.innerText || clone.textContent || '').trim();
+  // Normalize: collapse 3+ newlines to double, preserve paragraph structure
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
   if (!text) text = rawHTML.replace(/<[^>]+>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim();
 
   if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
@@ -945,7 +959,9 @@ function gradeBtnHandler(){
     .then(function(result){
       lastResult=result;
       if (MODE === 'free') {
+        // Restore clean essay with paragraph structure before annotations
         editor.innerHTML = '';
+        editor.style.whiteSpace = 'pre-wrap';
         editor.innerText = lastPlainEssay;
       }
       renderFeedback(result);
@@ -967,6 +983,10 @@ function gradeBtnHandler(){
         return;
       }
       if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
+      // For Free Writing, the backend generates a topicId on first save — capture it
+      if (saveRes && saveRes.success && saveRes.data && saveRes.data.topicId && !TOPIC_ID) {
+        TOPIC_ID = saveRes.data.topicId;
+      }
       var usedAttempts = attempt - 1;
       AW.toast(MODE==='free' ? 'Graded & saved ✓' : 'Graded & saved (attempt '+usedAttempts+'/3)','ok');
       if(window.clearDraft) window.clearDraft();
@@ -974,11 +994,12 @@ function gradeBtnHandler(){
       // ── Transition to GRADED (sets phase, swaps button) ──────────
       transitionToGraded(btn, usedAttempts, usedAttempts >= 3);
 
-      // Google Doc export (hw/inclass only)
-      if (MODE !== 'free' && TOPIC_ID && sess.studentId) {
+      // Google Doc export — trigger immediately for ALL modes using the topicId
+      var exportTopicId = (saveRes && saveRes.data && saveRes.data.topicId) || TOPIC_ID;
+      if (exportTopicId && sess.studentId) {
         var docBtnEl = document.getElementById('docExportBtn');
         if (docBtnEl) { docBtnEl.disabled=true; docBtnEl.innerHTML='<span class="aw-spin"></span> Đang tạo Google Doc…'; }
-        AW.api('write.exportDoc', { studentId:sess.studentId, topicId:TOPIC_ID, mode:MODE })
+        AW.api('write.exportDoc', { studentId:sess.studentId, topicId:exportTopicId, mode:MODE })
           .then(function(docRes){
             var wrap = document.getElementById('docBtnWrap');
             if (!wrap) return;
@@ -995,7 +1016,8 @@ function gradeBtnHandler(){
             var wrap2=document.getElementById('docBtnWrap');
             if(wrap2) wrap2.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc (thử lại)</button>';
           });
-      } else if (MODE === 'free') {
+      } else {
+        // No topicId available — show manual button
         var wrap3=document.getElementById('docBtnWrap');
         if(wrap3) wrap3.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc</button>';
       }
@@ -1422,7 +1444,10 @@ function renderVocabWords(p){
   Shown post-submit in the right panel instead of the notepad.
   More visual than renderVocabProfile: stacked bar + word chips by level. */
 function manualExportDoc(){
-  if (!TOPIC_ID || !sess || !sess.studentId || MODE==='free') return;
+  if (!TOPIC_ID || !sess || !sess.studentId) {
+    AW.toast('Chưa có topicId — chờ bài được lưu xong.','err',3000);
+    return;
+  }
   var btn = event && event.target;
   if (btn) { btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span> Đang tạo…'; }
   AW.api('write.exportDoc',{ studentId:sess.studentId, topicId:TOPIC_ID, mode:MODE })
