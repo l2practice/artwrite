@@ -1273,45 +1273,46 @@ function gradeTrItem(item,answer,cb){
     }
   }
 
-  // Gemini primary + fallback models, then Groq backup
+  // Define tryGroq outside if/else so it can be called from both branches
+  function tryGroq(){
+    var GROQ_TR_MODELS=['openai/gpt-oss-120b','qwen/qwen3.6-27b','openai/gpt-oss-20b'];
+    var gmi=0;
+    function nextGroqModel(){
+      if(_aiDone||gmi>=GROQ_TR_MODELS.length) return;
+      var gm=GROQ_TR_MODELS[gmi++];
+      fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groq},
+        body:JSON.stringify({model:gm,messages:[{role:'user',content:prompt}],
+          max_tokens:200,temperature:0.1})
+      }).then(function(r){return r.json();}).then(function(d){
+        if(_aiDone) return;
+        var t=((d.choices||[])[0]||{}).message&&d.choices[0].message.content||'';
+        if(!t) throw new Error('empty'); aiUpdate(parse(t));
+      }).catch(function(){ nextGroqModel(); });
+    }
+    nextGroqModel();
+  }
+
+  // Gemini primary (fastest first), Groq as fallback
   if(key){
     var MODELS=['gemini-2.0-flash','gemini-1.5-flash','gemini-3.5-flash'];
     var mi=0;
     function tryG(){
+      if(_aiDone) return;
       if(mi>=MODELS.length){ if(groq) tryGroq(); return; }
       var m=MODELS[mi++];
       fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],
-          generationConfig:{maxOutputTokens:400,temperature:0.1}})
+          generationConfig:{maxOutputTokens:200,temperature:0.1}})
       }).then(function(r){return r.json();}).then(function(d){
+        if(_aiDone) return;
         var t=((((d.candidates||[])[0]||{}).content||{}).parts||[]).map(function(p){return p.text||'';}).join('');
         if(!t) throw new Error('empty'); aiUpdate(parse(t));
       }).catch(function(){ tryG(); });
     }
     tryG();
-  } else if(groq) {
-    function tryGroq(){
-      // Use updated stable Groq model
-      var GROQ_TR_MODELS=['openai/gpt-oss-120b','qwen/qwen3.6-27b','openai/gpt-oss-20b'];
-      var gmi=0;
-      function nextGroqModel(){
-        if(gmi>=GROQ_TR_MODELS.length) return;
-        var gm=GROQ_TR_MODELS[gmi++];
-        fetch('https://api.groq.com/openai/v1/chat/completions',{
-          method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groq},
-          body:JSON.stringify({model:gm,messages:[{role:'user',content:prompt}],
-            max_tokens:400,temperature:0.1})
-        }).then(function(r){return r.json();}).then(function(d){
-          var t=((d.choices||[])[0]||{}).message&&d.choices[0].message.content||'';
-          if(!t) throw new Error('empty'); aiUpdate(parse(t));
-        }).catch(function(e){
-          // Deprecated/not-found → try next Groq model
-          nextGroqModel();
-        });
-      }
-      nextGroqModel();
-    }
+  } else if(groq){
     tryGroq();
   }
 }
