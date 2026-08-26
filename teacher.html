@@ -554,6 +554,17 @@
 if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
 if (window.AW && !AW.bumpLoginCount) { AW.bumpLoginCount = function(){}; }
 if (window.AW && !AW.groqKey) { AW.groqKey = { get:function(){return localStorage.getItem('aw_groq_key')||'';}, set:function(k){localStorage.setItem('aw_groq_key',k||'');} }; }
+
+/* Gemini key format: classic AIza… or newer AI Studio keys (e.g. AQ…) */
+function isGeminiKeyFormat(k) {
+  k = (k || '').trim();
+  if (k.length < 20) return false;
+  if (/^AIza[0-9A-Za-z_-]{20,}$/.test(k)) return true;
+  if (/^AQ[0-9A-Za-z_-]{20,}$/.test(k)) return true;
+  // Allow other future prefixes if long enough and key-like (no spaces)
+  return /^[A-Za-z0-9_-]{30,}$/.test(k);
+}
+
 </script>
 <script>
 if (typeof AW === 'undefined') {
@@ -2847,7 +2858,7 @@ function showSettings(){
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
         '<div class="aw-pass-wrap" style="flex:1;margin:0">'+
           '<input class="aw-input" id="tkIn" type="password" autocomplete="off" '+
-            'placeholder="'+(gKey?'•••••••• (đã lưu)':'AIza…')+'" style="padding-right:40px">'+
+            'placeholder="'+(gKey?'•••••••• (đã lưu)':'AIza… hoặc AQ…')+'" style="padding-right:40px">'+
           '<button id="tkShowHide" type="button" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px" title="Show/hide">👁</button>'+
         '</div>'+
         '<button class="aw-btn aw-btn-primary" id="tkSave" style="padding:9px 18px">Save</button>'+
@@ -2910,13 +2921,13 @@ function showSettings(){
   // Enter to save
   tkIn.onkeydown = function(e){ if(e.key==='Enter') document.getElementById('tkSave').click(); };
 
-  // Validate format: Gemini keys start with "AIza"
+  // Validate format: classic AIza… or newer AI Studio keys (e.g. AQ…)
   tkIn.oninput = function(){
     var v = tkIn.value.trim();
     var res = document.getElementById('tkTestResult');
     if(!v){ res.textContent=''; return; }
-    if(!v.startsWith('AIza') || v.length < 20){
-      res.innerHTML='<span style="color:var(--aw-danger)">⚠ Định dạng key Gemini phải bắt đầu bằng "AIza"</span>';
+    if(!isGeminiKeyFormat(v)){
+      res.innerHTML='<span style="color:var(--aw-danger)">⚠ Key quá ngắn hoặc chứa ký tự không hợp lệ</span>';
     } else {
       res.innerHTML='<span style="color:var(--aw-ink-3)">Bấm Save hoặc Test để xác nhận</span>';
     }
@@ -2926,7 +2937,7 @@ function showSettings(){
   document.getElementById('tkSave').onclick = function(){
     var k = tkIn.value.trim();
     if(!k){ AW.toast('Nhập key trước.','warn'); return; }
-    if(!k.startsWith('AIza')){ AW.toast('Key không đúng định dạng (phải bắt đầu bằng AIza).','err'); return; }
+    if(!isGeminiKeyFormat(k)){ AW.toast('Key không đúng định dạng.','err'); return; }
     AW.geminiKey.set(k);
     AW.toast('Key đã lưu ✓','ok');
     showSettings();
@@ -3375,7 +3386,7 @@ function trGenItems(){
       '<div style="background:#FFF8EC;border:1px solid #F0D9A0;border-radius:var(--aw-r);padding:12px 14px">'+
         '<div style="font-size:.85rem;font-weight:700;color:#7A5000;margin-bottom:8px">🔑 Chưa có Gemini API key</div>'+
         '<div style="display:flex;gap:8px;align-items:center">'+
-          '<input type="password" id="trInlineKey" class="aw-input" placeholder="AIza… (Gemini API key của bạn)" '+
+          '<input type="password" id="trInlineKey" class="aw-input" placeholder="AIza… hoặc AQ… (Gemini API key)" '+
             'style="flex:1;font-size:.85rem" autocomplete="off">'+
           '<button class="aw-btn aw-btn-primary" id="trKeyOk" style="padding:9px 16px;font-size:.85rem;white-space:nowrap">Lưu &amp; Sinh câu</button>'+
         '</div>'+
@@ -3384,6 +3395,7 @@ function trGenItems(){
     document.getElementById('trKeyOk').onclick=function(){
       var k=(document.getElementById('trInlineKey').value||'').trim();
       if(!k){AW.toast('Nhập API key trước.','warn');return;}
+      if(!isGeminiKeyFormat(k)){AW.toast('Key không đúng định dạng.','err');return;}
       AW.geminiKey.set(k);
       AW.toast('Key đã lưu!','ok');
       // Restore gen box and run

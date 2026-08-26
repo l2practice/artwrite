@@ -104,6 +104,17 @@ if (window.AW && !AW.groqKey) {
 }
 if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
 if (window.AW && !AW.bumpLoginCount) { AW.bumpLoginCount = function(){}; }
+
+/* Gemini key format: classic AIza… or newer AI Studio keys (e.g. AQ…) */
+function isGeminiKeyFormat(k) {
+  k = (k || '').trim();
+  if (k.length < 20) return false;
+  if (/^AIza[0-9A-Za-z_-]{20,}$/.test(k)) return true;
+  if (/^AQ[0-9A-Za-z_-]{20,}$/.test(k)) return true;
+  // Allow other future prefixes if long enough and key-like (no spaces)
+  return /^[A-Za-z0-9_-]{30,}$/.test(k);
+}
+
 </script>
 <script>
 if (typeof AW === 'undefined') {
@@ -840,7 +851,7 @@ function showSettings(){
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
         '<div class="aw-pass-wrap" style="flex:1;margin:0">'+
           '<input class="aw-input" id="keyIn" type="password" autocomplete="off" '+
-            'placeholder="'+(gKey?'•••••••• (đã lưu)':'AIza…')+'" style="padding-right:40px">'+
+            'placeholder="'+(gKey?'•••••••• (đã lưu)':'AIza… hoặc AQ…')+'" style="padding-right:40px">'+
           '<button id="skGemShowHide" type="button" title="Show/hide" '+
             'style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px">👁</button>'+
         '</div>'+
@@ -897,15 +908,16 @@ function showSettings(){
     keyIn.oninput = function(){
       var v = keyIn.value.trim(), res = document.getElementById('skGemTestResult');
       if(!v){ res.textContent=''; return; }
-      if(!v.startsWith('AIza')||v.length<20)
-        res.innerHTML='<span style="color:var(--aw-danger)">⚠ Key phải bắt đầu bằng "AIza"</span>';
+      // Accept classic AIza… and newer AI Studio keys (e.g. AQ…)
+      if(!isGeminiKeyFormat(v))
+        res.innerHTML='<span style="color:var(--aw-danger)">⚠ Key quá ngắn hoặc chứa ký tự không hợp lệ</span>';
       else res.textContent='';
     };
     keyIn.onkeydown = function(e){ if(e.key==='Enter') document.getElementById('keyBtn').click(); };
     document.getElementById('keyBtn').onclick = function(){
       var k=keyIn.value.trim();
       if(!k){ AW.toast('Nhập key trước.','warn'); return; }
-      if(!k.startsWith('AIza')){ AW.toast('Key không đúng định dạng.','err'); return; }
+      if(!isGeminiKeyFormat(k)){ AW.toast('Key không đúng định dạng.','err'); return; }
       AW.geminiKey.set(k); AW.toast('API key đã lưu ✓','ok'); showSettings();
     };
     var clr=document.getElementById('keyClear');
