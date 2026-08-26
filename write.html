@@ -1116,6 +1116,12 @@ function friendlyGradeError(e) {
   var raw = (e && (e.message || String(e))) || '';
   var r   = raw.toLowerCase();
 
+  // Both Gemini and Groq failed ("AI đang ngẽn")
+  if (r.indexOf('ngẽn') !== -1 || r.indexOf('cả gemini và groq') !== -1)
+    return { icon:'🌐', title:'AI đang ngẽn — cả hai dịch vụ không phản hồi',
+             msg:'Hệ thống đã thử Gemini → Groq → Gemini nhưng đều thất bại. Đây là sự cố tạm thời của dịch vụ AI.',
+             hint:'Đợi 2–3 phút rồi bấm lại. Bài viết của bạn vẫn an toàn — không bị mất.', color:'#B42318', bg:'#FEF2F2', retry:true };
+
   // Server overloaded (503/502/500) — highest priority, check before generic patterns
   if (r.indexOf('overloaded') !== -1 || r.indexOf('503') !== -1 || r.indexOf('502') !== -1 ||
       r.indexOf('500') !== -1 || r.indexOf('service unavailable') !== -1 ||

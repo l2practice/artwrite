@@ -1195,87 +1195,110 @@ function gradeTrItem(item,answer,cb){
   cb(offlineResult);
 
   // Step 3: AI refines in background (fire-and-update)
+  // Richer prompt: asks AI to diagnose error type + give a concise tip
   var prompt=[
-    'You are an EFL translation grader. Evaluate semantic meaning accuracy only.',
-    'Direction: '+(item.direction==='en2vi'?'EN→VI':'VI→EN'),
-    'Source: '+item.source,
+    'You are an EFL translation coach grading a Vietnamese university student.',
+    'Direction: '+(item.direction==='en2vi'?'English → Vietnamese':'Vietnamese → English'),
+    'Source sentence: '+item.source,
     'Model answer: '+item.modelAnswer,
     'Student answer: '+answer,
-    'Target words to check: '+(item.targetWords||[]).join(', '),
-    'Be generous: partial answers that convey the main meaning score 60–75.',
-    'Return ONLY valid JSON, no markdown:',
-    '{"score":0-100,"feedback":"1-2 sentences in Vietnamese","usedTargets":[],"missedTargets":[]}'
+    'Target vocabulary to check: '+(item.targetWords||[]).join(', '),
+    '',
+    'Evaluate semantic accuracy. Be fair: synonyms and paraphrasing are acceptable.',
+    '',
+    'Return ONLY valid JSON, no markdown, no extra keys:',
+    '{',
+    '  "score": 0-100,',
+    '  "feedback": "1 sentence in Vietnamese: what was good or what was wrong",',
+    '  "errorType": one of ["correct","word_choice","expression","structure","meaning","omission","addition","none"] or null if score>=85,',
+    '  "tip": "1 short sentence in Vietnamese giving a concrete improvement hint (null if score>=85)",',
+    '  "usedTargets": [],',
+    '  "missedTargets": []',
+    '}'
   ].join('\n');
 
   function parse(text){
     text=text.replace(/```json[\n]?/g,'').replace(/```[\n]?/g,'').trim();
     var o=JSON.parse(text);
-    return {score:Math.max(0,Math.min(100,parseInt(o.score,10)||0)),feedback:o.feedback||'',
-            usedTargets:o.usedTargets||[],missedTargets:o.missedTargets||[]};
+    return {
+      score:       Math.max(0,Math.min(100,parseInt(o.score,10)||0)),
+      feedback:    o.feedback||'',
+      errorType:   o.errorType||null,
+      tip:         o.tip||null,
+      usedTargets: o.usedTargets||[],
+      missedTargets:o.missedTargets||[]
+    };
   }
 
   function aiUpdate(aiResult){
-    // Only update if score differs by more than 5 points or has real feedback
-    if(Math.abs(aiResult.score - offlineResult.score) > 5 || aiResult.missedTargets.length){
-      // Find the stored result and update it
+    // Always update if we have richer data (tip/errorType) even if score is same
+    var hasRicherData = aiResult.tip || aiResult.errorType;
+    if(Math.abs(aiResult.score - offlineResult.score) > 5 || aiResult.missedTargets.length || hasRicherData){
       var ps=(_trSet&&_trSet.passScore)||85;
       var wasOfflinePassed = offlineResult.score >= ps;
       var isAiPassed = aiResult.score >= ps;
-      // Update in _trBatchResults
       for(var i=0;i<_trBatchResults.length;i++){
         if(_trBatchResults[i].itemId===item.id){
           _trBatchResults[i].score=aiResult.score;
           _trBatchResults[i].feedback=aiResult.feedback;
+          _trBatchResults[i].errorType=aiResult.errorType;
+          _trBatchResults[i].tip=aiResult.tip;
           break;
         }
       }
-      // Update feedback UI if still visible
       var fbWrap=document.getElementById('trFbWrap');
-      var fbContent=document.getElementById('trFbContent');
-      if(fbWrap&&fbContent&&fbWrap.style.display!=='none'){
+      if(fbWrap&&fbWrap.style.display!=='none'){
         showTrFeedbackContent(item, answer, aiResult);
-        // If AI upgraded fail→pass, push progress now (offline didn't push because it failed)
-        if(!wasOfflinePassed && isAiPassed){
-          pushTrProgress(item.id);
-        }
-        // If pass/fail changed, update next button
-        if(wasOfflinePassed !== isAiPassed){
-          updateNextBtn(item, isAiPassed);
-        }
-        // Subtle AI-updated indicator
+        if(!wasOfflinePassed && isAiPassed) pushTrProgress(item.id);
+        if(wasOfflinePassed !== isAiPassed) updateNextBtn(item, isAiPassed);
         var indicator = document.createElement('div');
         indicator.style.cssText='font-size:.7rem;color:var(--aw-ink-3);margin-top:4px;text-align:right';
         indicator.textContent='✓ AI verified';
-        if(fbContent.parentNode) fbContent.parentNode.appendChild(indicator);
+        var fc=document.getElementById('trFbContent');
+        if(fc&&fc.parentNode) fc.parentNode.appendChild(indicator);
         setTimeout(function(){ if(indicator.parentNode) indicator.parentNode.removeChild(indicator); }, 3000);
       }
     }
   }
 
+  // Gemini primary + fallback models, then Groq backup
   if(key){
-    var MODELS=['gemini-2.0-flash','gemini-1.5-flash'];
+    var MODELS=['gemini-2.0-flash','gemini-1.5-flash','gemini-3.5-flash'];
     var mi=0;
     function tryG(){
-      if(mi>=MODELS.length){if(groq)tryGroq();return;}
+      if(mi>=MODELS.length){ if(groq) tryGroq(); return; }
       var m=MODELS[mi++];
       fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:200,temperature:0.1}})
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],
+          generationConfig:{maxOutputTokens:400,temperature:0.1}})
       }).then(function(r){return r.json();}).then(function(d){
         var t=((((d.candidates||[])[0]||{}).content||{}).parts||[]).map(function(p){return p.text||'';}).join('');
         if(!t) throw new Error('empty'); aiUpdate(parse(t));
-      }).catch(function(){tryG();});
+      }).catch(function(){ tryG(); });
     }
     tryG();
-  } else {
+  } else if(groq) {
     function tryGroq(){
-      fetch('https://api.groq.com/openai/v1/chat/completions',{
-        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groq},
-        body:JSON.stringify({model:'llama3-8b-8192',messages:[{role:'user',content:prompt}],max_tokens:200,temperature:0.1})
-      }).then(function(r){return r.json();}).then(function(d){
-        var t=((d.choices||[])[0]||{}).message&&d.choices[0].message.content||'';
-        if(!t) throw new Error('empty'); aiUpdate(parse(t));
-      }).catch(function(){});
+      // Use updated stable Groq model
+      var GROQ_TR_MODELS=['openai/gpt-oss-120b','qwen/qwen3.6-27b','openai/gpt-oss-20b'];
+      var gmi=0;
+      function nextGroqModel(){
+        if(gmi>=GROQ_TR_MODELS.length) return;
+        var gm=GROQ_TR_MODELS[gmi++];
+        fetch('https://api.groq.com/openai/v1/chat/completions',{
+          method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groq},
+          body:JSON.stringify({model:gm,messages:[{role:'user',content:prompt}],
+            max_tokens:400,temperature:0.1})
+        }).then(function(r){return r.json();}).then(function(d){
+          var t=((d.choices||[])[0]||{}).message&&d.choices[0].message.content||'';
+          if(!t) throw new Error('empty'); aiUpdate(parse(t));
+        }).catch(function(e){
+          // Deprecated/not-found → try next Groq model
+          nextGroqModel();
+        });
+      }
+      nextGroqModel();
     }
     tryGroq();
   }
@@ -1286,29 +1309,63 @@ function offlineTrGrade(item,answer){
   var ref=tok(item.modelAnswer),ans=tok(answer);
   var m=ans.filter(function(t){return ref.indexOf(t)>=0;}).length;
   var sc=ref.length?Math.round(Math.min(100,m/ref.length*100)):0;
-  // offline is optimistic: boost by 10 to account for paraphrasing the model misses
   sc=Math.min(100, sc + 10);
-  return {score:sc,feedback:'Đang chờ AI xác nhận…',usedTargets:[],missedTargets:[]};
+  return {score:sc,feedback:'Đang chờ AI xác nhận…',errorType:null,tip:null,usedTargets:[],missedTargets:[]};
 }
+
+// Error type labels for display
+var TR_ERROR_LABELS={
+  'word_choice':  {label:'Sai từ',         color:'#D97706', icon:'📝'},
+  'expression':   {label:'Sai diễn đạt',   color:'#7C3AED', icon:'💬'},
+  'structure':    {label:'Sai cấu trúc',   color:'#B42318', icon:'🔧'},
+  'meaning':      {label:'Sai nghĩa',       color:'#B42318', icon:'❌'},
+  'omission':     {label:'Thiếu nội dung', color:'#0A6EBD', icon:'⬇'},
+  'addition':     {label:'Thừa nội dung',  color:'#0A6EBD', icon:'⬆'},
+  'correct':      {label:'Chính xác',       color:'var(--aw-writing)', icon:'✅'},
+};
 
 function showTrFeedbackContent(item, answer, result){
   var sc=result.score, ps=(_trSet&&_trSet.passScore)||85;
   var col=sc>=ps?'var(--aw-writing)':(sc>=60?'#A66B00':'var(--aw-danger)');
   var passed=sc>=ps;
+
+  // Error type badge
+  var errBadge='';
+  if(result.errorType && result.errorType!=='correct' && result.errorType!=='none' && !passed){
+    var et=TR_ERROR_LABELS[result.errorType];
+    if(et) errBadge='<span style="display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;'+
+      'background:'+et.color+'22;color:'+et.color+';margin-left:6px">'+et.icon+' '+et.label+'</span>';
+  }
+
+  // Tip block (only shown when not passed and AI provided a tip)
+  var tipBlock='';
+  if(result.tip && !passed){
+    tipBlock='<div style="font-size:.82rem;background:#EBF4FF;border-radius:8px;padding:9px 12px;'+
+      'border-left:3px solid var(--aw-primary);margin-top:8px">'+
+      '<b style="font-size:.72rem;color:var(--aw-primary);display:block;margin-bottom:3px">💡 GỢI Ý CẢI THIỆN</b>'+
+      AW.esc(result.tip)+
+    '</div>';
+  }
+
   document.getElementById('trFbContent').innerHTML=
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'+
-      '<div style="font-size:1.6rem;font-weight:800;color:'+col+'">'+sc+'%</div>'+
-      '<div><div style="font-size:.82rem;font-weight:700;color:'+col+';margin-bottom:2px">'+
-        (passed?'✅ Passed':'❌ Not passed — try again')+'</div>'+
-        '<div style="font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(result.feedback)+'</div></div>'+
+    '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">'+
+      '<div style="font-size:1.6rem;font-weight:800;color:'+col+';min-width:48px">'+sc+'%</div>'+
+      '<div style="flex:1">'+
+        '<div style="font-size:.82rem;font-weight:700;color:'+col+';margin-bottom:4px">'+
+          (passed?'✅ Passed':'❌ Not passed — try again')+errBadge+
+        '</div>'+
+        (result.feedback && result.feedback!=='Đang chờ AI xác nhận…'
+          ? '<div style="font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(result.feedback)+'</div>'
+          : '<div style="font-size:.78rem;color:var(--aw-ink-3)">⏳ AI đang xác nhận…</div>')+
+      '</div>'+
     '</div>'+
-    '<div style="font-size:.82rem;background:var(--aw-surface);border-radius:8px;padding:10px 12px;border-left:3px solid var(--aw-writing);margin-bottom:4px">'+
+    tipBlock+
+    '<div style="font-size:.82rem;background:var(--aw-surface);border-radius:8px;padding:10px 12px;border-left:3px solid var(--aw-writing);margin-top:8px">'+
       '<b style="font-size:.72rem;color:var(--aw-ink-3);display:block;margin-bottom:3px">MODEL ANSWER</b>'+AW.esc(item.modelAnswer)+
     '</div>'+
     (item.pattern?'<div style="font-size:.78rem;color:#8B5CF6;margin-top:8px">💡 Pattern: <b>'+AW.esc(item.pattern)+'</b></div>':'')+
     (result.missedTargets&&result.missedTargets.length?
-      '<div style="font-size:.76rem;color:var(--aw-danger);margin-top:6px">Missed words: '+AW.esc(result.missedTargets.join(', '))+'</div>':'');
-}
+      '<div style="font-size:.76rem;color:var(--aw-danger);margin-top:6px">⚠ Từ chưa dùng đúng: <b>'+AW.esc(result.missedTargets.join(', '))+'</b></div>':'');
 
 function updateNextBtn(item, passed){
   var nextBtn=document.getElementById('trNextBtn');
