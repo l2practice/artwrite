@@ -105,14 +105,14 @@ if (window.AW && !AW.groqKey) {
 if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
 if (window.AW && !AW.bumpLoginCount) { AW.bumpLoginCount = function(){}; }
 
-/* Gemini key format: classic AIza… or newer AI Studio keys (e.g. AQ…) */
+/* Gemini key format — permissive: Google may issue AIza…, AQ…, or other prefixes.
+   Real validity is checked by the Test key button (calls Google API). */
 function isGeminiKeyFormat(k) {
   k = (k || '').trim();
+  // Only reject empty / too short / whitespace in the middle
   if (k.length < 20) return false;
-  if (/^AIza[0-9A-Za-z_-]{20,}$/.test(k)) return true;
-  if (/^AQ[0-9A-Za-z_-]{20,}$/.test(k)) return true;
-  // Allow other future prefixes if long enough and key-like (no spaces)
-  return /^[A-Za-z0-9_-]{30,}$/.test(k);
+  if (/\s/.test(k)) return false;
+  return true;
 }
 
 </script>
@@ -910,7 +910,7 @@ function showSettings(){
       if(!v){ res.textContent=''; return; }
       // Accept classic AIza… and newer AI Studio keys (e.g. AQ…)
       if(!isGeminiKeyFormat(v))
-        res.innerHTML='<span style="color:var(--aw-danger)">⚠ Key quá ngắn hoặc chứa ký tự không hợp lệ</span>';
+        res.innerHTML='<span style="color:var(--aw-danger)">⚠ Key quá ngắn (&lt;20) hoặc có khoảng trắng</span>';
       else res.textContent='';
     };
     keyIn.onkeydown = function(e){ if(e.key==='Enter') document.getElementById('keyBtn').click(); };
