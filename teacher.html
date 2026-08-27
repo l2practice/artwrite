@@ -803,52 +803,60 @@ window.openEditStudent = function(s){
   errEl.style.display='none'; errEl.textContent='';
   document.getElementById('editStuBg').classList.add('show');
 };
-document.getElementById('estu-cancel').onclick = function(){
-  document.getElementById('editStuBg').classList.remove('show');
-};
-document.getElementById('editStuBg').onclick = function(e){
-  if(e.target===this) this.classList.remove('show');
-};
-document.getElementById('estu-save').onclick = function(){
-  var btn=this; btn.disabled=true; var orig=btn.textContent;
-  btn.innerHTML='<span class="aw-spin"></span>';
-  var errEl=document.getElementById('estu-err');
-  errEl.style.display='none';
-  var payload={
-    studentId:    _editStuOrigId,
-    newStudentId: document.getElementById('estu-id').value.trim(),
-    name:         document.getElementById('estu-name').value.trim(),
-    className:    document.getElementById('estu-class').value.trim(),
-    birthdate:    document.getElementById('estu-birth').value,
-    phone:        document.getElementById('estu-phone').value.trim(),
-    email:        document.getElementById('estu-email').value.trim()
+/* Wire Edit Student modal buttons after DOM is ready (modal HTML is at end of body) */
+document.addEventListener('DOMContentLoaded', function(){
+  var cancelBtn = document.getElementById('estu-cancel');
+  var saveBtn   = document.getElementById('estu-save');
+  var bg        = document.getElementById('editStuBg');
+  if (!cancelBtn || !saveBtn || !bg) return; // guard: elements must exist
+
+  cancelBtn.onclick = function(){
+    bg.classList.remove('show');
   };
-  if(!payload.name){
-    errEl.textContent='Full name is required.';
-    errEl.style.display='';
-    btn.disabled=false; btn.textContent=orig; return;
-  }
-  if(!payload.newStudentId){
-    errEl.textContent='Student ID is required.';
-    errEl.style.display='';
-    btn.disabled=false; btn.textContent=orig; return;
-  }
-  AW.api('student.update', payload).then(function(res){
-    if(res&&res.success){
-      AW.toast('Student updated ✓','ok');
-      document.getElementById('editStuBg').classList.remove('show');
-      loadRoster();
-    } else {
-      errEl.textContent=(res&&res.error)||'Failed to update.';
+  bg.onclick = function(e){
+    if(e.target===this) this.classList.remove('show');
+  };
+  saveBtn.onclick = function(){
+    var btn=this; btn.disabled=true; var orig=btn.textContent;
+    btn.innerHTML='<span class="aw-spin"></span>';
+    var errEl=document.getElementById('estu-err');
+    errEl.style.display='none';
+    var payload={
+      studentId:    _editStuOrigId,
+      newStudentId: document.getElementById('estu-id').value.trim(),
+      name:         document.getElementById('estu-name').value.trim(),
+      className:    document.getElementById('estu-class').value.trim(),
+      birthdate:    document.getElementById('estu-birth').value,
+      phone:        document.getElementById('estu-phone').value.trim(),
+      email:        document.getElementById('estu-email').value.trim()
+    };
+    if(!payload.name){
+      errEl.textContent='Full name is required.';
+      errEl.style.display='';
+      btn.disabled=false; btn.textContent=orig; return;
+    }
+    if(!payload.newStudentId){
+      errEl.textContent='Student ID is required.';
+      errEl.style.display='';
+      btn.disabled=false; btn.textContent=orig; return;
+    }
+    AW.api('student.update', payload).then(function(res){
+      if(res&&res.success){
+        AW.toast('Student updated ✓','ok');
+        bg.classList.remove('show');
+        loadRoster();
+      } else {
+        errEl.textContent=(res&&res.error)||'Failed to update.';
+        errEl.style.display='';
+        btn.disabled=false; btn.textContent=orig;
+      }
+    }).catch(function(){
+      errEl.textContent='Network error. Please try again.';
       errEl.style.display='';
       btn.disabled=false; btn.textContent=orig;
-    }
-  }).catch(function(){
-    errEl.textContent='Network error. Please try again.';
-    errEl.style.display='';
-    btn.disabled=false; btn.textContent=orig;
-  });
-};
+    });
+  };
+});
 
 /*═══════════ LIVE OBSERVATION ═══════════*/
 /* IELTS band rounding: .25–.74 → .5, otherwise to the nearest whole band.
@@ -1195,8 +1203,8 @@ function pollLiveQuestions(){
 }
 function renderLive(){
   var grid=document.getElementById('liveGrid'); if(!grid)return;
-  var filtered = (liveTaskFilter==='all') ? liveData :
-    liveData.filter(function(s){ return String(s.topicId)===String(liveTaskFilter); });
+  var filtered = (liveTaskFilter==='all') ? (liveData||[]) :
+    (liveData||[]).filter(function(s){ return String(s.topicId)===String(liveTaskFilter); });
   if(!filtered.length){
     grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>No students are currently doing In-class Practice. Create an in-class task first.</p></div>';
     document.getElementById('liveStats').innerHTML='';return;
