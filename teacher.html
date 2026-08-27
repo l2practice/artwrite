@@ -23,13 +23,6 @@
   .aw-recreate-body p{margin:0 0 12px;font-size:.92rem;line-height:1.5}
   .aw-recreate-danger{background:#FEF2F2;border:1px solid #FADCD9;color:#B42318;border-radius:10px;padding:11px 13px;font-size:.9rem;line-height:1.5;margin-bottom:12px}
   .aw-recreate-foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
-  /* Edit Student modal */
-  .aw-edit-stu-bg{position:fixed;inset:0;background:rgba(15,23,32,.55);z-index:2100;display:none;align-items:center;justify-content:center;padding:20px}
-  .aw-edit-stu-bg.show{display:flex}
-  .aw-edit-stu-box{background:#fff;border-radius:16px;max-width:500px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:awPop .16s ease}
-  .aw-edit-stu-head{background:var(--aw-primary);color:#fff;font-weight:800;font-size:1.05rem;padding:16px 20px}
-  .aw-edit-stu-body{padding:20px 22px}
-  .aw-edit-stu-foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
   .res-sortable{cursor:pointer;user-select:none;white-space:nowrap}
   .res-sortable:hover{filter:brightness(1.12)}
   .res-sortable.on .res-caret{opacity:1}
@@ -537,11 +530,6 @@
         <label class="aw-label">Duration (min)</label>
         <input class="aw-input" id="aDur" type="number" value="40" min="5">
       </div>
-      <div class="aw-field" style="flex:1" id="maxAttField">
-        <label class="aw-label">Max submissions</label>
-        <input class="aw-input" id="aMaxAtt" type="number" value="0" min="0" max="10">
-        <p style="margin:3px 0 0;font-size:.73rem;color:var(--aw-ink-3)">0 = không giới hạn</p>
-      </div>
       <div class="aw-field" style="flex:1" id="deadField">
         <label class="aw-label">Deadline</label>
         <div style="display:flex;gap:6px">
@@ -777,86 +765,13 @@ function loadRoster(){
     if(cnt)cnt.textContent='('+rows.length+' students)';
     if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No students have joined this class yet. Share class code <b>'+AW.esc(curClass())+'</b> with students.</p>';return;}
     box.innerHTML=rows.map(function(s){
-      var safeData=AW.esc(JSON.stringify(s));
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
-        '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'<span style="color:var(--aw-ink-3);margin-left:8px">'+AW.esc(s.email||'')+'</span></span>'+
-        '<span style="display:flex;gap:6px;align-items:center">'+
-        '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem" onclick="openEditStudent('+safeData+')">✏️ Edit</button>'+
-        '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem;color:var(--aw-danger)" onclick="archiveStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\')">Archive</button>'+
-        '</span></div>';
+        '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
+        '<span style="display:flex;gap:8px;align-items:center"><span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span>'+
+        '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem;color:var(--aw-danger)" onclick="archiveStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\')">Archive</button></span></div>';
     }).join('');
   });
 }
-
-/* ── Edit Student ── */
-var _editStuOrigId = null;
-window.openEditStudent = function(s){
-  _editStuOrigId = s.studentId;
-  document.getElementById('estu-name').value  = s.name       || '';
-  document.getElementById('estu-id').value    = s.studentId  || '';
-  document.getElementById('estu-class').value = s.class || s.className || '';
-  var bd = (s.birthdate||s.Birthdate||'');
-  document.getElementById('estu-birth').value = bd ? bd.toString().slice(0,10) : '';
-  document.getElementById('estu-phone').value = s.phone || '';
-  document.getElementById('estu-email').value = s.email || '';
-  var errEl = document.getElementById('estu-err');
-  errEl.style.display='none'; errEl.textContent='';
-  document.getElementById('editStuBg').classList.add('show');
-};
-/* Wire Edit Student modal buttons after DOM is ready (modal HTML is at end of body) */
-document.addEventListener('DOMContentLoaded', function(){
-  var cancelBtn = document.getElementById('estu-cancel');
-  var saveBtn   = document.getElementById('estu-save');
-  var bg        = document.getElementById('editStuBg');
-  if (!cancelBtn || !saveBtn || !bg) return; // guard: elements must exist
-
-  cancelBtn.onclick = function(){
-    bg.classList.remove('show');
-  };
-  bg.onclick = function(e){
-    if(e.target===this) this.classList.remove('show');
-  };
-  saveBtn.onclick = function(){
-    var btn=this; btn.disabled=true; var orig=btn.textContent;
-    btn.innerHTML='<span class="aw-spin"></span>';
-    var errEl=document.getElementById('estu-err');
-    errEl.style.display='none';
-    var payload={
-      studentId:    _editStuOrigId,
-      newStudentId: document.getElementById('estu-id').value.trim(),
-      name:         document.getElementById('estu-name').value.trim(),
-      className:    document.getElementById('estu-class').value.trim(),
-      birthdate:    document.getElementById('estu-birth').value,
-      phone:        document.getElementById('estu-phone').value.trim(),
-      email:        document.getElementById('estu-email').value.trim()
-    };
-    if(!payload.name){
-      errEl.textContent='Full name is required.';
-      errEl.style.display='';
-      btn.disabled=false; btn.textContent=orig; return;
-    }
-    if(!payload.newStudentId){
-      errEl.textContent='Student ID is required.';
-      errEl.style.display='';
-      btn.disabled=false; btn.textContent=orig; return;
-    }
-    AW.api('student.update', payload).then(function(res){
-      if(res&&res.success){
-        AW.toast('Student updated ✓','ok');
-        bg.classList.remove('show');
-        loadRoster();
-      } else {
-        errEl.textContent=(res&&res.error)||'Failed to update.';
-        errEl.style.display='';
-        btn.disabled=false; btn.textContent=orig;
-      }
-    }).catch(function(){
-      errEl.textContent='Network error. Please try again.';
-      errEl.style.display='';
-      btn.disabled=false; btn.textContent=orig;
-    });
-  };
-});
 
 /*═══════════ LIVE OBSERVATION ═══════════*/
 /* IELTS band rounding: .25–.74 → .5, otherwise to the nearest whole band.
@@ -1017,10 +932,6 @@ function showLive(){
   // load inclass assignments for filter
   AW.api('write.getAssignments',{class:curClass(),mode:'inclass'}).then(function(res){
     var tasks=(res&&res.data)||[];
-    // Build task lookup map for deadline bar
-    var taskById = {};
-    tasks.forEach(function(t){ taskById[t.topicId] = t; });
-
     var taskOpts='<option value="all">All in-class tasks</option>'+
       tasks.map(function(t){
         var tBadge=t.taskType==='task1'?'[T1] ':'[T2] ';
@@ -1028,22 +939,16 @@ function showLive(){
       }).join('');
 
     content.innerHTML=
-      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap">'+
+      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
+        // Task filter only (class is already selected in the header bar)
         '<span style="font-size:.78rem;font-weight:600;color:var(--aw-ink-3);white-space:nowrap">Bài:</span>'+
         '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
         '<div style="display:flex;gap:2px;background:var(--aw-surface-2);border-radius:8px;padding:3px">'+
           '<button class="aw-btn" id="viewGrid" style="padding:5px 12px;font-size:.8rem">▦ Grid</button>'+
           '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
         '</div>'+
-        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 10s · Click a student to view &amp; annotate</span>'+
+        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 6s · Click a student to view &amp; annotate</span>'+
         '<button id="clearLiveBtn" class="aw-btn aw-btn-ghost" style="margin-left:auto;padding:5px 12px;font-size:.78rem;color:var(--aw-danger);border-color:var(--aw-danger)" title="Xoá toàn bộ data cũ trong LiveSessions tab">🗑 Clear session</button>'+
-      '</div>'+
-      // ── Deadline info bar (hidden until a specific task is selected) ──
-      '<div id="liveDeadlineBar" style="display:none;margin-bottom:14px;padding:10px 16px;border-radius:10px;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);display:flex;gap:20px;align-items:center;flex-wrap:wrap;font-size:.84rem">'+
-        '<span id="ldbRelease"></span>'+
-        '<span id="ldbDeadline"></span>'+
-        '<span id="ldbCountdown" style="font-weight:700"></span>'+
-        '<span id="ldbMaxSub" style="color:var(--aw-ink-3)"></span>'+
       '</div>'+
       '<div class="aw-live-wrap">' +
         '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
@@ -1053,82 +958,7 @@ function showLive(){
           '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
       '</div>';
 
-    /* ── Deadline bar logic ── */
-    var _deadlineInterval = null;
-    function fmtLocalDateTime(iso){
-      if (!iso) return '—';
-      var d = new Date(iso);
-      if (isNaN(d)) return iso;
-      return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}) +
-             ' ' + d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
-    }
-    function fmtCountdown(ms){
-      if (ms <= 0) return null;
-      var totalS = Math.floor(ms/1000);
-      var h = Math.floor(totalS/3600), m = Math.floor((totalS%3600)/60), s = totalS%60;
-      if (h > 0) return h+'h '+m+'m '+s+'s';
-      if (m > 0) return m+'m '+s+'s';
-      return s+'s';
-    }
-    function renderDeadlineBar(){
-      var bar = document.getElementById('liveDeadlineBar');
-      if (!bar) return;
-      if (liveTaskFilter === 'all' || !taskById[liveTaskFilter]) {
-        bar.style.display = 'none';
-        return;
-      }
-      bar.style.display = 'flex';
-      var t = taskById[liveTaskFilter];
-      // Release time: createdAt from assignment
-      var relEl = document.getElementById('ldbRelease');
-      if (relEl) relEl.innerHTML = '📅 <b>Phát bài:</b> ' + fmtLocalDateTime(t.createdAt);
-      // Deadline
-      var dlEl = document.getElementById('ldbDeadline');
-      var endMs = 0;
-      if (t.deadline) {
-        endMs = new Date(t.deadline).getTime();
-        if (dlEl) dlEl.innerHTML = '🏁 <b>Deadline:</b> ' + fmtLocalDateTime(t.deadline);
-      } else if (t.durationMin && t.createdAt) {
-        endMs = new Date(t.createdAt).getTime() + parseInt(t.durationMin,10)*60000;
-        if (dlEl) dlEl.innerHTML = '⏱ <b>Kết thúc:</b> ' + fmtLocalDateTime(new Date(endMs).toISOString()) + ' (' + t.durationMin + ' phút)';
-      } else {
-        if (dlEl) dlEl.innerHTML = '<span style="color:var(--aw-ink-3)">Không giới hạn thời gian</span>';
-      }
-      // Max submissions badge
-      var msEl = document.getElementById('ldbMaxSub');
-      if (msEl) msEl.textContent = t.maxAttempts > 0 ? ('Max nộp: ' + t.maxAttempts + ' lần') : '';
-      // Countdown (updates every second)
-      var cdEl = document.getElementById('ldbCountdown');
-      if (cdEl) {
-        if (endMs > 0) {
-          var remaining = endMs - Date.now();
-          if (remaining <= 0) {
-            cdEl.innerHTML = '<span style="color:var(--aw-danger);font-weight:800">⛔ Đã hết giờ</span>';
-          } else {
-            var fmt = fmtCountdown(remaining);
-            var color = remaining < 300000 ? 'var(--aw-danger)' : (remaining < 900000 ? '#E0A32E' : 'var(--aw-writing)');
-            cdEl.innerHTML = '⏳ <span style="color:'+color+'">Còn lại: ' + fmt + '</span>';
-          }
-        } else {
-          cdEl.textContent = '';
-        }
-      }
-    }
-    // Start 1s countdown ticker
-    if (_deadlineInterval) clearInterval(_deadlineInterval);
-    _deadlineInterval = setInterval(renderDeadlineBar, 1000);
-    // Stop ticker when leaving Live tab
-    var _origStopLive = window.stopLivePoll;
-    window.stopLivePoll = function(){
-      if (_deadlineInterval) { clearInterval(_deadlineInterval); _deadlineInterval = null; }
-      if (_origStopLive) _origStopLive();
-    };
-
-    document.getElementById('liveTaskSel').onchange=function(){
-      liveTaskFilter=this.value;
-      renderDeadlineBar();
-      renderLive();
-    };
+    document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
 
     document.getElementById('clearLiveBtn').onclick = function(){
       if (!confirm('Xoá toàn bộ data phiên học trong tab LiveSessions của lớp '+((curClassObj()&&curClassObj().className)||curClass())+'?\n\nThao tác này chỉ xoá data tracking tạm thời — không ảnh hưởng bài làm của sinh viên.')) return;
@@ -1203,8 +1033,8 @@ function pollLiveQuestions(){
 }
 function renderLive(){
   var grid=document.getElementById('liveGrid'); if(!grid)return;
-  var filtered = (liveTaskFilter==='all') ? (liveData||[]) :
-    (liveData||[]).filter(function(s){ return String(s.topicId)===String(liveTaskFilter); });
+  var filtered = (liveTaskFilter==='all') ? liveData :
+    liveData.filter(function(s){ return String(s.topicId)===String(liveTaskFilter); });
   if(!filtered.length){
     grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>No students are currently doing In-class Practice. Create an in-class task first.</p></div>';
     document.getElementById('liveStats').innerHTML='';return;
@@ -2528,24 +2358,19 @@ function loadAssignmentList(mode){
       box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>No '+(mode==='inclass'?'In-class':'Homework')+' assignments yet.</p></div>';
       return;
     }
-    var isInclass = (mode==='inclass');
     box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
-      '<th>Title</th><th>Prompt</th><th>Class</th><th>Required</th>'+(isInclass?'<th>Max Sub</th>':'')+'<th>Deadline</th></tr></thead><tbody>'+
+      '<th>Title</th><th>Prompt</th><th>Class</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
       rows.map(function(a){
         var plain=(AW.stripHtml?AW.stripHtml(a.prompt||''):(a.prompt||'').replace(/<[^>]*>/g,'')).slice(0,120);
         var taskBadge = a.taskType==='task1'
           ? '<span class="aw-task-badge t1">Task 1</span>'
           : '<span class="aw-task-badge t2">Task 2</span>';
         var chartIcon = (a.taskType==='task1' && a.chartImageId) ? ' <span style="color:#1A9E5C;font-size:.85rem" title="Has chart image">📊</span>' : '';
-        var maxSubCell = isInclass
-          ? '<td style="text-align:center">'+(a.maxAttempts>0?'<b style="color:var(--aw-primary)">'+a.maxAttempts+'x</b>':'∞')+'</td>'
-          : '';
         return '<tr class="aw-assign-row" style="cursor:pointer" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
           '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartIcon+'</td>'+
           '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
-          maxSubCell+
           '<td>'+(a.deadline ? AW.fmtDate(a.deadline) : '—')+'</td></tr>';
       }).join('')+'</tbody></table></div>';
     // Wire row click → detail modal
@@ -2798,11 +2623,9 @@ window.newAssignment=function(mode){
   AW.els('.aw-ct-chip').forEach(function(c){ c.classList.toggle('active', c.dataset.ct==='Bar chart'); });
   _chartType = 'Bar chart';
   // show/hide mode-specific fields
-  document.getElementById('reqField').style.display    = assignMode==='homework'?'':'none';
-  document.getElementById('durField').style.display    = assignMode==='inclass'?'':'none';
-  document.getElementById('maxAttField').style.display = assignMode==='inclass'?'':'none';
-  document.getElementById('deadField').style.display   = assignMode==='homework'?'':'none';
-  if (document.getElementById('aMaxAtt')) document.getElementById('aMaxAtt').value = '0';
+  document.getElementById('reqField').style.display  = assignMode==='homework'?'':'none';
+  document.getElementById('durField').style.display  = assignMode==='inclass'?'':'none';
+  document.getElementById('deadField').style.display = assignMode==='homework'?'':'none';
   document.getElementById('assignModal').classList.add('show');
 };
 
@@ -2836,7 +2659,6 @@ function _aCreateHandler(){
       minWords:        parseInt(document.getElementById('aMinWords').value||'0',10)||0,
       aiNotes:         aiNotes,
       requiredAttempts:assignMode==='homework'?parseInt(document.getElementById('aReq').value||'3',10):1,
-      maxAttempts:     assignMode==='inclass'?parseInt(document.getElementById('aMaxAtt').value||'0',10):0,
       durationMin:     assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
       deadline:        (function(){
         if (assignMode !== 'homework') return '';
@@ -3824,28 +3646,6 @@ startAlerts();
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:1px solid var(--aw-border-2)">
       <button class="aw-btn aw-btn-ghost" onclick="closeTrEditModal()">Cancel</button>
       <button class="aw-btn aw-btn-primary" id="trEditSaveBtn" onclick="saveTrEdit()" style="padding:10px 22px">💾 Save changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ Edit Student Modal ═══ -->
-<div class="aw-edit-stu-bg" id="editStuBg">
-  <div class="aw-edit-stu-box">
-    <div class="aw-edit-stu-head">✏️ Edit Student Info</div>
-    <div class="aw-edit-stu-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="aw-field"><label class="aw-label">Full Name</label><input class="aw-input" id="estu-name" placeholder="Nguyễn Văn A"></div>
-        <div class="aw-field"><label class="aw-label">Student ID</label><input class="aw-input" id="estu-id" placeholder="SV001"></div>
-        <div class="aw-field"><label class="aw-label">Class <span style="font-weight:400;color:var(--aw-ink-3)">(chuyển lớp)</span></label><input class="aw-input" id="estu-class" placeholder="IELTS-41"></div>
-        <div class="aw-field"><label class="aw-label">Birthday</label><input class="aw-input" id="estu-birth" type="date"></div>
-        <div class="aw-field"><label class="aw-label">Phone</label><input class="aw-input" id="estu-phone" type="tel" placeholder="0901234567"></div>
-        <div class="aw-field"><label class="aw-label">Email</label><input class="aw-input" id="estu-email" type="email" placeholder="student@email.com"></div>
-      </div>
-      <div id="estu-err" style="color:var(--aw-danger);font-size:.85rem;margin-top:10px;padding:8px 10px;background:#FEF2F2;border-radius:8px;display:none"></div>
-    </div>
-    <div class="aw-edit-stu-foot">
-      <button class="aw-btn aw-btn-ghost" id="estu-cancel">Cancel</button>
-      <button class="aw-btn aw-btn-primary" id="estu-save">💾 Save changes</button>
     </div>
   </div>
 </div>
