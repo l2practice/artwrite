@@ -229,6 +229,10 @@
   .aw-t1-chart-hover{position:relative;display:inline-block;cursor:pointer;margin-left:4px;font-size:.8rem;vertical-align:middle}
   .aw-t1-chart-pop{display:none;position:absolute;top:22px;left:0;z-index:300;width:340px;max-width:70vw;border-radius:10px;border:2px solid #1A9E5C;box-shadow:0 8px 32px rgba(0,0,0,.25);background:#fff;object-fit:contain}
   .aw-t1-chart-hover:hover .aw-t1-chart-pop{display:block}
+  /* Band badge */
+  .aw-band-badge{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto;gap:1px}
+  .aw-band-badge .bb-num{font-size:1.35rem;font-weight:800;line-height:1;letter-spacing:-.02em}
+  .aw-band-badge .bb-lbl{font-size:.52rem;font-weight:600;letter-spacing:.08em;opacity:.85}
 </style>
 </head>
 <body>
@@ -2215,7 +2219,7 @@ window.viewEssays=function(gkey, writeIdx){
         '<h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+
         (x.timestamp?'<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 '+AW.fmtDate(x.timestamp)+'</div>':'')+
         '<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
-          '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
+          '<div class="aw-band-badge"><span class="bb-num">'+(x.overall||'—')+'</span><span class="bb-lbl">BAND</span></div>'+
           '<div style="flex:1">'+crit(c1label,x.tr)+crit('Coherence & Cohesion',x.cc)+crit('Lexical Resource',x.lr)+crit('Grammar',x.gra)+'</div>'+
         '</div>'+
         '<div id="detail_'+i+'" style="color:var(--aw-ink-3);font-size:.85rem">'+

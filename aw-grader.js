@@ -11,6 +11,36 @@
 (function (AW) {
   'use strict';
 
+  /*── REQ 1: Single-paragraph penalty ────────────────────────────
+     If the essay is one unbroken block, TR and CC are hard-capped at 5.
+     Runs BEFORE normaliseScores so the overall recalculates from the
+     already-capped components.                                        */
+  function countParagraphs(text) {
+    if (!text) return 0;
+    var t = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    // Try blank-line split first; fall back to single-newline
+    var chunks = t.split(/\n{2,}/);
+    if (chunks.length === 1) chunks = t.split(/\n/);
+    return chunks.filter(function(c){ return c.trim().length > 5; }).length;
+  }
+
+  function applySingleParaPenalty(essayText, result) {
+    if (countParagraphs(essayText) >= 2) return result;
+    if (!result.scores) return result;
+    var CAP = 5, changed = false;
+    if (result.scores.TR > CAP) { result.scores.TR = CAP; changed = true; }
+    if (result.scores.CC > CAP) { result.scores.CC = CAP; changed = true; }
+    if (changed) {
+      var banner = '\n\n⚠ [Lỗi cấu trúc — Single Paragraph]\n' +
+        'Bài viết chỉ có MỘT đoạn văn duy nhất. IELTS yêu cầu ít nhất 4 đoạn rõ ràng ' +
+        '(mở bài, thân bài 1, thân bài 2, kết bài). ' +
+        'Task Achievement và Coherence & Cohesion bị giới hạn tối đa Band 5.0.';
+      result.overall_feedback_vi = banner + (result.overall_feedback_vi ? '\n\n' + result.overall_feedback_vi : '');
+      result._singleParaPenalty = true;
+    }
+    return result;
+  }
+
   function normaliseScores(r){
     if(r.scores){
       // Round each component to whole number (IELTS: only overall can be X.5).
@@ -236,7 +266,9 @@
     if (ei === -1) throw new Error('Lỗi định dạng: JSON từ AI bị không hoàn chỉnh. Vui lòng thử lại.');
     // Fix 3: wrap JSON.parse in try-catch to show friendly error instead of crashing
     try {
-      return normaliseScores(JSON.parse(clean.substring(si, ei+1)));
+      var _r = JSON.parse(clean.substring(si, ei+1));
+      _r = applySingleParaPenalty(text, _r);
+      return normaliseScores(_r);
     } catch(parseErr) {
       throw new Error('Lỗi đọc kết quả từ AI (JSON sai cú pháp). Vui lòng thử lại.');
     }
@@ -274,7 +306,11 @@
               else if (rClean[rci]==='}') { rdepth--; if (rdepth===0) { rei=rci; break; } }
             }
           }
-          if (rei !== -1) return normaliseScores(JSON.parse(rClean.substring(rsi, rei+1)));
+          if (rei !== -1) {
+            var _rr = JSON.parse(rClean.substring(rsi, rei+1));
+            _rr = applySingleParaPenalty(prompt.split('STUDENT')[1] || '', _rr);
+            return normaliseScores(_rr);
+          }
         }
       }
     } catch(finalErr) { /* fall through to final error below */ }
@@ -407,7 +443,9 @@
         }
         if (gei === -1) throw new Error('Lỗi định dạng: JSON từ Groq bị không hoàn chỉnh. Vui lòng thử lại.');
         try {
-          return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
+          var _gr = JSON.parse(groqClean.substring(gsi, gei+1));
+          _gr = applySingleParaPenalty(prompt.split('STUDENT')[1] || '', _gr); // best-effort text ref
+          return normaliseScores(_gr);
         } catch(parseErr) {
           throw new Error('Lỗi đọc kết quả từ Groq (JSON sai cú pháp). Vui lòng thử lại.');
         }

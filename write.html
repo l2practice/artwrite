@@ -14,7 +14,7 @@
   @media(max-width:960px){.aw-write-grid{grid-template-columns:1fr}}
   .aw-prompt-box{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:18px 20px;margin-bottom:16px}
   .aw-prompt-box h4{margin:0 0 6px;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:var(--aw-primary);font-weight:700}
-  .aw-prompt-text{color:var(--aw-ink);line-height:1.6;font-size:.95rem;white-space:pre-wrap}
+  .aw-prompt-text{color:var(--aw-ink);line-height:1.6;font-size:.95rem;white-space:normal;word-break:break-word}
   .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r) var(--aw-r) 0 0;background:var(--aw-surface-2);flex-wrap:wrap}
   .aw-tb-btn{width:32px;height:32px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
   .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
@@ -220,7 +220,7 @@ if (hasRealTopic) {
       if (res.data.prompt && !qp.get('prompt')) {
         PROMPT = res.data.prompt;
         var pt = document.querySelector('.aw-prompt-text');
-        if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
+        if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT).replace(/\s*\n\s*/g,' ').replace(/[ \t]{2,}/g,' ').trim());
       }
       AI_NOTES = res.data.aiNotes || '';
       // Override MIN_WORDS if teacher specified a custom limit for this task
@@ -258,7 +258,7 @@ content.innerHTML =
           ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
           : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
         return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt'+ttBadge+'</h4>' +
-          '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>';
+          '<div class="aw-prompt-text">'+AW.esc(AW.stripHtml(PROMPT).replace(/\s*\n\s*/g,' ').replace(/[ \t]{2,}/g,' ').trim())+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +
         '<button class="aw-tb-btn" data-cmd="bold"><b>B</b></button>' +
