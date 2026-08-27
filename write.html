@@ -166,39 +166,6 @@ if (typeof AW === 'undefined') {
   throw new Error('aw-common.js not loaded');
 }
 
-/* ── Single-paragraph structural penalty patch ──────────────────────────────
-   Injected after aw-grader.js loads. Wraps AW.grade() to detect essays that
-   are written as a single block and injects a hard cap rule into the prompt.
-   This avoids editing aw-grader.js directly, so the rule ships with write.html
-   and is always in sync with the version of the grader the student actually runs.
-─────────────────────────────────────────────────────────────────────────────*/
-(function patchGraderForSingleParagraph(){
-  if (!window.AW || typeof AW.grade !== 'function') return; // grader not ready yet; safe fallback
-  var _origGrade = AW.grade;
-  AW.grade = function(payload, key) {
-    var text = payload.writing || '';
-    var paraCount = text.split(/\n\s*\n/).filter(function(p){ return p.trim().length > 10; }).length;
-    if (paraCount < 2) {
-      // Essay is a single block — append structural cap rule to AI Notes
-      var singleParaRule =
-        '\n\n=== STRUCTURAL PENALTY (OVERRIDE — enforce regardless of essay quality) ===\n' +
-        'This essay is written as a SINGLE PARAGRAPH (no blank-line paragraph breaks detected). ' +
-        'Regardless of content quality, apply the following HARD CAPS:\n' +
-        '- Task Response (TR): MAXIMUM Band 4.5\n' +
-        '- Coherence & Cohesion (CC): MAXIMUM Band 4.5\n' +
-        'In cc_feedback.assessment_vi, explain in Vietnamese that a proper IELTS essay MUST have ' +
-        'at least 3–4 separate paragraphs (Introduction, Body 1, Body 2, Conclusion), and that ' +
-        'submitting the entire essay as one unbroken block is a serious structural failure under ' +
-        'the Coherence & Cohesion criterion. These caps are non-negotiable.';
-      var patchedPayload = Object.assign({}, payload, {
-        aiNotes: (payload.aiNotes || '') + singleParaRule
-      });
-      return _origGrade.call(this, patchedPayload, key);
-    }
-    return _origGrade.call(this, payload, key);
-  };
-})();
-
 /*──────── session + params ────────*/
 var sess = AW.session.require('student');
 if (!sess) throw 'redirect';
@@ -208,7 +175,6 @@ var MODE = qp.get('mode') || 'free';               // free | homework | inclass
 var TOPIC = qp.get('topic') || 'Free Writing';
 var PROMPT = qp.get('prompt') || 'Write about your opinion on the given topic.';
 var AI_NOTES = '';  // teacher's grading rules for this task (context)
-var MAX_ATTEMPTS = 0; // 0 = unlimited; set from assignment data
 var TASK_TYPE      = qp.get('type') || 'task2';
 // Normalize: old URLs may have passed 'IELTS Task 2' as the type value
 if (TASK_TYPE !== 'task1') TASK_TYPE = 'task2';
@@ -234,68 +200,6 @@ var content = AW.renderShell({
 });
 
 var startTime = new Date();
-
-/*──────── Elapsed time tracking (persists across Pause & Resume) ────────
-   Stores accumulated writing seconds in localStorage so multi-session
-   duration is accurate even after tab close / device change (local path).
-   Key includes studentId+topicId+mode so sessions never collide.
-─────────────────────────────────────────────────────────────────────────*/
-var ELAPSED_KEY = 'aw_elapsed_' + (sess.studentId||'') + '_' + TOPIC_ID + '_' + MODE;
-var _accumulated = 0;   // seconds from previous sessions
-var _segStart    = Date.now(); // start of current active segment
-var _firstStartIso = null;     // wall-clock of the very first open (for Start time column)
-var _tabHidden   = false;
-
-(function initElapsed(){
-  if (RETRY) {
-    // New attempt: wipe any stale elapsed data for this topicId
-    try { localStorage.removeItem(ELAPSED_KEY); } catch(e){}
-    _firstStartIso = new Date().toISOString();
-    return;
-  }
-  try {
-    var saved = JSON.parse(localStorage.getItem(ELAPSED_KEY) || 'null');
-    if (saved && typeof saved.elapsedSeconds === 'number') {
-      _accumulated   = saved.elapsedSeconds;
-      _firstStartIso = saved.firstStart || new Date().toISOString();
-    } else {
-      _firstStartIso = new Date().toISOString();
-    }
-  } catch(e) { _firstStartIso = new Date().toISOString(); }
-})();
-
-// Freeze segment when tab hides; resume on visible — avoids inflating overnight
-document.addEventListener('visibilitychange', function(){
-  if (document.visibilityState === 'hidden') {
-    _accumulated += Math.round((Date.now() - _segStart) / 1000);
-    _tabHidden = true;
-    // Auto-persist draft + elapsed when student hides/closes tab
-    if (!RETRY) {
-      try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
-      _saveElapsed();
-    }
-  } else {
-    _segStart   = Date.now();
-    _tabHidden  = false;
-  }
-});
-
-function _totalElapsed(){
-  return _accumulated + (_tabHidden ? 0 : Math.round((Date.now() - _segStart) / 1000));
-}
-function _saveElapsed(){
-  if (RETRY) return; // never persist elapsed for a retry session
-  try {
-    localStorage.setItem(ELAPSED_KEY, JSON.stringify({
-      elapsedSeconds: _totalElapsed(),
-      firstStart:     _firstStartIso,
-      lastSave:       new Date().toISOString()
-    }));
-  } catch(e){}
-}
-function _clearElapsed(){
-  try { localStorage.removeItem(ELAPSED_KEY); } catch(e){}
-}
 var attempt = 1;
 
 // If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
@@ -319,7 +223,6 @@ if (hasRealTopic) {
         if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
       }
       AI_NOTES = res.data.aiNotes || '';
-      MAX_ATTEMPTS = parseInt(res.data.maxAttempts||'0',10) || 0;
       // Override MIN_WORDS if teacher specified a custom limit for this task
       if (res.data.minWords && parseInt(res.data.minWords, 10) > 0) {
         MIN_WORDS = parseInt(res.data.minWords, 10);
@@ -378,7 +281,6 @@ content.innerHTML =
       '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
       '<div class="aw-write-meta"><span id="wc">0 words</span>' +
         (DURATION_MIN ? '<span class="aw-timer" id="timer">⏱ '+DURATION_MIN+':00</span>' : '') +
-        '<span id="elapsedDisplay" style="font-size:.78rem;color:var(--aw-ink-3);margin-left:8px"></span>' +
       '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button class="aw-btn aw-btn-ghost" id="pauseBtn" style="flex:0 0 auto;padding:12px 18px" title="Save your draft and continue later">⏸ Pause &amp; Save</button>' +
@@ -497,15 +399,6 @@ function updateWordCount(){
   var label = n + ' / ' + MIN_WORDS + ' words min';
   wc.textContent = label;
   wc.className = n >= MIN_WORDS ? 'wc-ok' : (n >= MIN_WORDS * 0.7 ? 'wc-warn' : '');
-  // Update elapsed display (only if past 30s to avoid flicker at start)
-  var el = document.getElementById('elapsedDisplay');
-  if (el) {
-    var secs = _totalElapsed();
-    if (secs > 30) {
-      var m = Math.floor(secs/60), s = secs%60;
-      el.textContent = '⏰ ' + m + 'm' + (s>0?s+'s':'') + ' viết';
-    }
-  }
 }
 
 // Auto-save draft to localStorage on every keystroke
@@ -540,13 +433,11 @@ if (!RETRY) {
 }
 window.pauseWriting = function(){
   try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
-  _saveElapsed();  // persist accumulated writing time
-  AW.toast('Đã lưu bài. Bạn có thể đóng tab và quay lại sau.','ok',3000);
+  AW.toast('Draft saved. You can leave and come back anytime.','ok',3000);
 };
-// clear draft + elapsed after successful submission
+// clear draft after successful submission
 window.clearDraft = function(){
   try { localStorage.removeItem(DRAFT_KEY); } catch(e){}
-  _clearElapsed();
 };
 setTimeout(function(){ var pb=document.getElementById('pauseBtn'); if(pb) pb.onclick=pauseWriting; }, 0);
 
@@ -556,34 +447,26 @@ if (RETRY) {
   editor.innerText = '';
   wc.textContent = '0 words';
   AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE }).then(function(res){
-    if (res && res.success && MODE !== 'free') {
-      var count = res.data.count || 0;
-      // Use MAX_ATTEMPTS if set (inclass), otherwise fall back to 3 (homework default)
-      var limit = MAX_ATTEMPTS > 0 ? MAX_ATTEMPTS : 3;
-      if (count >= limit) {
-        lockEditorFull(limit);
-      } else {
-        AW.toast('New attempt — write a fresh essay','ok');
-      }
+    if (res && res.success && res.data.count >= 3 && MODE !== 'free') {
+      lockEditorFull();
     } else {
       AW.toast('New attempt — write a fresh essay','ok');
     }
   });
 }
-function lockEditorFull(limit){
-  var cap = limit || (MAX_ATTEMPTS > 0 ? MAX_ATTEMPTS : 3);
+function lockEditorFull(){
   editor.setAttribute('contenteditable','false');
   editor.style.background='var(--aw-surface-2)';
-  editor.innerHTML='<span style="color:var(--aw-ink-3)">This task is locked — you have used all '+cap+' attempt'+(cap===1?'':'s')+'.</span>';
+  editor.innerHTML='<span style="color:var(--aw-ink-3)">This task is locked — you have used all 3 attempts.</span>';
   var gb=document.getElementById('gradeBtn');
-  if(gb){ gb.textContent='🔒 Đã đạt giới hạn ('+cap+' lần)'; gb.disabled=true; }
-  // banner
+  if(gb){ gb.textContent='🔒 All 3 attempts used'; gb.disabled=true; }
+  // banner suggesting Free Writing
   var box=document.querySelector('.aw-write-grid');
   if(box){
     var banner=document.createElement('div');
     banner.style.cssText='grid-column:1/-1;background:#FFF8EC;border:1px solid #F0D9A0;border-radius:12px;padding:18px 20px;margin-bottom:16px';
-    banner.innerHTML='<b style="color:#B8860B">🔒 Bạn đã dùng hết '+cap+' lần nộp bài cho bài tập này.</b>'+
-      '<p style="margin:8px 0 12px;color:var(--aw-ink-2);font-size:.9rem">Bài tập đã khoá. Để tiếp tục luyện tập, hãy dùng chế độ <b>Free Writing</b> — viết không giới hạn và nhận phản hồi AI ngay lập tức.</p>'+
+    banner.innerHTML='<b style="color:#B8860B">🔒 You have completed all 3 attempts for this task.</b>'+
+      '<p style="margin:8px 0 12px;color:var(--aw-ink-2);font-size:.9rem">Further revisions for this assignment are closed. To keep practising and improving your writing, try <b>Free Writing</b> mode — you can write unlimited essays on any topic and get instant AI feedback.</p>'+
       '<button class="aw-btn aw-btn-primary" onclick="location.href=\'write.html?mode=free&topic='+encodeURIComponent('Free Writing')+'\'">✍️ Go to Free Writing</button>';
     box.insertBefore(banner, box.firstChild);
   }
@@ -642,8 +525,8 @@ function autoSubmitOnTimeout(){
     writePhase = 'grading'; isGrading = true;
     AW.api('write.saveResult', {
       studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
-      taskType:TASK_TYPE, startTime:(_firstStartIso||startTime.toISOString()), finishTime:new Date().toISOString(),
-      duration:_totalElapsed(),
+      taskType:TASK_TYPE, startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+      duration:Math.round((Date.now()-startTime)/1000),
       tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
       essay:'(Không có nội dung)', class:(sess.class||''), feedback:''
     }).then(function(saveRes){
@@ -802,16 +685,7 @@ sendHeartbeat('Writing'); // initial ping
 function submitWithoutAI(btn, text){
   // Phase guard: reject if not editing
   if (writePhase !== 'editing') return;
-  // Max submissions check
-  if (MAX_ATTEMPTS > 0 && attempt > MAX_ATTEMPTS) {
-    AW.toast('Bài tập này chỉ cho phép nộp tối đa ' + MAX_ATTEMPTS + ' lần.', 'err', 5000);
-    lockEditor('Đã đạt giới hạn nộp bài (' + MAX_ATTEMPTS + ' lần)');
-    return;
-  }
-  var limitNote2 = MAX_ATTEMPTS > 0
-    ? 'Bài tập này cho phép tối đa ' + MAX_ATTEMPTS + ' lần nộp. Giáo viên sẽ chấm bản nộp mới nhất.'
-    : 'Bạn vẫn có thể viết lại và nộp thêm. Giáo viên sẽ chấm BẢN NỘP MỚI NHẤT.';
-  if(!confirm('Nộp bài này cho giáo viên?\n\n' + limitNote2)) return;
+  if(!confirm('Nộp bài này cho giáo viên?\n\nBạn vẫn có thể viết lại và nộp thêm (tối đa 3 lần). Giáo viên sẽ chấm BẢN NỘP MỚI NHẤT.')) return;
   var orig=btn.textContent;
   btn.disabled=true;
   btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
@@ -819,8 +693,8 @@ function submitWithoutAI(btn, text){
 
   AW.api('write.saveResult', {
     studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
-    startTime:(_firstStartIso||startTime.toISOString()), finishTime:new Date().toISOString(),
-    duration:_totalElapsed(),
+    startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+    duration:Math.round((Date.now()-startTime)/1000),
     tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
     essay:text, class:(sess.class||''), feedback:''
   }).then(function(res){
@@ -843,7 +717,7 @@ function submitWithoutAI(btn, text){
     var noteEl = document.getElementById('draftNote');
     if (noteEl) noteEl.style.display = 'none';
     document.querySelectorAll('.aw-notepad-label,.aw-notepad-hint').forEach(function(el){ el.style.display='none'; });
-    AW.toast('Đã nộp bài (lần '+(MAX_ATTEMPTS>0?used+'/'+MAX_ATTEMPTS:used)+')','ok');
+    AW.toast('Đã nộp bài (lần '+used+'/3)','ok');
     var sideBodyEl2 = document.getElementById('sideBody');
     if (sideBodyEl2) { sideBodyEl2.style.display=''; sideBodyEl2.innerHTML =
       '<div style="text-align:center;padding:18px 6px">' +
@@ -975,40 +849,12 @@ function gradeBtnHandler(){
 
   if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
 
-  // ── Single-paragraph warning ─────────────────────────────────────────
-  var paraBlocks = text.split(/\n\s*\n/).filter(function(p){ return p.trim().length > 0; });
-  if (paraBlocks.length < 2) {
-    if (!confirm(
-      '⚠️ Bài viết của bạn chỉ có 1 đoạn văn.\n\n' +
-      'Một bài IELTS Writing chuẩn cần ít nhất 3–4 đoạn riêng biệt:\n' +
-      '  • Mở bài (Introduction)\n' +
-      '  • Thân bài (Body paragraphs)\n' +
-      '  • Kết bài (Conclusion)\n\n' +
-      'Viết 1 đoạn duy nhất sẽ bị giới hạn tối đa Band 4.5 ở tiêu chí\n' +
-      'Task Response và Coherence & Cohesion.\n\n' +
-      'Bạn vẫn muốn nộp bài không?'
-    )) return;
-  }
-
-  // ── Max submissions check ────────────────────────────────────────────
-  if (MAX_ATTEMPTS > 0 && attempt > MAX_ATTEMPTS) {
-    AW.toast('Bài tập này chỉ cho phép nộp tối đa ' + MAX_ATTEMPTS + ' lần.', 'err', 5000);
-    lockEditor('Đã đạt giới hạn nộp bài (' + MAX_ATTEMPTS + ' lần)');
-    return;
-  }
-
-  // ── Confirm dialog for hw/inclass before submitting ─────────────────
+  // ── Issue 2: confirm dialog for hw/inclass before submitting ────────
   if (MODE !== 'free') {
-    var limitNote = MAX_ATTEMPTS > 0
-      ? 'Bài tập này cho phép tối đa ' + MAX_ATTEMPTS + ' lần nộp.'
-      : 'Bạn vẫn có thể làm lại, nhưng mỗi lần phải viết lại từ đầu.';
-    var attemptLabel = MAX_ATTEMPTS > 0
-      ? 'Nộp bài lần ' + attempt + '/' + MAX_ATTEMPTS
-      : 'Nộp bài lần ' + attempt;
     if (!confirm(
-      '📤 ' + attemptLabel + '?\n\n' +
+      '📤 Nộp bài lần ' + attempt + '/3?\n\n' +
       'Sau khi nộp, bài viết này sẽ được AI chấm và lưu lại.\n' +
-      limitNote + '\n\n' +
+      'Bạn vẫn có thể làm lại (tối đa 3 lần), nhưng mỗi lần phải viết lại từ đầu.\n\n' +
       'Bạn có chắc muốn nộp bài không?'
     )) return; // student cancelled → keep editing
   }
@@ -1059,19 +905,6 @@ function gradeBtnHandler(){
   gradeWithTimeout
     .then(function(result){
       clearTimeout(gradeTimeoutId);
-
-      // Client-side clamp for single-paragraph penalty (belt-and-suspenders in case
-      // AI ignores the cap injected into aiNotes by the patchGraderForSingleParagraph wrapper)
-      var paraCount2 = lastPlainEssay.split(/\n\s*\n/).filter(function(p){ return p.trim().length > 10; }).length;
-      if (paraCount2 < 2 && result.scores) {
-        result.scores.TR  = Math.min(result.scores.TR  || 9, 4.5);
-        result.scores.CC  = Math.min(result.scores.CC  || 9, 4.5);
-        // Recalculate overall with clamped component scores
-        var avg2 = (result.scores.TR + result.scores.CC + (result.scores.LR||0) + (result.scores.GRA||0)) / 4;
-        var w2 = Math.floor(avg2), f2 = avg2 - w2;
-        result.overall = f2 < 0.25 ? w2 : (f2 < 0.75 ? w2+0.5 : w2+1);
-      }
-
       lastResult=result;
       if (MODE === 'free') {
         // Restore clean essay with paragraph structure before annotations
@@ -1082,8 +915,8 @@ function gradeBtnHandler(){
       renderFeedback(result);
       return AW.api('write.saveResult', {
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
-        startTime:(_firstStartIso||startTime.toISOString()), finishTime:new Date().toISOString(),
-        duration:_totalElapsed(),
+        startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+        duration:Math.round((Date.now()-startTime)/1000),
         tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
         aiGrading:result.overall, teacherGrading:'', essay:lastPlainEssay, class:(sess.class||''),
         feedback: JSON.stringify(result)
