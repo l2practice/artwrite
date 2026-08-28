@@ -229,10 +229,6 @@
   .aw-t1-chart-hover{position:relative;display:inline-block;cursor:pointer;margin-left:4px;font-size:.8rem;vertical-align:middle}
   .aw-t1-chart-pop{display:none;position:absolute;top:22px;left:0;z-index:300;width:340px;max-width:70vw;border-radius:10px;border:2px solid #1A9E5C;box-shadow:0 8px 32px rgba(0,0,0,.25);background:#fff;object-fit:contain}
   .aw-t1-chart-hover:hover .aw-t1-chart-pop{display:block}
-  /* Band badge */
-  .aw-band-badge{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto;gap:1px}
-  .aw-band-badge .bb-num{font-size:1.35rem;font-weight:800;line-height:1;letter-spacing:-.02em}
-  .aw-band-badge .bb-lbl{font-size:.52rem;font-weight:600;letter-spacing:.08em;opacity:.85}
 </style>
 </head>
 <body>
@@ -772,6 +768,7 @@ function loadRoster(){
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
         '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
         '<span style="display:flex;gap:8px;align-items:center"><span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span>'+
+        '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem" onclick="openEditStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\',\''+AW.esc(s.class||curClass())+'\',\''+AW.esc((s.birthdate||'').slice(0,10))+'\',\''+AW.esc(s.phone||'')+'\')">✏ Edit</button>'+
         '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem;color:var(--aw-danger)" onclick="archiveStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\')">Archive</button></span></div>';
     }).join('');
   });
@@ -2219,7 +2216,7 @@ window.viewEssays=function(gkey, writeIdx){
         '<h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+
         (x.timestamp?'<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 '+AW.fmtDate(x.timestamp)+'</div>':'')+
         '<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
-          '<div class="aw-band-badge"><span class="bb-num">'+(x.overall||'—')+'</span><span class="bb-lbl">BAND</span></div>'+
+          '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
           '<div style="flex:1">'+crit(c1label,x.tr)+crit('Coherence & Cohesion',x.cc)+crit('Lexical Resource',x.lr)+crit('Grammar',x.gra)+'</div>'+
         '</div>'+
         '<div id="detail_'+i+'" style="color:var(--aw-ink-3);font-size:.85rem">'+
@@ -2242,11 +2239,22 @@ window.viewEssays=function(gkey, writeIdx){
         if (!el) return;
         var fb=null; try{ fb=d.feedback?JSON.parse(d.feedback):null; }catch(e){}
         var out='';
-        // Essay text
-        out+=d.essay
-          ?'<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4>'+
-            '<div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:10px">'+AW.esc(d.essay)+'</div>'
-          :'<p style="color:var(--aw-ink-3)">No essay text.</p>';
+        // Essay text + word count
+        if (d.essay) {
+          var _wc = AW.wordCount(d.essay);
+          var _minW = (g.taskType==='task1') ? 150 : 250;
+          var _wcColor = _wc >= _minW ? '#1A9E5C' : _wc >= _minW*0.8 ? '#B8860B' : '#D93025';
+          out += '<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 4px">Essay</h4>'+
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+              '<span style="font-size:.78rem;font-weight:700;color:'+_wcColor+';background:'+(
+                _wc>=_minW?'#EAF6EF':_wc>=_minW*0.8?'#FFF8EC':'#FFF0F0'
+              )+';border:1px solid '+_wcColor+';border-radius:20px;padding:2px 10px">'+_wc+' words</span>'+
+              (_wc < _minW ? '<span style="font-size:.75rem;color:#B8860B">⚠ under '+_minW+' (IELTS min)</span>' : '')+
+            '</div>'+
+            '<div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:10px">'+AW.esc(d.essay)+'</div>';
+        } else {
+          out += '<p style="color:var(--aw-ink-3)">No essay text.</p>';
+        }
         // Vocabulary profile
         if(d.essay && window.AW && AW.analyseVocabulary){
           out+=renderTeacherVocab(AW.analyseVocabulary(d.essay));
@@ -3653,5 +3661,131 @@ startAlerts();
     </div>
   </div>
 </div>
+<!-- ═══ Edit Student Modal ═══ -->
+<div class="aw-modal-bg" id="editStudentModal">
+  <div class="aw-modal-card" style="max-width:460px;width:100%;max-height:90vh;overflow-y:auto">
+    <h3 style="margin:0 0 18px;font-family:var(--aw-font-display);font-size:1.1rem">✏ Edit Student Profile</h3>
+
+    <div class="aw-field" style="margin-bottom:12px">
+      <label class="aw-label">Full Name</label>
+      <input class="aw-input" id="esName" type="text" placeholder="Nguyễn Văn A">
+    </div>
+
+    <div class="aw-field" style="margin-bottom:12px">
+      <label class="aw-label">Student ID</label>
+      <input class="aw-input" id="esStudentId" type="text" placeholder="1234567">
+      <p style="margin:3px 0 0;font-size:.73rem;color:var(--aw-ink-3)">
+        ⚠ Chỉ sửa khi sinh viên nhập sai. Hệ thống sẽ kiểm tra trùng tự động.
+      </p>
+      <div id="esStudentIdErr" style="display:none;font-size:.75rem;color:var(--aw-danger);margin-top:3px"></div>
+    </div>
+
+    <div class="aw-field" style="margin-bottom:12px">
+      <label class="aw-label">Transfer to Class</label>
+      <select class="aw-select" id="esClass" style="width:100%">
+        <option value="">— keep current class —</option>
+      </select>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:4px">
+      <div class="aw-field" style="flex:1;margin:0">
+        <label class="aw-label">Birthday</label>
+        <input class="aw-input" id="esBirthdate" type="date">
+      </div>
+      <div class="aw-field" style="flex:1;margin:0">
+        <label class="aw-label">Phone</label>
+        <input class="aw-input" id="esPhone" type="tel" placeholder="09xx xxx xxx">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:1px solid var(--aw-border-2)">
+      <button class="aw-btn aw-btn-ghost" id="esCancel">Cancel</button>
+      <button class="aw-btn aw-btn-primary" id="esSave" style="padding:10px 22px">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var modal = document.getElementById('editStudentModal');
+  var _origStudentId = ''; // track original ID to detect changes
+
+  document.getElementById('esCancel').onclick = function(){ modal.classList.remove('show'); };
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.classList.remove('show'); });
+
+  // Clear StudentID error on input
+  document.getElementById('esStudentId').addEventListener('input', function(){
+    document.getElementById('esStudentIdErr').style.display='none';
+  });
+
+  window.openEditStudent = function(studentId, name, cls, birthdate, phone){
+    _origStudentId = studentId;
+    document.getElementById('esStudentId').value  = studentId;
+    document.getElementById('esName').value       = name || '';
+    document.getElementById('esBirthdate').value  = (birthdate || '').slice(0,10);
+    document.getElementById('esPhone').value      = phone || '';
+    document.getElementById('esStudentIdErr').style.display = 'none';
+
+    document.getElementById('esClass').innerHTML =
+      '<option value="">— keep current class —</option>' +
+      myClasses.map(function(c){
+        return '<option value="'+AW.esc(c.classId)+'"'+(c.classId===cls?' selected':'')+'>'+
+          AW.esc(c.className)+' ('+AW.esc(c.classId)+')</option>';
+      }).join('');
+
+    modal.classList.add('show');
+    setTimeout(function(){ document.getElementById('esName').focus(); }, 80);
+  };
+
+  document.getElementById('esSave').onclick = function(){
+    var newStudentId = document.getElementById('esStudentId').value.trim();
+    var name         = document.getElementById('esName').value.trim();
+    var cls          = document.getElementById('esClass').value;
+    var bd           = document.getElementById('esBirthdate').value;
+    var ph           = document.getElementById('esPhone').value.trim();
+
+    if (!name)          { AW.toast('Name is required.','err'); document.getElementById('esName').focus(); return; }
+    if (!newStudentId)  { AW.toast('Student ID is required.','err'); document.getElementById('esStudentId').focus(); return; }
+    if (!/^\d{6,12}$/.test(newStudentId)) {
+      var errEl = document.getElementById('esStudentIdErr');
+      errEl.textContent = 'Student ID phải là số (6–12 chữ số).';
+      errEl.style.display = 'block';
+      document.getElementById('esStudentId').focus();
+      return;
+    }
+
+    var payload = {
+      studentId: _origStudentId,  // original ID to find the row
+      name:      name,
+    };
+    // Only send newStudentId if it actually changed
+    if (newStudentId !== _origStudentId) payload.newStudentId = newStudentId;
+    if (cls) payload.class     = cls;
+    if (bd)  payload.birthdate = bd;
+    if (ph)  payload.phone     = ph;
+
+    var btn = this; btn.disabled = true;
+    var orig = btn.textContent;
+    btn.innerHTML = '<span class="aw-spin"></span>';
+
+    AW.api('student.edit', payload).then(function(res){
+      if (res && res.success) {
+        AW.toast('Profile updated ✓' + (payload.newStudentId ? ' (ID đổi thành '+payload.newStudentId+')' : ''), 'ok');
+        modal.classList.remove('show');
+        loadRoster();
+      } else {
+        var errEl = document.getElementById('esStudentIdErr');
+        var msg = (res && res.error) || 'Update failed.';
+        if (msg.indexOf('đã tồn tại') !== -1 || msg.indexOf('Student ID') !== -1) {
+          errEl.textContent = msg;
+          errEl.style.display = 'block';
+        } else {
+          AW.toast(msg, 'err');
+        }
+      }
+    }).finally(function(){ btn.disabled=false; btn.textContent=orig; });
+  };
+})();
+</script>
 </body>
 </html>

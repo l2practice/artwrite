@@ -11,32 +11,100 @@
 (function (AW) {
   'use strict';
 
-  /*── REQ 1: Single-paragraph penalty ────────────────────────────
-     If the essay is one unbroken block, TR and CC are hard-capped at 5.
-     Runs BEFORE normaliseScores so the overall recalculates from the
-     already-capped components.                                        */
+  /*──────────────────────────────────────────────────────────────
+    PRE-GRADE STRUCTURAL PENALTIES
+    Applied BEFORE normaliseScores so the overall recalculates
+    from already-capped component scores.
+
+    These are hard IELTS rules, not AI opinion:
+    1. Single paragraph → TR ≤ 4, CC ≤ 4
+    2. Under-length (Task 2 < 200 words) → TR ≤ 5; < 100 words → TR ≤ 4
+    3. Severe grammar/fragment sentences detected → GRA ≤ 3, CC ≤ 3
+  ──────────────────────────────────────────────────────────────*/
+
   function countParagraphs(text) {
     if (!text) return 0;
     var t = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-    // Try blank-line split first; fall back to single-newline
     var chunks = t.split(/\n{2,}/);
     if (chunks.length === 1) chunks = t.split(/\n/);
     return chunks.filter(function(c){ return c.trim().length > 5; }).length;
   }
 
-  function applySingleParaPenalty(essayText, result) {
-    if (countParagraphs(essayText) >= 2) return result;
-    if (!result.scores) return result;
-    var CAP = 5, changed = false;
-    if (result.scores.TR > CAP) { result.scores.TR = CAP; changed = true; }
-    if (result.scores.CC > CAP) { result.scores.CC = CAP; changed = true; }
-    if (changed) {
-      var banner = '\n\n⚠ [Lỗi cấu trúc — Single Paragraph]\n' +
-        'Bài viết chỉ có MỘT đoạn văn duy nhất. IELTS yêu cầu ít nhất 4 đoạn rõ ràng ' +
-        '(mở bài, thân bài 1, thân bài 2, kết bài). ' +
-        'Task Achievement và Coherence & Cohesion bị giới hạn tối đa Band 5.0.';
+  function countWords(text) {
+    return (text||'').trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  // Heuristic: detect severe structural grammar errors
+  // Checks for abnormally high ratio of very short "sentences" (<= 3 words)
+  // and obvious fragments (no verb-like token).
+  function hasSevereGrammarIssues(text) {
+    if (!text || countWords(text) < 20) return false;
+    var sentences = text.split(/[.!?]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+    if (sentences.length < 3) return false;
+    var fragmentCount = 0;
+    sentences.forEach(function(s){
+      var wds = s.split(/\s+/).filter(Boolean);
+      // Fragment: very short (≤3 words) or no word longer than 3 chars (no real verb/noun)
+      if (wds.length <= 2) fragmentCount++;
+    });
+    // > 40% fragments = severe
+    return (fragmentCount / sentences.length) > 0.4;
+  }
+
+  function applyStructuralPenalties(essayText, taskType, result) {
+    if (!result || !result.scores) return result;
+    var msgs = [];
+    var wc = countWords(essayText);
+    var paras = countParagraphs(essayText);
+    var isTask2 = (taskType || 'task2') === 'task2';
+
+    // ── Penalty 1: Single paragraph ──────────────────────────────
+    if (paras <= 1 && isTask2) {
+      if (result.scores.TR > 4) { result.scores.TR = 4; }
+      if (result.scores.CC > 4) { result.scores.CC = 4; }
+      msgs.push(
+        '🔴 [Lỗi cấu trúc: 1 đoạn duy nhất]\n' +
+        'Toàn bài chỉ có 1 đoạn văn. IELTS Task 2 yêu cầu tối thiểu 4 đoạn (mở bài, thân bài 1, thân bài 2, kết bài). ' +
+        'Với bài viết 1 đoạn, điểm Task Response không thể đạt Band 5.0 trở lên dù paraphrase tốt đến đâu. ' +
+        'TR và CC bị giới hạn tối đa Band 4.'
+      );
+    }
+
+    // ── Penalty 2: Under-length (Task 2 only) ────────────────────
+    if (isTask2) {
+      if (wc < 100) {
+        if (result.scores.TR > 4) { result.scores.TR = 4; }
+        msgs.push(
+          '🔴 [Lỗi độ dài: Bài quá ngắn — ' + wc + ' từ]\n' +
+          'Bài viết dưới 100 từ — không đủ để phát triển luận điểm. Task Response bị giới hạn tối đa Band 4.'
+        );
+      } else if (wc < 200) {
+        if (result.scores.TR > 5) { result.scores.TR = 5; }
+        msgs.push(
+          '🟡 [Lỗi độ dài: Bài ngắn — ' + wc + '/250 từ]\n' +
+          'IELTS Task 2 yêu cầu tối thiểu 250 từ. Bài dưới 200 từ sẽ bị phạt nặng về Task Response — không thể đạt Band 6.0 trở lên. ' +
+          'TR bị giới hạn tối đa Band 5.'
+        );
+      }
+    }
+
+    // ── Penalty 3: Severe grammar/fragment issues ─────────────────
+    if (hasSevereGrammarIssues(essayText)) {
+      if (result.scores.GRA > 3) { result.scores.GRA = 3; }
+      if (result.scores.CC  > 3) { result.scores.CC  = 3; }
+      msgs.push(
+        '🔴 [Lỗi ngữ pháp nghiêm trọng: Câu thiếu cấu trúc]\n' +
+        'Bài có nhiều câu viết dang dở, thiếu chủ ngữ hoặc động từ chính. ' +
+        'Nhiệm vụ quan trọng nhất bây giờ là học cách viết một câu đơn hoàn chỉnh (Chủ ngữ — Động từ — Tân ngữ), ' +
+        'sau đó ghép câu bằng liên từ cơ bản trước khi viết bài luận dài. GRA và CC bị giới hạn tối đa Band 3.'
+      );
+    }
+
+    // Inject warnings into Vietnamese feedback
+    if (msgs.length) {
+      var banner = '\n\n━ RÀNG BUỘC CHẤM ĐIỂM ━\n' + msgs.join('\n\n');
       result.overall_feedback_vi = banner + (result.overall_feedback_vi ? '\n\n' + result.overall_feedback_vi : '');
-      result._singleParaPenalty = true;
+      result._structuralPenalties = msgs.length;
     }
     return result;
   }
@@ -267,7 +335,7 @@
     // Fix 3: wrap JSON.parse in try-catch to show friendly error instead of crashing
     try {
       var _r = JSON.parse(clean.substring(si, ei+1));
-      _r = applySingleParaPenalty(text, _r);
+      _r = applyStructuralPenalties(text, payload.taskType, _r);
       return normaliseScores(_r);
     } catch(parseErr) {
       throw new Error('Lỗi đọc kết quả từ AI (JSON sai cú pháp). Vui lòng thử lại.');
@@ -306,11 +374,7 @@
               else if (rClean[rci]==='}') { rdepth--; if (rdepth===0) { rei=rci; break; } }
             }
           }
-          if (rei !== -1) {
-            var _rr = JSON.parse(rClean.substring(rsi, rei+1));
-            _rr = applySingleParaPenalty(prompt.split('STUDENT')[1] || '', _rr);
-            return normaliseScores(_rr);
-          }
+          if (rei !== -1) { var _rr=JSON.parse(rClean.substring(rsi, rei+1)); _rr=applyStructuralPenalties(text, payload.taskType, _rr); return normaliseScores(_rr); }
         }
       }
     } catch(finalErr) { /* fall through to final error below */ }
@@ -443,9 +507,7 @@
         }
         if (gei === -1) throw new Error('Lỗi định dạng: JSON từ Groq bị không hoàn chỉnh. Vui lòng thử lại.');
         try {
-          var _gr = JSON.parse(groqClean.substring(gsi, gei+1));
-          _gr = applySingleParaPenalty(prompt.split('STUDENT')[1] || '', _gr); // best-effort text ref
-          return normaliseScores(_gr);
+          var _gr=JSON.parse(groqClean.substring(gsi, gei+1)); _gr=applyStructuralPenalties(text, payload.taskType, _gr); return normaliseScores(_gr);
         } catch(parseErr) {
           throw new Error('Lỗi đọc kết quả từ Groq (JSON sai cú pháp). Vui lòng thử lại.');
         }
