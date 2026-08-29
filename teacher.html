@@ -2238,19 +2238,6 @@ window.viewEssays=function(gkey, writeIdx){
         if (!el) return;
         var fb=null; try{ fb=d.feedback?JSON.parse(d.feedback):null; }catch(e){}
         var out='';
-        // ── Word count badge ──────────────────────────────────────
-        if (d.essay) {
-          var _wc   = AW.wordCount(d.essay);
-          var _minW = (g.minWords && g.minWords > 0)
-                    ? g.minWords
-                    : (g.taskType==='task1' ? 150 : 250);
-          var _col  = _wc >= _minW ? '#1A9E5C' : _wc >= Math.floor(_minW*0.8) ? '#B8860B' : '#D93025';
-          var _bg   = _wc >= _minW ? '#EAF6EF' : _wc >= Math.floor(_minW*0.8) ? '#FFF8EC' : '#FFF0F0';
-          out += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
-            '<span style="font-size:.78rem;font-weight:700;color:'+_col+';background:'+_bg+';border:1px solid '+_col+';border-radius:20px;padding:2px 10px">'+_wc+' words</span>'+
-            (_wc < _minW ? '<span style="font-size:.75rem;color:'+_col+'">⚠ yêu cầu tối thiểu '+_minW+' từ</span>' : '<span style="font-size:.75rem;color:'+_col+'">✓ đủ '+_minW+' từ yêu cầu</span>')+
-          '</div>';
-        }
         // Essay text
         out+=d.essay
           ?'<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4>'+
@@ -2747,10 +2734,13 @@ function pollNotifications(){
       if(!s.raisedHand) delete _seenHands[key]; // lowered → can notify again next time
     });
   });
-  // new questions
+  // new questions + badge sync
   AW.api('query.listForTeacher',{class:curClass()}).then(function(res){
     var rows=(res&&res.data)||[];
-    rows.filter(function(q){return q.status==='open';}).forEach(function(q){
+    var open=rows.filter(function(q){return q.status==='open';});
+    // ── Always sync the badge to actual unanswered count ──────
+    setNavBadge('queries', open.length);
+    open.forEach(function(q){
       if(!_seenQueries[q.queryId]){
         _seenQueries[q.queryId]=true;
         if(_notifPrimed) notify('<b>🙋 '+AW.esc(q.studentName||q.studentId)+'</b> asked a question'+
@@ -2801,8 +2791,13 @@ function showQueries(){
   content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
   AW.api('query.listForTeacher',{class:curClass()}).then(function(res){
     var rows=(res&&res.data)||[];
-    if(!rows.length){content.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No feedback queries yet. When students ask about an AI correction, it appears here.</p></div>';return;}
+    if(!rows.length){
+      setNavBadge('queries', 0); // clear badge when no queries
+      content.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No feedback queries yet. When students ask about an AI correction, it appears here.</p></div>';return;
+    }
     var open=rows.filter(function(q){return q.status==='open';});
+    // ── Sync badge to actual unanswered count ──────────────────
+    setNavBadge('queries', open.length);
     content.innerHTML=
       '<p style="color:var(--aw-ink-2);margin:0 0 16px">'+open.length+' unanswered · '+rows.length+' total. Answers are private to the student unless you share them with the class.</p>'+
       '<div style="display:flex;flex-direction:column;gap:14px">'+
@@ -2843,6 +2838,16 @@ function showQueries(){
       };
     });
   });
+}
+
+// Refresh queries badge without entering the Queries tab
+// Called periodically so the badge stays in sync even when on other tabs.
+function refreshQueriesBadge(){
+  AW.api('query.listForTeacher',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var open=rows.filter(function(q){return q.status==='open';}).length;
+    setNavBadge('queries', open);
+  }).catch(function(){});
 }
 
 /*═══════════ SETTINGS ═══════════*/
