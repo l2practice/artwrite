@@ -611,7 +611,8 @@ window.reviewGroupWrite=function(gi,wi){
   window._myResults=window._myResults||[];
   var rec={topic:g.topic,topicId:g.topicId,mode:g.mode,attempt:w.attempt,
     overall:w.overall,tr:w.tr,cc:w.cc,lr:w.lr,gra:w.gra,duration:w.duration,
-    timestamp:w.timestamp,essay:w.essay,feedback:w.feedback};
+    timestamp:w.timestamp,essay:w.essay,feedback:w.feedback,
+    minWords: g.minWords||0, taskType: g.taskType||'task2'};
   window._reviewRec=rec;
   reviewFeedbackRec(rec,gi);
 };
@@ -641,7 +642,16 @@ function reviewFeedbackRec(r, refIdx){
         '<div><b>'+AW.esc(r.topic||'')+'</b><p style="margin:2px 0 0;font-size:.82rem;color:#667">TR '+(r.tr||'—')+' · CC '+(r.cc||'—')+' · LR '+(r.lr||'—')+' · GRA '+(r.gra||'—')+'</p></div>'+
       '</div>'+
       '<div class="rv-block" style="background:#FFF8EC"><p style="margin:0">'+noticeMsg+'</p></div>'+
-      (r.essay?'<div class="rv-block"><h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'<div class="rv-block"><p style="color:#889">No essay text stored.</p></div>')+
+      (r.essay ? (function(){
+        var _wc2  = AW.wordCount(r.essay);
+        var _minW2= (r.minWords && r.minWords>0) ? r.minWords : (r.taskType==='task1'?150:250);
+        var _col2 = _wc2>=_minW2?'#1A9E5C':_wc2>=Math.floor(_minW2*0.8)?'#B8860B':'#D93025';
+        return '<div class="rv-block"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+          '<span style="font-size:.78rem;font-weight:700;color:'+_col2+';background:'+(_wc2>=_minW2?'#EAF6EF':_wc2>=Math.floor(_minW2*0.8)?'#FFF8EC':'#FFF0F0')+';border:1px solid '+_col2+';border-radius:20px;padding:2px 10px">'+_wc2+' words</span>'+
+          (_wc2<_minW2?'<span style="font-size:.75rem;color:'+_col2+'">⚠ yêu cầu tối thiểu '+_minW2+' từ</span>':'<span style="font-size:.75rem;color:'+_col2+'">✓ đủ yêu cầu</span>')+
+          '</div>'+
+          '<h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>';
+      })() : '<div class="rv-block"><p style="color:#889">No essay text stored.</p></div>')+
     '</div>';
     document.getElementById('reviewModalBody').innerHTML=
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
@@ -720,7 +730,16 @@ function reviewFeedbackRec(r, refIdx){
     ((fb.lr_issues||[]).length?'<div class="rv-block"><h4>Lexical Resource</h4>'+fb.lr_issues.slice(0,8).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
     (fb.cc_feedback&&fb.cc_feedback.assessment_vi?'<div class="rv-block"><h4>Coherence & Cohesion</h4><p>'+AW.esc(fb.cc_feedback.assessment_vi)+'</p></div>':'')+
     buildCefrBlock(r.essay)+
-    (r.essay?'<div class="rv-block"><h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'')+
+    (r.essay ? (function(){
+      var _wc3  = AW.wordCount(r.essay);
+      var _minW3= (r.minWords && r.minWords>0) ? r.minWords : (r.taskType==='task1'?150:250);
+      var _col3 = _wc3>=_minW3?'#1A9E5C':_wc3>=Math.floor(_minW3*0.8)?'#B8860B':'#D93025';
+      return '<div class="rv-block"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+        '<span style="font-size:.78rem;font-weight:700;color:'+_col3+';background:'+(_wc3>=_minW3?'#EAF6EF':_wc3>=Math.floor(_minW3*0.8)?'#FFF8EC':'#FFF0F0')+';border:1px solid '+_col3+';border-radius:20px;padding:2px 10px">'+_wc3+' words</span>'+
+        (_wc3<_minW3?'<span style="font-size:.75rem;color:'+_col3+'">⚠ yêu cầu tối thiểu '+_minW3+' từ</span>':'<span style="font-size:.75rem;color:'+_col3+'">✓ đủ yêu cầu</span>')+
+        '</div>'+
+        '<h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>';
+    })() : '')+
   '</div>';
   document.getElementById('reviewModalBody').innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">'+
