@@ -10,8 +10,14 @@
 <title>Write · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
-  .aw-write-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);overflow:hidden;box-shadow:var(--aw-shadow)}
-  @media(max-width:960px){.aw-write-grid{grid-template-columns:1fr}}
+  /* ── Resizable split pane (write page) ── */
+  .aw-write-grid{display:flex;align-items:stretch;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);overflow:hidden;box-shadow:var(--aw-shadow)}
+  .aw-write-pane-left{flex:0 0 50%;min-width:280px;max-width:80%;overflow:hidden}
+  .aw-write-pane-right{flex:1 1 0;min-width:180px;overflow:hidden}
+  .aw-write-divider{width:6px;background:var(--aw-border-2);cursor:col-resize;flex:0 0 6px;position:relative;transition:background .15s;user-select:none}
+  .aw-write-divider:hover,.aw-write-divider.dragging{background:var(--aw-primary)}
+  .aw-write-divider::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:32px;border-radius:2px;background:rgba(255,255,255,.6)}
+  @media(max-width:960px){.aw-write-grid{flex-direction:column}.aw-write-divider{display:none}.aw-write-pane-left,.aw-write-pane-right{flex:none;width:100%;max-width:100%}}
   .aw-prompt-box{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:18px 20px;margin-bottom:16px}
   .aw-prompt-box h4{margin:0 0 6px;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:var(--aw-primary);font-weight:700}
   .aw-prompt-text{color:var(--aw-ink);line-height:1.6;font-size:.95rem;white-space:pre-wrap}
@@ -244,8 +250,8 @@ content.innerHTML =
     '<div class="aw-keybar"><span>🔑 Enter your Gemini API key (stored on your device) to grade essays:</span>' +
     '<input id="keyInput" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-accent" id="keySave" style="padding:6px 14px">Save</button>' +
     '<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="aw-key-link">→ Get a free key</a></div>') +
-  '<div class="aw-write-grid">' +
-    '<div>' +
+  '<div class="aw-write-grid" id="writeGrid">' +
+    '<div class="aw-write-pane-left" id="writePaneLeft">' +
       (function(){
         var isFreeNoPrompt = (MODE==='free' && !qp.get('prompt'));
         if (isFreeNoPrompt) {
@@ -286,7 +292,9 @@ content.innerHTML =
         '<button class="aw-btn aw-btn-ghost" id="pauseBtn" style="flex:0 0 auto;padding:12px 18px" title="Save your draft and continue later">⏸ Pause &amp; Save</button>' +
         '<button class="aw-btn aw-btn-primary" id="gradeBtn" style="flex:1">'+(AW_AI_ON?'Get AI Feedback':'Nộp bài')+'</button>' +
       '</div>' +
-    '</div>' +
+    '</div>' +  /* end aw-write-pane-left */
+    '<div class="aw-write-divider" id="writeDivider" title="Kéo để thay đổi kích thước"></div>' +
+    '<div class="aw-write-pane-right" id="writePaneRight">' +
     '<div class="aw-side-panel" id="side">' +
       '<div class="aw-notepad-label">📝 Draft Notepad</div>' +
       '<p class="aw-notepad-hint">Ghi tạm ý tưởng, dàn bài, từ vựng… Phần này <b>không nộp</b>, không chấm, không lưu.</p>' +
@@ -294,6 +302,7 @@ content.innerHTML =
       '<div id="sideBody" style="display:none"></div>' +
       '<div id="submitStatus" style="margin-top:14px;text-align:center;display:none"><span style="color:var(--aw-writing);font-weight:600">✓ Submitted</span></div>' +
     '</div>' +
+    '</div>' +  /* end aw-write-pane-right */
   '</div>' +
   ((MODE==='free' && AW_AI_ON) ?
     '<button class="aw-board-fab" id="boardFab" onclick="openBoardView()" style="bottom:78px">📋 Board</button>' +
@@ -906,16 +915,6 @@ function gradeBtnHandler(){
     .then(function(result){
       clearTimeout(gradeTimeoutId);
       lastResult=result;
-      // ── Hardened essay capture ──────────────────────────────────────
-      // lastPlainEssay was set at grading start. As a safety net, if it's
-      // somehow empty (edge case: editor cleared by annotation race), re-capture.
-      if (!lastPlainEssay || !lastPlainEssay.trim()) {
-        var _clone = document.createElement('div');
-        _clone.innerHTML = editor.innerHTML;
-        _clone.querySelectorAll('.fix-mark,[class*="err-mark"],span[style*="→"],span[style*="wavy"]').forEach(function(s){ s.remove(); });
-        lastPlainEssay = (_clone.innerText || _clone.textContent || '').trim();
-      }
-      var essayToSave = lastPlainEssay; // capture now before renderFeedback mutates editor
       if (MODE === 'free') {
         // Restore clean essay with paragraph structure before annotations
         editor.innerHTML = '';
@@ -928,7 +927,7 @@ function gradeBtnHandler(){
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
         tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
-        aiGrading:result.overall, teacherGrading:'', essay:essayToSave, class:(sess.class||''),
+        aiGrading:result.overall, teacherGrading:'', essay:lastPlainEssay, class:(sess.class||''),
         feedback: JSON.stringify(result)
       });
     })
@@ -1751,6 +1750,78 @@ AW.loadClassAI(sess.class, function(on){
     location.reload();              // upgrade needs the AI controls back
   }
 });
+</script>
+
+<script>
+// ── Draggable write pane splitter ─────────────────────────────
+(function(){
+  var divider  = document.getElementById('writeDivider');
+  var grid     = document.getElementById('writeGrid');
+  var paneLeft = document.getElementById('writePaneLeft');
+  if (!divider || !grid || !paneLeft) return;
+
+  var PREF_KEY = 'aw_split_' + (typeof MODE !== 'undefined' ? MODE : 'w');
+  var dragging = false;
+  var startX, startW, gridW;
+
+  // Restore saved split ratio
+  try {
+    var saved = parseFloat(localStorage.getItem(PREF_KEY));
+    if (saved >= 20 && saved <= 80) paneLeft.style.flexBasis = saved + '%';
+  } catch(e){}
+
+  divider.addEventListener('mousedown', function(e){
+    e.preventDefault();
+    dragging = true;
+    startX   = e.clientX;
+    startW   = paneLeft.getBoundingClientRect().width;
+    gridW    = grid.getBoundingClientRect().width;
+    divider.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', function(e){
+    if (!dragging) return;
+    var delta   = e.clientX - startX;
+    var newW    = Math.min(Math.max(startW + delta, gridW * 0.2), gridW * 0.8);
+    var pct     = (newW / gridW * 100).toFixed(1);
+    paneLeft.style.flexBasis = pct + '%';
+  });
+
+  document.addEventListener('mouseup', function(){
+    if (!dragging) return;
+    dragging = false;
+    divider.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    // Persist preference
+    var pct = parseFloat(paneLeft.style.flexBasis);
+    try { if (pct) localStorage.setItem(PREF_KEY, pct.toFixed(1)); } catch(e){}
+  });
+
+  // Touch support (mobile)
+  divider.addEventListener('touchstart', function(e){
+    var t = e.touches[0];
+    startX = t.clientX;
+    startW = paneLeft.getBoundingClientRect().width;
+    gridW  = grid.getBoundingClientRect().width;
+    dragging = true;
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    if (!dragging) return;
+    var t = e.touches[0];
+    var newW = Math.min(Math.max(startW + t.clientX - startX, gridW*0.2), gridW*0.8);
+    paneLeft.style.flexBasis = (newW/gridW*100).toFixed(1)+'%';
+  }, {passive:true});
+  document.addEventListener('touchend', function(){ dragging=false; });
+
+  // Double-click to reset to 50/50
+  divider.addEventListener('dblclick', function(){
+    paneLeft.style.flexBasis = '50%';
+    try { localStorage.removeItem(PREF_KEY); } catch(e){}
+  });
+})();
 </script>
 </body>
 </html>
