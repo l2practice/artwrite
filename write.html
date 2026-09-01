@@ -214,6 +214,8 @@ var hasRealTopic = qp.get('topicId') && MODE !== 'free';
 // MIN_WORDS: default by task type, overridden by assignment's minWords field
 // GV có thể set minWords thấp hơn (VD: 80 nếu chỉ viết 1 đoạn thân bài)
 var MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
+// WRITING_TYPE: 'full_essay' | 'paragraph' | 'sentences' — controls grading constraints
+var WRITING_TYPE = 'full_essay';
 
 // If chart image was passed via URL (Task 1 assigned), render immediately
 if (TASK_TYPE === 'task1' && CHART_IMAGE_ID) {
@@ -235,6 +237,8 @@ if (hasRealTopic) {
         // Update the word counter label to reflect custom limit
         updateWordCount();
       }
+      // Fetch writingType for grading constraints
+      if (res.data.writingType) WRITING_TYPE = res.data.writingType;
     }
   });
 }
@@ -903,7 +907,8 @@ function gradeBtnHandler(){
   var GRADE_TIMEOUT_MS = 90000;
   var gradeTimeoutId;
   var gradeWithTimeout = Promise.race([
-    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key),
+    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary,
+               minWords:MIN_WORDS, writingType:WRITING_TYPE, taskType:TASK_TYPE }, key),
     new Promise(function(_, reject){
       gradeTimeoutId = setTimeout(function(){
         reject(new Error('timeout: AI không phản hồi sau 90 giây. Vui lòng thử lại.'));
