@@ -3467,19 +3467,93 @@ function trGenItems(){
   function onSuccess(items){
     _trItems=items;
     genBtn.disabled=false; regenBtn.style.display='';
-    statusEl.textContent='✅ Đã sinh '+items.length+' câu.';
+    statusEl.textContent='✅ Đã sinh '+items.length+' câu. Bạn có thể chỉnh sửa trực tiếp trước khi lưu.';
     document.getElementById('trPreviewWrap').style.display='';
     document.getElementById('trItemCount').textContent='('+items.length+' câu)';
-    document.getElementById('trItemsTbody').innerHTML=items.map(function(it,i){
-      var dir=it.direction==='en2vi'?'EN→VI':'VI→EN';
-      var col=it.direction==='en2vi'?'var(--aw-primary)':'#8B5CF6';
-      return '<tr><td style="color:var(--aw-ink-3);font-size:.75rem">'+(i+1)+'</td>'+
-        '<td><span style="font-size:.7rem;font-weight:700;color:'+col+'">'+dir+'</span>'+(it.isTreasure?' 💎':'')+'</td>'+
-        '<td style="max-width:180px;word-break:break-word;font-size:.78rem">'+AW.esc(it.source)+'</td>'+
-        '<td style="max-width:180px;word-break:break-word;font-size:.78rem;color:var(--aw-ink-2)">'+AW.esc(it.modelAnswer)+'</td>'+
-        '<td style="font-size:.7rem;color:var(--aw-writing)">'+AW.esc((it.targetWords||[]).join(', '))+'</td></tr>';
-    }).join('');
+    renderTrTable();
     document.getElementById('trSaveBtn').disabled=false;
+  }
+
+  function renderTrTable(){
+    var tbody=document.getElementById('trItemsTbody');
+    tbody.innerHTML=_trItems.map(function(it,i){
+      var isEN=it.direction==='en2vi';
+      var dirLabel=isEN?'EN→VI':'VI→EN';
+      var dirCol=isEN?'var(--aw-primary)':'#8B5CF6';
+      return '<tr data-idx="'+i+'" style="vertical-align:top">'+
+        // #
+        '<td style="color:var(--aw-ink-3);font-size:.73rem;padding-top:10px">'+(i+1)+'</td>'+
+        // Direction toggle button
+        '<td style="padding-top:8px">'+
+          '<button class="tr-dir-btn aw-btn aw-btn-ghost" data-idx="'+i+'" '+
+            'style="font-size:.68rem;font-weight:700;color:'+dirCol+';padding:2px 6px;border-color:'+dirCol+'">'+
+            dirLabel+(it.isTreasure?' 💎':'')+'</button>'+
+        '</td>'+
+        // Source (editable)
+        '<td style="max-width:200px">'+
+          '<div class="tr-edit-cell" contenteditable="true" data-idx="'+i+'" data-field="source" '+
+            'style="font-size:.8rem;line-height:1.5;min-height:20px;padding:4px 6px;border-radius:6px;'+
+            'border:1px solid transparent;outline:none;word-break:break-word" '+
+            'spellcheck="false">'+AW.esc(it.source)+'</div>'+
+        '</td>'+
+        // Model answer (editable)
+        '<td style="max-width:200px">'+
+          '<div class="tr-edit-cell" contenteditable="true" data-idx="'+i+'" data-field="modelAnswer" '+
+            'style="font-size:.8rem;line-height:1.5;min-height:20px;padding:4px 6px;border-radius:6px;'+
+            'border:1px solid transparent;outline:none;color:var(--aw-ink-2);word-break:break-word" '+
+            'spellcheck="false">'+AW.esc(it.modelAnswer)+'</div>'+
+        '</td>'+
+        // Target words (editable)
+        '<td>'+
+          '<div class="tr-edit-cell" contenteditable="true" data-idx="'+i+'" data-field="targetWords" '+
+            'style="font-size:.72rem;line-height:1.5;min-height:20px;padding:4px 6px;border-radius:6px;'+
+            'border:1px solid transparent;outline:none;color:var(--aw-writing);word-break:break-word" '+
+            'spellcheck="false">'+AW.esc((it.targetWords||[]).join(', '))+'</div>'+
+        '</td>'+
+        // Delete
+        '<td style="padding-top:8px;text-align:center">'+
+          '<button class="tr-del-btn aw-btn aw-btn-ghost" data-idx="'+i+'" '+
+            'style="padding:2px 7px;font-size:.75rem;color:var(--aw-danger);border-color:var(--aw-danger)" title="Xoá câu này">✕</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('');
+
+    // Hover highlight on editable cells
+    tbody.querySelectorAll('.tr-edit-cell').forEach(function(el){
+      el.addEventListener('focus',function(){ this.style.border='1px solid var(--aw-primary)'; this.style.background='var(--aw-surface-2)'; });
+      el.addEventListener('blur',function(){
+        this.style.border='1px solid transparent'; this.style.background='';
+        var idx=parseInt(this.dataset.idx,10), field=this.dataset.field;
+        var val=(this.innerText||this.textContent||'').trim();
+        if(field==='targetWords'){
+          _trItems[idx].targetWords = val ? val.split(/\s*,\s*/).filter(Boolean) : [];
+        } else {
+          _trItems[idx][field]=val;
+        }
+        // Update count badge
+        document.getElementById('trItemCount').textContent='('+_trItems.length+' câu)';
+      });
+    });
+
+    // Direction toggle
+    tbody.querySelectorAll('.tr-dir-btn').forEach(function(btn){
+      btn.onclick=function(){
+        var idx=parseInt(this.dataset.idx,10);
+        _trItems[idx].direction=_trItems[idx].direction==='en2vi'?'vi2en':'en2vi';
+        renderTrTable(); // re-render to update colors
+      };
+    });
+
+    // Delete row
+    tbody.querySelectorAll('.tr-del-btn').forEach(function(btn){
+      btn.onclick=function(){
+        var idx=parseInt(this.dataset.idx,10);
+        _trItems.splice(idx,1);
+        if(!_trItems.length){ document.getElementById('trPreviewWrap').style.display='none'; return; }
+        renderTrTable();
+        document.getElementById('trItemCount').textContent='('+_trItems.length+' câu)';
+      };
+    });
   }
   function onFail(msg){
     genBtn.disabled=false; regenBtn.style.display='';
@@ -3612,11 +3686,21 @@ startAlerts();
         <div id="trGenStatus" style="font-size:.8rem;color:var(--aw-ink-3);margin-top:8px;min-height:16px"></div>
       </div>
       <div id="trPreviewWrap" style="display:none">
-        <div style="font-size:.78rem;font-weight:700;color:var(--aw-ink-2);margin-bottom:6px">📋 Preview <span id="trItemCount"></span></div>
-        <div style="max-height:220px;overflow-y:auto;border:1px solid var(--aw-border-2);border-radius:var(--aw-r)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:.78rem;font-weight:700;color:var(--aw-ink-2)">📋 Preview <span id="trItemCount"></span></span>
+          <span style="font-size:.72rem;color:var(--aw-ink-3)">✏ Click vào ô để sửa · Bấm nút Chiều để đổi EN↔VI · ✕ để xoá câu</span>
+        </div>
+        <div style="max-height:340px;overflow-y:auto;border:1px solid var(--aw-border-2);border-radius:var(--aw-r)">
           <table style="width:100%;border-collapse:collapse;font-size:.76rem">
-            <thead style="background:var(--aw-surface-2)">
-              <tr><th style="padding:5px 8px">#</th><th style="padding:5px 8px">Chiều</th><th style="padding:5px 8px">Câu gốc</th><th style="padding:5px 8px">Đáp án mẫu</th><th style="padding:5px 8px">Vocab</th></tr>
+            <thead style="background:var(--aw-surface-2);position:sticky;top:0;z-index:1">
+              <tr>
+                <th style="padding:5px 8px;width:28px">#</th>
+                <th style="padding:5px 8px;width:64px">Chiều</th>
+                <th style="padding:5px 8px">Câu gốc</th>
+                <th style="padding:5px 8px">Đáp án mẫu</th>
+                <th style="padding:5px 8px;width:100px">Vocab</th>
+                <th style="padding:5px 8px;width:28px"></th>
+              </tr>
             </thead>
             <tbody id="trItemsTbody"></tbody>
           </table>
