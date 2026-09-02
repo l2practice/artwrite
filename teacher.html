@@ -520,22 +520,6 @@
       </p>
     </div>
 
-    <!-- ⑧ Writing Type -->
-    <div class="aw-field">
-      <label class="aw-label">Loại bài viết
-        <span style="font-weight:400;color:var(--aw-ink-3)"> — AI chấm theo tiêu chí phù hợp với yêu cầu</span>
-      </label>
-      <select class="aw-select" id="aWritingType" style="max-width:360px">
-        <option value="full_essay">📄 Full essay (> 4 paragraphs)</option>
-        <option value="paragraph">✏️ Paragraph practice (1 body paragraph)</option>
-        <option value="sentences">🔤 Sentence practice (single sentences)</option>
-      </select>
-      <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">
-        💡 <b>Paragraph:</b> TR &amp; CC giới hạn tối đa Band 5 — 1 đoạn không thể đạt cấu trúc full essay.
-        <b>Sentences:</b> TR &amp; CC giới hạn tối đa Band 4, AI chỉ chấm ngữ pháp câu.
-      </p>
-    </div>
-
     <!-- ⑦ Attempts / Duration / Deadline -->
     <div class="aw-row" style="display:flex;gap:12px">
       <div class="aw-field" style="flex:1" id="reqField">
@@ -2628,7 +2612,6 @@ window.newAssignment=function(mode){
   document.getElementById('aPrompt').innerHTML = '';
   document.getElementById('aAiNotes').value    = '';
   document.getElementById('aMinWords').value   = '';
-  if (document.getElementById('aWritingType')) document.getElementById('aWritingType').value = 'full_essay';
   // Reset deadline fields
   if (document.getElementById('aDead'))     document.getElementById('aDead').value = '';
   if (document.getElementById('aDeadTime')) document.getElementById('aDeadTime').value = '23:59';
@@ -2674,7 +2657,6 @@ function _aCreateHandler(){
       taskType:        _taskType,
       chartImageId:    chartImageId || '',
       minWords:        parseInt(document.getElementById('aMinWords').value||'0',10)||0,
-      writingType:     document.getElementById('aWritingType').value||'full_essay',
       aiNotes:         aiNotes,
       requiredAttempts:assignMode==='homework'?parseInt(document.getElementById('aReq').value||'3',10):1,
       durationMin:     assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
@@ -3461,7 +3443,7 @@ function trGenItems(){
     (title?'THEME: '+title:''),
     'Return ONLY the JSON array of 20 objects.'
   ].join('\n');
-  var MODELS=['gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash'];
+  var MODELS=['gemini-3.5-flash','gemini-3.5-flash-lite','gemini-3.6-flash'];
   var mi=0;
   function tryModel(){
     if(mi>=MODELS.length){onFail('All Gemini models failed');return;}
@@ -3602,8 +3584,8 @@ startAlerts();
         <div class="aw-field" style="flex:0 0 170px">
           <label class="aw-label">Thứ tự câu</label>
           <select class="aw-input" id="tr-shuffle">
-            <option value="random">🔀 Random </option>
-            <option value="ordered">📋 Ordered </option>
+            <option value="random">🔀 Random (mỗi SV khác nhau)</option>
+            <option value="ordered">📋 Ordered (tất cả cùng thứ tự)</option>
           </select>
         </div>
         <div class="aw-field" style="flex:1;min-width:200px">
