@@ -768,6 +768,7 @@ function loadRoster(){
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
         '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
         '<span style="display:flex;gap:8px;align-items:center"><span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span>'+
+        '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem" onclick="openEditStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\',\''+AW.esc(s.class||curClass())+'\',\''+AW.esc((s.birthdate||'').slice(0,10))+'\',\''+AW.esc(s.phone||'')+'\')">✏ Edit</button>'+
         '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem;color:var(--aw-danger)" onclick="archiveStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\')">Archive</button></span></div>';
     }).join('');
   });
@@ -3685,5 +3686,123 @@ startAlerts();
     </div>
   </div>
 </div>
+<!-- ═══════════════════════════════════════════
+     EDIT STUDENT MODAL — permanent, do not remove
+     ═══════════════════════════════════════════ -->
+<div class="aw-modal-bg" id="editStudentModal">
+  <div class="aw-modal-card" style="max-width:460px;width:100%;max-height:90vh;overflow-y:auto">
+    <h3 style="margin:0 0 18px;font-family:var(--aw-font-display);font-size:1.1rem">✏ Edit Student Profile</h3>
+
+    <div class="aw-field" style="margin-bottom:12px">
+      <label class="aw-label">Full Name</label>
+      <input class="aw-input" id="esName" type="text" placeholder="Nguyễn Văn A">
+    </div>
+
+    <div class="aw-field" style="margin-bottom:12px">
+      <label class="aw-label">Student ID</label>
+      <input class="aw-input" id="esStudentId" type="text" placeholder="1234567">
+      <p style="margin:3px 0 0;font-size:.73rem;color:var(--aw-ink-3)">⚠ Chỉ sửa khi sinh viên nhập sai. Hệ thống kiểm tra trùng tự động.</p>
+      <div id="esStudentIdErr" style="display:none;font-size:.75rem;color:var(--aw-danger);margin-top:3px"></div>
+    </div>
+
+    <div class="aw-field" style="margin-bottom:12px">
+      <label class="aw-label">Transfer to Class</label>
+      <select class="aw-select" id="esClass" style="width:100%">
+        <option value="">— keep current class —</option>
+      </select>
+      <p style="margin:3px 0 0;font-size:.73rem;color:var(--aw-ink-3)">Chọn lớp khác để chuyển sinh viên.</p>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div class="aw-field" style="flex:1;margin:0">
+        <label class="aw-label">Birthday</label>
+        <input class="aw-input" id="esBirthdate" type="date">
+      </div>
+      <div class="aw-field" style="flex:1;margin:0">
+        <label class="aw-label">Phone</label>
+        <input class="aw-input" id="esPhone" type="tel" placeholder="09xx xxx xxx">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:1px solid var(--aw-border-2)">
+      <button class="aw-btn aw-btn-ghost" id="esCancel">Cancel</button>
+      <button class="aw-btn aw-btn-primary" id="esSave" style="padding:10px 22px">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var modal   = document.getElementById('editStudentModal');
+  var _origId = '';
+
+  document.getElementById('esCancel').onclick = function(){ modal.classList.remove('show'); };
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.classList.remove('show'); });
+  document.getElementById('esStudentId').addEventListener('input', function(){
+    document.getElementById('esStudentIdErr').style.display = 'none';
+  });
+
+  window.openEditStudent = function(studentId, name, cls, birthdate, phone){
+    _origId = studentId;
+    document.getElementById('esStudentId').value  = studentId;
+    document.getElementById('esName').value        = name    || '';
+    document.getElementById('esBirthdate').value   = (birthdate || '').slice(0, 10);
+    document.getElementById('esPhone').value       = phone   || '';
+    document.getElementById('esStudentIdErr').style.display = 'none';
+
+    // Build class dropdown from teacher's classes
+    document.getElementById('esClass').innerHTML =
+      '<option value="">— keep current class —</option>' +
+      myClasses.map(function(c){
+        return '<option value="'+AW.esc(c.classId)+'"'+(c.classId===cls?' selected':'')+'>'+
+          AW.esc(c.className)+' ('+AW.esc(c.classId)+')</option>';
+      }).join('');
+
+    modal.classList.add('show');
+    setTimeout(function(){ document.getElementById('esName').focus(); }, 80);
+  };
+
+  document.getElementById('esSave').onclick = function(){
+    var newId  = document.getElementById('esStudentId').value.trim();
+    var name   = document.getElementById('esName').value.trim();
+    var cls    = document.getElementById('esClass').value;
+    var bd     = document.getElementById('esBirthdate').value;
+    var ph     = document.getElementById('esPhone').value.trim();
+    var errEl  = document.getElementById('esStudentIdErr');
+
+    if (!name) { AW.toast('Name is required.', 'err'); document.getElementById('esName').focus(); return; }
+    if (!newId){ errEl.textContent='Student ID is required.'; errEl.style.display='block'; return; }
+    if (!/^\d{5,12}$/.test(newId)){
+      errEl.textContent='Student ID phải là số (5–12 chữ số).';
+      errEl.style.display='block'; return;
+    }
+
+    var payload = { studentId: _origId, name: name };
+    if (newId !== _origId) payload.newStudentId = newId;
+    if (cls) payload.class     = cls;
+    if (bd)  payload.birthdate = bd;
+    if (ph)  payload.phone     = ph;
+
+    var btn = this; btn.disabled = true;
+    var orig = btn.textContent;
+    btn.innerHTML = '<span class="aw-spin"></span>';
+
+    AW.api('student.edit', payload).then(function(res){
+      if (res && res.success){
+        AW.toast('Profile updated ✓' + (payload.newStudentId ? ' (ID → '+payload.newStudentId+')' : ''), 'ok');
+        modal.classList.remove('show');
+        loadRoster();
+      } else {
+        var msg = (res && res.error) || 'Update failed.';
+        if (msg.indexOf('đã tồn tại') !== -1 || msg.indexOf('Student ID') !== -1){
+          errEl.textContent = msg; errEl.style.display = 'block';
+        } else {
+          AW.toast(msg, 'err');
+        }
+      }
+    }).finally(function(){ btn.disabled = false; btn.textContent = orig; });
+  };
+})();
+</script>
 </body>
 </html>
