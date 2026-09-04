@@ -83,14 +83,23 @@
   .aw-tbtn:hover{background:var(--aw-primary-lt);border-color:var(--aw-primary);color:var(--aw-primary)}
   .aw-tbtn.on{background:var(--aw-primary);color:#fff;border-color:var(--aw-primary)}
   .ann-sep{width:1px;background:var(--aw-border-2);align-self:stretch;margin:2px 2px;display:inline-block}
-  .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:80vw;max-width:1400px;height:80vh;max-height:80vh;overflow:hidden;display:grid;grid-template-columns:1fr 320px;box-shadow:var(--aw-shadow-lg)}
+  /* PERMANENT FIX 3: resizable annotation modal */
+  .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:80vw;max-width:1400px;height:80vh;max-height:80vh;overflow:hidden;display:grid;grid-template-columns:1fr 320px;box-shadow:var(--aw-shadow-lg);resize:both;min-width:520px;min-height:400px;max-width:98vw;max-height:96vh}
   .aw-modal-card{background:var(--aw-surface);border-radius:var(--aw-r-lg);padding:24px 26px;box-shadow:var(--aw-shadow-lg)}
-  .aw-modal .aw-modal-doc{overflow-y:auto}
-  .aw-modal .aw-doc-text{min-height:60vh}
+  /* PERMANENT FIX 1+2: flex column — header/footer sticky, middle scrolls */
+  .aw-modal .aw-modal-doc{overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .aw-modal .aw-doc-text{min-height:60vh;flex:1}
   @media(max-width:800px){.aw-modal{grid-template-columns:1fr;width:95vw;height:90vh}}
-  .aw-modal-doc{padding:24px;overflow-y:auto;max-height:90vh}
-  .aw-modal-doc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-  .aw-doc-text{font-size:1rem;line-height:1.9;color:var(--aw-ink);white-space:pre-wrap;user-select:text;outline:none;min-height:200px;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:16px}
+  .aw-modal-doc{padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;min-height:0}
+  /* PERMANENT FIX 1: sticky student name header */
+  .aw-modal-doc-head{display:flex;align-items:center;justify-content:space-between;padding:14px 24px 12px;position:sticky;top:0;z-index:10;background:var(--aw-surface);border-bottom:1px solid var(--aw-border-2);margin:0;flex-shrink:0}
+  /* scrollable middle zone */
+  .aw-modal-doc-scroll{flex:1;overflow-y:auto;padding:0 24px;min-height:0}
+  /* PERMANENT FIX 1: sticky toolbar inside scroll zone */
+  #annToolbar{position:sticky!important;top:0!important;z-index:9!important;background:var(--aw-surface-2)!important;margin:8px 0!important;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  /* PERMANENT FIX 2: sticky footer */
+  .aw-modal-doc-footer{padding:8px 24px 14px;position:sticky;bottom:0;background:var(--aw-surface);border-top:1px solid var(--aw-border-2);flex-shrink:0;z-index:8}
+  .aw-doc-text{font-size:1rem;line-height:1.9;color:var(--aw-ink);white-space:pre-wrap;user-select:text;outline:none;min-height:200px;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:16px;margin:8px 0}
   .aw-doc-text:focus{border-color:var(--aw-primary)}
   .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
   .aw-sug-ins{color:var(--aw-writing);font-weight:600}
@@ -237,12 +246,15 @@
 <div class="aw-modal-bg" id="modalBg">
   <div class="aw-modal">
     <div class="aw-modal-doc">
+      <!-- PERMANENT FIX: sticky student name header -->
       <div class="aw-modal-doc-head">
         <div><b id="mStudent">Student</b> <span style="color:var(--aw-ink-3)" id="mTopic"></span></div>
         <button class="aw-btn" style="padding:6px 18px;background:#E5484D;color:#fff;font-weight:600" id="mClose">✕ Close</button>
       </div>
-      <!-- annotation toolbar — uniform 30px buttons, mousedown preventDefault preserves selection -->
-      <div id="annToolbar" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;margin-bottom:8px;position:relative;user-select:none">
+      <!-- PERMANENT FIX: scrollable zone — toolbar + essay -->
+      <div class="aw-modal-doc-scroll">
+      <!-- annotation toolbar — sticky inside scroll zone -->
+      <div id="annToolbar" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;user-select:none">
         <button class="aw-tbtn" id="annBold" title="Bold"><b>B</b></button>
         <button class="aw-tbtn" id="annItalic" title="Italic"><i>I</i></button>
         <button class="aw-tbtn" id="annUnder" title="Underline"><u>U</u></button>
@@ -304,18 +316,21 @@
         <button class="aw-tbtn" id="annZoomReset" title="Reset zoom">↺</button>
       </div>
       <div class="aw-doc-text" id="mText" contenteditable="false"></div>
-      <!-- Realtime sync indicators -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
-        <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
-        <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
-      </div>
       <div id="mTextUpdateBanner" style="display:none;margin-top:8px;padding:8px 12px;
         background:#FFF8EC;border:1px solid #F0D9A0;border-radius:8px;cursor:pointer;
         font-size:.8rem;color:#7A5000" onclick="void(0)">
         <span>⚡ Student added new content while you were annotating.</span>
         <b style="color:var(--aw-primary);white-space:nowrap">Click to load →</b>
       </div>
-      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done.</p>
+      </div><!-- end aw-modal-doc-scroll -->
+      <!-- PERMANENT FIX: sticky footer -->
+      <div class="aw-modal-doc-footer">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
+          <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
+        </div>
+        <p style="font-size:.78rem;color:var(--aw-ink-3);margin:3px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done.</p>
+      </div>
     </div>
     <div class="aw-modal-side">
       <h4>Teacher Suggestions</h4>
@@ -520,21 +535,15 @@
       </p>
     </div>
 
-    <!-- ⑧ Writing Type — AI grading context -->
+    <!-- PERMANENT: Writing Type -->
     <div class="aw-field">
-      <label class="aw-label">Loại bài viết
-        <span style="font-weight:400;color:var(--aw-ink-3)"> — AI chấm theo tiêu chí phù hợp</span>
-      </label>
+      <label class="aw-label">Loại bài viết <span style="font-weight:400;color:var(--aw-ink-3)">— AI chấm theo tiêu chí phù hợp</span></label>
       <select class="aw-select" id="aWritingType" style="max-width:360px">
         <option value="full_essay">📄 Full essay — bài luận đầy đủ (4 đoạn trở lên)</option>
         <option value="paragraph">✏️ Paragraph practice — chỉ viết 1 đoạn thân bài</option>
         <option value="sentences">🔤 Sentence practice — luyện viết câu đơn lẻ</option>
       </select>
-      <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">
-        💡 <b>Paragraph:</b> AI không phạt thiếu mở bài/kết bài. TR &amp; CC tối đa Band 5.<br>
-        <b>Sentences:</b> AI chỉ chấm ngữ pháp câu. TR &amp; CC tối đa Band 4.<br>
-        <b>Full essay:</b> Áp dụng tiêu chí IELTS đầy đủ.
-      </p>
+      <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">💡 <b>Paragraph:</b> TR &amp; CC tối đa Band 5. <b>Sentences:</b> TR &amp; CC tối đa Band 4.</p>
     </div>
 
     <!-- ⑦ Attempts / Duration / Deadline -->
@@ -1026,16 +1035,13 @@ function pollLiveQuestions(){
     var open=qs.filter(function(q){return q.status==='open';});
     var box=document.getElementById('liveQuestions'); if(!box)return;
     var cnt=document.getElementById('liveQCount'); if(cnt)cnt.textContent=open.length?('· '+open.length+' new'):'';
-    if(!qs.length){ box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">No questions yet.</p>'; return; }
-    box.innerHTML=qs.slice(0,8).map(function(q){
-      var answered=q.status==='answered';
-      return '<div style="border:1px solid var(--aw-border-2);border-radius:10px;padding:9px 11px;margin-bottom:8px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
+    // PERMANENT FIX: only show unanswered questions in Live panel
+    if(!open.length){ box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">No questions yet.</p>'; return; }
+    box.innerHTML=open.slice(0,8).map(function(q){
+      return '<div style="border:1px solid #F0D9A0;border-radius:10px;padding:9px 11px;margin-bottom:8px;background:#FFF8EC">'+
         '<div style="font-size:.76rem;color:var(--aw-ink-3);margin-bottom:3px"><b style="color:var(--aw-ink)">'+AW.esc(q.studentName||q.studentId)+'</b> · '+AW.esc(q.topic||'')+'</div>'+
         '<div style="font-size:.85rem;margin-bottom:6px">'+AW.esc(q.question)+'</div>'+
-        (answered
-          ? '<div style="font-size:.8rem;background:#EAF6EF;border-radius:6px;padding:5px 8px"><b style="color:var(--aw-writing)">You:</b> '+AW.esc(q.answer)+'</div>'+
-            '<button class="aw-btn aw-btn-ghost lqShare" data-id="'+AW.esc(q.queryId)+'" data-shared="'+(q.shared?'1':'0')+'" style="padding:2px 10px;font-size:.72rem;margin-top:5px">'+(q.shared?'✓ Shared':'Share to class')+'</button>'
-          : '<div style="display:flex;gap:5px"><input class="aw-input lqAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Quick answer…" style="flex:1;padding:5px 8px;font-size:.8rem"><button class="aw-btn aw-btn-primary lqSend" data-id="'+AW.esc(q.queryId)+'" style="padding:5px 10px;font-size:.75rem">Reply</button></div>')+
+        '<div style="display:flex;gap:5px"><input class="aw-input lqAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Quick answer…" style="flex:1;padding:5px 8px;font-size:.8rem"><button class="aw-btn aw-btn-primary lqSend" data-id="'+AW.esc(q.queryId)+'" style="padding:5px 10px;font-size:.75rem">Reply</button></div>'+
       '</div>';
     }).join('');
     AW.els('.lqSend').forEach(function(b){ b.onclick=function(){
@@ -1882,9 +1888,9 @@ function showResults(){
       bar.innerHTML =
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
           '<select class="aw-select" id="fDays">'+
-            '<option value="0" selected>All results</option>'+
-            '<option value="14">last 14 days</option>'+
             '<option value="6">last 6 days</option>'+
+            '<option value="14">last 14 days</option>'+
+            '<option value="0">All results</option>'+
           '</select>'+
           '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
           '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">Free Writing — No topic to choose</span>'+
@@ -1902,9 +1908,9 @@ function showResults(){
             '<option value="">⌛ Loading topics…</option>'+
           '</select>'+
           '<select class="aw-select" id="fDays">'+
-            '<option value="0" selected>All results</option>'+
-            '<option value="14">last 14 days</option>'+
             '<option value="6">last 6 days</option>'+
+            '<option value="14">last 14 days</option>'+
+            '<option value="0">All results</option>'+
           '</select>'+
           '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
         '</div>'+
@@ -2256,21 +2262,15 @@ window.viewEssays=function(gkey, writeIdx){
         if (!el) return;
         var fb=null; try{ fb=d.feedback?JSON.parse(d.feedback):null; }catch(e){}
         var out='';
-        // ── PERMANENT FIX: Word count badge ──────────────────────
-        // free writing → IELTS standard; hw/inclass → g.minWords (GV set), fallback IELTS
+        // PERMANENT FIX: word count badge (free→IELTS standard, hw/inclass→GV minWords)
         if (d.essay) {
-          var _wc   = AW.wordCount(d.essay);
-          var _isFree = (g.mode === 'free');
-          var _minW = (!_isFree && g.minWords && g.minWords > 0)
-            ? g.minWords : (g.taskType==='task1' ? 150 : 250);
-          var _col  = _wc>=_minW?'#1A9E5C':_wc>=Math.floor(_minW*0.8)?'#B8860B':'#D93025';
-          var _bg   = _wc>=_minW?'#EAF6EF':_wc>=Math.floor(_minW*0.8)?'#FFF8EC':'#FFF0F0';
-          out += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
-            '<span style="font-size:.8rem;font-weight:700;color:'+_col+';background:'+_bg+
-              ';border:1px solid '+_col+';border-radius:20px;padding:3px 12px">'+_wc+' words</span>'+
-            (_wc<_minW
-              ? '<span style="font-size:.76rem;color:'+_col+'">⚠ yêu cầu tối thiểu '+_minW+' từ</span>'
-              : '<span style="font-size:.76rem;color:'+_col+'">✓ đủ yêu cầu (≥'+_minW+' từ)</span>')+
+          var _wc=AW.wordCount(d.essay), _isFree=(g.mode==='free');
+          var _minW=(!_isFree&&g.minWords&&g.minWords>0)?g.minWords:(g.taskType==='task1'?150:250);
+          var _col=_wc>=_minW?'#1A9E5C':_wc>=Math.floor(_minW*0.8)?'#B8860B':'#D93025';
+          var _bg=_wc>=_minW?'#EAF6EF':_wc>=Math.floor(_minW*0.8)?'#FFF8EC':'#FFF0F0';
+          out+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
+            '<span style="font-size:.8rem;font-weight:700;color:'+_col+';background:'+_bg+';border:1px solid '+_col+';border-radius:20px;padding:3px 12px">'+_wc+' words</span>'+
+            (_wc<_minW?'<span style="font-size:.76rem;color:'+_col+'">⚠ yêu cầu tối thiểu '+_minW+' từ</span>':'<span style="font-size:.76rem;color:'+_col+'">✓ đủ yêu cầu (≥'+_minW+' từ)</span>')+
           '</div>';
         }
         // Essay text
@@ -2646,8 +2646,8 @@ window.newAssignment=function(mode){
   document.getElementById('aTopic').value      = '';
   document.getElementById('aPrompt').innerHTML = '';
   document.getElementById('aAiNotes').value    = '';
-  document.getElementById('aMinWords').value = '';
-  var wtEl = document.getElementById('aWritingType'); if(wtEl) wtEl.value='full_essay';
+  document.getElementById('aMinWords').value='';
+  var wtEl=document.getElementById('aWritingType'); if(wtEl) wtEl.value='full_essay';
   // Reset deadline fields
   if (document.getElementById('aDead'))     document.getElementById('aDead').value = '';
   if (document.getElementById('aDeadTime')) document.getElementById('aDeadTime').value = '23:59';
@@ -3704,7 +3704,7 @@ startAlerts();
     </div>
   </div>
 </div>
-<!-- ═══ EDIT STUDENT — permanent, do not remove ═══ -->
+<!-- ═══ PERMANENT: Edit Student Modal — do not remove ═══ -->
 <div class="aw-modal-bg" id="editStudentModal">
   <div class="aw-modal-card" style="max-width:460px;width:100%;max-height:90vh;overflow-y:auto">
     <h3 style="margin:0 0 18px;font-family:var(--aw-font-display);font-size:1.1rem">✏ Edit Student Profile</h3>
@@ -3724,7 +3724,7 @@ startAlerts();
     </div>
     <div style="display:flex;gap:12px;margin-bottom:12px">
       <div class="aw-field" style="flex:1;margin:0"><label class="aw-label">Birthday</label><input class="aw-input" id="esBirthdate" type="date"></div>
-      <div class="aw-field" style="flex:1;margin:0"><label class="aw-label">Phone</label><input class="aw-input" id="esPhone" type="tel" placeholder="09xx xxx xxx"></div>
+      <div class="aw-field" style="flex:1;margin:0"><label class="aw-label">Phone</label><input class="aw-input" id="esPhone" type="tel" placeholder="09xx"></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:1px solid var(--aw-border-2)">
       <button class="aw-btn aw-btn-ghost" id="esCancel">Cancel</button>
