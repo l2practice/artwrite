@@ -206,6 +206,38 @@ var content = AW.renderShell({
 });
 
 var startTime = new Date();
+
+/* ── saveResultWithRetry ─────────────────────────────────────────
+   When 30+ students submit simultaneously, GAS LockService may queue
+   requests and return { retry:true } if the lock waits > 10s.
+   This helper retries up to 4 times with 3–8s delays so no data is lost
+   even under heavy concurrent load.                                  */
+function saveResultWithRetry(payload, maxAttempts, delayMs) {
+  maxAttempts = maxAttempts || 4;
+  delayMs     = delayMs     || 4000;
+  var attempt = 0;
+  function tryOnce() {
+    attempt++;
+    return AW.api('write.saveResult', payload).then(function(res) {
+      if (res && res.retry && attempt < maxAttempts) {
+        // Server busy (lock timeout) — wait then retry
+        AW.toast('⏳ Server đang bận, đang thử lại… (' + attempt + '/' + maxAttempts + ')', 'ok', delayMs - 500);
+        return new Promise(function(resolve) {
+          setTimeout(function() { tryOnce().then(resolve); }, delayMs + Math.random() * 2000);
+        });
+      }
+      return res;
+    }).catch(function(err) {
+      if (attempt < maxAttempts) {
+        return new Promise(function(resolve) {
+          setTimeout(function() { tryOnce().then(resolve); }, delayMs);
+        });
+      }
+      throw err;
+    });
+  }
+  return tryOnce();
+}
 var attempt = 1;
 
 // If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
@@ -214,8 +246,6 @@ var hasRealTopic = qp.get('topicId') && MODE !== 'free';
 // MIN_WORDS: default by task type, overridden by assignment's minWords field
 // GV có thể set minWords thấp hơn (VD: 80 nếu chỉ viết 1 đoạn thân bài)
 var MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
-// WRITING_TYPE: 'full_essay' | 'paragraph' | 'sentences' — controls grading constraints
-var WRITING_TYPE = 'full_essay';
 
 // If chart image was passed via URL (Task 1 assigned), render immediately
 if (TASK_TYPE === 'task1' && CHART_IMAGE_ID) {
@@ -237,8 +267,6 @@ if (hasRealTopic) {
         // Update the word counter label to reflect custom limit
         updateWordCount();
       }
-      // Fetch writingType for grading constraints
-      if (res.data.writingType) WRITING_TYPE = res.data.writingType;
     }
   });
 }
@@ -536,7 +564,7 @@ function autoSubmitOnTimeout(){
   if (wc < 10) {
     // Nothing written — save blank and finish
     writePhase = 'grading'; isGrading = true;
-    AW.api('write.saveResult', {
+    saveResultWithRetry({
       studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
       taskType:TASK_TYPE, startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
       duration:Math.round((Date.now()-startTime)/1000),
@@ -704,7 +732,7 @@ function submitWithoutAI(btn, text){
   btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
   writePhase = 'grading';
 
-  AW.api('write.saveResult', {
+  saveResultWithRetry({
     studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
     startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
     duration:Math.round((Date.now()-startTime)/1000),
@@ -907,8 +935,7 @@ function gradeBtnHandler(){
   var GRADE_TIMEOUT_MS = 90000;
   var gradeTimeoutId;
   var gradeWithTimeout = Promise.race([
-    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary,
-               minWords:MIN_WORDS, writingType:WRITING_TYPE, taskType:TASK_TYPE }, key),
+    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key),
     new Promise(function(_, reject){
       gradeTimeoutId = setTimeout(function(){
         reject(new Error('timeout: AI không phản hồi sau 90 giây. Vui lòng thử lại.'));
@@ -927,7 +954,7 @@ function gradeBtnHandler(){
         editor.innerText = lastPlainEssay;
       }
       renderFeedback(result);
-      return AW.api('write.saveResult', {
+      return saveResultWithRetry({
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
