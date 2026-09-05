@@ -24,7 +24,7 @@
   var PROVIDERS = {
     gemini: {
       name: 'Gemini', label: 'Google Gemini', color: '#1A73E8',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       detect: function (k) { return /^AIza/.test(k); },
       call: async function (key, messages) {
         // Gemini wants a single "contents" array; fold system into the first user turn
@@ -33,7 +33,7 @@
           return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] };
         });
         if (sys && turns.length && turns[0].role === 'user') turns[0].parts[0].text = sys + '\n\n' + turns[0].parts[0].text;
-        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(key), {
+        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + encodeURIComponent(key), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: turns, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } })
         });
@@ -72,15 +72,15 @@
     },
     grok: {
       name: 'Grok', label: 'xAI Grok', color: '#111',
-      model: 'grok-2-latest',
+      model: 'grok-3-mini',
       detect: function (k) { return /^xai-/.test(k); },
-      call: function (key, messages) { return openaiStyle('https://api.x.ai/v1/chat/completions', 'grok-2-latest', key, messages); }
+      call: function (key, messages) { return openaiStyle('https://api.x.ai/v1/chat/completions', 'grok-3-mini', key, messages); }
     },
     groq: {
       name: 'Groq', label: 'Groq (Llama)', color: '#F55036',
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       detect: function (k) { return /^gsk_/.test(k); },
-      call: function (key, messages) { return openaiStyle('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile', key, messages); }
+      call: function (key, messages) { return openaiStyle('https://api.groq.com/openai/v1/chat/completions', 'openai/gpt-oss-120b', key, messages); }
     }
   };
   var ORDER = ['gemini', 'openai', 'claude', 'grok', 'groq'];
