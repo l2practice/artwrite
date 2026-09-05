@@ -3480,7 +3480,7 @@ function trGenItems(){
     (title?'THEME: '+title:''),
     'Return ONLY the JSON array of 20 objects.'
   ].join('\n');
-  var MODELS=['gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash'];
+  var MODELS=['gemini-3.5-flash','gemini-3.5-flash-lite','gemini-3.6-flash'];
   var mi=0;
   function tryModel(){
     if(mi>=MODELS.length){onFail('All Gemini models failed');return;}
