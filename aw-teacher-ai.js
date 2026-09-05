@@ -24,7 +24,7 @@
   var PROVIDERS = {
     gemini: {
       name: 'Gemini', label: 'Google Gemini', color: '#1A73E8',
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       detect: function (k) { return /^AIza/.test(k); },
       call: async function (key, messages) {
         // Gemini wants a single "contents" array; fold system into the first user turn
@@ -33,7 +33,7 @@
           return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] };
         });
         if (sys && turns.length && turns[0].role === 'user') turns[0].parts[0].text = sys + '\n\n' + turns[0].parts[0].text;
-        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + encodeURIComponent(key), {
+        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(key), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: turns, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } })
         });
@@ -72,15 +72,15 @@
     },
     grok: {
       name: 'Grok', label: 'xAI Grok', color: '#111',
-      model: 'grok-3-mini',
+      model: 'grok-2-latest',
       detect: function (k) { return /^xai-/.test(k); },
-      call: function (key, messages) { return openaiStyle('https://api.x.ai/v1/chat/completions', 'grok-3-mini', key, messages); }
+      call: function (key, messages) { return openaiStyle('https://api.x.ai/v1/chat/completions', 'grok-2-latest', key, messages); }
     },
     groq: {
       name: 'Groq', label: 'Groq (Llama)', color: '#F55036',
-      model: 'openai/gpt-oss-120b',
+      model: 'llama-3.3-70b-versatile',
       detect: function (k) { return /^gsk_/.test(k); },
-      call: function (key, messages) { return openaiStyle('https://api.groq.com/openai/v1/chat/completions', 'openai/gpt-oss-120b', key, messages); }
+      call: function (key, messages) { return openaiStyle('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile', key, messages); }
     }
   };
   var ORDER = ['gemini', 'openai', 'claude', 'grok', 'groq'];
@@ -140,9 +140,11 @@
       '.aw-tai-chip.off{opacity:.45}',
       '.aw-tai-dot{width:8px;height:8px;border-radius:50%;display:inline-block}',
       '.aw-tai-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--aw-bg)}',
-      '.aw-tai-msg{max-width:88%;padding:9px 13px;border-radius:14px;font-size:.88rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}',
-      '.aw-tai-msg.user{align-self:flex-end;background:var(--aw-primary);color:#fff;border-bottom-right-radius:4px}',
+      '.aw-tai-msg{max-width:88%;padding:9px 13px;border-radius:14px;font-size:.88rem;line-height:1.5;word-break:break-word}',
+      '.aw-tai-msg.user{align-self:flex-end;background:var(--aw-primary);color:#fff;border-bottom-right-radius:4px;white-space:pre-wrap}',
       '.aw-tai-msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--aw-border-2);border-bottom-left-radius:4px}',
+      '@keyframes aw-blink{0%,100%{opacity:1}50%{opacity:0}}',
+      '.aw-tai-cursor{display:inline-block;animation:aw-blink 0.8s infinite;margin-left:1px;color:var(--aw-primary)}',
       '.aw-tai-who{font-size:.68rem;font-weight:700;margin-bottom:3px;opacity:.75}',
       '.aw-tai-input{display:flex;gap:6px;padding:10px;border-top:1px solid var(--aw-border-2);background:#fff}',
       '.aw-tai-input textarea{flex:1;border:1px solid var(--aw-border);border-radius:12px;padding:9px 12px;font-size:.88rem;font-family:var(--aw-font-body);resize:none;max-height:120px;outline:none}',
@@ -285,6 +287,36 @@
     });
   }
 
+  /* ── Minimal markdown → safe HTML ──────────────────────────────
+     Converts **bold**, *italic*, `code`, numbered/bullet lists,
+     and headings. No external library needed.                       */
+  function renderMd(text) {
+    if (!text) return '';
+    // Escape HTML first to prevent XSS
+    var s = text
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+    // Code blocks (``` ... ```)
+    s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre style="background:var(--aw-surface-2,#f5f5f5);padding:8px;border-radius:6px;font-size:.82rem;overflow-x:auto;white-space:pre-wrap">$1</pre>');
+    // Inline code
+    s = s.replace(/`([^`]+)`/g, '<code style="background:var(--aw-surface-2,#f5f5f5);padding:1px 4px;border-radius:3px;font-size:.88em">$1</code>');
+    // Bold **text** or __text__
+    s = s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/__([^_]+)__/g,'<b>$1</b>');
+    // Italic *text* or _text_
+    s = s.replace(/\*([^*]+)\*/g,'<i>$1</i>').replace(/_([^_]+)_/g,'<i>$1</i>');
+    // Headings ## → bold larger
+    s = s.replace(/^###\s+(.+)$/gm,'<b style="font-size:1rem">$1</b>');
+    s = s.replace(/^##\s+(.+)$/gm,'<b style="font-size:1.05rem">$1</b>');
+    s = s.replace(/^#\s+(.+)$/gm,'<b style="font-size:1.1rem">$1</b>');
+    // Bullet lists
+    s = s.replace(/^[\s]*[-*]\s+(.+)$/gm,'<div style="padding-left:12px">• $1</div>');
+    // Numbered lists
+    s = s.replace(/^[\s]*\d+\.\s+(.+)$/gm,'<div style="padding-left:12px">$1</div>');
+    // Line breaks (double newline → paragraph break)
+    s = s.replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>');
+    return s;
+  }
+
   function renderMsgs() {
     if (!hist.length) {
       msgsEl.innerHTML = '<div class="aw-tai-msg ai"><div class="aw-tai-who">AI Assistant</div>' +
@@ -295,9 +327,95 @@
     }
     msgsEl.innerHTML = hist.map(function (m) {
       if (m.role === 'user') return '<div class="aw-tai-msg user">' + AW.esc(m.content) + '</div>';
-      return '<div class="aw-tai-msg ai"><div class="aw-tai-who">' + AW.esc(m.model || 'AI') + '</div>' + AW.esc(m.content) + '</div>';
+      return '<div class="aw-tai-msg ai"><div class="aw-tai-who">' + AW.esc(m.model || 'AI') + '</div>' + renderMd(m.content) + '</div>';
     }).join('');
     msgsEl.scrollTop = msgsEl.scrollHeight;
+  }
+
+  /* ── Streaming helpers ─────────────────────────────────────────
+     Appends text to the last (thinking) bubble in real time so the
+     teacher sees words appearing immediately instead of waiting for
+     the full response.                                              */
+  function streamChunk(chunk) {
+    var lastMsg = hist[hist.length - 1];
+    if (!lastMsg || lastMsg.role !== 'assistant') return;
+    if (lastMsg.content === '…') lastMsg.content = '';
+    lastMsg.content += chunk;
+    // Update only the last bubble for performance
+    var bubbles = msgsEl.querySelectorAll('.aw-tai-msg.ai');
+    var last = bubbles[bubbles.length - 1];
+    if (last) {
+      var body = last.querySelector('.aw-tai-msg-body') || last;
+      body.innerHTML = renderMd(lastMsg.content) + '<span class="aw-tai-cursor">▍</span>';
+    }
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+  }
+
+  /* ── Streaming call for Gemini ────────────────────────────────*/
+  async function geminiStream(key, messages) {
+    var sys = messages.filter(function(m){ return m.role==='system'; }).map(function(m){ return m.content; }).join('\n');
+    var turns = messages.filter(function(m){ return m.role!=='system'; }).map(function(m){
+      return { role: m.role==='assistant'?'model':'user', parts:[{text:m.content}] };
+    });
+    if (sys && turns.length && turns[0].role==='user') turns[0].parts[0].text = sys+'\n\n'+turns[0].parts[0].text;
+    var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse&key='+encodeURIComponent(key), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:turns, generationConfig:{ temperature:0.5, maxOutputTokens:1024 } })
+    });
+    if (!r.ok) throw new Error('Gemini '+r.status+': '+(await r.text()).slice(0,200));
+    var reader = r.body.getReader(), decoder = new TextDecoder(), buf = '', full = '';
+    while (true) {
+      var _r = await reader.read(); if (_r.done) break;
+      buf += decoder.decode(_r.value, {stream:true});
+      var lines = buf.split('\n'); buf = lines.pop();
+      for (var li=0; li<lines.length; li++) {
+        var line = lines[li].trim();
+        if (!line.startsWith('data:')) continue;
+        try {
+          var d = JSON.parse(line.slice(5));
+          var chunk = (((d.candidates||[])[0]||{}).content||{}).parts;
+          if (chunk) { var t = chunk.map(function(p){return p.text||'';}).join(''); full+=t; streamChunk(t); }
+        } catch(e){}
+      }
+    }
+    return full;
+  }
+
+  /* ── Streaming call for OpenAI-style (GPT, Grok, Groq, Claude) */
+  async function openaiStream(url, model, key, messages, isAnthropic) {
+    var headers = {'Content-Type':'application/json'};
+    var body;
+    if (isAnthropic) {
+      headers['x-api-key'] = key; headers['anthropic-version'] = '2023-06-01';
+      var sys2 = messages.filter(function(m){return m.role==='system';}).map(function(m){return m.content;}).join('\n');
+      var turns2 = messages.filter(function(m){return m.role!=='system';}).map(function(m){return{role:m.role,content:m.content};});
+      body = JSON.stringify({model:model, max_tokens:1024, stream:true, system:sys2||undefined, messages:turns2});
+    } else {
+      headers['Authorization'] = 'Bearer '+key;
+      body = JSON.stringify({model:model, messages:messages, temperature:0.5, max_tokens:1024, stream:true});
+    }
+    var r = await fetch(url, {method:'POST', headers:headers, body:body});
+    if (!r.ok) throw new Error(r.status+': '+(await r.text()).slice(0,200));
+    var reader = r.body.getReader(), decoder = new TextDecoder(), buf2 = '', full2 = '';
+    while (true) {
+      var _r2 = await reader.read(); if (_r2.done) break;
+      buf2 += decoder.decode(_r2.value,{stream:true});
+      var lines2 = buf2.split('\n'); buf2 = lines2.pop();
+      for (var li2=0; li2<lines2.length; li2++) {
+        var line2 = lines2[li2].trim();
+        if (!line2.startsWith('data:')) continue;
+        var payload2 = line2.slice(5).trim();
+        if (payload2==='[DONE]') continue;
+        try {
+          var d2 = JSON.parse(payload2);
+          var chunk2 = isAnthropic
+            ? (d2.delta && d2.delta.text || '')
+            : ((((d2.choices||[])[0]||{}).delta||{}).content||'');
+          if (chunk2) { full2+=chunk2; streamChunk(chunk2); }
+        } catch(e){}
+      }
+    }
+    return full2;
   }
 
   async function send() {
@@ -310,11 +428,11 @@
     hist.push({ role: 'user', content: text });
     setHist(hist); renderMsgs();
 
-    // build the messages: a system prompt (+ optional page context) then the recent turns
     var sys = 'You are a helpful teaching assistant for an English lecturer using the ArticuWrite IELTS Writing app. ' +
       'Help with grading, feedback wording, grammar/vocabulary explanations, translation (Vietnamese/English), and lesson tasks. Be concise and practical. ' +
-      'You may reply in Vietnamese if the teacher writes in Vietnamese.';
-    var wantCtx = document.getElementById('awTaiCtx').checked;
+      'Reply in Vietnamese if the teacher writes in Vietnamese. ' +
+      'Format your response in plain, readable text. Use bullet points with "•" character for lists. Do NOT use markdown symbols like ** or ## — write bold concepts in CAPITAL LETTERS or just plain text instead.';
+    var wantCtx = document.getElementById('awTaiCtx') && document.getElementById('awTaiCtx').checked;
     var ctx = wantCtx ? pageContext() : '';
     if (ctx) sys += '\n\nCurrent screen context:\n' + ctx;
 
@@ -323,13 +441,35 @@
     );
 
     var thinking = { role: 'assistant', content: '…', model: PROVIDERS[active].name };
-    hist.push(thinking); renderMsgs();
+    hist.push(thinking);
+    // Show thinking bubble with streaming-ready body div
+    var thinkingHtml = '<div class="aw-tai-msg ai"><div class="aw-tai-who">' + AW.esc(PROVIDERS[active].name) + '</div>' +
+      '<div class="aw-tai-msg-body"><span class="aw-tai-cursor">▍</span></div></div>';
+    msgsEl.innerHTML = hist.slice(0,-1).map(function(m){
+      if (m.role==='user') return '<div class="aw-tai-msg user">'+AW.esc(m.content)+'</div>';
+      return '<div class="aw-tai-msg ai"><div class="aw-tai-who">'+AW.esc(m.model||'AI')+'</div>'+renderMd(m.content)+'</div>';
+    }).join('') + thinkingHtml;
+    msgsEl.scrollTop = msgsEl.scrollHeight;
 
     try {
-      var reply = await PROVIDERS[active].call(getKeys()[active], msgs);
+      var reply;
+      var key = getKeys()[active];
+      // Use streaming where supported
+      if (active === 'gemini') {
+        reply = await geminiStream(key, msgs);
+      } else if (active === 'openai') {
+        reply = await openaiStream('https://api.openai.com/v1/chat/completions', PROVIDERS.openai.model, key, msgs, false);
+      } else if (active === 'grok') {
+        reply = await openaiStream('https://api.x.ai/v1/chat/completions', PROVIDERS.grok.model, key, msgs, false);
+      } else if (active === 'groq') {
+        reply = await openaiStream('https://api.groq.com/openai/v1/chat/completions', PROVIDERS.groq.model, key, msgs, false);
+      } else if (active === 'claude') {
+        reply = await openaiStream('https://api.anthropic.com/v1/messages', PROVIDERS.claude.model, key, msgs, true);
+      } else {
+        reply = await PROVIDERS[active].call(key, msgs);
+      }
       thinking.content = reply || '(không có phản hồi)';
     } catch (e) {
-      // report clearly which model failed so the teacher can switch
       thinking.content = '⚠️ ' + PROVIDERS[active].name + ' không phản hồi được.\n' + (e.message || e) +
         '\n\nBạn có thể chọn mô hình khác ở thanh trên.';
     }
