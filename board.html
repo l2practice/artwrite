@@ -16,6 +16,8 @@
   .aw-tbtn.on{background:var(--aw-primary);color:#fff}
   .aw-tsep{width:1px;height:22px;background:var(--aw-border);margin:0 4px}
   .aw-tcolor{width:26px;height:26px;border:none;border-radius:6px;cursor:pointer;padding:0;background:none}
+  .aw-tcolor-sw{width:20px;height:20px;border-radius:4px;border:2px solid rgba(0,0,0,.18);cursor:pointer;display:inline-block;vertical-align:middle;padding:0;margin:0 1px;transition:transform .1s}
+  .aw-tcolor-sw:hover{transform:scale(1.28);border-color:rgba(0,0,0,.45)}
   .aw-canvas-wrap{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);box-shadow:var(--aw-shadow);overflow:auto;padding:0}
   .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s,font-size .15s;overflow-wrap:break-word}
   .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
@@ -192,13 +194,39 @@ function openBoard(id){
     if(!res||!res.success){AW.toast('Không mở được bảng','err');return;}
     curBoard=res.data; zoom=1;
     renderBoard();
-    if(!isTeacher){ pollTimer=setInterval(refreshBoard, 6000); } // students poll for updates
+    if(!isTeacher){ startStudentPoll(); }
+  });
+}
+
+/*── Student board polling ──────────────────────────────────────
+  Uses meta-first pattern: poll board.meta (lightweight — only boardId + updatedAt)
+  every 15s. Only fetch the full board.get when updatedAt has changed.
+  Pauses when the tab is hidden to reduce Apps Script quota usage.              */
+function startStudentPoll(){
+  stopPoll();
+  pollTimer = setInterval(refreshBoardMeta, 15000);
+  document.addEventListener('visibilitychange', _onBoardVisibility);
+}
+function _onBoardVisibility(){
+  clearInterval(pollTimer); pollTimer = null;
+  if(document.visibilityState === 'visible'){
+    refreshBoardMeta(); // catch up immediately on refocus
+    pollTimer = setInterval(refreshBoardMeta, 15000);
+  }
+}
+function refreshBoardMeta(){
+  if(!curBoard) return;
+  AW.api('board.meta',{boardId:curBoard.boardId}).then(function(res){
+    if(!res||!res.success) return;
+    if(res.data.updatedAt !== curBoard.updatedAt){
+      refreshBoard(); // content changed → fetch full board
+    }
   });
 }
 function refreshBoard(){
   if(!curBoard)return;
   AW.api('board.get',{boardId:curBoard.boardId}).then(function(res){
-    if(res&&res.success && res.data.updatedAt!==curBoard.updatedAt){
+    if(res&&res.success){
       curBoard=res.data;
       var canvas=document.getElementById('canvas');
       if(canvas){
@@ -208,7 +236,10 @@ function refreshBoard(){
     }
   });
 }
-function stopPoll(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
+function stopPoll(){
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+  document.removeEventListener('visibilitychange', _onBoardVisibility);
+}
 
 function renderBoard(){
   document.getElementById('awPageTitle').textContent='Interactive Board';
@@ -352,9 +383,19 @@ function buildToolbar(){
     '<span class="aw-tsep"></span>' +
     tb('fontUp','A▲')+tb('fontDown','A▼')+
     '<span class="aw-tsep"></span>' +
-    '<input type="color" class="aw-tcolor" id="txtColor" title="Text color" value="#0A6EBD">' +
-    '<button class="aw-tbtn" data-hl title="Highlight">🖍</button>' +
-    '<button class="aw-tbtn" data-hloff title="Remove highlight">🚫🖍</button>' +
+    // Text color swatches
+    'A— '+
+    ['#E03131','#2F9E44','#1971C2','#F08C00','#7048E8','#000000'].map(function(c){
+      return '<button class="aw-tcolor-sw" data-fc="'+c+'" title="Text: '+c+'" style="background:'+c+'"></button>';
+    }).join('')+
+    '<span class="aw-tsep"></span>' +
+    // Highlight swatches
+    '🖍 '+
+    ['#FFF9C4','#D3F9D8','#D0EBFF','#FFECB3','#F8D7DA','transparent'].map(function(c,i){
+      var label = c==='transparent'?'✕':'';
+      return '<button class="aw-tcolor-sw" data-hl="'+c+'" title="Highlight: '+(c==='transparent'?'Remove':c)+'" style="background:'+(c==='transparent'?'#eee':c)+';border:1px solid #ccc">'+label+'</button>';
+    }).join('')+
+    '<span class="aw-tsep"></span>' +
     '<button class="aw-tbtn" data-clear title="Clear formatting">✕ Format</button>' +
     '<span class="aw-tsep"></span>' +
     tb('insertUnorderedList','• List')+tb('justifyLeft','⇤')+tb('justifyCenter','⇔')+
@@ -380,18 +421,27 @@ function wireToolbar(){
       canvas.focus(); scheduleSave();
     };
   });
-  document.getElementById('txtColor').oninput=function(){
-    document.execCommand('foreColor',false,this.value); scheduleSave();
-  };
-  AW.el('[data-hl]').onclick=function(){
-    document.execCommand('hiliteColor',false,'#FFF1A8')||document.execCommand('backColor',false,'#FFF1A8');
-    scheduleSave();
-  };
-  AW.el('[data-hloff]').onclick=function(){
-    // remove highlight by setting background to transparent/white
-    document.execCommand('hiliteColor',false,'transparent')||document.execCommand('backColor',false,'transparent');
-    canvas.focus(); scheduleSave();
-  };
+  // Text color swatches
+  AW.els('[data-fc]').forEach(function(b){
+    b.onmousedown=function(e){ e.preventDefault(); }; // preserve selection
+    b.onclick=function(){
+      document.execCommand('foreColor',false,b.dataset.fc);
+      canvas.focus(); scheduleSave();
+    };
+  });
+  // Highlight swatches
+  AW.els('[data-hl]').forEach(function(b){
+    b.onmousedown=function(e){ e.preventDefault(); };
+    b.onclick=function(){
+      var c=b.dataset.hl;
+      if(c==='transparent'){
+        document.execCommand('hiliteColor',false,'transparent')||document.execCommand('backColor',false,'transparent');
+      } else {
+        document.execCommand('hiliteColor',false,c)||document.execCommand('backColor',false,c);
+      }
+      canvas.focus(); scheduleSave();
+    };
+  });
   AW.el('[data-clear]').onclick=function(){
     document.execCommand('removeFormat',false,null);
     document.execCommand('hiliteColor',false,'transparent');
@@ -410,11 +460,11 @@ function wireToolbar(){
 // long lines simply re-wrap instead of running off the side.
 function applyZoom(){
   var canvas=document.getElementById('canvas'); if(!canvas)return;
-  if(isTeacher){
-    canvas.style.transform='scale('+zoom+')';
-  } else {
-    canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
-  }
+  // Use fontSize scaling (not CSS transform) for BOTH teacher and student.
+  // transform:scale() clips text at the original container width;
+  // fontSize scaling lets the canvas reflow and wrap text naturally.
+  canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
+  canvas.style.transform=''; // clear any old transform
   var ind=document.getElementById('zoomInd');
   if(ind) ind.textContent=Math.round(zoom*100)+'%';
 }
@@ -760,7 +810,7 @@ function saveNow(){
     if(res && res.success){
       if(dot2){ dot2.textContent='✓ Đã lưu'; dot2.style.color='#1A9E5C'; }
       if(btn2){ btn2.disabled=false; btn2.textContent='💾 Save'; btn2.style.background=''; }
-      // Toast removed — teacher can see save state from the Save button itself
+      AW.toast('Đã lưu bảng — sinh viên sẽ thấy ngay.','ok', 2500);
     } else if(res && res.error==='CONTENT_TOO_LARGE') {
       if(dot2){ dot2.textContent='✗ Board quá nặng'; dot2.style.color='var(--aw-danger)'; }
       if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; btn2.style.background='var(--aw-danger)'; }
