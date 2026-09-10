@@ -116,10 +116,7 @@
   .ann-comment-pop.show{display:flex}
   .ann-comment-pop textarea{border:1px solid var(--aw-border);border-radius:6px;padding:7px 9px;font-family:var(--aw-font-body);font-size:.85rem;resize:none;outline:none;width:100%;box-sizing:border-box}
   .ann-comment-pop textarea:focus{border-color:var(--aw-primary)}
-  .aw-modal-side{background:var(--aw-surface-2);padding:20px;border-left:1px solid var(--aw-border-2);overflow-y:auto;max-height:90vh;transition:width .2s,min-width .2s,padding .2s}
-  .aw-modal-side.collapsed{width:44px;min-width:44px;padding:12px 6px;overflow:hidden}
-  .aw-modal-side.collapsed #annSidebarBody{display:none}
-  .aw-modal-side.collapsed #annSidebarToggle{writing-mode:vertical-lr;width:100%;margin:0}
+  .aw-modal-side{background:var(--aw-surface-2);padding:20px;border-left:1px solid var(--aw-border-2);overflow-y:auto;max-height:90vh}
   .aw-modal-side h4{margin:0 0 12px;font-size:.95rem}
   .aw-suggest-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
   .aw-suggest{background:#FFF;border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px;font-size:.82rem}
@@ -335,13 +332,8 @@
         <p style="font-size:.78rem;color:var(--aw-ink-3);margin:3px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done.</p>
       </div>
     </div>
-    <div class="aw-modal-side" id="annSidebar">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <h4 style="margin:0">Teacher Suggestions</h4>
-        <button id="annSidebarToggle" title="Thu gọn / Mở rộng"
-          style="background:none;border:1px solid var(--aw-border-2);border-radius:6px;cursor:pointer;padding:2px 8px;font-size:.75rem;color:var(--aw-ink-2)">◀ Hide</button>
-      </div>
-      <div id="annSidebarBody">
+    <div class="aw-modal-side">
+      <h4>Teacher Suggestions</h4>
         <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 6px">Red strike = error · Green = suggested fix</p>
         <button class="aw-btn aw-btn-ghost aw-btn-block" id="viewSentFb" style="margin-bottom:10px;font-size:.8rem;padding:6px 10px">📋 Xem feedback đã gửi</button>
         <div class="aw-suggest-list" id="suggestList"></div>
@@ -1463,17 +1455,6 @@ function openAnnotation(s){
     document.getElementById('sOverall')
   );
   document.getElementById('modalBg').classList.add('show');
-
-  // ── Sidebar collapse toggle ─────────────────────────────────
-  var _sidebar = document.getElementById('annSidebar');
-  var _toggleBtn = document.getElementById('annSidebarToggle');
-  if (_sidebar && _toggleBtn) {
-    _sidebar.classList.remove('collapsed');
-    _toggleBtn.textContent = '◀ Hide';
-    _toggleBtn.onclick = function(){
-      var collapsed = _sidebar.classList.toggle('collapsed');
-      _toggleBtn.textContent = collapsed ? '▶' : '◀ Hide';
-    };
   }
   // ── CRITICAL: Prevent toolbar clicks from stealing focus and killing selection ──
   // When a user clicks a toolbar button, the browser fires mousedown on the button,
