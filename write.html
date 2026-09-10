@@ -101,8 +101,8 @@
   .aw-voc-chip{font-size:.78rem;border:1px solid;border-radius:12px;padding:2px 10px;background:#fff;line-height:1.4}
   .aw-fb-item{font-size:.86rem;line-height:1.5;color:var(--aw-ink-2);margin-bottom:8px;padding-left:10px;border-left:2px solid var(--aw-border)}
   .aw-fb-item b{color:var(--aw-ink)}
-  .err-mark{color:#B42318;background:#FDE8E8;text-decoration:line-through;text-decoration-color:#B42318;text-decoration-thickness:2px;border-radius:2px;padding:0 1px}
-  .fix-mark{color:#1A7A3C;background:#E6F7ED;font-weight:600;font-style:italic;border-radius:2px;padding:0 3px}
+  .err-mark{color:var(--aw-danger);text-decoration:line-through}
+  .fix-mark{color:var(--aw-writing);font-weight:600}
   .aw-revs{display:flex;flex-direction:column;gap:8px}
   .aw-rev{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px 12px;font-size:.84rem}
   .aw-rev-top{display:flex;justify-content:space-between;font-weight:600;color:var(--aw-ink);margin-bottom:3px}
@@ -113,12 +113,23 @@
   .aw-key-link:hover{text-decoration:underline}
   .aw-tutor-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4)}
   .aw-tutor-fab:hover{transform:translateY(-2px)}
-  .aw-ask-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(46,147,103,.4)}
-  .aw-ask-fab:hover{transform:translateY(-2px)}
-  .aw-hand-fab{position:fixed;bottom:78px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3)}
-  .aw-hand-fab:hover{transform:translateY(-2px)}
-  .aw-board-fab{position:fixed;bottom:132px;right:24px;z-index:400;background:#fff;color:#5B3FD6;border:2px solid #5B3FD6;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(91,63,214,.3)}
-  .aw-board-fab:hover{transform:translateY(-2px)}
+  /* ── Unified FAB menu — replaces 3 separate floating buttons ── */
+  .aw-fab-menu{position:fixed;bottom:24px;right:24px;z-index:400;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .aw-fab-main{background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:13px 20px;font-weight:700;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4);display:flex;align-items:center;gap:8px;transition:transform .15s}
+  .aw-fab-main:hover{transform:translateY(-2px)}
+  .aw-fab-items{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .aw-fab-item{display:flex;align-items:center;gap:8px;opacity:0;transform:translateY(10px) scale(.95);pointer-events:none;transition:opacity .18s,transform .18s}
+  .aw-fab-menu.open .aw-fab-item{opacity:1;transform:none;pointer-events:auto}
+  .aw-fab-menu.open .aw-fab-item:nth-child(1){transition-delay:.05s}
+  .aw-fab-menu.open .aw-fab-item:nth-child(2){transition-delay:.1s}
+  .aw-fab-menu.open .aw-fab-item:nth-child(3){transition-delay:.15s}
+  .aw-fab-label{background:rgba(0,0,0,.65);color:#fff;font-size:.78rem;padding:4px 10px;border-radius:20px;white-space:nowrap;pointer-events:none}
+  .aw-fab-btn{border:none;border-radius:50%;width:46px;height:46px;cursor:pointer;font-size:1.3rem;box-shadow:0 4px 14px rgba(0,0,0,.25);flex-shrink:0;transition:transform .15s}
+  .aw-fab-btn:hover{transform:scale(1.12)}
+  .aw-fab-btn.ask{background:linear-gradient(135deg,#2E9367,#1E7E42)}
+  .aw-fab-btn.hand{background:#fff;border:2px solid #E0A32E}
+  .aw-fab-btn.hand.raised{background:#E0A32E}
+  .aw-fab-btn.board{background:#fff;border:2px solid #5B3FD6}
   .aw-board-ov{position:fixed;inset:0;background:rgba(16,34,46,.7);z-index:700;display:none;flex-direction:column}
   .aw-board-ov.show{display:flex}
   .aw-board-ov-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff}
@@ -320,9 +331,16 @@ content.innerHTML =
       '<div class="aw-tutor-input"><input id="tutorInput" placeholder="Ask about grammar, a word, structure…"><button class="aw-btn aw-btn-primary" id="tutorSend" style="padding:8px 14px">Send</button></div>' +
     '</div>'
   : // inclass + homework: ask the real teacher
-    (MODE==='inclass'?'<button class="aw-hand-fab" id="raiseHandBtn" onclick="toggleRaiseHand()">✋ Raise hand</button>':'') +
-    '<button class="aw-board-fab" id="boardFab" onclick="openBoardView()" style="bottom:'+(MODE==='inclass'?'132px':'78px')+'">📋 Board</button>' +
-    '<button class="aw-ask-fab" id="askFab" title="Ask your teacher a question">🙋 Ask Teacher</button>' +
+    '<div class="aw-fab-menu" id="fabMenu">'+
+      '<div class="aw-fab-items">'+
+        (MODE==='inclass'?
+          '<div class="aw-fab-item"><span class="aw-fab-label">Raise hand</span><button class="aw-fab-btn hand" id="raiseHandBtn" onclick="toggleRaiseHand()">✋</button></div>'
+        :'')+
+        '<div class="aw-fab-item"><span class="aw-fab-label">Board</span><button class="aw-fab-btn board" id="boardFab" onclick="openBoardView();closeFabMenu()">📋</button></div>'+
+        '<div class="aw-fab-item"><span class="aw-fab-label">Ask Teacher</span><button class="aw-fab-btn ask" id="askFab">🙋</button></div>'+
+      '</div>'+
+      '<button class="aw-fab-main" id="fabMainBtn">☰ Menu</button>'+
+    '</div>'+
     '<div class="aw-tutor-panel" id="askPanel">' +
       '<div class="aw-ask-head">' +
         '<div><b>Ask your teacher</b><span class="aw-tutor-badge">'+(MODE==='inclass'?'Live — during class':'Homework')+'</span></div>' +
@@ -664,8 +682,11 @@ window.toggleRaiseHand=function(){
     topic:TOPIC, mode:MODE, status:lastStatus, raised:handRaised
   });
   var b=document.getElementById('raiseHandBtn');
-  if(b){ b.textContent=handRaised?'✋ Hand raised':'✋ Raise hand';
-    b.style.background=handRaised?'#E0A32E':''; b.style.color=handRaised?'#fff':''; }
+  if(b){
+    b.title = handRaised ? 'Hand raised — click to lower' : 'Raise hand';
+    b.classList.toggle('raised', handRaised);
+    b.style.background = handRaised ? '#E0A32E' : '';
+  }
   AW.toast(handRaised?'Teacher notified you raised your hand':'Hand lowered','ok');
 };
 window.openBoardView=function(){
@@ -1231,14 +1252,14 @@ function renderFeedback(r){
     if(r.gra_errors) r.gra_errors.slice(0,10).forEach(function(e){
       if(e.wrong && e.correct){
         annotated = markPhrase(annotated, e.wrong,
-          '<span class="err-mark">', '</span><span class="fix-mark"> [→ '+AW.esc(e.correct)+']</span>');
+          '<span class="err-mark">', '</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
       }
     });
     if(r.lr_issues) r.lr_issues.slice(0,6).forEach(function(e){
       if(e.original && e.better){
         annotated = markPhrase(annotated, e.original,
-          '<span style="text-decoration:underline wavy #E07B00;text-underline-offset:3px">',
-          '<span style="color:#B05A00;background:#FFF3E0;font-size:.82em;font-weight:600;font-style:italic;border-radius:2px;padding:0 3px"> [→ '+AW.esc(e.better)+']</span></span>');
+          '<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">',
+          '<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
       }
     });
     editor.innerHTML=annotated;
@@ -1608,14 +1629,39 @@ async function askGroq(history, key){
   return reply.trim() || '(no response)';
 }
 
+/*──────── FAB Menu toggle ────────*/
+(function(){
+  var menu = document.getElementById('fabMenu');
+  var mainBtn = document.getElementById('fabMainBtn');
+  if (!menu || !mainBtn) return;
+  var _open = false;
+  window.closeFabMenu = function(){
+    _open = false; menu.classList.remove('open');
+    mainBtn.innerHTML = '☰ Menu';
+  };
+  mainBtn.onclick = function(e){
+    e.stopPropagation();
+    _open = !_open;
+    menu.classList.toggle('open', _open);
+    mainBtn.innerHTML = _open ? '✕ Close' : '☰ Menu';
+  };
+  // Close when clicking outside
+  document.addEventListener('click', function(e){
+    if (_open && !menu.contains(e.target)) window.closeFabMenu();
+  });
+})();
+
 /*──────── Ask Teacher (In-class + Homework) ────────*/
 if (MODE === 'inclass' || MODE === 'homework') {
   (function(){
     var fab=document.getElementById('askFab'), panel=document.getElementById('askPanel');
     var msgs=document.getElementById('askMsgs'), input=document.getElementById('askInput');
-    if(fab) fab.onclick=function(){ panel.classList.add('show'); fab.style.display='none'; input&&input.focus(); loadMyAsks(); };
+    if(fab) fab.onclick=function(){
+      if(window.closeFabMenu) window.closeFabMenu();
+      panel.classList.add('show'); input&&input.focus(); loadMyAsks();
+    };
     var cb=document.getElementById('askClose');
-    if(cb) cb.onclick=function(){ panel.classList.remove('show'); fab.style.display=''; };
+    if(cb) cb.onclick=function(){ panel.classList.remove('show'); };
     function bubble(text,who,answer){
       var d=document.createElement('div'); d.className='aw-tutor-msg '+who;
       d.textContent=text; msgs.appendChild(d);
