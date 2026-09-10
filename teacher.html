@@ -2105,7 +2105,13 @@ function showResults(){
       };}
       if(exp){ exp.onclick=function(){
         var btn=this; btn.disabled=true; var o=btn.textContent; btn.textContent='⏳';
-        AW.api('teacher.exportResults',{mode:_mode,class:curClass()}).then(function(res){
+        // Pass the same filters that are currently applied to the Results table
+        var exportParams = { mode:_mode, class:curClass() };
+        if (_loadedTopicId) exportParams.topicId = _loadedTopicId;
+        if (_loadedDays && _loadedDays > 0) exportParams.days = _loadedDays;
+        var ftEl = document.getElementById('fTaskType');
+        if (ftEl && ftEl.value) exportParams.taskType = ftEl.value;
+        AW.api('teacher.exportResults', exportParams).then(function(res){
           if(res&&res.success){ AW.toast('Sheet ready!','ok'); window.open(res.data.url,'_blank'); }
           else AW.toast((res&&res.error)||'Export failed','err',4000);
         }).finally(function(){ btn.disabled=false; btn.textContent=o; });
@@ -2965,20 +2971,11 @@ function showQueries(){
       '<div style="display:flex;flex-direction:column;gap:14px">'+
       rows.map(function(q){
         var answered=q.status==='answered';
-        // Format timestamp from createdAt field
-        var tsStr = '';
-        if (q.createdAt) {
-          try {
-            var d = new Date(q.createdAt);
-            if (!isNaN(d)) tsStr = d.toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-          } catch(e){}
-        }
         return '<div style="border:1px solid var(--aw-border-2);border-radius:14px;padding:16px 18px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
-          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">'+
+          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
             '<b>'+AW.esc(q.studentName||q.studentId)+' <span style="color:var(--aw-ink-3);font-weight:400">('+AW.esc(q.studentId)+')</span></b>'+
             '<span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(q.mode)+' · '+AW.esc(q.topic||'')+(q.attempt?' · Attempt '+AW.esc(q.attempt):'')+'</span>'+
           '</div>'+
-          (tsStr?'<div style="font-size:.75rem;color:var(--aw-ink-3);margin-bottom:8px">🕐 '+tsStr+'</div>':'')+
           (q.errorQuote?'<div style="font-size:.85rem;background:var(--aw-surface-2);border-radius:8px;padding:6px 10px;margin-bottom:8px"><b>Re:</b> '+AW.esc(q.errorQuote)+'</div>':'')+
           '<p style="margin:0 0 10px">'+AW.esc(q.question)+'</p>'+
           (answered
