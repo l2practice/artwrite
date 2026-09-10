@@ -1399,10 +1399,85 @@ function openAnnotation(s){
   document.getElementById('mStudent').textContent=s.name||s.studentId;
   document.getElementById('mTopic').textContent=s.topic?('· '+s.topic):'';
 
-  // Load the live snapshot
+  // Load the live snapshot (default for students still writing)
   var snapshot = s.snapshot || '';
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
+
+  // ── If student already submitted, load their AI-graded essay with inline annotations ──
+  if (s.status === 'Submitted' && s.topicId && s.studentId) {
+    // Show loading state while fetching
+    mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.9rem">⏳ Đang tải bài đã nộp…</span>';
+
+    AW.api('teacher.getAttemptDetail', { studentId:s.studentId, topicId:s.topicId, mode:s.mode||'inclass' })
+      .then(function(res){
+        if (!res || !res.success || !res.data || !res.data.length) {
+          // Fallback to plain snapshot if no detail found
+          mText.textContent = snapshot;
+          return;
+        }
+        // Use the latest attempt
+        var attempts = res.data;
+        var latest = attempts[attempts.length - 1];
+        var essay = latest.essay || snapshot;
+        var fb = null;
+        try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
+
+        if (!fb || (!fb.gra_errors && !fb.lr_issues)) {
+          // No feedback — show plain essay with paragraph breaks
+          var paras = essay.split(/\n\n+/).map(function(p){ return p.replace(/\n/g,' ').trim(); }).filter(Boolean);
+          if (paras.length <= 1 && essay.indexOf('\n') !== -1)
+            paras = essay.split(/\n+/).map(function(p){ return p.trim(); }).filter(Boolean);
+          mText.innerHTML = paras.map(function(p){ return '<p style="margin:0 0 1em">'+AW.esc(p)+'</p>'; }).join('');
+          return;
+        }
+
+        // ── Annotate essay with AI corrections inline ──────────────
+        // Build annotated HTML: red strikethrough for errors, green italic for corrections
+        var annotated = AW.esc(essay);
+
+        // Helper: find and wrap first occurrence (case-insensitive)
+        function markFirst(text, target, openTag, closeTag) {
+          if (!target || !target.trim()) return text;
+          var escaped = target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+          return text.replace(new RegExp(escaped, 'i'), function(m){
+            return openTag + m + closeTag;
+          });
+        }
+
+        // Grammar errors: red strikethrough + green correction in brackets
+        (fb.gra_errors||[]).forEach(function(e){
+          if (!e.wrong || !e.correct) return;
+          annotated = markFirst(annotated, AW.esc(e.wrong),
+            '<span style="color:#B42318;background:#FDE8E8;text-decoration:line-through;text-decoration-color:#B42318;border-radius:2px;padding:0 1px">',
+            '</span><span style="color:#1A7A3C;background:#E6F7ED;font-style:italic;font-weight:600;border-radius:2px;padding:0 3px"> [→ '+AW.esc(e.correct)+']</span>');
+        });
+
+        // Vocabulary issues: orange underline + blue-green suggestion
+        (fb.lr_issues||[]).forEach(function(e){
+          if (!e.original || !e.better) return;
+          annotated = markFirst(annotated, AW.esc(e.original),
+            '<span style="text-decoration:underline wavy #E07B00;text-underline-offset:3px">',
+            '<span style="color:#B05A00;background:#FFF3E0;font-style:italic;font-size:.85em;border-radius:2px;padding:0 3px"> [→ '+AW.esc(e.better)+']</span></span>');
+        });
+
+        // Restore paragraph breaks (annotated text is flat HTML, add paragraph spacing)
+        annotated = annotated.replace(/\n\n+/g, '</p><p style="margin:0 0 1em">');
+        annotated = annotated.replace(/\n/g, '<br>');
+        mText.innerHTML = '<p style="margin:0 0 1em">' + annotated + '</p>';
+
+        // Show attempt number badge
+        var badge = document.createElement('div');
+        badge.style.cssText = 'font-size:.74rem;color:var(--aw-ink-3);margin-bottom:8px;padding:4px 0;border-bottom:1px solid var(--aw-border-2)';
+        badge.innerHTML = '📊 Attempt ' + (latest.attempt||1) +
+          (latest.overall ? ' · Band <b style="color:var(--aw-primary)">' + latest.overall + '</b>' : '') +
+          ' · <span style="color:#B42318">đỏ = lỗi</span> · <span style="color:#1A7A3C;font-style:italic">xanh = gợi ý AI</span> · <span style="color:#B05A00">cam = từ vựng</span>';
+        mText.parentNode.insertBefore(badge, mText);
+      })
+      .catch(function(){
+        mText.textContent = snapshot; // fallback silently
+      });
+  }
 
   // ── Realtime sync state ──────────────────────────────────────────
   _annotLastSnapshot = snapshot;
@@ -2105,13 +2180,7 @@ function showResults(){
       };}
       if(exp){ exp.onclick=function(){
         var btn=this; btn.disabled=true; var o=btn.textContent; btn.textContent='⏳';
-        // Pass the same filters that are currently applied to the Results table
-        var exportParams = { mode:_mode, class:curClass() };
-        if (_loadedTopicId) exportParams.topicId = _loadedTopicId;
-        if (_loadedDays && _loadedDays > 0) exportParams.days = _loadedDays;
-        var ftEl = document.getElementById('fTaskType');
-        if (ftEl && ftEl.value) exportParams.taskType = ftEl.value;
-        AW.api('teacher.exportResults', exportParams).then(function(res){
+        AW.api('teacher.exportResults',{mode:_mode,class:curClass()}).then(function(res){
           if(res&&res.success){ AW.toast('Sheet ready!','ok'); window.open(res.data.url,'_blank'); }
           else AW.toast((res&&res.error)||'Export failed','err',4000);
         }).finally(function(){ btn.disabled=false; btn.textContent=o; });
