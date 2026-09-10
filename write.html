@@ -101,8 +101,8 @@
   .aw-voc-chip{font-size:.78rem;border:1px solid;border-radius:12px;padding:2px 10px;background:#fff;line-height:1.4}
   .aw-fb-item{font-size:.86rem;line-height:1.5;color:var(--aw-ink-2);margin-bottom:8px;padding-left:10px;border-left:2px solid var(--aw-border)}
   .aw-fb-item b{color:var(--aw-ink)}
-  .err-mark{color:var(--aw-danger);text-decoration:line-through}
-  .fix-mark{color:var(--aw-writing);font-weight:600}
+  .err-mark{color:#B42318;background:#FDE8E8;text-decoration:line-through;text-decoration-color:#B42318;text-decoration-thickness:2px;border-radius:2px;padding:0 1px}
+  .fix-mark{color:#1A7A3C;background:#E6F7ED;font-weight:600;border-radius:2px;padding:0 2px}
   .aw-revs{display:flex;flex-direction:column;gap:8px}
   .aw-rev{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px 12px;font-size:.84rem}
   .aw-rev-top{display:flex;justify-content:space-between;font-weight:600;color:var(--aw-ink);margin-bottom:3px}
@@ -206,38 +206,6 @@ var content = AW.renderShell({
 });
 
 var startTime = new Date();
-
-/* ── saveResultWithRetry ─────────────────────────────────────────
-   When 30+ students submit simultaneously, GAS LockService may queue
-   requests and return { retry:true } if the lock waits > 10s.
-   This helper retries up to 4 times with 3–8s delays so no data is lost
-   even under heavy concurrent load.                                  */
-function saveResultWithRetry(payload, maxAttempts, delayMs) {
-  maxAttempts = maxAttempts || 4;
-  delayMs     = delayMs     || 4000;
-  var attempt = 0;
-  function tryOnce() {
-    attempt++;
-    return AW.api('write.saveResult', payload).then(function(res) {
-      if (res && res.retry && attempt < maxAttempts) {
-        // Server busy (lock timeout) — wait then retry
-        AW.toast('⏳ Server đang bận, đang thử lại… (' + attempt + '/' + maxAttempts + ')', 'ok', delayMs - 500);
-        return new Promise(function(resolve) {
-          setTimeout(function() { tryOnce().then(resolve); }, delayMs + Math.random() * 2000);
-        });
-      }
-      return res;
-    }).catch(function(err) {
-      if (attempt < maxAttempts) {
-        return new Promise(function(resolve) {
-          setTimeout(function() { tryOnce().then(resolve); }, delayMs);
-        });
-      }
-      throw err;
-    });
-  }
-  return tryOnce();
-}
 var attempt = 1;
 
 // If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
@@ -564,7 +532,7 @@ function autoSubmitOnTimeout(){
   if (wc < 10) {
     // Nothing written — save blank and finish
     writePhase = 'grading'; isGrading = true;
-    saveResultWithRetry({
+    AW.api('write.saveResult', {
       studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
       taskType:TASK_TYPE, startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
       duration:Math.round((Date.now()-startTime)/1000),
@@ -732,7 +700,7 @@ function submitWithoutAI(btn, text){
   btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
   writePhase = 'grading';
 
-  saveResultWithRetry({
+  AW.api('write.saveResult', {
     studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
     startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
     duration:Math.round((Date.now()-startTime)/1000),
@@ -954,7 +922,7 @@ function gradeBtnHandler(){
         editor.innerText = lastPlainEssay;
       }
       renderFeedback(result);
-      return saveResultWithRetry({
+      return AW.api('write.saveResult', {
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
@@ -1263,14 +1231,14 @@ function renderFeedback(r){
     if(r.gra_errors) r.gra_errors.slice(0,10).forEach(function(e){
       if(e.wrong && e.correct){
         annotated = markPhrase(annotated, e.wrong,
-          '<span class="err-mark">', '</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
+          '<span class="err-mark">', '</span><span class="fix-mark"> [→ '+AW.esc(e.correct)+']</span>');
       }
     });
     if(r.lr_issues) r.lr_issues.slice(0,6).forEach(function(e){
       if(e.original && e.better){
         annotated = markPhrase(annotated, e.original,
-          '<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">',
-          '<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
+          '<span style="text-decoration:underline wavy #E07B00;text-underline-offset:3px">',
+          '<span style="color:#B05A00;background:#FFF3E0;font-size:.82em;font-weight:600;border-radius:2px;padding:0 3px"> [→ '+AW.esc(e.better)+']</span></span>');
       }
     });
     editor.innerHTML=annotated;
