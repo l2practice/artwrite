@@ -979,13 +979,138 @@ function showLive(){
       '</div>'+
       '<div class="aw-live-wrap">' +
         '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
-        '<div class="aw-live-side"><h4>🙋 Live Questions <span id="liveQCount" style="font-weight:400;color:var(--aw-danger)"></span></h4>' +
+        '<div class="aw-live-side">' +
+          '<h4>🙋 Live Questions <span id="liveQCount" style="font-weight:400;color:var(--aw-danger)"></span></h4>' +
           '<div id="liveQuestions" style="margin-bottom:16px"><p style="font-size:.8rem;color:var(--aw-ink-3)">No questions yet.</p></div>' +
           '<h4>Session Stats</h4><div id="liveStats"></div>' +
-          '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
+          '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p>' +
+          // ── Session Timer ──────────────────────────────
+          '<div style="margin-top:18px;border-top:1px solid var(--aw-border-2);padding-top:14px">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+              '<h4 style="margin:0">⏱ Session Timer</h4>' +
+              '<button id="awTimerToggle" class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.74rem">▶ Set Timer</button>' +
+            '</div>' +
+            '<div id="awTimerSetup" style="display:none;margin-bottom:8px">' +
+              '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+                '<input type="time" id="awTimerStart" class="aw-input" style="flex:1;padding:5px 8px;font-size:.82rem">' +
+                '<button id="awTimerNow" class="aw-btn aw-btn-ghost" style="padding:5px 8px;font-size:.72rem;white-space:nowrap">▶ Now</button>' +
+              '</div>' +
+              '<div style="display:flex;gap:6px">' +
+                '<input type="number" id="awTimerDur" class="aw-input" placeholder="Số phút (VD: 45)" min="1" max="180" style="flex:1;padding:5px 8px;font-size:.82rem">' +
+                '<button id="awTimerBegin" class="aw-btn aw-btn-primary" style="padding:5px 10px;font-size:.78rem">Bắt đầu</button>' +
+              '</div>' +
+            '</div>' +
+            '<div id="awTimerDisplay" style="display:none;text-align:center">' +
+              '<div style="font-size:.74rem;color:var(--aw-ink-3);margin-bottom:4px">Bắt đầu: <b id="awTimerStartLbl"></b> · Thời lượng: <b id="awTimerDurLbl"></b></div>' +
+              '<div style="font-size:.7rem;color:var(--aw-ink-3);margin-bottom:4px">Còn lại</div>' +
+              '<div id="awTimerRemain" style="font-size:2.2rem;font-weight:800;color:var(--aw-primary);font-family:var(--aw-font-display);letter-spacing:.02em;line-height:1">--:--</div>' +
+              '<div style="display:flex;gap:8px;justify-content:center;margin-top:10px">' +
+                '<button id="awTimerReset" class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.74rem">↺ Reset</button>' +
+                '<button id="awFinishBtn" class="aw-btn aw-btn-primary" style="padding:4px 12px;font-size:.74rem;background:#D93025;border-color:#D93025">⏹ Finish</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
       '</div>';
 
     document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
+
+    // ── Session Timer ────────────────────────────────────────
+    (function(){
+      var TIMER_KEY = 'aw_timer_' + curClass();
+      var _cd = null;
+
+      function saveTimer(o){ try{localStorage.setItem(TIMER_KEY,JSON.stringify(o));}catch(e){} }
+      function loadTimer(){ try{return JSON.parse(localStorage.getItem(TIMER_KEY)||'null');}catch(e){return null;} }
+      function stopCd(){ if(_cd){clearInterval(_cd);_cd=null;} }
+
+      function fmtRemain(ms){
+        if(ms<=0) return '00:00';
+        var t=Math.floor(ms/1000), h=Math.floor(t/3600), m=Math.floor((t%3600)/60), s=t%60;
+        return (h>0?h+':':'')+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+      }
+
+      function startClock(startMs, durMin){
+        stopCd();
+        var endMs = startMs + durMin*60000;
+        var setupEl   = document.getElementById('awTimerSetup');
+        var displayEl = document.getElementById('awTimerDisplay');
+        var toggleBtn = document.getElementById('awTimerToggle');
+        var remainEl  = document.getElementById('awTimerRemain');
+        var startLbl  = document.getElementById('awTimerStartLbl');
+        var durLbl    = document.getElementById('awTimerDurLbl');
+        if(!displayEl) return;
+        if(setupEl)   setupEl.style.display='none';
+        displayEl.style.display='';
+        if(toggleBtn) toggleBtn.style.display='none';
+        var d = new Date(startMs);
+        if(startLbl) startLbl.textContent = d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+        if(durLbl)   durLbl.textContent   = durMin + ' phút';
+
+        function tick(){
+          if(!remainEl) return stopCd();
+          var rem = endMs - Date.now();
+          remainEl.textContent = rem>0 ? fmtRemain(rem) : '00:00';
+          remainEl.style.color = rem<=0?'#D93025':rem<=5*60000?'#D93025':rem<=10*60000?'#E0A32E':'var(--aw-primary)';
+          if(rem<=0) stopCd();
+        }
+        tick(); _cd = setInterval(tick, 1000);
+      }
+
+      // Restore persisted timer on load
+      var saved = loadTimer();
+      if(saved && saved.startMs && saved.durMin) startClock(saved.startMs, saved.durMin);
+
+      document.getElementById('awTimerToggle').onclick = function(){
+        var s = document.getElementById('awTimerSetup');
+        if(s) s.style.display = (s.style.display==='none'?'':'none');
+      };
+      document.getElementById('awTimerNow').onclick = function(){
+        var now = new Date();
+        var inp = document.getElementById('awTimerStart');
+        if(inp) inp.value=(now.getHours()<10?'0':'')+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
+      };
+      document.getElementById('awTimerBegin').onclick = function(){
+        var tv=(document.getElementById('awTimerStart').value||'').trim();
+        var dv=parseInt((document.getElementById('awTimerDur').value||''),10);
+        if(!tv||!dv||dv<1){AW.toast('Nhập giờ bắt đầu và số phút.','err');return;}
+        var now=new Date(), parts=tv.split(':');
+        var startMs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),+parts[0],+parts[1],0).getTime();
+        saveTimer({startMs:startMs,durMin:dv});
+        startClock(startMs,dv);
+        AW.toast('Timer bắt đầu — '+dv+' phút','ok');
+      };
+      document.getElementById('awTimerReset').onclick = function(){
+        stopCd(); localStorage.removeItem(TIMER_KEY);
+        var d2=document.getElementById('awTimerDisplay');
+        var s2=document.getElementById('awTimerSetup');
+        var t2=document.getElementById('awTimerToggle');
+        if(d2) d2.style.display='none';
+        if(s2) s2.style.display='none';
+        if(t2){ t2.style.display=''; }
+      };
+      document.getElementById('awFinishBtn').onclick = function(){
+        var topicFilter=liveTaskFilter&&liveTaskFilter!=='all'?liveTaskFilter:null;
+        var activeCount=liveData.filter(function(s){
+          return s.status!=='Submitted'&&(!topicFilter||String(s.topicId)===String(topicFilter));
+        }).length;
+        if(!confirm('⏹ Kết thúc giờ học?\n\n'+activeCount+' sinh viên đang viết sẽ nhận thông báo nộp bài trong ~10 giây.')) return;
+        var btn=this; btn.disabled=true; btn.innerHTML='⏳';
+        var payload={class:curClass()};
+        if(topicFilter) payload.topicId=topicFilter;
+        AW.api('teacher.finishSession',payload).then(function(res){
+          btn.disabled=false; btn.innerHTML='⏹ Finish';
+          if(res&&res.success){
+            AW.toast('✓ Đã gửi lệnh nộp bài tới '+(res.data&&res.data.flagged||0)+' sinh viên.','ok',6000);
+            stopCd();
+            var r2=document.getElementById('awTimerRemain');
+            if(r2){r2.textContent='00:00';r2.style.color='#D93025';}
+          } else AW.toast((res&&res.error)||'Lỗi','err');
+        });
+      };
+      var _origStop=window.stopLivePoll;
+      window.stopLivePoll=function(){if(_origStop)_origStop();stopCd();};
+    })();
 
     document.getElementById('clearLiveBtn').onclick = function(){
       if (!confirm('Xoá toàn bộ data phiên học trong tab LiveSessions của lớp '+((curClassObj()&&curClassObj().className)||curClass())+'?\n\nThao tác này chỉ xoá data tracking tạm thời — không ảnh hưởng bài làm của sinh viên.')) return;
@@ -2273,23 +2398,11 @@ window.viewEssays=function(gkey, writeIdx){
             (_wc<_minW?'<span style="font-size:.76rem;color:'+_col+'">⚠ yêu cầu tối thiểu '+_minW+' từ</span>':'<span style="font-size:.76rem;color:'+_col+'">✓ đủ yêu cầu (≥'+_minW+' từ)</span>')+
           '</div>';
         }
-        // Essay text — preserve paragraph structure
-        if (d.essay) {
-          // Split on double-newline first (new essays), fall back to single newline (legacy)
-          var _essayParas = d.essay.split(/\n\n+/).map(function(p){ return p.replace(/\n/g,' ').trim(); }).filter(Boolean);
-          if (_essayParas.length <= 1 && d.essay.indexOf('\n') !== -1) {
-            _essayParas = d.essay.split(/\n+/).map(function(p){ return p.trim(); }).filter(Boolean);
-          }
-          if (!_essayParas.length) _essayParas = [d.essay];
-          out += '<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4>'+
-            '<div style="font-size:.88rem;line-height:1.7;background:var(--aw-surface-2);padding:14px 16px;border-radius:8px;margin-bottom:10px">'+
-            _essayParas.map(function(para){
-              return '<p style="margin:0 0 10px;text-indent:1.5em">'+AW.esc(para)+'</p>';
-            }).join('')+
-            '</div>';
-        } else {
-          out += '<p style="color:var(--aw-ink-3)">No essay text.</p>';
-        }
+        // Essay text
+        out+=d.essay
+          ?'<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4>'+
+            '<div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:10px">'+AW.esc(d.essay)+'</div>'
+          :'<p style="color:var(--aw-ink-3)">No essay text.</p>';
         // Vocabulary profile
         if(d.essay && window.AW && AW.analyseVocabulary){
           out+=renderTeacherVocab(AW.analyseVocabulary(d.essay));
@@ -2852,11 +2965,20 @@ function showQueries(){
       '<div style="display:flex;flex-direction:column;gap:14px">'+
       rows.map(function(q){
         var answered=q.status==='answered';
+        // Format timestamp from createdAt field
+        var tsStr = '';
+        if (q.createdAt) {
+          try {
+            var d = new Date(q.createdAt);
+            if (!isNaN(d)) tsStr = d.toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+          } catch(e){}
+        }
         return '<div style="border:1px solid var(--aw-border-2);border-radius:14px;padding:16px 18px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
-          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
+          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">'+
             '<b>'+AW.esc(q.studentName||q.studentId)+' <span style="color:var(--aw-ink-3);font-weight:400">('+AW.esc(q.studentId)+')</span></b>'+
             '<span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(q.mode)+' · '+AW.esc(q.topic||'')+(q.attempt?' · Attempt '+AW.esc(q.attempt):'')+'</span>'+
           '</div>'+
+          (tsStr?'<div style="font-size:.75rem;color:var(--aw-ink-3);margin-bottom:8px">🕐 '+tsStr+'</div>':'')+
           (q.errorQuote?'<div style="font-size:.85rem;background:var(--aw-surface-2);border-radius:8px;padding:6px 10px;margin-bottom:8px"><b>Re:</b> '+AW.esc(q.errorQuote)+'</div>':'')+
           '<p style="margin:0 0 10px">'+AW.esc(q.question)+'</p>'+
           (answered
