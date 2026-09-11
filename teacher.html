@@ -1405,58 +1405,64 @@ function openAnnotation(s){
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
 
-  // ── If submitted: load AI-annotated essay (red errors, green corrections) ──
+  // ── If submitted + AI graded: show red strikethrough errors + green corrections ──
   if (s.status === 'Submitted' && s.topicId && s.studentId) {
-    mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.88rem">⏳ Đang tải bài đã nộp…</span>';
-    AW.api('teacher.getAttemptDetail',{studentId:s.studentId,topicId:s.topicId,mode:s.mode||'inclass'})
+    mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.85rem">⏳ Đang tải…</span>';
+    AW.api('teacher.getAttemptDetail',{studentId:s.studentId, topicId:s.topicId, mode:s.mode||'inclass'})
       .then(function(res){
-        if(!res||!res.success||!res.data||!res.data.length){mText.textContent=snapshot;return;}
-        var latest=res.data[res.data.length-1];
-        var essay=latest.essay||snapshot;
-        var fb=null; try{fb=latest.feedback?JSON.parse(latest.feedback):null;}catch(e){}
+        if(!res||!res.success||!res.data||!res.data.length){ mText.textContent=snapshot; return; }
+        var latest = res.data[res.data.length-1];
+        var essay  = latest.essay || snapshot;
+        var fb = null;
+        try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
 
-        // Paragraph split
-        function essayToHtml(txt){
-          var paras=txt.split(/\n\n+/).map(function(p){return p.replace(/\n/g,' ').trim();}).filter(Boolean);
-          if(paras.length<=1&&txt.indexOf('\n')!==-1) paras=txt.split(/\n+/).map(function(p){return p.trim();}).filter(Boolean);
-          return paras.map(function(p){return '<p style="margin:0 0 1em">'+AW.esc(p)+'</p>';}).join('');
+        if(!fb || (!fb.gra_errors && !fb.lr_issues)){
+          // No feedback — show plain essay
+          mText.textContent = essay;
+          return;
         }
 
-        if(!fb||(!fb.gra_errors&&!fb.lr_issues)){mText.innerHTML=essayToHtml(essay);return;}
+        // Build annotated HTML — style matches ảnh:
+        // wrong: red strikethrough (no bg)
+        // correct: plain green text after →
+        // vocab: red underline + green suggestion
+        var html = AW.esc(essay);
 
-        // Build annotated HTML
-        var annotated=AW.esc(essay);
-        function markFirst(text,target,open,close){
-          if(!target||!target.trim())return text;
-          var esc=target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-          return text.replace(new RegExp(esc,'i'),function(m){return open+m+close;});
+        function markFirst(text, target, open, close){
+          if(!target||!target.trim()) return text;
+          var esc = target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+          return text.replace(new RegExp(esc,'i'), function(m){ return open+m+close; });
         }
-        // Grammar: red strikethrough + green correction
+
+        // Grammar errors: red strikethrough → plain green correction
         (fb.gra_errors||[]).forEach(function(e){
-          if(!e.wrong||!e.correct)return;
-          annotated=markFirst(annotated,AW.esc(e.wrong),
-            '<span style="color:#B42318;background:#FDE8E8;text-decoration:line-through;text-decoration-color:#B42318;border-radius:2px;padding:0 1px">',
-            '</span><span style="color:#1A7A3C;background:#E6F7ED;font-style:italic;font-weight:600;border-radius:2px;padding:0 3px"> [→ '+AW.esc(e.correct)+']</span>');
+          if(!e.wrong||!e.correct) return;
+          html = markFirst(html, AW.esc(e.wrong),
+            '<span style="color:#D93025;text-decoration:line-through;text-decoration-color:#D93025">',
+            '</span><span style="color:#1E7E42"> →'+AW.esc(e.correct)+'</span>');
         });
-        // Vocab: orange wavy + green suggestion
-        (fb.lr_issues||[]).forEach(function(e){
-          if(!e.original||!e.better)return;
-          annotated=markFirst(annotated,AW.esc(e.original),
-            '<span style="text-decoration:underline wavy #E07B00;text-underline-offset:3px">',
-            '<span style="color:#B05A00;background:#FFF3E0;font-style:italic;font-size:.85em;border-radius:2px;padding:0 3px"> [→ '+AW.esc(e.better)+']</span></span>');
-        });
-        // Restore paragraphs
-        annotated=annotated.replace(/\n\n+/g,'</p><p style="margin:0 0 1em">').replace(/\n/g,'<br>');
 
-        // Badge
-        var badge='<div style="font-size:.74rem;color:var(--aw-ink-3);margin-bottom:10px;padding:5px 0;border-bottom:1px solid var(--aw-border-2)">'+
-          '📊 Attempt '+(latest.attempt||1)+(latest.overall?' · Band <b style="color:var(--aw-primary)">'+latest.overall+'</b>':'')+
-          ' &nbsp;·&nbsp; <span style="color:#B42318">đỏ gạch = lỗi</span>'+
-          ' &nbsp;·&nbsp; <span style="color:#1A7A3C;font-style:italic">xanh = AI sửa</span>'+
-          ' &nbsp;·&nbsp; <span style="color:#B05A00">cam = từ vựng</span></div>';
-        mText.innerHTML=badge+'<p style="margin:0 0 1em">'+annotated+'</p>';
+        // Vocab issues: red underline → plain green suggestion
+        (fb.lr_issues||[]).forEach(function(e){
+          if(!e.original||!e.better) return;
+          html = markFirst(html, AW.esc(e.original),
+            '<span style="color:#D93025;text-decoration:underline;text-decoration-color:#D93025">',
+            '</span><span style="color:#1E7E42"> →'+AW.esc(e.better)+'</span>');
+        });
+
+        // Restore line breaks
+        html = html.replace(/\n/g,'<br>');
+        mText.innerHTML = html;
+
+        // Small legend badge at top
+        var badge = document.createElement('div');
+        badge.style.cssText = 'font-size:.72rem;color:var(--aw-ink-3);margin-bottom:8px;padding:4px 0;border-bottom:1px solid var(--aw-border-2)';
+        badge.innerHTML = '📊 Attempt '+(latest.attempt||1)+(latest.overall?' · Band <b style="color:var(--aw-primary)">'+latest.overall+'</b>':'')+
+          ' &nbsp;·&nbsp; <span style="color:#D93025;text-decoration:line-through">lỗi</span>'+
+          ' &nbsp;·&nbsp; <span style="color:#1E7E42">→ AI sửa</span>';
+        mText.parentNode.insertBefore(badge, mText);
       })
-      .catch(function(){mText.textContent=snapshot;});
+      .catch(function(){ mText.textContent = snapshot; });
   }
 
   // ── Realtime sync state ──────────────────────────────────────────
