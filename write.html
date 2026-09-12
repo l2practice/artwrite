@@ -437,25 +437,51 @@ editor.addEventListener('input', function(){
 });
 updateWordCount();
 
-// Restore draft: localStorage first (fastest), then server snapshot as fallback
+// Restore draft — ALWAYS check attempt count first for hw/inclass
+// Prevents stale cache bleeding into a new attempt if clearDraft failed
 if (!RETRY) {
   var saved = localStorage.getItem(DRAFT_KEY);
-  if (saved && saved.trim() && saved.replace(/<[^>]*>/g,'').trim()) {
+  var hasDraft = !!(saved && saved.trim() && saved.replace(/<[^>]*>/g,'').trim());
+
+  if ((MODE === 'inclass' || MODE === 'homework') && TOPIC_ID) {
+    // Guard: check server before restoring anything
+    AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE })
+      .then(function(res){
+        var count = (res && res.success) ? (res.data.count || 0) : 0;
+        if (count > 0) {
+          // Already submitted — wipe stale cache, keep editor blank
+          try { localStorage.removeItem(DRAFT_KEY); } catch(e){}
+          if (MODE === 'inclass') {
+            AW.api('write.clearSnapshot', { studentId: sess.studentId, topicId: TOPIC_ID });
+          }
+          return;
+        }
+        // Not yet submitted — safe to restore
+        if (hasDraft) {
+          editor.innerHTML = saved;
+          updateWordCount();
+          AW.toast('✓ Đã khôi phục bài đang viết dang dở','ok', 3000);
+        } else if (MODE === 'inclass') {
+          // Fallback: server snapshot (switched device / cleared cache)
+          AW.api('write.getDraftSnapshot', { studentId: sess.studentId, topicId: TOPIC_ID }).then(function(r){
+            if (r && r.success && r.data && r.data.snapshot && !editor.innerText.trim()) {
+              editor.innerText = r.data.snapshot;
+              updateWordCount();
+              AW.toast('✓ Đã khôi phục bài từ server','ok', 4000);
+              try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
+            }
+          }).catch(function(){});
+        }
+      })
+      .catch(function(){
+        // Network fail — restore localStorage as fallback
+        if (hasDraft) { editor.innerHTML = saved; updateWordCount(); }
+      });
+  } else if (hasDraft) {
+    // Free writing — restore immediately, no attempt limit
     editor.innerHTML = saved;
     updateWordCount();
     AW.toast('✓ Đã khôi phục bài đang viết dang dở','ok', 3000);
-  } else if (MODE === 'inclass' && TOPIC_ID) {
-    // Fallback: try to restore from server heartbeat snapshot
-    // (covers case where student switched device or cleared browser cache)
-    AW.api('write.getDraftSnapshot', { studentId: sess.studentId, topicId: TOPIC_ID }).then(function(res){
-      if (res && res.success && res.data && res.data.snapshot && !editor.innerText.trim()) {
-        editor.innerText = res.data.snapshot;
-        updateWordCount();
-        AW.toast('✓ Đã khôi phục bài từ server (đổi thiết bị)','ok', 4000);
-        // Also save to localStorage so next restore is faster
-        try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
-      }
-    }).catch(function(){}); // silent fail — not critical
   }
 }
 window.pauseWriting = function(){
