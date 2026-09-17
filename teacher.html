@@ -328,7 +328,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
           <div style="display:flex;align-items:center;gap:8px">
-            <button id="seeOriginalBtn" style="display:none;font-size:.75rem;padding:3px 10px;background:#fff;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;color:var(--aw-ink-2)">👁 See Original</button>
+            <button id="seeOriginalBtn" style="display:none;font-size:.74rem;padding:3px 10px;background:#fff;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;color:var(--aw-ink-2);white-space:nowrap">👁 See Original</button>
             <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
           </div>
         </div>
@@ -1408,11 +1408,44 @@ function openAnnotation(s){
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
 
-  // Reset See Original button
+  // ── See Original button — show whenever mText has content ──────
+  var _origText = snapshot; // plain text, always updated from heartbeat
+  var _showingOriginal = false;
   var origBtn = document.getElementById('seeOriginalBtn');
-  if (origBtn) { origBtn.style.display = 'none'; origBtn._originalHtml = ''; origBtn._annotatedHtml = ''; origBtn._showingOriginal = false; }
+  if (origBtn) {
+    origBtn.style.display = snapshot.trim() ? '' : 'none';
+    origBtn._showingOriginal = false;
+    origBtn.textContent = '👁 See Original';
+    origBtn.style.background = '#fff';
+    origBtn.style.borderColor = 'var(--aw-border)';
+    origBtn.style.color = 'var(--aw-ink-2)';
+    origBtn.onclick = function(){
+      _showingOriginal = !_showingOriginal;
+      origBtn._showingOriginal = _showingOriginal;
+      if (_showingOriginal) {
+        // Store current annotated HTML, show plain text
+        origBtn._annotatedHtml = mText.innerHTML;
+        mText.textContent = _origText;
+        mText.setAttribute('contenteditable','false');
+        origBtn.textContent = '🎨 Show Annotations';
+        origBtn.style.background = '#EAF6EF';
+        origBtn.style.borderColor = '#1E7E42';
+        origBtn.style.color = '#1A7A3C';
+      } else {
+        // Restore annotated HTML
+        if (origBtn._annotatedHtml) {
+          mText.innerHTML = origBtn._annotatedHtml;
+        }
+        mText.setAttribute('contenteditable','true');
+        origBtn.textContent = '👁 See Original';
+        origBtn.style.background = '#fff';
+        origBtn.style.borderColor = 'var(--aw-border)';
+        origBtn.style.color = 'var(--aw-ink-2)';
+      }
+    };
+  }
 
-  // ── If submitted + AI graded: show red/green annotations + See Original button ──
+  // ── If submitted + AI graded: load essay with red/green annotations ──
   if (s.status === 'Submitted' && s.topicId && s.studentId) {
     mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.85rem">⏳ Đang tải…</span>';
     AW.api('teacher.getAttemptDetail',{studentId:s.studentId, topicId:s.topicId, mode:s.mode||'inclass'})
@@ -1420,18 +1453,19 @@ function openAnnotation(s){
         if(!res||!res.success||!res.data||!res.data.length){ mText.textContent=snapshot; return; }
         var latest = res.data[res.data.length-1];
         var essay  = latest.essay || snapshot;
+        _origText  = essay; // update original to actual submitted essay
         var fb = null;
         try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
 
-        // Plain essay HTML (for "See Original")
         var plainHtml = AW.esc(essay).replace(/\n/g,'<br>');
 
-        if(!fb || (!fb.gra_errors && !fb.lr_issues)){
+        if (!fb || (!fb.gra_errors && !fb.lr_issues)) {
           mText.innerHTML = plainHtml;
+          if (origBtn) { origBtn._annotatedHtml = plainHtml; origBtn.style.display=''; }
           return;
         }
 
-        // Build annotated HTML
+        // Build annotated HTML — red strikethrough + green correction
         var html = AW.esc(essay);
         function markFirst(text, target, open, close){
           if(!target||!target.trim()) return text;
@@ -1453,30 +1487,24 @@ function openAnnotation(s){
         var annotatedHtml = html.replace(/\n/g,'<br>');
         mText.innerHTML = annotatedHtml;
 
-        // Wire See Original button
-        var ob = document.getElementById('seeOriginalBtn');
-        if (ob) {
-          ob._originalHtml  = plainHtml;
-          ob._annotatedHtml = annotatedHtml;
-          ob._showingOriginal = false;
-          ob.style.display = '';
-          ob.textContent = '👁 See Original';
-          ob.onclick = function(){
-            ob._showingOriginal = !ob._showingOriginal;
-            if (ob._showingOriginal) {
-              mText.innerHTML = ob._originalHtml;
+        // Wire See Original with both plain and annotated versions
+        if (origBtn) {
+          origBtn._annotatedHtml = annotatedHtml;
+          origBtn._origPlain     = plainHtml;
+          origBtn.style.display  = '';
+          // Override onclick to use plain essay (not live snapshot)
+          origBtn.onclick = function(){
+            _showingOriginal = !_showingOriginal;
+            if (_showingOriginal) {
+              mText.innerHTML = plainHtml;
               mText.setAttribute('contenteditable','false');
-              ob.textContent = '🎨 Show AI Annotations';
-              ob.style.background = '#EAF6EF';
-              ob.style.borderColor = '#1E7E42';
-              ob.style.color = '#1A7A3C';
+              origBtn.textContent = '🎨 Show AI Annotations';
+              origBtn.style.background='#EAF6EF'; origBtn.style.borderColor='#1E7E42'; origBtn.style.color='#1A7A3C';
             } else {
-              mText.innerHTML = ob._annotatedHtml;
+              mText.innerHTML = annotatedHtml;
               mText.setAttribute('contenteditable','true');
-              ob.textContent = '👁 See Original';
-              ob.style.background = '#fff';
-              ob.style.borderColor = 'var(--aw-border)';
-              ob.style.color = 'var(--aw-ink-2)';
+              origBtn.textContent = '👁 See Original';
+              origBtn.style.background='#fff'; origBtn.style.borderColor='var(--aw-border)'; origBtn.style.color='var(--aw-ink-2)';
             }
           };
         }
