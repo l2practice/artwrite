@@ -1137,83 +1137,95 @@ function showGradeError(e, gradeBtn, origBtnText) {
   hideGradingOverlay();
   var info = friendlyGradeError(e);
 
-  // Re-enable button
   if (gradeBtn) {
-    gradeBtn.disabled  = false;
-    gradeBtn.textContent = info.retry ? (origBtnText || 'Get AI Feedback') : (origBtnText || 'Get AI Feedback');
+    gradeBtn.disabled = false;
+    gradeBtn.textContent = origBtnText || 'Get AI Feedback';
   }
 
-  // Remove old error banner if any
   var old = document.getElementById('gradeErrBanner');
   if (old) old.remove();
 
-  // Build banner above the submit button
-  var banner = document.createElement('div');
-  banner.id = 'gradeErrBanner';
-  banner.style.cssText =
-    'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:1400;'+
-    'background:'+info.bg+';border:1.5px solid '+info.color+';border-radius:14px;'+
-    'padding:14px 18px;max-width:480px;width:calc(100% - 32px);'+
-    'box-shadow:0 4px 24px rgba(0,0,0,.18);font-family:var(--aw-font-body)';
-  banner.innerHTML =
-    '<div style="display:flex;align-items:flex-start;gap:10px">'+
-      '<span style="font-size:1.5rem;flex:0 0 auto">'+info.icon+'</span>'+
-      '<div style="flex:1;min-width:0">'+
-        '<b style="font-size:.92rem;color:'+info.color+';display:block;margin-bottom:4px">'+info.title+'</b>'+
-        '<p style="margin:0 0 4px;font-size:.82rem;color:#3D4D5A;line-height:1.5">'+info.msg+'</p>'+
-        (info.hint ? '<p style="margin:0;font-size:.76rem;color:#5B6B7A;line-height:1.4">'+info.hint+'</p>' : '')+
-      '</div>'+
-      '<button onclick="document.getElementById(\'gradeErrBanner\').remove()" '+
-        'style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:1.1rem;flex:0 0 auto;padding:0 2px">✕</button>'+
-    '</div>'+
+  var text = (editor && editor.innerText ? editor.innerText.trim() : '');
+  var hasContent = text.length >= 10;
+
+  // Full-screen overlay — cannot be ignored, must choose retry or save
+  var overlay = document.createElement('div');
+  overlay.id = 'gradeErrBanner';
+  overlay.style.cssText =
+    'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;'+
+    'background:rgba(16,34,46,.72);padding:20px;font-family:var(--aw-font-body)';
+
+  var card = document.createElement('div');
+  card.style.cssText =
+    'background:#fff;border-radius:20px;padding:28px 24px;max-width:460px;width:100%;'+
+    'box-shadow:0 24px 60px rgba(0,0,0,.4);text-align:center';
+
+  card.innerHTML =
+    '<div style="font-size:2.4rem;margin-bottom:10px">'+info.icon+'</div>'+
+    '<h3 style="margin:0 0 8px;font-size:1.1rem;color:'+info.color+'">'+info.title+'</h3>'+
+    '<p style="margin:0 0 6px;font-size:.88rem;color:#3D4D5A;line-height:1.55">'+info.msg+'</p>'+
+    (info.hint?'<p style="margin:0 0 18px;font-size:.78rem;color:#5B6B7A;line-height:1.4">'+info.hint+'</p>':'<div style="margin-bottom:18px"></div>')+
     (info.retry
-      ? '<button onclick="document.getElementById(\'gradeErrBanner\').remove();document.getElementById(\'gradeBtn\').click()" '+
-          'style="margin-top:10px;width:100%;padding:8px;background:'+info.color+';color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem">'+
-          '🔄 Thử lại ngay</button>'
+      ? '<button id="gradeErrRetry" style="width:100%;padding:12px;background:'+info.color+';color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem;margin-bottom:10px">🔄 Thử lại ngay</button>'
       : '')+
-    '<button id="saveNoAIBtn" '+
-      'style="margin-top:8px;width:100%;padding:8px;background:#fff;color:#3D4D5A;border:1.5px solid #CBD5E1;border-radius:8px;cursor:pointer;font-weight:600;font-size:.82rem">'+
-      '💾 Lưu bài để GV chấm tay (không cần AI)</button>';
-  document.body.appendChild(banner);
+    (hasContent
+      ? '<button id="saveNoAIBtn" style="width:100%;padding:12px;background:#1A7A3C;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem;margin-bottom:8px">💾 Lưu bài ngay — GV sẽ chấm tay</button>'+
+        '<p style="font-size:.74rem;color:#5B6B7A;margin:0 0 14px;line-height:1.4">Bài của bạn ('+AW.wordCount(text)+' từ) sẽ lưu vào kết quả của GV.<br>Bạn có thể dùng <b>Free Writing</b> để nhận AI feedback sau.</p>'
+      : '<p style="font-size:.84rem;color:#B42318;margin:0 0 14px">⚠ Chưa có nội dung bài viết để lưu.</p>')+
+    '<button id="gradeErrClose" style="width:100%;padding:9px;background:none;color:#9CA3AF;border:1px solid #E5E7EB;border-radius:10px;cursor:pointer;font-size:.85rem">Bỏ qua — thử lại sau</button>';
 
-  // REQ 4: Save without AI — submits essay with empty scores so teacher can grade manually
-  var saveNoAIBtn = document.getElementById('saveNoAIBtn');
-  if (saveNoAIBtn) {
-    saveNoAIBtn.onclick = function() {
-      var btn = this; btn.disabled = true; btn.textContent = '⏳ Đang lưu…';
-      var text = (editor.innerText || '').trim();
-      if (!text) { AW.toast('Chưa có nội dung bài viết.','err'); btn.disabled=false; btn.textContent='💾 Lưu bài để GV chấm tay (không cần AI)'; return; }
-      saveResultWithRetry({
-        studentId: sess.studentId, name: sess.name, mode: MODE,
-        topic: TOPIC, topicId: TOPIC_ID,
-        startTime: startTime.toISOString(), finishTime: new Date().toISOString(),
-        duration: Math.round((Date.now()-startTime)/1000),
-        tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
-        essay: text, class: sess.class||'',
-        feedback: '', noAI: true  // flag so teacher knows AI didn't grade
-      }).then(function(res){
-        if (res && res.success) {
-          document.getElementById('gradeErrBanner') && document.getElementById('gradeErrBanner').remove();
-          writePhase = 'graded';
-          if (window.clearDraft) window.clearDraft();
-          sendHeartbeat('Submitted');
-          AW.toast('✓ Bài đã được lưu — giáo viên sẽ chấm tay.','ok', 6000);
-          // Disable grade button to prevent double submit
-          var gb = document.getElementById('gradeBtn');
-          if (gb) { gb.disabled = true; gb.textContent = '✓ Đã lưu'; }
-        } else {
-          btn.disabled = false; btn.textContent = '💾 Lưu bài để GV chấm tay (không cần AI)';
-          AW.toast('Lỗi lưu bài — thử lại.','err');
-        }
-      });
-    };
-  }
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 
-  // Also show a shorter toast for quick visibility
-  AW.toast(info.icon + ' ' + info.title, 'err', 5000);
+  // Retry
+  var retryBtn = document.getElementById('gradeErrRetry');
+  if (retryBtn) retryBtn.onclick = function(){
+    overlay.remove();
+    var gb = document.getElementById('gradeBtn');
+    if (gb) gb.click();
+  };
 
-  // Auto-dismiss after 20 seconds
-  setTimeout(function(){ var b=document.getElementById('gradeErrBanner'); if(b) b.remove(); }, 20000);
+  // Save without AI
+  var saveBtn = document.getElementById('saveNoAIBtn');
+  if (saveBtn && hasContent) saveBtn.onclick = function(){
+    saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu…';
+    saveResultWithRetry({
+      studentId:sess.studentId, name:sess.name, mode:MODE,
+      topic:TOPIC, topicId:TOPIC_ID,
+      startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+      duration:Math.round((Date.now()-startTime)/1000),
+      tr:'',cc:'',lr:'',gra:'',aiGrading:'',teacherGrading:'',
+      essay:text, class:sess.class||'', feedback:'', noAI:true
+    }).then(function(res){
+      if (res && res.success) {
+        overlay.remove();
+        writePhase = 'graded';
+        if (window.clearDraft) window.clearDraft();
+        sendHeartbeat('Submitted');
+        var gb = document.getElementById('gradeBtn');
+        if (gb) { gb.disabled=true; gb.textContent='✓ Đã lưu'; }
+        // Success overlay
+        var ok = document.createElement('div');
+        ok.style.cssText = 'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(16,34,46,.65);padding:20px;font-family:var(--aw-font-body)';
+        ok.innerHTML = '<div style="background:#fff;border-radius:20px;padding:32px 24px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3);text-align:center">'+
+          '<div style="font-size:2.5rem;margin-bottom:12px">✅</div>'+
+          '<h3 style="margin:0 0 8px;font-size:1.15rem">Bài đã được lưu thành công!</h3>'+
+          '<p style="font-size:.88rem;color:#3D4D5A;line-height:1.55;margin:0 0 20px">Giáo viên sẽ chấm điểm và trả kết quả qua <b>My Progress</b>.</p>'+
+          '<button onclick="this.closest(\'div\').parentNode.remove()" style="padding:10px 28px;background:#1A7A3C;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700">OK</button>'+
+        '</div>';
+        document.body.appendChild(ok);
+      } else {
+        saveBtn.disabled=false; saveBtn.textContent='💾 Lưu bài ngay — GV sẽ chấm tay';
+        AW.toast('Lỗi lưu bài, thử lại.','err');
+      }
+    });
+  };
+
+  // Dismiss
+  var closeBtn = document.getElementById('gradeErrClose');
+  if (closeBtn) closeBtn.onclick = function(){ overlay.remove(); };
+
+  AW.toast(info.icon+' '+info.title, 'err', 4000);
 }
 
 function showGradingOverlay(){

@@ -327,7 +327,10 @@
       <div class="aw-modal-doc-footer">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
-          <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button id="seeOriginalBtn" style="display:none;font-size:.75rem;padding:3px 10px;background:#fff;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;color:var(--aw-ink-2)">👁 See Original</button>
+            <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
+          </div>
         </div>
         <p style="font-size:.78rem;color:var(--aw-ink-3);margin:3px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done.</p>
       </div>
@@ -1404,6 +1407,82 @@ function openAnnotation(s){
   var snapshot = s.snapshot || '';
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
+
+  // Reset See Original button
+  var origBtn = document.getElementById('seeOriginalBtn');
+  if (origBtn) { origBtn.style.display = 'none'; origBtn._originalHtml = ''; origBtn._annotatedHtml = ''; origBtn._showingOriginal = false; }
+
+  // ── If submitted + AI graded: show red/green annotations + See Original button ──
+  if (s.status === 'Submitted' && s.topicId && s.studentId) {
+    mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.85rem">⏳ Đang tải…</span>';
+    AW.api('teacher.getAttemptDetail',{studentId:s.studentId, topicId:s.topicId, mode:s.mode||'inclass'})
+      .then(function(res){
+        if(!res||!res.success||!res.data||!res.data.length){ mText.textContent=snapshot; return; }
+        var latest = res.data[res.data.length-1];
+        var essay  = latest.essay || snapshot;
+        var fb = null;
+        try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
+
+        // Plain essay HTML (for "See Original")
+        var plainHtml = AW.esc(essay).replace(/\n/g,'<br>');
+
+        if(!fb || (!fb.gra_errors && !fb.lr_issues)){
+          mText.innerHTML = plainHtml;
+          return;
+        }
+
+        // Build annotated HTML
+        var html = AW.esc(essay);
+        function markFirst(text, target, open, close){
+          if(!target||!target.trim()) return text;
+          var esc = target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+          return text.replace(new RegExp(esc,'i'), function(m){ return open+m+close; });
+        }
+        (fb.gra_errors||[]).forEach(function(e){
+          if(!e.wrong||!e.correct) return;
+          html = markFirst(html, AW.esc(e.wrong),
+            '<span style="color:#D93025;text-decoration:line-through;text-decoration-color:#D93025">',
+            '</span><span style="color:#1E7E42"> →'+AW.esc(e.correct)+'</span>');
+        });
+        (fb.lr_issues||[]).forEach(function(e){
+          if(!e.original||!e.better) return;
+          html = markFirst(html, AW.esc(e.original),
+            '<span style="color:#D93025;text-decoration:underline;text-decoration-color:#D93025">',
+            '</span><span style="color:#1E7E42"> →'+AW.esc(e.better)+'</span>');
+        });
+        var annotatedHtml = html.replace(/\n/g,'<br>');
+        mText.innerHTML = annotatedHtml;
+
+        // Wire See Original button
+        var ob = document.getElementById('seeOriginalBtn');
+        if (ob) {
+          ob._originalHtml  = plainHtml;
+          ob._annotatedHtml = annotatedHtml;
+          ob._showingOriginal = false;
+          ob.style.display = '';
+          ob.textContent = '👁 See Original';
+          ob.onclick = function(){
+            ob._showingOriginal = !ob._showingOriginal;
+            if (ob._showingOriginal) {
+              mText.innerHTML = ob._originalHtml;
+              mText.setAttribute('contenteditable','false');
+              ob.textContent = '🎨 Show AI Annotations';
+              ob.style.background = '#EAF6EF';
+              ob.style.borderColor = '#1E7E42';
+              ob.style.color = '#1A7A3C';
+            } else {
+              mText.innerHTML = ob._annotatedHtml;
+              mText.setAttribute('contenteditable','true');
+              ob.textContent = '👁 See Original';
+              ob.style.background = '#fff';
+              ob.style.borderColor = 'var(--aw-border)';
+              ob.style.color = 'var(--aw-ink-2)';
+            }
+          };
+        }
+      })
+      .catch(function(){ mText.textContent = snapshot; });
+  }
 
   // ── Realtime sync state ──────────────────────────────────────────
   _annotLastSnapshot = snapshot;
@@ -2967,15 +3046,11 @@ function showQueries(){
       '<div style="display:flex;flex-direction:column;gap:14px">'+
       rows.map(function(q){
         var answered=q.status==='answered';
-        // Format timestamp
-        var tsStr='';
-        if(q.createdAt){try{var d=new Date(q.createdAt);if(!isNaN(d))tsStr=d.toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){}}
         return '<div style="border:1px solid var(--aw-border-2);border-radius:14px;padding:16px 18px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
-          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">'+
+          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
             '<b>'+AW.esc(q.studentName||q.studentId)+' <span style="color:var(--aw-ink-3);font-weight:400">('+AW.esc(q.studentId)+')</span></b>'+
             '<span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(q.mode)+' · '+AW.esc(q.topic||'')+(q.attempt?' · Attempt '+AW.esc(q.attempt):'')+'</span>'+
           '</div>'+
-          (tsStr?'<div style="font-size:.73rem;color:var(--aw-ink-3);margin-bottom:8px">🕐 '+tsStr+'</div>':'')+
           (q.errorQuote?'<div style="font-size:.85rem;background:var(--aw-surface-2);border-radius:8px;padding:6px 10px;margin-bottom:8px"><b>Re:</b> '+AW.esc(q.errorQuote)+'</div>':'')+
           '<p style="margin:0 0 10px">'+AW.esc(q.question)+'</p>'+
           (answered
@@ -2983,11 +3058,7 @@ function showQueries(){
               '<div style="margin-top:8px;display:flex;gap:8px;align-items:center">'+
                 '<button class="aw-btn aw-btn-ghost qShare" data-id="'+AW.esc(q.queryId)+'" data-shared="'+(q.shared?'1':'0')+'" style="padding:4px 12px;font-size:.78rem">'+(q.shared?'✓ Shared with class (click to unshare)':'Share to class')+'</button>'+
               '</div>'
-            : '<div style="display:flex;gap:8px;margin-top:6px">'+
-                '<input class="aw-input qAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Type your answer… (Enter = dismiss without reply)" style="flex:1">'+
-                '<button class="aw-btn aw-btn-primary qSend" data-id="'+AW.esc(q.queryId)+'" style="padding:8px 16px">Answer</button>'+
-                '<button class="aw-btn aw-btn-ghost qDismiss" data-id="'+AW.esc(q.queryId)+'" style="padding:8px 10px;color:var(--aw-ink-3)" title="Dismiss without reply">✕</button>'+
-              '</div>')+
+            : '<div style="display:flex;gap:8px;margin-top:6px"><input class="aw-input qAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Type your answer…" style="flex:1"><button class="aw-btn aw-btn-primary qSend" data-id="'+AW.esc(q.queryId)+'" style="padding:8px 16px">Answer</button></div>')+
         '</div>';
       }).join('')+'</div>';
     AW.els('.qSend').forEach(function(b){
@@ -2997,32 +3068,6 @@ function showQueries(){
         b.disabled=true;
         AW.api('query.answer',{queryId:b.dataset.id,answer:ans}).then(function(res){
           if(res&&res.success){AW.toast('Answer sent','ok');showQueries();}
-          else AW.toast('Failed','err');
-        });
-      };
-    });
-    // Enter on input = send if has text, dismiss if empty
-    AW.els('.qAns').forEach(function(inp){
-      inp.addEventListener('keydown',function(e){
-        if(e.key!=='Enter') return;
-        e.preventDefault();
-        var ans=inp.value.trim();
-        var id=inp.dataset.id;
-        if(ans){
-          document.querySelector('.qSend[data-id="'+id+'"]').click();
-        } else {
-          // Dismiss without reply
-          AW.api('query.answer',{queryId:id,answer:'',dismissed:true}).then(function(res){
-            if(res&&res.success){AW.toast('Dismissed','ok');showQueries();}
-          });
-        }
-      });
-    });
-    // ✕ dismiss button
-    AW.els('.qDismiss').forEach(function(b){
-      b.onclick=function(){
-        AW.api('query.answer',{queryId:b.dataset.id,answer:'',dismissed:true}).then(function(res){
-          if(res&&res.success){AW.toast('Dismissed','ok');showQueries();}
           else AW.toast('Failed','err');
         });
       };
