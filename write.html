@@ -437,51 +437,25 @@ editor.addEventListener('input', function(){
 });
 updateWordCount();
 
-// Restore draft — ALWAYS check attempt count first for hw/inclass
-// Prevents stale cache bleeding into a new attempt if clearDraft failed
+// Restore draft: localStorage first (fastest), then server snapshot as fallback
 if (!RETRY) {
   var saved = localStorage.getItem(DRAFT_KEY);
-  var hasDraft = !!(saved && saved.trim() && saved.replace(/<[^>]*>/g,'').trim());
-
-  if ((MODE === 'inclass' || MODE === 'homework') && TOPIC_ID) {
-    // Guard: check server before restoring anything
-    AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE })
-      .then(function(res){
-        var count = (res && res.success) ? (res.data.count || 0) : 0;
-        if (count > 0) {
-          // Already submitted — wipe stale cache, keep editor blank
-          try { localStorage.removeItem(DRAFT_KEY); } catch(e){}
-          if (MODE === 'inclass') {
-            AW.api('write.clearSnapshot', { studentId: sess.studentId, topicId: TOPIC_ID });
-          }
-          return;
-        }
-        // Not yet submitted — safe to restore
-        if (hasDraft) {
-          editor.innerHTML = saved;
-          updateWordCount();
-          AW.toast('✓ Đã khôi phục bài đang viết dang dở','ok', 3000);
-        } else if (MODE === 'inclass') {
-          // Fallback: server snapshot (switched device / cleared cache)
-          AW.api('write.getDraftSnapshot', { studentId: sess.studentId, topicId: TOPIC_ID }).then(function(r){
-            if (r && r.success && r.data && r.data.snapshot && !editor.innerText.trim()) {
-              editor.innerText = r.data.snapshot;
-              updateWordCount();
-              AW.toast('✓ Đã khôi phục bài từ server','ok', 4000);
-              try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
-            }
-          }).catch(function(){});
-        }
-      })
-      .catch(function(){
-        // Network fail — restore localStorage as fallback
-        if (hasDraft) { editor.innerHTML = saved; updateWordCount(); }
-      });
-  } else if (hasDraft) {
-    // Free writing — restore immediately, no attempt limit
+  if (saved && saved.trim() && saved.replace(/<[^>]*>/g,'').trim()) {
     editor.innerHTML = saved;
     updateWordCount();
     AW.toast('✓ Đã khôi phục bài đang viết dang dở','ok', 3000);
+  } else if (MODE === 'inclass' && TOPIC_ID) {
+    // Fallback: try to restore from server heartbeat snapshot
+    // (covers case where student switched device or cleared browser cache)
+    AW.api('write.getDraftSnapshot', { studentId: sess.studentId, topicId: TOPIC_ID }).then(function(res){
+      if (res && res.success && res.data && res.data.snapshot && !editor.innerText.trim()) {
+        editor.innerText = res.data.snapshot;
+        updateWordCount();
+        AW.toast('✓ Đã khôi phục bài từ server (đổi thiết bị)','ok', 4000);
+        // Also save to localStorage so next restore is faster
+        try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
+      }
+    }).catch(function(){}); // silent fail — not critical
   }
 }
 window.pauseWriting = function(){
@@ -698,142 +672,8 @@ function sendHeartbeat(status, raiseHand){
     snapshot: editor.innerText.slice(0,8000)
   };
   if (raiseHand != null) payload.raiseHand = raiseHand;
-  // Only inclass responds to forceSubmit
-  if (MODE !== 'inclass') { AW.api('write.heartbeat', payload); return; }
-  AW.api('write.heartbeat', payload).then(function(res){
-    if (!res || !res.forceSubmit) return;
-    if (writePhase === 'graded') return; // already submitted
-    try { localStorage.setItem('aw_fs_' + TOPIC_ID, '1'); } catch(e){}
-    showFinishOverlay();
-  }).catch(function(){});
+  AW.api('write.heartbeat', payload);
 }
-
-// ── Finish Overlay — shown when teacher presses Finish ──────────
-var _finishOverlayShown = false;
-function showFinishOverlay(){
-  if (_finishOverlayShown || writePhase === 'graded') return;
-  _finishOverlayShown = true;
-
-  editor.setAttribute('contenteditable','false');
-  editor.style.pointerEvents = 'none';
-  var gb = document.getElementById('gradeBtn');
-  if (gb) { gb.disabled = true; gb.style.display = 'none'; }
-  var pb = document.getElementById('pauseBtn');
-  if (pb) pb.style.display = 'none';
-
-  var text = (editor.innerText || '').trim();
-  var wc2  = AW.wordCount(text);
-  var minW = TASK_TYPE === 'task1' ? 150 : 250;
-  var hasContent = wc2 >= 10;
-
-  var ov = document.createElement('div');
-  ov.id = 'finishOverlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(16,34,46,.75);padding:20px;font-family:var(--aw-font-body)';
-
-  var card = document.createElement('div');
-  card.style.cssText = 'background:var(--aw-surface);border-radius:18px;padding:32px 28px;max-width:460px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35)';
-
-  card.innerHTML =
-    '<div style="font-size:2.4rem;margin-bottom:8px">'+(hasContent?'⏱':'😔')+'</div>'+
-    '<h3 style="margin:0 0 8px;font-family:var(--aw-font-display);font-size:1.25rem">Giáo viên đã kết thúc giờ học</h3>'+
-    (hasContent
-      ? '<p style="margin:0 0 6px;font-size:.9rem;color:var(--aw-ink-2);line-height:1.55">'+
-          'Bài của bạn (<b>'+wc2+' từ</b>) sẽ được nộp ngay bây giờ.'+
-          (AW_AI_ON?' AI sẽ chấm điểm — nếu AI nghẽn, giáo viên sẽ chấm tay.':' Giáo viên sẽ chấm điểm.')+
-        '</p>'+
-        (wc2 < minW ? '<p style="margin:0 0 16px;font-size:.83rem;color:#B8860B;background:#FFF8EC;border-radius:8px;padding:8px 12px">⚠ Bài dưới '+minW+' từ — điểm có thể thấp hơn thực lực.</p>' : '<div style="margin-bottom:16px"></div>')+
-        '<button id="finishSubmitBtn" class="aw-btn aw-btn-primary" style="width:100%;padding:13px;font-size:1rem;font-weight:700">'+
-          (AW_AI_ON ? '🤖 Get AI Feedback & Submit' : '📤 Nộp bài cho giáo viên')+
-        '</button>'+
-        '<p style="margin:10px 0 0;font-size:.76rem;color:var(--aw-ink-3)">Bạn chỉ có thể bấm một lần duy nhất.</p>'
-      : '<p style="margin:0 0 20px;font-size:.9rem;color:var(--aw-ink-2)">Chưa có nội dung bài viết.</p>'+
-        '<p style="font-size:.83rem;color:var(--aw-ink-3)">Giáo viên đã ghi nhận sự có mặt của bạn.</p>'
-    );
-
-  ov.appendChild(card);
-  document.body.appendChild(ov);
-
-  if (!hasContent) {
-    try { localStorage.removeItem('aw_fs_' + TOPIC_ID); } catch(e){}
-    return;
-  }
-
-  document.getElementById('finishSubmitBtn').onclick = function(){
-    var btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="aw-spin"></span> Đang xử lý…';
-    try { localStorage.removeItem('aw_fs_' + TOPIC_ID); } catch(e){}
-    if (AW_AI_ON) {
-      editor.setAttribute('contenteditable','true');
-      editor.style.pointerEvents = '';
-      if (gb) { gb.disabled = false; gb.style.display = ''; }
-      writePhase = 'editing';
-      var _aiDone = false;
-      var _aiFallback = setTimeout(function(){
-        if (_aiDone) return; _aiDone = true;
-        AW.toast('AI đang nghẽn — bài được lưu để giáo viên chấm tay.','err',7000);
-        _saveRawFinish(text, ov);
-      }, 60000);
-      var _watcher = setInterval(function(){
-        if (writePhase === 'graded') {
-          if (!_aiDone) { _aiDone = true; clearTimeout(_aiFallback); }
-          clearInterval(_watcher); ov.remove();
-        }
-      }, 500);
-      if (gb) gb.click();
-    } else {
-      _saveRawFinish(text, ov);
-    }
-  };
-}
-
-function _saveRawFinish(text, overlayEl){
-  if (writePhase === 'graded') { if(overlayEl) overlayEl.remove(); return; }
-  writePhase = 'grading';
-  AW.api('write.saveResult',{
-    studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
-    startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
-    duration:Math.round((Date.now()-startTime)/1000),
-    tr:'',cc:'',lr:'',gra:'',aiGrading:'',teacherGrading:'',
-    essay:text, class:(sess.class||''), feedback:'', submittedBy:'teacher_finish'
-  }).then(function(res){
-    writePhase='graded';
-    sendHeartbeat('Submitted');
-    if(window.clearDraft) window.clearDraft();
-    if(overlayEl) overlayEl.innerHTML =
-      '<div style="background:var(--aw-surface);border-radius:18px;padding:32px 28px;max-width:420px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35)">'+
-        '<div style="font-size:2.4rem;margin-bottom:10px">✅</div>'+
-        '<h3 style="margin:0 0 8px;font-family:var(--aw-font-display)">Bài đã được lưu lại</h3>'+
-        '<p style="font-size:.88rem;color:var(--aw-ink-2);line-height:1.55">Giáo viên sẽ chấm điểm và trả kết quả qua My Progress.</p>'+
-      '</div>';
-  }).catch(function(){
-    writePhase='editing';
-    var b=document.getElementById('finishSubmitBtn');
-    if(b){b.disabled=false;b.textContent='↺ Thử lại';}
-    AW.toast('Lỗi kết nối — thử lại.','err');
-  });
-}
-
-// On page load: check if forceSubmit flag was set before tab closed
-(function(){
-  if(MODE!=='inclass'||writePhase==='graded') return;
-  try {
-    if(localStorage.getItem('aw_fs_'+TOPIC_ID)==='1') {
-      setTimeout(showFinishOverlay, 800);
-      return;
-    }
-  } catch(e){}
-  // Also check server on initial heartbeat
-  AW.api('write.heartbeat',{
-    studentId:sess.studentId, name:sess.name, class:sess.class,
-    topicId:TOPIC_ID, topic:TOPIC, mode:MODE,
-    status:'Writing', wordCount:0, snapshot:''
-  }).then(function(res){
-    if(res&&res.forceSubmit&&writePhase!=='graded'){
-      try{localStorage.setItem('aw_fs_'+TOPIC_ID,'1');}catch(e){}
-      setTimeout(showFinishOverlay,400);
-    }
-  }).catch(function(){});
-})();
 var handRaised=false;
 window.toggleRaiseHand=function(){
   handRaised=!handRaised;
@@ -1330,8 +1170,44 @@ function showGradeError(e, gradeBtn, origBtnText) {
       ? '<button onclick="document.getElementById(\'gradeErrBanner\').remove();document.getElementById(\'gradeBtn\').click()" '+
           'style="margin-top:10px;width:100%;padding:8px;background:'+info.color+';color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem">'+
           '🔄 Thử lại ngay</button>'
-      : '');
+      : '')+
+    '<button id="saveNoAIBtn" '+
+      'style="margin-top:8px;width:100%;padding:8px;background:#fff;color:#3D4D5A;border:1.5px solid #CBD5E1;border-radius:8px;cursor:pointer;font-weight:600;font-size:.82rem">'+
+      '💾 Lưu bài để GV chấm tay (không cần AI)</button>';
   document.body.appendChild(banner);
+
+  // REQ 4: Save without AI — submits essay with empty scores so teacher can grade manually
+  var saveNoAIBtn = document.getElementById('saveNoAIBtn');
+  if (saveNoAIBtn) {
+    saveNoAIBtn.onclick = function() {
+      var btn = this; btn.disabled = true; btn.textContent = '⏳ Đang lưu…';
+      var text = (editor.innerText || '').trim();
+      if (!text) { AW.toast('Chưa có nội dung bài viết.','err'); btn.disabled=false; btn.textContent='💾 Lưu bài để GV chấm tay (không cần AI)'; return; }
+      saveResultWithRetry({
+        studentId: sess.studentId, name: sess.name, mode: MODE,
+        topic: TOPIC, topicId: TOPIC_ID,
+        startTime: startTime.toISOString(), finishTime: new Date().toISOString(),
+        duration: Math.round((Date.now()-startTime)/1000),
+        tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
+        essay: text, class: sess.class||'',
+        feedback: '', noAI: true  // flag so teacher knows AI didn't grade
+      }).then(function(res){
+        if (res && res.success) {
+          document.getElementById('gradeErrBanner') && document.getElementById('gradeErrBanner').remove();
+          writePhase = 'graded';
+          if (window.clearDraft) window.clearDraft();
+          sendHeartbeat('Submitted');
+          AW.toast('✓ Bài đã được lưu — giáo viên sẽ chấm tay.','ok', 6000);
+          // Disable grade button to prevent double submit
+          var gb = document.getElementById('gradeBtn');
+          if (gb) { gb.disabled = true; gb.textContent = '✓ Đã lưu'; }
+        } else {
+          btn.disabled = false; btn.textContent = '💾 Lưu bài để GV chấm tay (không cần AI)';
+          AW.toast('Lỗi lưu bài — thử lại.','err');
+        }
+      });
+    };
+  }
 
   // Also show a shorter toast for quick visibility
   AW.toast(info.icon + ' ' + info.title, 'err', 5000);
