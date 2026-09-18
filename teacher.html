@@ -1094,23 +1094,11 @@ function showLive(){
         if(t2){ t2.style.display=''; }
       };
       document.getElementById('awFinishBtn').onclick = function(){
-        var topicFilter=liveTaskFilter&&liveTaskFilter!=='all'?liveTaskFilter:null;
-        var activeCount=liveData.filter(function(s){
-          return s.status!=='Submitted'&&(!topicFilter||String(s.topicId)===String(topicFilter));
-        }).length;
-        if(!confirm('⏹ Kết thúc giờ học?\n\n'+activeCount+' sinh viên đang viết sẽ nhận thông báo nộp bài trong ~10 giây.')) return;
-        var btn=this; btn.disabled=true; btn.innerHTML='⏳';
-        var payload={class:curClass()};
-        if(topicFilter) payload.topicId=topicFilter;
-        AW.api('teacher.finishSession',payload).then(function(res){
-          btn.disabled=false; btn.innerHTML='⏹ Finish';
-          if(res&&res.success){
-            AW.toast('✓ Đã gửi lệnh nộp bài tới '+(res.data&&res.data.flagged||0)+' sinh viên.','ok',6000);
-            stopCd();
-            var r2=document.getElementById('awTimerRemain');
-            if(r2){r2.textContent='00:00';r2.style.color='#D93025';}
-          } else AW.toast((res&&res.error)||'Lỗi','err');
-        });
+        if(!confirm('⏹ Kết thúc giờ học?\n\nTimer sẽ dừng lại. Thầy/cô thông báo trực tiếp cho sinh viên nộp bài.')) return;
+        stopCd();
+        var r2=document.getElementById('awTimerRemain');
+        if(r2){r2.textContent='00:00';r2.style.color='#D93025';}
+        AW.toast('⏹ Giờ học đã kết thúc','ok',4000);
       };
       var _origStop=window.stopLivePoll;
       window.stopLivePoll=function(){if(_origStop)_origStop();stopCd();};
@@ -1409,7 +1397,9 @@ function openAnnotation(s){
   mText.setAttribute('contenteditable','true');
 
   // ── See Original button — show whenever mText has content ──────
-  var _origText = snapshot; // plain text, always updated from heartbeat
+  // _origText: uses originalEssay from DB (first heartbeat, pre-annotation)
+  // Falls back to current snapshot if originalEssay not yet in DB
+  var _origText = (s.originalEssay && s.originalEssay.trim()) ? s.originalEssay : snapshot;
   var _showingOriginal = false;
   var origBtn = document.getElementById('seeOriginalBtn');
   if (origBtn) {
@@ -1453,7 +1443,7 @@ function openAnnotation(s){
         if(!res||!res.success||!res.data||!res.data.length){ mText.textContent=snapshot; return; }
         var latest = res.data[res.data.length-1];
         var essay  = latest.essay || snapshot;
-        _origText  = essay; // update original to actual submitted essay
+        _origText  = (s.originalEssay && s.originalEssay.trim()) ? s.originalEssay : essay; // prefer DB original
         var fb = null;
         try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
 
