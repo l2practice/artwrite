@@ -459,12 +459,9 @@ function wireToolbar(){
 // long lines simply re-wrap instead of running off the side.
 function applyZoom(){
   var canvas=document.getElementById('canvas'); if(!canvas)return;
-  // CSS zoom scales EVERYTHING uniformly — text (including inline font-size px),
-  // images, and spacing — without causing reflow like fontSize does.
-  // It works like browser Ctrl+/- zoom on just this element.
-  canvas.style.zoom = zoom;
-  canvas.style.transform = '';
-  canvas.style.fontSize = BASE_CANVAS_PX + 'px'; // keep base consistent
+  // fontSize scaling — not transform:scale which clips text and distorts line-height
+  canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
+  canvas.style.transform='none';
   var ind=document.getElementById('zoomInd');
   if(ind) ind.textContent=Math.round(zoom*100)+'%';
 }
@@ -496,15 +493,34 @@ function changeFont(dir){
   if(typeof scheduleSave==='function') scheduleSave();
 }
 
-/*──── image handling ────*/
+/*──── paste handler: images + URLs ────*/
 function onPaste(e){
   var items=(e.clipboardData||{}).items||[];
+
+  // 1. Image paste (screenshot, file) — compress + upload
   for(var i=0;i<items.length;i++){
     if(items[i].type.indexOf('image')===0){
       e.preventDefault();
       handleImage(items[i].getAsFile());
       return;
     }
+  }
+
+  // 2. URL paste — ask for label, insert as styled link
+  var text=(e.clipboardData||{}).getData('text/plain')||'';
+  if(/^https?:\/\/\S+$/.test(text.trim())){
+    e.preventDefault();
+    var url=text.trim();
+    // Small inline prompt — non-blocking
+    var label=window.prompt('Đặt tên cho link này (để trống = dùng URL):', '');
+    if(label===null) return; // cancelled
+    var display=label.trim()||url;
+    document.getElementById('canvas').focus();
+    document.execCommand('insertHTML',false,
+      '<a href="'+url+'" target="_blank" rel="noopener" '+
+      'style="color:#1971C2;text-decoration:underline;cursor:pointer">'+
+      AW.esc(display)+'</a>&nbsp;');
+    scheduleSave();
   }
 }
 // ImgBB API key — free tier, 32MB/image, permanent storage, direct CDN links
