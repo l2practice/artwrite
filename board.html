@@ -451,6 +451,27 @@ function wireToolbar(){
   });
   document.getElementById('imgBtn').onclick=function(){ document.getElementById('imgFile').click(); };
   document.getElementById('imgFile').onchange=function(){ if(this.files[0]) handleImage(this.files[0]); };
+
+  // ── Links in contenteditable: use mousedown (fires before browser captures click) ──
+  // Single click opens link. Teacher can still select text by dragging.
+  canvas.addEventListener('mousedown', function(e){
+    var a = e.target.closest('a[href]');
+    if (!a) return;
+    // Only open on plain left-click (not drag-start)
+    if (e.button !== 0) return;
+    var _moved = false;
+    function onMove(){ _moved = true; }
+    function onUp(){
+      canvas.removeEventListener('mousemove', onMove);
+      canvas.removeEventListener('mouseup', onUp);
+      if (!_moved) {
+        e.preventDefault();
+        window.open(a.href, '_blank', 'noopener');
+      }
+    }
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('mouseup', onUp);
+  });
 }
 // zoom scales the canvas view only — it is never saved into the board content
 // Zoom is a view-only setting — it is never saved into the board content.
@@ -493,34 +514,15 @@ function changeFont(dir){
   if(typeof scheduleSave==='function') scheduleSave();
 }
 
-/*──── paste handler: images + URLs ────*/
+/*──── image handling ────*/
 function onPaste(e){
   var items=(e.clipboardData||{}).items||[];
-
-  // 1. Image paste (screenshot, file) — compress + upload
   for(var i=0;i<items.length;i++){
     if(items[i].type.indexOf('image')===0){
       e.preventDefault();
       handleImage(items[i].getAsFile());
       return;
     }
-  }
-
-  // 2. URL paste — ask for label, insert as styled link
-  var text=(e.clipboardData||{}).getData('text/plain')||'';
-  if(/^https?:\/\/\S+$/.test(text.trim())){
-    e.preventDefault();
-    var url=text.trim();
-    // Small inline prompt — non-blocking
-    var label=window.prompt('Đặt tên cho link này (để trống = dùng URL):', '');
-    if(label===null) return; // cancelled
-    var display=label.trim()||url;
-    document.getElementById('canvas').focus();
-    document.execCommand('insertHTML',false,
-      '<a href="'+url+'" target="_blank" rel="noopener" '+
-      'style="color:#1971C2;text-decoration:underline;cursor:pointer">'+
-      AW.esc(display)+'</a>&nbsp;');
-    scheduleSave();
   }
 }
 // ImgBB API key — free tier, 32MB/image, permanent storage, direct CDN links
