@@ -11,51 +11,6 @@
 (function (AW) {
   'use strict';
 
-  // Hard caps: applied AFTER AI response to ensure constraints are enforced
-  // even if AI ignores the prompt instructions.
-  function applyHardCaps(result, payload) {
-    if (!result || !result.scores) return result;
-    var text = payload.writing || '';
-    var wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-    var minW = (payload.minWords && parseInt(payload.minWords,10) > 0) ? parseInt(payload.minWords,10) : (payload.taskType==='task1' ? 150 : 250);
-    var writingType = payload.writingType || 'full_essay';
-    var msgs = [];
-
-    // 1. Underlength caps
-    if (wordCount < minW) {
-      if (wordCount < minW * 0.6) {
-        if (result.scores.TR > 4) { result.scores.TR = 4; msgs.push('⚠ Bài quá ngắn ('+wordCount+'/'+minW+' từ) — TR giới hạn Band 4.'); }
-      } else {
-        if (result.scores.TR > 5) { result.scores.TR = 5; msgs.push('⚠ Bài thiếu từ ('+wordCount+'/'+minW+' từ) — TR giới hạn Band 5.'); }
-      }
-    }
-
-    // 2. Writing type caps
-    if (writingType === 'paragraph') {
-      if (result.scores.TR > 5) { result.scores.TR = 5; }
-      if (result.scores.CC > 5) { result.scores.CC = 5; }
-      msgs.push('📝 Bài tập viết đoạn văn — TR và CC giới hạn tối đa Band 5.');
-    } else if (writingType === 'sentences') {
-      if (result.scores.TR > 4) { result.scores.TR = 4; }
-      if (result.scores.CC > 4) { result.scores.CC = 4; }
-    } else {
-      // full_essay: single paragraph rule
-      var t2 = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-      var chunks = t2.split(/\n{2,}/);
-      if (chunks.length <= 1) chunks = t2.split(/\n/);
-      var paraCount = chunks.filter(function(c){ return c.trim().length > 5; }).length;
-      if (paraCount <= 1) {
-        if (result.scores.TR > 5) { result.scores.TR = 5; msgs.push('⚠ Toàn bài chỉ 1 đoạn văn — TR và CC giới hạn Band 5 (IELTS yêu cầu ít nhất 4 đoạn).'); }
-        if (result.scores.CC > 5) { result.scores.CC = 5; }
-      }
-    }
-
-    if (msgs.length && result.overall_feedback_vi) {
-      result.overall_feedback_vi = '\n\n[RÀNG BUỘC CHẤM ĐIỂM]\n' + msgs.join('\n') + '\n\n' + result.overall_feedback_vi;
-    }
-    return result;
-  }
-
   function normaliseScores(r){
     if(r.scores){
       // Round each component to whole number (IELTS: only overall can be X.5).
@@ -138,6 +93,25 @@
     var cleanQ=(tmp.textContent||tmp.innerText||question).replace(/\s+/g,' ').trim();
 
     var isTask1 = payload.taskType === 'task1';
+    // Word count thresholds — Task 1: 150 words, Task 2: 250 words
+    // Use teacher's custom minWords if set, otherwise IELTS standard
+    var minWords = (payload.minWords && payload.minWords > 0) ? payload.minWords
+                 : (isTask1 ? 150 : 250);
+    var wc = AW.wordCount(text);
+    var wcLabel = payload.minWords && payload.minWords > 0
+      ? 'teacher minimum ('+minWords+' words)'
+      : 'IELTS minimum for Task '+(isTask1?'1 (150 words)':'2 (250 words)');
+
+    // Build word count instruction for the AI
+    var wcInstruction = '\n\nWORD COUNT: This response is '+wc+' words. The '+wcLabel+' is '+minWords+' words. '+
+      (wc >= minWords
+        ? 'Word count is SUFFICIENT. Do NOT penalize or mention word count in your feedback — it meets the requirement.'
+        : 'Word count is BELOW the minimum. '+
+          (wc < Math.floor(minWords*0.6)
+            ? 'Cap TR/TA at Band 4 (severely underlength — below 60% of minimum).'
+            : 'Cap TR/TA at Band 5 (underlength — between 60–99% of minimum).')+
+          ' Mention in overall_feedback_vi that the response is too short ('+wc+'/'+minWords+' words).');
+
     var attemptNote = payload.attempt >= 2
       ? '\n\nThis is revision attempt '+payload.attempt+'. In "repeated_errors_vi" (Vietnamese), note whether the student repeated the same TYPES of mistakes as a typical earlier draft (grammar/vocab/coherence) and encourage improvement. For attempt 1, leave repeated_errors_vi empty.'
       : '\n\nThis is the first attempt. Leave repeated_errors_vi empty. Give COMPLETE feedback on all 4 criteria so the student learns from the start.';
@@ -152,6 +126,7 @@
         'This is Task 1 (NOT an opinion essay). Criterion 1 = Task Achievement (TA): assess overview presence, data accuracy, key features selected, comparisons made. '+
         'Do NOT expect or reward a personal opinion/thesis statement — Task 1 must not have one. '+
         'TA score (stored as TR field) MUST reflect: did the student cover the main features, include an overview, and make relevant comparisons?'+
+        wcInstruction+
         attemptNote;
     } else {
       userMessage =
@@ -159,67 +134,15 @@
         'TASK PROMPT: '+cleanQ+'\n\n'+
         'STUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\n'+
         'Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.'+
+        wcInstruction+
         attemptNote;
     }
-    // ── REQ 1+4: Word count and writing type constraints ─────────────────
-    // Build a constraint block injected into the grading prompt so AI applies
-    // penalties BEFORE giving TR score, not as an afterthought.
-    var wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-    var minW = payload.minWords > 0 ? parseInt(payload.minWords,10) : (isTask1 ? 150 : 250);
-    var writingType = payload.writingType || 'full_essay'; // 'full_essay'|'paragraph'|'sentences'
-
-    var constraintBlock = '\n\n=== GRADING CONSTRAINTS (apply BEFORE scoring, these are HARD RULES) ===\n';
-    constraintBlock += 'Writing type required by teacher: '+
-      (writingType==='paragraph' ? 'SINGLE PARAGRAPH (body paragraph practice)' :
-       writingType==='sentences' ? 'SENTENCE PRACTICE (not a full essay)' :
-       'FULL ESSAY (standard IELTS Task 2)')+'\n';
-    constraintBlock += 'Minimum words required: '+minW+'\n';
-    constraintBlock += 'Actual word count: '+wordCount+'\n';
-
-    // Underlength penalty
-    if (wordCount < minW) {
-      if (wordCount < minW * 0.6) {
-        constraintBlock += 'PENALTY: Essay is severely underlength ('+wordCount+'/'+minW+' words). TR/TA MUST be ≤ 4.\n';
-      } else {
-        constraintBlock += 'PENALTY: Essay is underlength ('+wordCount+'/'+minW+' words). TR/TA MUST be ≤ 5. Do not award Band 6+ for Task Response regardless of content quality.\n';
-      }
-    }
-
-    // Writing type constraints
-    if (writingType === 'paragraph') {
-      constraintBlock += 'IMPORTANT: Teacher set this as a PARAGRAPH practice task (not a full essay).\n'+
-        '- Do NOT penalise for missing introduction/conclusion/multiple body paragraphs.\n'+
-        '- Coherence & Cohesion: assess WITHIN the paragraph only (topic sentence, supporting sentences, concluding sentence, cohesive devices).\n'+
-        '- TR/TA: assess whether the paragraph addresses the task focus adequately.\n'+
-        '- Maximum score for TR and CC is Band 5.0 (a single paragraph structurally cannot exceed this in IELTS regardless of quality).\n'+
-        '- Focus feedback on paragraph development: clear topic sentence, specific evidence, logical flow.\n';
-    } else if (writingType === 'sentences') {
-      constraintBlock += 'IMPORTANT: Teacher set this as SENTENCE PRACTICE.\n'+
-        '- Do NOT penalise for lack of essay structure.\n'+
-        '- Focus GRA feedback on sentence-level accuracy only.\n'+
-        '- Maximum score for TR and CC is Band 4.0.\n';
-    } else {
-      // full_essay — check single paragraph (IELTS rule)
-      var paraCount = (function(){
-        var t = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-        var chunks = t.split(/\n{2,}/);
-        if (chunks.length <= 1) chunks = t.split(/\n/);
-        return chunks.filter(function(c){ return c.trim().length > 5; }).length;
-      })();
-      if (paraCount <= 1) {
-        constraintBlock += 'PENALTY: Full essay has only 1 paragraph. IELTS Task 2 requires at least 4 paragraphs.\n'+
-          'TR MUST be ≤ 5. CC MUST be ≤ 5. State this clearly in the Vietnamese feedback.\n';
-      }
-    }
-    // ── end constraints ───────────────────────────────────────────────────
-
     // Teacher's context rules override default IELTS strictness
     if (payload.aiNotes && payload.aiNotes.trim()) {
       userMessage += '\n\n=== TEACHER\'S GRADING RULES (HIGHEST PRIORITY — these OVERRIDE the default IELTS strictness above) ===\n'+
         payload.aiNotes.trim()+
         '\n\nYou MUST follow these teacher rules. Do NOT flag, mark, or deduct points for anything the teacher has explicitly allowed or told you to ignore. Only report errors that remain genuine problems given these rules. This keeps feedback appropriate for the class context and avoids overwhelming the student with irrelevant corrections.';
     }
-    userMessage += constraintBlock;
     var prompt=systemInstruction+'\n\n'+userMessage;
     // ~30-token CEFR vocabulary summary (measured client-side) for reference
     if (payload.vocabSummary && payload.vocabSummary.trim()) {
@@ -334,7 +257,7 @@
     if (ei === -1) throw new Error('Lỗi định dạng: JSON từ AI bị không hoàn chỉnh. Vui lòng thử lại.');
     // Fix 3: wrap JSON.parse in try-catch to show friendly error instead of crashing
     try {
-      return normaliseScores(applyHardCaps(JSON.parse(clean.substring(si, ei+1)), payload));
+      return normaliseScores(JSON.parse(clean.substring(si, ei+1)));
     } catch(parseErr) {
       throw new Error('Lỗi đọc kết quả từ AI (JSON sai cú pháp). Vui lòng thử lại.');
     }
@@ -372,7 +295,7 @@
               else if (rClean[rci]==='}') { rdepth--; if (rdepth===0) { rei=rci; break; } }
             }
           }
-          if (rei !== -1) return normaliseScores(applyHardCaps(JSON.parse(rClean.substring(rsi, rei+1)), payload));
+          if (rei !== -1) return normaliseScores(JSON.parse(rClean.substring(rsi, rei+1)));
         }
       }
     } catch(finalErr) { /* fall through to final error below */ }
@@ -505,7 +428,7 @@
         }
         if (gei === -1) throw new Error('Lỗi định dạng: JSON từ Groq bị không hoàn chỉnh. Vui lòng thử lại.');
         try {
-          return normaliseScores(applyHardCaps(JSON.parse(groqClean.substring(gsi, gei+1)), payload));
+          return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
         } catch(parseErr) {
           throw new Error('Lỗi đọc kết quả từ Groq (JSON sai cú pháp). Vui lòng thử lại.');
         }
