@@ -500,18 +500,18 @@ function lockEditorFull(){
 }
 
 /*──────── timer ────────*/
+var _cdTick = null;  // exposed so gradeBtnHandler can clear it on submit
+var _timeUp  = false;
 if (DURATION_MIN) {
   var remain = DURATION_MIN*60;
   var tEl = document.getElementById('timer');
-  var timeUp = false;
-  var tick = setInterval(function(){
+  _cdTick = setInterval(function(){
     remain--;
     if (remain<=0){
-      clearInterval(tick);
+      clearInterval(_cdTick); _cdTick = null;
       if (tEl) tEl.textContent = '0:00';
-      if (!timeUp){
-        timeUp = true;
-        // time's up → auto-submit whatever is written, then lock the editor
+      if (!_timeUp){
+        _timeUp = true;
         AW.toast('Hết giờ! Bài của bạn đang được nộp tự động…','err',5000);
         autoSubmitOnTimeout();
       }
@@ -521,9 +521,8 @@ if (DURATION_MIN) {
     if (tEl){
       tEl.textContent = '⏱ '+m+':'+(s<10?'0':'')+s;
       if (remain<=60)  { tEl.style.color='#B42318'; tEl.style.fontWeight='900'; }
-      else if (remain<=300) tEl.style.color = '#D93025';   // last 5 min: red
+      else if (remain<=300) tEl.style.color = '#D93025';
     }
-    // Milestone toasts
     if (remain===600) AW.toast('⏰ Còn 10 phút — hãy hoàn thiện bài nhé!','err',4000);
     if (remain===300) AW.toast('⚠️ Còn 5 phút — chuẩn bị kết bài!','err',4000);
     if (remain===60)  AW.toast('🚨 Còn 1 phút — bài sẽ tự động nộp!','err',5000);
@@ -538,6 +537,12 @@ function autoSubmitOnTimeout(){
   if (writePhase === 'graded') return;
   if (isGrading) return;
 
+  // ── LOCK IMMEDIATELY before any async work ──────────────────────
+  // Without this, a student click arriving in the same tick races with
+  // autoSubmit and both paths call saveResult → two rows in the sheet.
+  isGrading = true;
+  writePhase = 'grading';
+
   var gb = document.getElementById('gradeBtn');
   AW.toast('Hết giờ! Bài của bạn đang được nộp tự động…', 'err', 4000);
 
@@ -548,8 +553,6 @@ function autoSubmitOnTimeout(){
 
   var wc = AW.wordCount(editor.innerText||'');
   if (wc < 10) {
-    // Nothing written — save blank and finish
-    writePhase = 'grading'; isGrading = true;
     AW.api('write.saveResult', {
       studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
       taskType:TASK_TYPE, startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
@@ -571,13 +574,14 @@ function autoSubmitOnTimeout(){
 
   // Patch: override the confirm dialog for hw/inclass so it auto-accepts
   var _origConfirm = window.confirm;
-  window.confirm = function(){ return true; }; // auto-accept "nộp bài?" dialog
-  setTimeout(function(){ window.confirm = _origConfirm; }, 3000); // restore after 3s
+  window.confirm = function(){ return true; };
+  setTimeout(function(){ window.confirm = _origConfirm; }, 3000);
 
-  _autoSubmitActive = true; // signal transitionToGraded to show time-up banner
-  // Re-enable button temporarily so gradeBtnHandler can run, then it disables itself
+  // Reset phase to 'editing' momentarily so gradeBtnHandler's own guard passes,
+  // then gradeBtnHandler will immediately set it back to 'grading'
+  writePhase = 'editing'; isGrading = false;
+  _autoSubmitActive = true;
   if (gb) { gb.disabled = false; gb.textContent = AW_AI_ON ? 'Get AI Feedback' : 'Nộp bài'; gb.onclick = gradeBtnHandler; }
-  // Trigger the full grading flow
   if (gb) gb.click();
 }
 
@@ -784,6 +788,7 @@ var lastResult=null;
   ═══════════════════════════════════════════════════════════════════*/
 var writePhase = 'editing'; // 'editing' | 'grading' | 'graded'
 var isGrading = false;
+var _lastSubmitTime = 0; // timestamp of last saveResult call — prevent double-submit
 var lastPlainEssay = '';
 var _autoSubmitActive = false; // true when fired by timer timeout
 
@@ -855,10 +860,13 @@ function transitionToGraded(btn, usedAttempts, done){
 }
 
 function gradeBtnHandler(){
-  // ── GUARD 1: phase check ───────────────────────────────────────────
   if (writePhase !== 'editing') return;
-  // ── GUARD 2: in-flight check ───────────────────────────────────────
   if (isGrading) return;
+
+  // Stop the deadline countdown immediately — prevents autoSubmitOnTimeout
+  // from firing while AI is already grading this submission.
+  if (_cdTick) { clearInterval(_cdTick); _cdTick = null; }
+  _timeUp = true; // also set flag so timeout callback never runs even if tick fired
 
   // ── Capture CLEAN essay text ────────────────────────────────────────
   var rawHTML = editor.innerHTML;
@@ -924,7 +932,7 @@ function gradeBtnHandler(){
   var GRADE_TIMEOUT_MS = 90000;
   var gradeTimeoutId;
   var gradeWithTimeout = Promise.race([
-    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE, minWords:MIN_WORDS }, key),
+    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key),
     new Promise(function(_, reject){
       gradeTimeoutId = setTimeout(function(){
         reject(new Error('timeout: AI không phản hồi sau 90 giây. Vui lòng thử lại.'));
