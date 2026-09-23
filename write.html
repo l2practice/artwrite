@@ -909,9 +909,6 @@ function gradeBtnHandler(){
   }
 
   // ── Enter GRADING phase ───────────────────────────────────────────
-  // Re-check: autoSubmitOnTimeout may have fired during the confirm dialog
-  // (which can take a few seconds for the student to answer).
-  if (isGrading) { btn.disabled=false; btn.textContent=orig; return; }
   lastPlainEssay = text;
   writePhase = 'grading';
   isGrading  = true;
@@ -1143,6 +1140,9 @@ function friendlyGradeError(e) {
 /*── showGradeError ──*/
 function showGradeError(e, gradeBtn, origBtnText) {
   hideGradingOverlay();
+  // Reset grading state — AI failed, student can retry or save manually
+  isGrading = false;
+  if (writePhase === 'grading') writePhase = 'editing';
   var info = friendlyGradeError(e);
 
   if (gradeBtn) {
@@ -1153,7 +1153,8 @@ function showGradeError(e, gradeBtn, origBtnText) {
   var old = document.getElementById('gradeErrBanner');
   if (old) old.remove();
 
-  var text = (editor && editor.innerText ? editor.innerText.trim() : '');
+  var text = (lastPlainEssay && lastPlainEssay.trim()) ? lastPlainEssay.trim()
+           : (editor && editor.innerText ? editor.innerText.trim() : '');
   var hasContent = text.length >= 10;
 
   // Fullscreen overlay — cannot be ignored, must choose retry or save
@@ -1195,7 +1196,7 @@ function showGradeError(e, gradeBtn, origBtnText) {
   var saveBtn = document.getElementById('saveNoAIBtn');
   if (saveBtn && hasContent) saveBtn.onclick = function(){
     saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu…';
-    saveResultWithRetry({
+    AW.api('write.saveResult', {
       studentId:sess.studentId, name:sess.name, mode:MODE,
       topic:TOPIC, topicId:TOPIC_ID, taskType:TASK_TYPE,
       startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
@@ -1221,8 +1222,12 @@ function showGradeError(e, gradeBtn, origBtnText) {
         document.body.appendChild(ok);
       } else {
         saveBtn.disabled=false; saveBtn.textContent='💾 Lưu bài ngay — GV sẽ chấm tay';
-        AW.toast('Lỗi lưu bài, thử lại.','err');
+        AW.toast((res&&res.error)||'Lỗi lưu bài — thử lại.','err');
       }
+    }).catch(function(err){
+      saveBtn.disabled=false; saveBtn.textContent='💾 Lưu bài ngay — GV sẽ chấm tay';
+      AW.toast('Lỗi kết nối — thử lại.','err');
+      console.error('saveResult (noAI) failed:', err);
     });
   };
 
