@@ -882,6 +882,9 @@ function gradeBtnHandler(){
   }
 
   // ── Enter GRADING phase ───────────────────────────────────────────
+  // Re-check: another path (e.g. timeout warning button) may have set isGrading
+  // between the top guard and here (during the confirm dialog window).
+  if (isGrading) { btn.disabled=false; btn.textContent=orig; return; }
   lastPlainEssay = text;
   writePhase = 'grading';
   isGrading  = true;
@@ -1165,7 +1168,7 @@ function showGradeError(e, gradeBtn, origBtnText) {
   var saveBtn = document.getElementById('saveNoAIBtn');
   if (saveBtn && hasContent) saveBtn.onclick = function(){
     saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu…';
-    saveResultWithRetry({
+    AW.api('write.saveResult', {
       studentId:sess.studentId, name:sess.name, mode:MODE,
       topic:TOPIC, topicId:TOPIC_ID, taskType:TASK_TYPE,
       startTime:startTime.toISOString(), finishTime:new Date().toISOString(),

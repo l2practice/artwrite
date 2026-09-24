@@ -314,8 +314,6 @@
         <span id="annZoomLbl" style="font-size:.75rem;color:var(--aw-ink-3);min-width:36px;text-align:center">100%</span>
         <button class="aw-tbtn" id="annZoomIn" title="Zoom in">+</button>
         <button class="aw-tbtn" id="annZoomReset" title="Reset zoom">↺</button>
-        <span class="ann-sep"></span>
-        <button class="aw-tbtn" id="annToolbarDismiss" title="Ẩn toolbar" style="color:var(--aw-ink-3);font-size:.85rem;padding:0 6px">✕</button>
       </div>
       <div class="aw-doc-text" id="mText" contenteditable="false"></div>
       <div id="mTextUpdateBanner" style="display:none;margin-top:8px;padding:8px 12px;
@@ -362,6 +360,7 @@
   <button id="popTextColor">A Color</button>
   <button id="popHl">🖍 Highlight</button>
   <button id="popComment">💬 Comment</button>
+  <button id="popDismiss" title="Đóng" style="margin-left:4px;opacity:.5;font-size:.8rem">✕</button>
 </div>
 
 <!-- Inline comment popup (replaces prompt()) -->
@@ -1140,24 +1139,11 @@ function showLive(){
   });
 }
 function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
-var _liveDataHash = '';
 function pollLive(){
   AW.api('teacher.getLive',{class:curClass()}).then(function(res){
     var all = (res&&res.data)||[];
-    var newData = all.filter(function(s){ return s.mode==='inclass'; });
-    // Only re-render if data actually changed — prevents DOM flicker every 10s
-    var newHash = JSON.stringify(newData.map(function(s){
-      return s.studentId+'|'+s.status+'|'+s.wordCount+'|'+s.raisedHand;
-    }));
-    if (newHash !== _liveDataHash) {
-      _liveDataHash = newHash;
-      liveData = newData;
-      renderLive();
-    } else {
-      // Data unchanged — just sync annotation modal if open
-      liveData = newData;
-      syncAnnotModal();
-    }
+    liveData = all.filter(function(s){ return s.mode==='inclass'; });
+    renderLive();
   });
   pollLiveQuestions();
 }
@@ -1411,14 +1397,14 @@ function openAnnotation(s){
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
 
-  // ── See Original button ──────────────────────────────────────────
+  // ── See Original button — show whenever mText has content ──────
+  // _origText: uses originalEssay from DB (first heartbeat, pre-annotation)
+  // Falls back to current snapshot if originalEssay not yet in DB
   var _origText = (s.originalEssay && s.originalEssay.trim()) ? s.originalEssay : snapshot;
   var _showingOriginal = false;
   var origBtn = document.getElementById('seeOriginalBtn');
-  // Store on mText so it survives getAttemptDetail async callback
-  mText.dataset.origText = _origText;
   if (origBtn) {
-    origBtn.style.display = _origText.trim() ? '' : 'none';
+    origBtn.style.display = snapshot.trim() ? '' : 'none';
     origBtn._showingOriginal = false;
     origBtn.textContent = '👁 See Original';
     origBtn.style.background = '#fff';
@@ -1426,17 +1412,21 @@ function openAnnotation(s){
     origBtn.style.color = 'var(--aw-ink-2)';
     origBtn.onclick = function(){
       _showingOriginal = !_showingOriginal;
+      origBtn._showingOriginal = _showingOriginal;
       if (_showingOriginal) {
+        // Store current annotated HTML, show plain text
         origBtn._annotatedHtml = mText.innerHTML;
-        // Always read from dataset — survives async updates
-        mText.textContent = mText.dataset.origText || _origText;
+        mText.textContent = _origText;
         mText.setAttribute('contenteditable','false');
         origBtn.textContent = '🎨 Show Annotations';
         origBtn.style.background = '#EAF6EF';
         origBtn.style.borderColor = '#1E7E42';
         origBtn.style.color = '#1A7A3C';
       } else {
-        if (origBtn._annotatedHtml) mText.innerHTML = origBtn._annotatedHtml;
+        // Restore annotated HTML
+        if (origBtn._annotatedHtml) {
+          mText.innerHTML = origBtn._annotatedHtml;
+        }
         mText.setAttribute('contenteditable','true');
         origBtn.textContent = '👁 See Original';
         origBtn.style.background = '#fff';
@@ -1448,14 +1438,15 @@ function openAnnotation(s){
 
   // ── If submitted + AI graded: load essay with red/green annotations ──
   if (s.status === 'Submitted' && s.topicId && s.studentId) {
-    mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.85rem">⏳ Đang tải…</span>';
+    mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.85rem">⏳ Đang tải bài đã nộp…</span>';
+    // Disable See Original until we have the real annotated content
+    if (origBtn) { origBtn.style.display = 'none'; }
     AW.api('teacher.getAttemptDetail',{studentId:s.studentId, topicId:s.topicId, mode:s.mode||'inclass'})
       .then(function(res){
         if(!res||!res.success||!res.data||!res.data.length){ mText.textContent=snapshot; return; }
         var latest = res.data[res.data.length-1];
         var essay  = latest.essay || snapshot;
-        _origText  = (s.originalEssay && s.originalEssay.trim()) ? s.originalEssay : essay;
-        mText.dataset.origText = _origText; // persist for See Original toggle
+        _origText  = (s.originalEssay && s.originalEssay.trim()) ? s.originalEssay : essay; // prefer DB original
         var fb = null;
         try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
 
@@ -1488,22 +1479,25 @@ function openAnnotation(s){
         });
         var annotatedHtml = html.replace(/\n/g,'<br>');
         mText.innerHTML = annotatedHtml;
+        mText.dataset.origText = _origText;
 
-        // Wire See Original with both plain and annotated versions
+        // Now show See Original with correct data
         if (origBtn) {
-          origBtn._annotatedHtml = annotatedHtml;
-          origBtn._origPlain     = plainHtml;
-          origBtn.style.display  = '';
-          // Override onclick to use plain essay (not live snapshot)
+          var _ann = annotatedHtml;
+          var _plain = plainHtml;
+          var _showing = false;
+          origBtn.style.display = '';
+          origBtn.textContent = '👁 See Original';
+          origBtn.style.background='#fff'; origBtn.style.borderColor='var(--aw-border)'; origBtn.style.color='var(--aw-ink-2)';
           origBtn.onclick = function(){
-            _showingOriginal = !_showingOriginal;
-            if (_showingOriginal) {
-              mText.innerHTML = plainHtml;
+            _showing = !_showing;
+            if (_showing) {
+              mText.innerHTML = _plain;
               mText.setAttribute('contenteditable','false');
               origBtn.textContent = '🎨 Show AI Annotations';
               origBtn.style.background='#EAF6EF'; origBtn.style.borderColor='#1E7E42'; origBtn.style.color='#1A7A3C';
             } else {
-              mText.innerHTML = annotatedHtml;
+              mText.innerHTML = _ann;
               mText.setAttribute('contenteditable','true');
               origBtn.textContent = '👁 See Original';
               origBtn.style.background='#fff'; origBtn.style.borderColor='var(--aw-border)'; origBtn.style.color='var(--aw-ink-2)';
@@ -1575,23 +1569,6 @@ function openAnnotation(s){
     if(e.target.tagName === 'INPUT') return;
     e.preventDefault(); // preserve mText selection
   });
-
-  // ✕ toolbar dismiss
-  var _tbDismiss = document.getElementById('annToolbarDismiss');
-  if (_tbDismiss) {
-    _tbDismiss.onclick = function(){
-      var tb = document.getElementById('annToolbar');
-      if (tb) tb.style.display = 'none';
-      AW.toast('Toolbar ẩn — bôi đen chữ để hiện lại', 'ok', 2500);
-    };
-    document.getElementById('mText').addEventListener('mouseup', function(){
-      var sel = window.getSelection();
-      if (sel && !sel.isCollapsed) {
-        var tb = document.getElementById('annToolbar');
-        if (tb && tb.style.display === 'none') tb.style.display = '';
-      }
-    });
-  }
 
   // ── Basic formatting ──────────────────────────────────────────────
   document.getElementById('annBold').onclick   = function(){ document.execCommand('bold'); };
@@ -1865,6 +1842,10 @@ mText.addEventListener('mouseup',function(e){
 document.addEventListener('mousedown',function(e){
   if(!selPop.contains(e.target) && e.target!==mText && !mText.contains(e.target)) selPop.classList.remove('show');
 });
+document.getElementById('popDismiss').onclick = function(e){
+  e.stopPropagation();
+  selPop.classList.remove('show');
+};
 
 function restoreSelection(){
   if(!savedRange) return null;
