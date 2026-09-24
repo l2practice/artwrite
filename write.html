@@ -500,89 +500,62 @@ function lockEditorFull(){
 }
 
 /*──────── timer ────────*/
-var _cdTick = null;   // exposed so gradeBtnHandler stops it on manual submit
+var _cdTick = null;
 var _timeUp  = false;
 if (DURATION_MIN) {
-  var remain = DURATION_MIN*60;
+  var remain = DURATION_MIN * 60;
   var tEl = document.getElementById('timer');
   _cdTick = setInterval(function(){
     remain--;
-    if (remain<=0){
+    if (remain <= 0) {
       clearInterval(_cdTick); _cdTick = null;
-      if (tEl) tEl.textContent = '0:00';
-      if (!_timeUp){
-        _timeUp = true;
-        AW.toast('Hết giờ! Bài của bạn đang được nộp tự động…','err',5000);
-        autoSubmitOnTimeout();
+      _timeUp = true;
+      if (tEl) { tEl.textContent = '⏱ 0:00'; tEl.style.color = '#B42318'; tEl.style.fontWeight = '900'; }
+      // REQ: just show warning, do NOT auto-submit
+      if (writePhase !== 'graded') {
+        showTimeUpWarning();
       }
       return;
     }
-    var m=Math.floor(remain/60), s=remain%60;
-    if (tEl){
-      tEl.textContent = '⏱ '+m+':'+(s<10?'0':'')+s;
-      if (remain<=60)  { tEl.style.color='#B42318'; tEl.style.fontWeight='900'; }
-      else if (remain<=300) tEl.style.color = '#D93025';
+    var m = Math.floor(remain/60), s = remain % 60;
+    if (tEl) {
+      tEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+      if (remain <= 60)   { tEl.style.color = '#B42318'; tEl.style.fontWeight = '900'; }
+      else if (remain <= 300) tEl.style.color = '#D93025';
     }
-    if (remain===600) AW.toast('⏰ Còn 10 phút — hãy hoàn thiện bài nhé!','err',4000);
-    if (remain===300) AW.toast('⚠️ Còn 5 phút — chuẩn bị kết bài!','err',4000);
-    if (remain===60)  AW.toast('🚨 Còn 1 phút — bài sẽ tự động nộp!','err',5000);
-  },1000);
+    if (remain === 600) AW.toast('⏰ Còn 10 phút — hãy hoàn thiện bài nhé!', 'err', 4000);
+    if (remain === 300) AW.toast('⚠️ Còn 5 phút — chuẩn bị kết bài!', 'err', 4000);
+    if (remain === 60)  AW.toast('🚨 Còn 1 phút — hãy bấm nộp bài!', 'err', 5000);
+  }, 1000);
+}
+
+// REQ: show warning banner when time is up, student must manually submit
+function showTimeUpWarning() {
+  var existing = document.getElementById('timeUpWarning');
+  if (existing) return;
+  var banner = document.createElement('div');
+  banner.id = 'timeUpWarning';
+  banner.style.cssText =
+    'position:fixed;top:0;left:0;right:0;z-index:1500;background:#B42318;color:#fff;'+
+    'text-align:center;padding:12px 16px;font-weight:700;font-size:.95rem;'+
+    'display:flex;align-items:center;justify-content:center;gap:16px;font-family:var(--aw-font-body)';
+  banner.innerHTML =
+    '<span>⏱ Hết giờ! Hãy bấm <b>Get AI Feedback</b> để nộp bài ngay.</span>'+
+    '<button id="timeUpSubmitBtn" style="background:#fff;color:#B42318;border:none;border-radius:8px;'+
+    'padding:6px 16px;font-weight:700;cursor:pointer;font-size:.9rem">📤 Nộp bài ngay</button>';
+  document.body.prepend(banner);
+
+  document.getElementById('timeUpSubmitBtn').onclick = function(){
+    var gb = document.getElementById('gradeBtn');
+    if (gb && writePhase === 'editing' && !isGrading) gb.click();
+  };
 }
 
 /* Fired once when the countdown reaches zero.
    Strategy: programmatically trigger gradeBtnHandler (same as student pressing
    the button) so the full grade→save→Doc flow runs without duplication.
    Auto-confirms the hw/inclass submit dialog so no interaction needed.    */
-function autoSubmitOnTimeout(){
-  if (writePhase === 'graded') return;
-  if (isGrading) return;
-
-  var gb = document.getElementById('gradeBtn');
-  AW.toast('Hết giờ! Bài của bạn đang được nộp tự động…', 'err', 4000);
-
-  // Lock editor immediately (visual feedback)
-  editor.setAttribute('contenteditable','false');
-  editor.style.background='var(--aw-surface-2)';
-  if (gb) { gb.disabled = true; gb.innerHTML = '<span class="aw-spin"></span> Tự động nộp bài…'; }
-
-  var wc = AW.wordCount(editor.innerText||'');
-  if (wc < 10) {
-    // Nothing written — save blank and finish
-    writePhase = 'grading'; isGrading = true;
-    AW.api('write.saveResult', {
-      studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
-      taskType:TASK_TYPE, startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
-      duration:Math.round((Date.now()-startTime)/1000),
-      tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
-      essay:'(Không có nội dung)', class:(sess.class||''), feedback:''
-    }).then(function(saveRes){
-      writePhase = 'graded'; isGrading = false;
-      if (window.clearDraft) window.clearDraft();
-      if (gb) { gb.disabled = true; gb.textContent = 'Đã nộp tự động'; }
-      sendHeartbeat('Submitted');
-      showTimeUpBanner(0, null);
-    }).catch(function(){
-      writePhase = 'editing'; isGrading = false;
-      if (gb) { gb.disabled = false; gb.textContent = AW_AI_ON ? 'Get AI Feedback' : 'Nộp bài'; }
-    });
-    return;
-  }
-
-  // Patch: override the confirm dialog for hw/inclass so it auto-accepts
-  var _origConfirm = window.confirm;
-  window.confirm = function(){ return true; }; // auto-accept "nộp bài?" dialog
-  setTimeout(function(){ window.confirm = _origConfirm; }, 3000); // restore after 3s
-
-  _autoSubmitActive = true; // signal transitionToGraded to show time-up banner
-  // Re-enable button temporarily so gradeBtnHandler can run, then it disables itself
-  if (gb) { gb.disabled = false; gb.textContent = AW_AI_ON ? 'Get AI Feedback' : 'Nộp bài'; gb.onclick = gradeBtnHandler; }
-  // Trigger the full grading flow
-  if (gb) gb.click();
-}
-
-/*── Banner hiển thị sau khi hết giờ và auto-submit ──
-   Nếu bài ngắn/không hoàn chỉnh: nhắc nhở và đề xuất Free Writing.
-   Nếu bài đủ dài và có điểm AI: khen + gợi ý cải thiện.             */
+/*── Banner sau khi nộp bài ──*/
 function showTimeUpBanner(wordCount, result) {
   var minWords = TASK_TYPE === 'task1' ? 150 : 250;
   var isShort  = wordCount < minWords;
@@ -1140,9 +1113,6 @@ function friendlyGradeError(e) {
 /*── showGradeError ──*/
 function showGradeError(e, gradeBtn, origBtnText) {
   hideGradingOverlay();
-  // Reset grading state — AI failed, student can retry or save manually
-  isGrading = false;
-  if (writePhase === 'grading') writePhase = 'editing';
   var info = friendlyGradeError(e);
 
   if (gradeBtn) {
@@ -1153,8 +1123,7 @@ function showGradeError(e, gradeBtn, origBtnText) {
   var old = document.getElementById('gradeErrBanner');
   if (old) old.remove();
 
-  var text = (lastPlainEssay && lastPlainEssay.trim()) ? lastPlainEssay.trim()
-           : (editor && editor.innerText ? editor.innerText.trim() : '');
+  var text = (editor && editor.innerText ? editor.innerText.trim() : '');
   var hasContent = text.length >= 10;
 
   // Fullscreen overlay — cannot be ignored, must choose retry or save
@@ -1196,7 +1165,7 @@ function showGradeError(e, gradeBtn, origBtnText) {
   var saveBtn = document.getElementById('saveNoAIBtn');
   if (saveBtn && hasContent) saveBtn.onclick = function(){
     saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu…';
-    AW.api('write.saveResult', {
+    saveResultWithRetry({
       studentId:sess.studentId, name:sess.name, mode:MODE,
       topic:TOPIC, topicId:TOPIC_ID, taskType:TASK_TYPE,
       startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
@@ -1222,12 +1191,8 @@ function showGradeError(e, gradeBtn, origBtnText) {
         document.body.appendChild(ok);
       } else {
         saveBtn.disabled=false; saveBtn.textContent='💾 Lưu bài ngay — GV sẽ chấm tay';
-        AW.toast((res&&res.error)||'Lỗi lưu bài — thử lại.','err');
+        AW.toast('Lỗi lưu bài, thử lại.','err');
       }
-    }).catch(function(err){
-      saveBtn.disabled=false; saveBtn.textContent='💾 Lưu bài ngay — GV sẽ chấm tay';
-      AW.toast('Lỗi kết nối — thử lại.','err');
-      console.error('saveResult (noAI) failed:', err);
     });
   };
 
