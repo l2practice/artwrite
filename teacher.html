@@ -328,7 +328,6 @@
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
           <div style="display:flex;align-items:center;gap:8px">
-            <button id="seeOriginalBtn" style="display:none;font-size:.74rem;padding:3px 10px;background:#fff;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;color:var(--aw-ink-2);white-space:nowrap">👁 See Original</button>
             <button id="openDocFromLiveBtn" style="display:none;font-size:.74rem;padding:3px 10px;background:#1A7A3C;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap">📄 Open Docs</button>
             <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
           </div>
@@ -1413,11 +1412,10 @@ function openAnnotation(s){
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
 
-  // ── Open Docs button — shown when student has submitted ──────────
+  // ── Open Docs button — always show when student has a topicId ───
   var openDocBtn = document.getElementById('openDocFromLiveBtn');
   if (openDocBtn) {
-    openDocBtn.style.display = 'none';
-    if (s.status === 'Submitted' && s.studentId && s.topicId) {
+    if (s.studentId && s.topicId) {
       openDocBtn.style.display = '';
       openDocBtn.onclick = function(){
         openDocBtn.disabled = true; openDocBtn.textContent = '⏳…';
@@ -1431,133 +1429,50 @@ function openAnnotation(s){
           else AW.toast((res&&res.error)||'Không tạo được Doc','err');
         }).catch(function(){ openDocBtn.disabled=false; openDocBtn.textContent='📄 Open Docs'; AW.toast('Lỗi','err'); });
       };
+    } else {
+      openDocBtn.style.display = 'none';
     }
   }
 
-  // ── See Original button — show whenever mText has content ──────
-  // _origText: uses originalEssay from DB (first heartbeat, pre-annotation)
-  // Falls back to current snapshot if originalEssay not yet in DB
-  var _origText = (s.originalEssay && s.originalEssay.trim()) ? s.originalEssay : snapshot;
-  var _showingOriginal = false;
-  var origBtn = document.getElementById('seeOriginalBtn');
-  if (origBtn) {
-    origBtn.style.display = snapshot.trim() ? '' : 'none';
-    origBtn._showingOriginal = false;
-    origBtn.textContent = '👁 See Original';
-    origBtn.style.background = '#fff';
-    origBtn.style.borderColor = 'var(--aw-border)';
-    origBtn.style.color = 'var(--aw-ink-2)';
-    origBtn.onclick = function(){
-      _showingOriginal = !_showingOriginal;
-      origBtn._showingOriginal = _showingOriginal;
-      if (_showingOriginal) {
-        // Store current annotated HTML, show plain text
-        origBtn._annotatedHtml = mText.innerHTML;
-        mText.textContent = _origText;
-        mText.setAttribute('contenteditable','false');
-        origBtn.textContent = '🎨 Show Annotations';
-        origBtn.style.background = '#EAF6EF';
-        origBtn.style.borderColor = '#1E7E42';
-        origBtn.style.color = '#1A7A3C';
-      } else {
-        // Restore annotated HTML
-        if (origBtn._annotatedHtml) {
-          mText.innerHTML = origBtn._annotatedHtml;
-        }
-        mText.setAttribute('contenteditable','true');
-        origBtn.textContent = '👁 See Original';
-        origBtn.style.background = '#fff';
-        origBtn.style.borderColor = 'var(--aw-border)';
-        origBtn.style.color = 'var(--aw-ink-2)';
-      }
-    };
-  }
-
-  // ── If submitted + AI graded: load essay with red/green annotations ──
-  if (s.status === 'Submitted' && s.topicId && s.studentId) {
-    mText.innerHTML = '<span style="color:var(--aw-ink-3);font-size:.85rem">⏳ Đang tải bài đã nộp…</span>';
-    // Disable See Original until we have the real annotated content
-    if (origBtn) { origBtn.style.display = 'none'; }
+  // ── Load AI annotations if student has submitted (check regardless of status) ──
+  if (s.topicId && s.studentId) {
     AW.api('teacher.getAttemptDetail',{studentId:s.studentId, topicId:s.topicId, mode:s.mode||'inclass'})
       .then(function(res){
-        if(!res||!res.success||!res.data||!res.data.length){ mText.textContent=snapshot; return; }
+        if(!res||!res.success||!res.data||!res.data.length) return;
         var latest = res.data[res.data.length-1];
         var essay  = latest.essay || snapshot;
-        _origText  = (s.originalEssay && s.originalEssay.trim()) ? s.originalEssay : essay; // prefer DB original
         var fb = null;
         try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
-
-        var plainHtml = AW.esc(essay).replace(/\n/g,'<br>');
-
-        if (!fb || (!fb.gra_errors && !fb.lr_issues)) {
-          mText.innerHTML = plainHtml;
-          if (origBtn) { origBtn._annotatedHtml = plainHtml; origBtn.style.display=''; }
-          return;
+        if(!fb || (!fb.gra_errors && !fb.lr_issues)) {
+          mText.textContent = essay; return;
         }
-
-        // Build annotated HTML — match on PLAIN essay text, then escape
-        // (markFirst on AW.esc(essay) fails because e.wrong is plain text
-        //  but the search target has HTML-escaped chars like &amp; &lt; etc)
-        var html = essay; // work in plain text
-
+        var html = essay;
         function markFirst(text, target, open, close){
           if(!target||!target.trim()) return text;
-          var esc = target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-          return text.replace(new RegExp(esc,'i'), function(m){
-            return open + AW.esc(m) + close;
-          });
+          var esc = target.replace(/[.*+?^${}()|[\]\\]/g,'\$&');
+          return text.replace(new RegExp(esc,'i'), function(m){ return open+AW.esc(m)+close; });
         }
         (fb.gra_errors||[]).forEach(function(e){
           if(!e.wrong||!e.correct) return;
-          html = markFirst(html, e.wrong,
+          html=markFirst(html,e.wrong,
             '<span style="color:#D93025;text-decoration:line-through;text-decoration-color:#D93025">',
-            '</span><span style="color:#1E7E42"> →'+AW.esc(e.correct)+'</span>');
+            '</span><span style="color:#1E7E42"> \u2192'+AW.esc(e.correct)+'</span>');
         });
         (fb.lr_issues||[]).forEach(function(e){
           if(!e.original||!e.better) return;
-          html = markFirst(html, e.original,
+          html=markFirst(html,e.original,
             '<span style="color:#D93025;text-decoration:underline;text-decoration-color:#D93025">',
-            '</span><span style="color:#1E7E42"> →'+AW.esc(e.better)+'</span>');
+            '</span><span style="color:#1E7E42"> \u2192'+AW.esc(e.better)+'</span>');
         });
-        // Escape remaining plain-text parts (not inside span tags)
-        // Split by span blocks, escape text nodes only
-        html = html.replace(/(<span[^>]*>.*?<\/span>)|([^<]+)/g, function(m, spanBlock, textNode){
-          if (spanBlock) return spanBlock;
-          if (textNode) return AW.esc(textNode);
-          return m;
+        html=html.replace(/(<span[^>]*>.*?<\/span>)|([^<]+)/g,function(m,s1,t){
+          if(s1)return s1; if(t)return AW.esc(t); return m;
         });
-        var annotatedHtml = html.replace(/\n/g,'<br>');
-        mText.innerHTML = annotatedHtml;
-        mText.dataset.origText = _origText;
-
-        // Now show See Original with correct data
-        if (origBtn) {
-          var _ann = annotatedHtml;
-          var _plain = plainHtml;
-          var _showing = false;
-          origBtn.style.display = '';
-          origBtn.textContent = '👁 See Original';
-          origBtn.style.background='#fff'; origBtn.style.borderColor='var(--aw-border)'; origBtn.style.color='var(--aw-ink-2)';
-          origBtn.onclick = function(){
-            _showing = !_showing;
-            if (_showing) {
-              mText.innerHTML = _plain;
-              mText.setAttribute('contenteditable','false');
-              origBtn.textContent = '🎨 Show AI Annotations';
-              origBtn.style.background='#EAF6EF'; origBtn.style.borderColor='#1E7E42'; origBtn.style.color='#1A7A3C';
-            } else {
-              mText.innerHTML = _ann;
-              mText.setAttribute('contenteditable','true');
-              origBtn.textContent = '👁 See Original';
-              origBtn.style.background='#fff'; origBtn.style.borderColor='var(--aw-border)'; origBtn.style.color='var(--aw-ink-2)';
-            }
-          };
-        }
+        mText.innerHTML=html.replace(/\n/g,'<br>');
       })
-      .catch(function(){ mText.textContent = snapshot; });
+      .catch(function(){});
   }
 
-  // ── Realtime sync state ──────────────────────────────────────────
+    // ── Realtime sync state ──────────────────────────────────────────
   _annotLastSnapshot = snapshot;
   _annotModalDirty   = false;
   mText.oninput = function(){ _annotModalDirty = true; };
