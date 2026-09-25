@@ -329,6 +329,7 @@
           <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
           <div style="display:flex;align-items:center;gap:8px">
             <button id="seeOriginalBtn" style="display:none;font-size:.74rem;padding:3px 10px;background:#fff;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;color:var(--aw-ink-2);white-space:nowrap">👁 See Original</button>
+            <button id="openDocFromLiveBtn" style="display:none;font-size:.74rem;padding:3px 10px;background:#1A7A3C;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap">📄 Open Docs</button>
             <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
           </div>
         </div>
@@ -898,7 +899,7 @@ function wireAutoOverall(critInputs, overallInput){
   });
 }
 
-var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all', liveView='grid';
+var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all', liveView='grid', liveSort='status';
 // ── Realtime modal sync ───────────────────────────────────────────
 var _annotLastSnapshot = ''; // snapshot text at modal-open time
 var _annotModalDirty   = false; // true once teacher edits mText
@@ -975,6 +976,11 @@ function showLive(){
         // Task filter only (class is already selected in the header bar)
         '<span style="font-size:.78rem;font-weight:600;color:var(--aw-ink-3);white-space:nowrap">Bài:</span>'+
         '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
+        '<select class="aw-select" id="liveSortSel" style="padding:6px 10px;font-size:.82rem">'+
+          '<option value="status">Sort: Trạng thái</option>'+
+          '<option value="studentId">Sort: Student ID</option>'+
+          '<option value="words">Sort: Số từ</option>'+
+        '</select>'+
         '<div style="display:flex;gap:2px;background:var(--aw-surface-2);border-radius:8px;padding:3px">'+
           '<button class="aw-btn" id="viewGrid" style="padding:5px 12px;font-size:.8rem">▦ Grid</button>'+
           '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
@@ -1019,6 +1025,7 @@ function showLive(){
       '</div>';
 
     document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
+    document.getElementById('liveSortSel').onchange=function(){ liveSort=this.value; renderLive(); };
 
     // ── Session Timer ────────────────────────────────────────
     (function(){
@@ -1181,6 +1188,15 @@ function renderLive(){
     grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>No students are currently doing In-class Practice. Create an in-class task first.</p></div>';
     document.getElementById('liveStats').innerHTML='';return;
   }
+
+  // Sort by current liveSort setting
+  var sortOrder = {Writing:0, Idle:1, Offline:2, Submitted:3};
+  filtered = filtered.slice().sort(function(a,b){
+    if (liveSort === 'status') return (sortOrder[a.status]||9)-(sortOrder[b.status]||9);
+    if (liveSort === 'studentId') return String(a.studentId).localeCompare(String(b.studentId));
+    if (liveSort === 'words') return (parseInt(b.wordCount)||0)-(parseInt(a.wordCount)||0);
+    return 0; // default: server order
+  });
   var counts={Writing:0,Idle:0,Offline:0,Submitted:0};
   filtered.forEach(function(s){ counts[s.status]=(counts[s.status]||0)+1; });
   grid.className = (liveView==='list') ? 'aw-live-list' : 'aw-live-grid';
@@ -1397,6 +1413,27 @@ function openAnnotation(s){
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
 
+  // ── Open Docs button — shown when student has submitted ──────────
+  var openDocBtn = document.getElementById('openDocFromLiveBtn');
+  if (openDocBtn) {
+    openDocBtn.style.display = 'none';
+    if (s.status === 'Submitted' && s.studentId && s.topicId) {
+      openDocBtn.style.display = '';
+      openDocBtn.onclick = function(){
+        openDocBtn.disabled = true; openDocBtn.textContent = '⏳…';
+        AW.api('write.exportDoc', {
+          studentId:s.studentId, name:s.name||s.studentId,
+          class:s.class||curClass(), topicId:s.topicId, mode:s.mode||'inclass',
+          topic:s.topic||'', gkey:s.studentId+'_'+s.topicId, regenerate:false
+        }).then(function(res){
+          openDocBtn.disabled=false; openDocBtn.textContent='📄 Open Docs';
+          if(res&&res.success&&res.data&&res.data.url) window.open(res.data.url,'_blank');
+          else AW.toast((res&&res.error)||'Không tạo được Doc','err');
+        }).catch(function(){ openDocBtn.disabled=false; openDocBtn.textContent='📄 Open Docs'; AW.toast('Lỗi','err'); });
+      };
+    }
+  }
+
   // ── See Original button — show whenever mText has content ──────
   // _origText: uses originalEssay from DB (first heartbeat, pre-annotation)
   // Falls back to current snapshot if originalEssay not yet in DB
@@ -1458,24 +1495,36 @@ function openAnnotation(s){
           return;
         }
 
-        // Build annotated HTML — red strikethrough + green correction
-        var html = AW.esc(essay);
+        // Build annotated HTML — match on PLAIN essay text, then escape
+        // (markFirst on AW.esc(essay) fails because e.wrong is plain text
+        //  but the search target has HTML-escaped chars like &amp; &lt; etc)
+        var html = essay; // work in plain text
+
         function markFirst(text, target, open, close){
           if(!target||!target.trim()) return text;
           var esc = target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-          return text.replace(new RegExp(esc,'i'), function(m){ return open+m+close; });
+          return text.replace(new RegExp(esc,'i'), function(m){
+            return open + AW.esc(m) + close;
+          });
         }
         (fb.gra_errors||[]).forEach(function(e){
           if(!e.wrong||!e.correct) return;
-          html = markFirst(html, AW.esc(e.wrong),
+          html = markFirst(html, e.wrong,
             '<span style="color:#D93025;text-decoration:line-through;text-decoration-color:#D93025">',
             '</span><span style="color:#1E7E42"> →'+AW.esc(e.correct)+'</span>');
         });
         (fb.lr_issues||[]).forEach(function(e){
           if(!e.original||!e.better) return;
-          html = markFirst(html, AW.esc(e.original),
+          html = markFirst(html, e.original,
             '<span style="color:#D93025;text-decoration:underline;text-decoration-color:#D93025">',
             '</span><span style="color:#1E7E42"> →'+AW.esc(e.better)+'</span>');
+        });
+        // Escape remaining plain-text parts (not inside span tags)
+        // Split by span blocks, escape text nodes only
+        html = html.replace(/(<span[^>]*>.*?<\/span>)|([^<]+)/g, function(m, spanBlock, textNode){
+          if (spanBlock) return spanBlock;
+          if (textNode) return AW.esc(textNode);
+          return m;
         });
         var annotatedHtml = html.replace(/\n/g,'<br>');
         mText.innerHTML = annotatedHtml;
