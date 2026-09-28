@@ -29,6 +29,37 @@
   .res-caret{opacity:.55;font-size:.7em}
   .res-new{display:inline-block;background:var(--aw-writing);color:#fff;font-size:.6rem;font-weight:700;
     text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
+  .res-arch{display:inline-block;background:#EEF1F4;color:var(--aw-ink-2);border:1px solid var(--aw-border);font-size:.6rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
+  /* data retention modal */
+  .rt-bg{position:fixed;inset:0;background:rgba(15,23,32,.55);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
+  .rt-box{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:calc(100vh - 32px);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:awPop .16s ease}
+  .rt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--aw-border-2);font-weight:800;font-size:1.05rem}
+  .rt-x{background:none;border:none;font-size:1.5rem;line-height:1;color:var(--aw-ink-3);cursor:pointer;padding:0 4px}
+  .rt-body{padding:16px 18px;overflow-y:auto}
+  .rt-meter{background:var(--aw-surface-2);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+  .rt-meter-top{display:flex;justify-content:space-between;font-size:.86rem;margin-bottom:6px}
+  .rt-bar{height:8px;background:#E5E9EE;border-radius:5px;overflow:hidden}
+  .rt-bar>div{height:100%;background:var(--aw-primary);border-radius:5px}
+  .rt-bar>div.rt-over-bg{background:var(--aw-danger)}
+  .rt-over{color:var(--aw-danger)}
+  .rt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .rt-chip{font-size:.72rem;background:#fff;border:1px solid var(--aw-border);border-radius:10px;padding:2px 8px;color:var(--aw-ink-2)}
+  .rt-note{font-size:.84rem;line-height:1.5;color:var(--aw-ink-2);margin:0 0 10px}
+  .rt-warn{background:#FEF2F2;border:1px solid #FADCD9;color:#B42318;border-radius:10px;padding:9px 12px;font-size:.84rem;margin-bottom:10px}
+  .rt-queued{background:#FFF8EC;border:1px solid #F3D9A4;color:#8A6410;border-radius:10px;padding:9px 12px;font-size:.84rem;margin-bottom:10px}
+  .rt-list{display:flex;flex-direction:column;gap:6px}
+  .rt-item{display:flex;align-items:center;gap:10px;border:1px solid var(--aw-border);border-radius:10px;padding:9px 11px;cursor:pointer}
+  .rt-item input{flex:0 0 auto;width:16px;height:16px}
+  .rt-kind{flex:0 0 auto;font-size:.64rem;font-weight:800;padding:2px 6px;border-radius:7px;background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .rt-main{flex:1;min-width:0;display:flex;flex-direction:column;font-size:.86rem}
+  .rt-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rt-main small{color:var(--aw-ink-3);font-size:.74rem}
+  .rt-rows{flex:0 0 auto;font-size:.76rem;color:var(--aw-ink-3);white-space:nowrap}
+  .rt-empty{font-size:.86rem;color:var(--aw-ink-3);margin:4px 0}
+  .rt-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
+  .rt-msg{flex:1 1 100%;font-size:.82rem;color:var(--aw-ink-2)}
+  .rt-msg:empty{display:none}
   .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
   .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
     border-radius:18px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
@@ -710,6 +741,7 @@ function bootClasses(){
     injectClassBar();
     if(!myClasses.length){ showClasses(); }
     else { routeInitial(); }
+    rtCheckOnLogin();
   });
 }
 
@@ -2334,7 +2366,8 @@ function renderResults(){
     var _last=groupLastTs(g);
     var newBadge=(_last && (Date.now()-_last) < 86400000 && isResultUnseen(gkey,_last))
       ? ' <span class="res-new" title="Nộp trong 24 giờ qua — chưa xem">new</span>' : '';
-    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+'</td>'+
+    var archBadge=g.archived?' <span class="res-arch" title="Đã lưu trữ — bài viết và feedback đầy đủ nằm trong Google Doc">lưu trữ</span>':'';
+    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+archBadge+'</td>'+
       '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell;
     picks.forEach(function(p,pi){
       // map pick index to actual write index (best uses bestI)
@@ -2363,6 +2396,12 @@ function renderResults(){
     cell.style.cursor='pointer';
     cell.title='Click to view this attempt';
     cell.onclick=function(){ viewEssays(cell.dataset.openKey, +cell.dataset.openWi); };
+  });
+  // archived results are read-only: their raw submission rows were purged,
+  // so saveManualScore would have nothing to write to
+  AW.els('tr[data-key]').forEach(function(tr){
+    var g=findResult(tr.dataset.key); if(!g||!g.archived) return;
+    tr.querySelectorAll('.ms-in,.ms-note,.ms-save,.pv-note,.pv-save').forEach(function(el){ el.disabled=true; });
   });
   // manual score save + auto-average overall (IELTS rounding)
   AW.els('.grp-best').forEach(function(cell){
@@ -2441,7 +2480,11 @@ window.viewEssays=function(gkey, writeIdx){
           '<div style="flex:1">'+crit(c1label,x.tr)+crit('Coherence & Cohesion',x.cc)+crit('Lexical Resource',x.lr)+crit('Grammar',x.gra)+'</div>'+
         '</div>'+
         '<div id="detail_'+i+'" style="color:var(--aw-ink-3);font-size:.85rem">'+
-          '<span class="aw-spin aw-spin-dark"></span> Đang tải nội dung bài viết…'+
+          (x.archived
+            ? '📦 Bài này đã được lưu trữ. '+(g.docUrl
+                ? '<a href="'+AW.esc(g.docUrl)+'" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Mở Google Doc</a> để xem bài viết và feedback.'
+                : 'Không có Google Doc cho bài này.')
+            : '<span class="aw-spin aw-spin-dark"></span> Đang tải nội dung bài viết…')+
         '</div>'+
       '</div>';
     }).join('')+
@@ -2450,11 +2493,15 @@ window.viewEssays=function(gkey, writeIdx){
   document.getElementById('essayModalBody').innerHTML = header + scoreOnlyBody;
   document.getElementById('essayModal').classList.add('show');
 
-  // Now fetch full essay+feedback lazily
+  // Now fetch full essay+feedback lazily. Archived attempts (oldest first)
+  // have no raw row any more, so raw detail j maps to write j+nArch.
+  var nArch=(g.writes||[]).filter(function(x){ return x.archived; }).length;
+  if (nArch && nArch===(g.writes||[]).length) return;
   AW.api('teacher.getAttemptDetail',{ studentId:g.studentId, topicId:g.topicId, mode:curMode })
     .then(function(res){
       if (!res||!res.success) return;
-      res.data.forEach(function(d, i){
+      res.data.forEach(function(d, j){
+        var i=j+nArch;
         if (writeIdx!=null && writeIdx>=0 && i!==writeIdx) return;
         var el = document.getElementById('detail_'+i);
         if (!el) return;
@@ -2542,6 +2589,11 @@ function showRecreateWarning(gkey){
 
 function runExportDoc(gkey, regenerate){
   var g=findResult(gkey); if(!g) return;
+  if(g.archived){
+    if(g.docUrl) window.open(g.docUrl,'_blank');
+    else AW.toast('Bài đã lưu trữ và không có Google Doc.','err',4000);
+    return;
+  }
   AW.toast(regenerate ? 'Đang tạo lại Doc…' : 'Đang mở Doc…');
   AW.api('write.exportDoc',{
     studentId:g.studentId, topicId:g.topicId,
@@ -3149,6 +3201,15 @@ function showSettings(){
       '<p style="margin:10px 0 0;font-size:.78rem;color:var(--aw-ink-3)">'+
         '→ <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Get free key at Google AI Studio</a>'+
       '</p>'+
+    '</div>'+
+    /* ── Data retention ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+      '<h3 style="margin:0 0 6px">Dữ liệu & lưu trữ</h3>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">'+
+        'Bài quá 21 ngày sau hạn nộp được lưu trữ: điểm vẫn nằm trong Results, bài viết + feedback nằm trong Google Doc của từng SV. '+
+        'Giữ dữ liệu thô dưới 2.000 dòng để ứng dụng luôn nhanh.'+
+      '</p>'+
+      '<button class="aw-btn aw-btn-ghost" onclick="openRetention()" style="padding:8px 16px">🧹 Kiểm tra & dọn dữ liệu</button>'+
     '</div>'+
     /* ── Account ── */
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
@@ -3800,6 +3861,110 @@ function saveTrSet(){
 }
 
 /*═══════════ init ═══════════*/
+/*═══════════ DATA RETENTION ═══════════
+  Backend: gas/Retention.gs. Raw rows (essays, AI feedback JSON, translate
+  runs) become purgeable 21 days after the deadline. Purging archives each
+  student's scores into ResultArchive (merged back into Results) and keeps
+  the essay text in their Google Doc. The server does the work in the
+  background, so this only queues it. Reminded once per login session. */
+var RT_KIND = { homework:'HW', inclass:'IC', free:'FW', translate:'TR' };
+var RT_TAB  = { 'Homework':'Homework', 'In-class Practice':'In-class', 'Free-writing':'Free-writing',
+                'History':'History', 'Annotations':'Annotations', 'FeedbackQueries':'Queries', 'TranslateResults':'Translate' };
+
+function rtCheckOnLogin(){
+  try { if (sessionStorage.getItem('aw_rt_checked')) return; sessionStorage.setItem('aw_rt_checked','1'); } catch(e){}
+  AW.api('retention.status',{ teacherEmail:sess.email }).then(function(res){
+    if(!res||!res.success||!res.data) return;          // backend without Retention.gs: stay silent
+    var d=res.data, queued=rtQueuedKeys(d);
+    var fresh=(d.items||[]).filter(function(it){ return !queued[it.kind+'|'+it.id]; });
+    if(fresh.length || d.total>d.budget || d.triggerOn===false) showRetention(d);
+  }).catch(function(){});
+}
+function rtQueuedKeys(d){
+  var q={}; (d.queued||[]).forEach(function(j){ q[j.kind+'|'+j.id]=true; }); return q;
+}
+window.openRetention=function(){
+  AW.toast('Đang kiểm tra dữ liệu…');
+  AW.api('retention.status',{ teacherEmail:sess.email }).then(function(res){
+    if(res&&res.success&&res.data) showRetention(res.data);
+    else AW.toast((res&&res.error)||'Backend chưa cài Retention.gs','err',5000);
+  }).catch(function(){ AW.toast('Không kết nối được máy chủ','err'); });
+};
+
+function showRetention(d){
+  var old=document.getElementById('rtBg'); if(old) old.remove();
+  var queued=rtQueuedKeys(d);
+  var items=(d.items||[]).filter(function(it){ return !queued[it.kind+'|'+it.id]; });
+  var over=d.total>d.budget, pct=Math.min(100,Math.round(d.total/Math.max(1,d.budget)*100));
+  var chips=Object.keys(d.counts||{}).filter(function(k){ return d.counts[k]>0; }).map(function(k){
+    return '<span class="rt-chip">'+AW.esc(RT_TAB[k]||k)+' <b>'+d.counts[k]+'</b></span>';
+  }).join('');
+  var list=items.map(function(it){
+    var end=it.deadline ? 'hạn '+AW.fmtDate(it.deadline) : 'hoạt động cuối '+AW.fmtDate(it.endAt);
+    var ago=Math.floor((Date.now()-new Date(it.endAt).getTime())/86400000);
+    return '<label class="rt-item"><input type="checkbox" checked data-kind="'+AW.esc(it.kind)+'" data-id="'+AW.esc(it.id)+'">'+
+      '<span class="rt-kind">'+(RT_KIND[it.kind]||it.kind)+'</span>'+
+      '<span class="rt-main"><b title="'+AW.esc(it.title)+'">'+AW.esc(it.title)+'</b>'+
+        '<small>'+AW.esc(it.className||it.class||'')+' · '+end+' · '+ago+' ngày trước</small></span>'+
+      '<span class="rt-rows">'+it.rows+' dòng</span></label>';
+  }).join('');
+  var bg=document.createElement('div');
+  bg.className='rt-bg'; bg.id='rtBg';
+  bg.innerHTML=
+    '<div class="rt-box" role="dialog" aria-modal="true" aria-labelledby="rtTitle">'+
+      '<div class="rt-head"><span id="rtTitle">🧹 Dọn dữ liệu định kỳ</span><button class="rt-x" id="rtX" aria-label="Đóng">×</button></div>'+
+      '<div class="rt-body">'+
+        '<div class="rt-meter">'+
+          '<div class="rt-meter-top"><span>Dữ liệu thô trong Sheet</span><b class="'+(over?'rt-over':'')+'">'+d.total+' / '+d.budget+' dòng</b></div>'+
+          '<div class="rt-bar"><div class="'+(over?'rt-over-bg':'')+'" style="width:'+pct+'%"></div></div>'+
+          (chips?'<div class="rt-chips">'+chips+'</div>':'')+
+        '</div>'+
+        (d.triggerOn===false?'<div class="rt-warn">⚠ Trigger nền chưa được bật (chạy <b>rtInstall()</b> trong Apps Script). Email sau deadline và việc dọn dữ liệu sẽ không chạy.</div>':'')+
+        ((d.queued||[]).length?'<div class="rt-queued">⏳ Đang xử lý nền: '+d.queued.map(function(j){ return AW.esc(j.title); }).join(', ')+'. Thầy/cô sẽ nhận email khi xong.</div>':'')+
+        (items.length
+          ? '<p class="rt-note">Các bài dưới đây đã quá <b>'+d.days+' ngày</b> sau hạn nộp. Khi dọn: điểm, số lần nộp, điểm & nhận xét GV <b>vẫn hiển thị trong Results</b>; '+
+            'bài viết + feedback đầy đủ nằm trong <b>Google Doc</b> của từng SV (tự tạo nếu chưa có). Dữ liệu thô bị xoá khỏi Sheet.</p>'+
+            '<div class="rt-list">'+list+'</div>'
+          : '<p class="rt-empty">Chưa có bài nào quá '+d.days+' ngày sau hạn nộp.'+
+            (over?' Tổng dữ liệu vượt mức nhưng phần còn lại chưa đủ điều kiện dọn (hoặc thuộc GV khác dùng chung Sheet).':'')+'</p>')+
+      '</div>'+
+      '<div class="rt-foot"><span class="rt-msg" id="rtMsg"></span>'+
+        '<button class="aw-btn aw-btn-ghost" id="rtLater">'+(items.length?'Để sau':'Đóng')+'</button>'+
+        (items.length?'<button class="aw-btn aw-btn-primary" id="rtGo">Dọn '+items.length+' mục</button>':'')+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(bg);
+  var close=function(){ bg.remove(); };
+  bg.addEventListener('click',function(e){ if(e.target===bg) close(); });
+  document.getElementById('rtX').onclick=close;
+  document.getElementById('rtLater').onclick=close;
+  var go=document.getElementById('rtGo');
+  if(!go) return;
+  var picked=function(){ return AW.els('.rt-item input:checked',bg); };
+  AW.els('.rt-item input',bg).forEach(function(cb){
+    cb.onchange=function(){ var n=picked().length; go.textContent='Dọn '+n+' mục'; go.disabled=!n; };
+  });
+  go.onclick=function(){
+    var sel=picked().map(function(cb){ return { kind:cb.dataset.kind, id:cb.dataset.id }; });
+    if(!sel.length) return;
+    go.disabled=true; go.textContent='Đang gửi…';
+    AW.api('retention.purge',{ teacherEmail:sess.email, items:sel }).then(function(res){
+      var msg=document.getElementById('rtMsg');
+      if(res&&res.success){
+        msg.textContent='✓ Đã xếp hàng '+res.data.queued+' mục. Hệ thống xử lý trong nền (chờ lúc không có SV đang viết) và gửi email khi xong.';
+        go.remove();
+        document.getElementById('rtLater').textContent='Đóng';
+      } else {
+        msg.textContent='⚠ '+((res&&res.error)||'Không gửi được yêu cầu');
+        go.disabled=false; go.textContent='Thử lại';
+      }
+    }).catch(function(){
+      document.getElementById('rtMsg').textContent='⚠ Không kết nối được máy chủ';
+      go.disabled=false; go.textContent='Thử lại';
+    });
+  };
+}
+
 function routeInitial(){
   var hash=(location.hash||'').replace('#','');
   if(hash==='live'){showLive();AW.setActiveNav('live');}

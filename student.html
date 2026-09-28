@@ -607,6 +607,12 @@ function renderProgress(){
 window.reviewGroupWrite=function(gi,wi){
   var g=(window._myGroups||[])[gi]; if(!g)return;
   var w=(g.writes||[])[wi]; if(!w){AW.toast('You have not completed this attempt yet.','ok');return;}
+  // archived attempts (21+ days after the deadline) live on in the feedback Doc only
+  if(w.archived){
+    if(g.docUrl) window.open(g.docUrl,'_blank');
+    else AW.toast('Bài này đã được lưu trữ. Xem bài viết và nhận xét trong email kết quả gửi sau hạn nộp.','ok',5000);
+    return;
+  }
   // build a flat record for reviewFeedback
   window._myResults=window._myResults||[];
   var rec={topic:g.topic,topicId:g.topicId,mode:g.mode,attempt:w.attempt,
