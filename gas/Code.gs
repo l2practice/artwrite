@@ -394,6 +394,24 @@ function keyRowsFor(sh, head, last, studentId, topicId) {
   return ks;
 }
 
+/*  deadlineMs — the moment submission closes. The assignment form always
+    stores date + time (default 23:59), so the deadline is exact: no grace
+    period. A legacy date-only value ("2026-08-17", or the midnight Date
+    Sheets turns it into) means the end of that day.                      */
+function deadlineMs(v) {
+  if (v == null || v === '') return NaN;
+  var d;
+  if (v instanceof Date) {
+    d = new Date(v.getTime());
+    if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) d.setHours(23, 59, 59, 0);
+    return d.getTime();
+  }
+  var s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s += 'T23:59:59';   // local (script) time zone
+  d = new Date(s);
+  return d.getTime();
+}
+
 function nowIso()      { return new Date().toISOString(); }
 function uid(prefix)   { return (prefix||'') + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36); }
 
@@ -856,7 +874,8 @@ function getAssignments(p) {
       aiNotes:          r['AI Notes']   || '',
       requiredAttempts: r['Required Attempts'],
       durationMin:      r['Duration Min'],
-      deadline:         r['Deadline']
+      deadline:         r['Deadline'],
+      isPastDeadline:   Date.now() > deadlineMs(r['Deadline'])   // student.html blocks opening it
     };
   }) };
 }
@@ -960,9 +979,10 @@ function saveResult(p) {
   if (p.mode !== 'free' && p.topicId) {
     var asg = readAll(T.ASSIGN).filter(function(r){ return String(r['Topic ID'])===String(p.topicId); })[0];
     if (asg && asg['Deadline']) {
-      var dl = new Date(asg['Deadline']);
-      if (!isNaN(dl) && new Date() > new Date(dl.getTime()+86400000))
-        return { success:false, error:'Đã quá hạn nộp bài (deadline: '+asg['Deadline']+').', locked:true };
+      var dl = deadlineMs(asg['Deadline']);
+      if (!isNaN(dl) && Date.now() > dl)
+        return { success:false, error:'Đã quá hạn nộp bài (deadline: '+
+          Utilities.formatDate(new Date(dl), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm')+').', locked:true };
     }
   }
 
@@ -1582,7 +1602,7 @@ function exportFeedbackDoc(p) {
 
   var _req0 = asg && asg['Required Attempts'] ? (parseInt(asg['Required Attempts'],10)||3) : 3;
   var _dlPassed0=false;
-  if (asg && asg['Deadline']){ var _d0=new Date(asg['Deadline']); if (!isNaN(_d0)&&new Date()>new Date(_d0.getTime()+86400000)) _dlPassed0=true; }
+  if (asg && asg['Deadline']){ var _d0=deadlineMs(asg['Deadline']); if (!isNaN(_d0)&&Date.now()>_d0) _dlPassed0=true; }
   var _complete0=(currentCnt>=_req0)||_dlPassed0;
   if (p.regenerate) alreadySummarized=false;
   var needsSummary=_complete0&&!alreadySummarized;

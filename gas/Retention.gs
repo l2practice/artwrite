@@ -8,8 +8,8 @@
     • In-class   — kept as is (≈500 rows/semester); the teacher resets the
                    tabs at the end of the semester. No mail, no purge.
     • Homework   — automatic.
-                   At the deadline (when submission closes: deadline + 1
-                   day, the same cut-off saveResult uses): every student
+                   At the deadline (saveResult closes submission at that
+                   exact moment; the worker runs every 15 min): every student
                    who submitted gets ONE email (attempts, bands, feedback
                    Doc link, "removed from the app on <date>"); every
                    student who did not gets a warning; the teacher gets a
@@ -50,7 +50,6 @@
 var RT = {
   DAYS:         21,                  // translate: purgeable this long after the deadline
   HW_DAYS:      7,                   // homework: raw rows kept this long after the deadline
-  GRACE_MS:     24 * 3600 * 1000,    // saveResult accepts work until deadline + 1 day
   FREE_DAYS:    10,                  // free-writing: keep essay + AI feedback this long
   FREE_ATTEMPTS:3,                   // free-writing: attempts that complete a topic
   ROW_BUDGET:   2000,                // target for the heavy tabs combined
@@ -88,14 +87,16 @@ function rtDispatch(action, p) {
 function rtInstall() {
   rtTab(RT.ARCHIVE); rtTab(RT.MAILLOG);
   rtDropTriggers('rtHourly');
-  ScriptApp.newTrigger('rtHourly').timeBased().everyHours(1).create();
+  // every 15 min so deadline mail goes out within 15 min of the deadline;
+  // an idle pass reads a few small columns (a few seconds)
+  ScriptApp.newTrigger('rtHourly').timeBased().everyMinutes(15).create();
   var props = PropertiesService.getScriptProperties();
   if (!props.getProperty(RT.P_SINCE)) props.setProperty(RT.P_SINCE, String(Date.now()));
   Logger.log('Retention installed. Deadline mail for assignments closing after ' +
              new Date(Number(props.getProperty(RT.P_SINCE))));
 }
 
-function rtHourly() { rtWorker(); }
+function rtHourly() { rtWorker(); }   // name kept for installed triggers; runs every 15 min
 function rtKick()   { rtDropTriggers('rtKick'); rtWorker(); }
 
 /*  rtWorker — one background pass: free-writing first (a student may be
@@ -429,9 +430,9 @@ function rtHomeworkSweep(t0) {
   for (var i = 0; i < list.length; i++) {
     var a = list[i];
     if (a['Archived At'] || a['Mode'] !== 'homework') continue;
-    var dl = rtMs(a['Deadline']);
+    var dl = deadlineMs(a['Deadline']);            // Code.gs — same cut-off saveResult uses
     if (isNaN(dl)) continue;                       // no deadline → kept until the semester reset
-    var closeAt = dl + RT.GRACE_MS, legacy = closeAt < since;
+    var closeAt = dl, legacy = closeAt < since;
     var silent = legacy || a['Active'] === false || String(a['Active']).toLowerCase() === 'false';
     if (!silent && !a['Notified At']) {
       if (closeAt > now) continue;                 // still open
@@ -469,7 +470,7 @@ function rtNotifyHomework(a, t0, ctx) {
 
   var sent = {}, log = rtCols(RT.MAILLOG, ['Topic ID','Student ID']);
   for (var k = 0; k < log.n; k++) if (String(rtAt(log, 'Topic ID', k)) === tid) sent[String(rtAt(log, 'Student ID', k)).trim()] = true;
-  var logSh = rtTab(RT.MAILLOG), purgeOn = rtFmt(rtMs(a['Deadline']) + RT.HW_DAYS * RT_DAY).slice(0, 10);
+  var logSh = rtTab(RT.MAILLOG), purgeOn = rtFmt(deadlineMs(a['Deadline']) + RT.HW_DAYS * RT_DAY).slice(0, 10);
   for (var i = 0; i < roster.length; i++) {
     var s = roster[i], sid = String(s['Student ID']).trim(), rows = groups[sid];
     if (sent[sid]) continue;
@@ -516,7 +517,7 @@ function rtMissingMail(s, a, klass, required) {
     '<div style="background:#FEF2F2;border:1px solid #FADCD9;border-left:4px solid #B42318;color:#7A1A12;padding:12px 14px;border-radius:8px;margin:10px 0">' +
     '<b>⚠ Cảnh báo: bạn chưa nộp bài Homework.</b><br>' +
     'Bài <b>' + rtEsc(a['Topic']) + '</b> (' + task + ' · lớp ' + rtEsc(klass['Class Name'] || a['Class']) +
-    ') đã hết hạn lúc ' + rtFmt(a['Deadline']) + '. Hệ thống không ghi nhận lần nộp nào của bạn (0/' + required + ' lần).</div>' +
+    ') đã hết hạn lúc ' + rtFmt(deadlineMs(a['Deadline'])) + '. Hệ thống không ghi nhận lần nộp nào của bạn (0/' + required + ' lần).</div>' +
     '<p>Việc không hoàn thành bài tập về nhà được ghi nhận vào kết quả học tập và có thể ảnh hưởng đến điểm quá trình của bạn. ' +
     'Nếu bạn có lý do chính đáng hoặc gặp sự cố khi nộp bài, hãy liên hệ giảng viên sớm nhất có thể.</p>' +
     '<p>Hãy theo dõi các bài tập tiếp theo trong mục <b>Assignments</b> của ArticuWrite để không bỏ lỡ hạn nộp.</p>',
@@ -528,7 +529,7 @@ function rtHomeworkMail(s, a, klass, rows, required, docUrl, purgeOn) {
   return rtMailWrap(
     '<p>Chào <b>' + rtEsc(s['Name'] || s['Student ID'] || '') + '</b>,</p>' +
     '<p>Bài Homework <b>' + rtEsc(a['Topic']) + '</b> (' + task + ' · lớp ' + rtEsc(klass['Class Name'] || a['Class']) +
-    ') đã hết hạn nộp lúc ' + rtFmt(a['Deadline']) + '. Kết quả của bạn:</p>' +
+    ') đã hết hạn nộp lúc ' + rtFmt(deadlineMs(a['Deadline'])) + '. Kết quả của bạn:</p>' +
     rtAttemptsHtml(rows, required, rtAiOn(klass)) + rtDocButton(docUrl) +
     '<p style="background:#FFF8EC;border:1px solid #F3D9A4;color:#8A6410;padding:10px 12px;border-radius:8px">' +
     '⏳ Bài viết và nhận xét AI sẽ được <b>xoá khỏi ứng dụng vào ngày ' + purgeOn + '</b> (' + RT.HW_DAYS + ' ngày sau hạn nộp). ' +
@@ -601,7 +602,7 @@ function rtTeacherMail(a, klass, roster, groups, required, purgeOn) {
   }).join('');
   return rtMailWrap(
     '<p>Bài Homework <b>' + rtEsc(a['Topic']) + '</b> — lớp ' + rtEsc(klass['Class Name'] || a['Class']) +
-    ' đã hết hạn nộp lúc ' + rtFmt(a['Deadline']) + '.</p>' +
+    ' đã hết hạn nộp lúc ' + rtFmt(deadlineMs(a['Deadline'])) + '.</p>' +
     '<ul style="padding-left:18px">' +
     '<li>Đã nộp: <b>' + done.length + '/' + roster.length + '</b> — đã nhận email kết quả + link Google Doc.</li>' +
     '<li>Chưa nộp: <b style="color:#B42318">' + missing.length + '</b> — đã nhận email cảnh báo.</li>' +
@@ -1025,7 +1026,7 @@ function rtScheduleKick(minutes) {
     var exists = ScriptApp.getProjectTriggers().some(function(t){ return t.getHandlerFunction() === 'rtKick'; });
     if (!exists) ScriptApp.newTrigger('rtKick').timeBased().after(Math.max(1, minutes) * 60000).create();
   } catch (e) {
-    // scope missing / trigger quota — the hourly trigger still picks the queue up
+    // scope missing / trigger quota — the 15-min trigger still picks the queue up
   }
 }
 function rtDropTriggers(handler) {
