@@ -3209,8 +3209,9 @@ function showSettings(){
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
       '<h3 style="margin:0 0 6px">Dữ liệu & lưu trữ</h3>'+
       '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">'+
-        'Bài quá 21 ngày sau hạn nộp được lưu trữ: điểm vẫn nằm trong Results, bài viết + feedback nằm trong Google Doc của từng SV. '+
-        'Giữ dữ liệu thô dưới 2.000 dòng để ứng dụng luôn nhanh.'+
+        '<b>Homework</b>: tự động sau 21 ngày kể từ hạn nộp — gửi mail tổng kết cho SV và GV, rồi lưu trữ. '+
+        '<b>Free-writing</b>: tự động sau 10 ngày. <b>In-class</b>: giữ nguyên đến khi reset cuối kỳ. '+
+        '<b>Translate</b>: dọn tại đây. Bài đã lưu trữ vẫn có điểm trong Results; bấm vào sẽ mở Google Doc.'+
       '</p>'+
       '<button class="aw-btn aw-btn-ghost" onclick="openRetention()" style="padding:8px 16px">🧹 Kiểm tra & dọn dữ liệu</button>'+
     '</div>'+
@@ -3880,7 +3881,9 @@ function rtCheckOnLogin(){
     if(!res||!res.success||!res.data) return;          // backend without Retention.gs: stay silent
     var d=res.data, queued=rtQueuedKeys(d);
     var fresh=(d.items||[]).filter(function(it){ return !queued[it.kind+'|'+it.id]; });
-    if(fresh.length || d.total>d.budget || d.triggerOn===false) showRetention(d);
+    // homework / free-writing retire themselves; only a manual item (translate)
+    // or a missing trigger is worth interrupting the teacher for
+    if(fresh.length || d.triggerOn===false) showRetention(d);
   }).catch(function(){});
 }
 function rtQueuedKeys(d){
@@ -3925,11 +3928,10 @@ function showRetention(d){
         (d.triggerOn===false?'<div class="rt-warn">⚠ Trigger nền chưa được bật (chạy <b>rtInstall()</b> trong Apps Script). Email sau deadline và việc dọn dữ liệu sẽ không chạy.</div>':'')+
         ((d.queued||[]).length?'<div class="rt-queued">⏳ Đang xử lý nền: '+d.queued.map(function(j){ return AW.esc(j.title); }).join(', ')+'. Thầy/cô sẽ nhận email khi xong.</div>':'')+
         (items.length
-          ? '<p class="rt-note">Các bài dưới đây đã quá <b>'+d.days+' ngày</b> sau hạn nộp. Khi dọn: điểm, số lần nộp, điểm & nhận xét GV <b>vẫn hiển thị trong Results</b>; '+
-            'bài viết + feedback đầy đủ nằm trong <b>Google Doc</b> của từng SV (tự tạo nếu chưa có). Dữ liệu thô bị xoá khỏi Sheet.</p>'+
+          ? '<p class="rt-note">Các bài Translate dưới đây đã quá <b>'+d.days+' ngày</b> sau hạn. Khi dọn: số lần làm, điểm cao nhất, số câu đã qua '+
+            '<b>vẫn hiển thị trong Results</b>; dữ liệu từng lượt bị xoá khỏi Sheet. (Homework và Free-writing được lưu trữ tự động; In-class giữ đến cuối kỳ.)</p>'+
             '<div class="rt-list">'+list+'</div>'
-          : '<p class="rt-empty">Chưa có bài nào quá '+d.days+' ngày sau hạn nộp.'+
-            (over?' Tổng dữ liệu vượt mức nhưng phần còn lại chưa đủ điều kiện dọn (hoặc thuộc GV khác dùng chung Sheet).':'')+'</p>')+
+          : '<p class="rt-empty">Không có bài Translate nào cần dọn. Homework (21 ngày) và Free-writing (10 ngày) được lưu trữ tự động; In-class giữ đến khi reset cuối kỳ.</p>')+
       '</div>'+
       '<div class="rt-foot"><span class="rt-msg" id="rtMsg"></span>'+
         '<button class="aw-btn aw-btn-ghost" id="rtLater">'+(items.length?'Để sau':'Đóng')+'</button>'+
