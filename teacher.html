@@ -2448,6 +2448,9 @@ function renderResults(){
 // view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
 window.viewEssays=function(gkey, writeIdx){
   var g=findResult(gkey); if(!g){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
+  // essay + AI feedback of an archived attempt were removed — the Doc is the record
+  var wSel=(writeIdx!=null && writeIdx>=0) ? (g.writes||[])[writeIdx] : null;
+  if (g.docUrl && ((wSel && wSel.archived) || (!wSel && g.archived))) { window.open(g.docUrl,'_blank'); return; }
   markResultSeen(gkey, groupLastTs(g));
   AW.els('tr[data-key]').forEach(function(tr){
     if(tr.dataset.key===gkey){ var b=tr.querySelector('.res-new'); if(b) b.remove(); }

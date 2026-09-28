@@ -4,51 +4,45 @@
   Goal: keep the working tabs small (target < 2,000 raw rows) without
   losing any result.
 
-  1. DEADLINE MAIL (hourly trigger)
-     When a homework / in-class assignment closes (deadline + 1 day, the
-     same cut-off saveResult uses), every student in the class gets ONE
-     email: attempts, band per attempt, best band, teacher score + note,
-     and the link to their feedback Google Doc (created if missing).
-     The teacher gets one summary email.
+  1. DEADLINE MAIL — homework / in-class (hourly trigger)
+     When an assignment closes (deadline + 1 day, the same cut-off
+     saveResult uses), every student in the class gets ONE email:
+     attempts, band per attempt, best band, teacher score + note, and the
+     link to their feedback Google Doc (created if missing). The teacher
+     gets one summary email.
 
-  2. RETENTION (teacher-confirmed)
-     21 days after the deadline the raw rows (essay, AI feedback JSON,
-     annotations, history, queries, translate runs) become purgeable.
-     On login the teacher app lists them; the teacher confirms; a
-     background job summarises each student into ResultArchive (scores,
-     attempts, teacher score, Doc URL) and deletes the raw rows.
-     Results views merge ResultArchive back in, so the Results table
-     keeps every row; the essay + feedback text lives on in the Doc.
+  2. FREE-WRITING LIFECYCLE — automatic
+     • 3rd attempt  → result mail within ~1 min (saveResult schedules a
+                      run); essay + AI feedback are removed FREE_DAYS later.
+     • < 3 attempts → FREE_DAYS after the last attempt: Doc, result mail,
+                      then removed.
+     "Removed" = summarised into ResultArchive (title, bands, Doc link —
+     still shown in the student's Progress and the teacher's Results; a
+     click opens the Doc) and the raw rows deleted.
 
-  INSTALL (one time) — add this file to the same Apps Script project as
-  Code.gs (File ▸ + ▸ Script ▸ "Retention"), then:
+  3. HOMEWORK / IN-CLASS / TRANSLATE RETENTION — teacher-confirmed
+     21 days after the deadline the raw rows become purgeable. On login
+     the teacher app lists them; the teacher confirms; a background job
+     archives and deletes them.
 
-    a) Code.gs ▸ dispatch() — change 3 lines and the default branch:
-         case 'teacher.getResults': return rtMergeResults(getResults(p), p, 'teacher');
-         case 'write.getMyResults': return rtMergeResults(getMyResults(p), p, 'student');
-         case 'translate.stats':    return rtMergeTranslateStats(translateStats(p), p);
-         default: return rtDispatch(action, p) || { success:false, error:'Unknown action: ' + action };
+  INSTALL (one time)
+    a) Code.gs from this repo already calls into this file.
+    b) appsscript.json ▸ oauthScopes includes script.scriptapp.
+    c) Run rtInstall() once from the editor (authorise when asked).
+       Only work that closes AFTER this moment gets mail, so installing
+       never mass-mails old classes; older free-writing is archived
+       silently FREE_DAYS after install.
+    d) Deploy ▸ Manage deployments ▸ Edit ▸ Version: New version.
 
-    b) Code.gs ▸ exportResultsSheet() — first line becomes:
-         var res = rtMergeResults(getResults({ mode:p.mode, class:p.class }),
-                                  { mode:p.mode, class:p.class }, 'teacher');
-
-    c) appsscript.json ▸ oauthScopes — add
-         "https://www.googleapis.com/auth/script.scriptapp"
-
-    d) Run rtInstall() once from the editor (authorise when asked).
-       Only assignments that close AFTER this moment get deadline mail,
-       so installing never mass-mails old classes.
-
-    e) Deploy ▸ Manage deployments ▸ Edit ▸ Version: New version.
-
-  Uses from Code.gs: T, ss(), sheet(), readAll(), nowIso(),
-  exportFeedbackDoc(). Nothing at top level here touches them, so file
-  order in the project does not matter.
+  LOCKING: the background worker never holds the script lock for long
+  (saveResult waits on it). One worker at a time is ensured by a lease in
+  script properties; the lock is taken only around short sheet mutations.
 ───────────────────────────────────────────────────────────────*/
 
 var RT = {
   DAYS:         21,                  // raw rows kept this long after the deadline
+  FREE_DAYS:    10,                  // free-writing: keep essay + AI feedback this long
+  FREE_ATTEMPTS:3,                   // free-writing: attempts that complete a topic
   GRACE_MS:     24 * 3600 * 1000,    // saveResult accepts work until deadline + 1 day
   ROW_BUDGET:   2000,                // target for the heavy tabs combined
   BUDGET_MS:    4.5 * 60 * 1000,     // stop well before the 6-min execution limit
@@ -58,7 +52,8 @@ var RT = {
   MAILLOG:      'DeadlineMailLog',
   P_SINCE:      'RT_NOTIFY_SINCE',
   P_QUEUE:      'RT_PURGE_QUEUE',
-  P_REPORT:     'RT_PURGE_REPORT'
+  P_REPORT:     'RT_PURGE_REPORT',
+  P_LEASE:      'RT_WORKER_LEASE'
 };
 var RT_DAY = 86400000;
 
@@ -92,26 +87,46 @@ function rtInstall() {
 function rtHourly() { rtWorker(); }
 function rtKick()   { rtDropTriggers('rtKick'); rtWorker(); }
 
-/*  rtWorker — one background pass: queued purges first (teacher is
-    waiting on those), then deadline mail. Both hold the script lock so
-    they never run concurrently with each other.                       */
+/*  rtWorker — one background pass: free-writing first (a student is
+    waiting on that mail), then queued teacher purges, then deadline mail. */
 function rtWorker() {
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(5000)) return;
+  if (!rtLease(true)) return;                      // another pass is running
   var t0 = Date.now(), again = 0;
   try {
-    if (rtQueueLoad().length) {
-      if (rtSomeoneWriting()) again = 15;          // class in progress — retry later
+    var f = rtFreeSweep(t0);
+    if (f.partial && !f.quota) again = 1;
+    if (rtQueueLoad().length && Date.now() - t0 < RT.BUDGET_MS) {
+      if (rtSomeoneWriting()) again = again || 15;   // class in progress — retry later
       else if (rtProcessQueue(t0)) again = 1;
     }
     if (Date.now() - t0 < RT.BUDGET_MS) {
       var s = rtDeadlineSweep(t0);
-      if (s.partial && !s.quota && !again) again = 1;
+      if (s.partial && !s.quota) again = again || 1;
     }
   } finally {
-    lock.releaseLock();
+    rtLease(false);
   }
   if (again) rtScheduleKick(again);
+}
+
+// Single-worker lease. The script lock is held only for the read-modify-write
+// of the property, never for the whole pass.
+function rtLease(take) {
+  var props = PropertiesService.getScriptProperties(), lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return false;
+  try {
+    if (!take) { props.deleteProperty(RT.P_LEASE); return true; }
+    if (Number(props.getProperty(RT.P_LEASE) || 0) > Date.now()) return false;
+    props.setProperty(RT.P_LEASE, String(Date.now() + 7 * 60 * 1000));   // > 6-min execution cap
+    return true;
+  } finally { lock.releaseLock(); }
+}
+
+// Run fn holding the script lock (short sheet mutations only)
+function rtLocked(fn) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return fn(); } finally { lock.releaseLock(); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -202,33 +217,6 @@ function rtScan(teacherEmail) {
     });
   });
 
-  // Free-writing — one item per class; a student×topic group is purgeable
-  // once its latest attempt is older than RT.DAYS
-  var fi = rtCols(T.FREE, ['Student ID','Topic ID','Class','Timestamp']);
-  var fg = {};
-  for (var f = 0; f < fi.n; f++) {
-    var fc = String(rtAt(fi, 'Class', f));
-    if (!classes.hasOwnProperty(fc)) continue;
-    var key = rtAt(fi, 'Student ID', f) + '||' + rtAt(fi, 'Topic ID', f);
-    var x = fg[key] || (fg[key] = { cls:fc, rows:0, last:0 });
-    x.rows++;
-    var ft = rtMs(rtAt(fi, 'Timestamp', f));
-    if (ft > x.last) x.last = ft;
-  }
-  var freeBy = {};
-  Object.keys(fg).forEach(function(key){
-    var x = fg[key];
-    if (!x.last || x.last > cutoff) return;
-    var c = freeBy[x.cls] || (freeBy[x.cls] = { rows:0, groups:0, last:0 });
-    c.rows += x.rows; c.groups++;
-    if (x.last > c.last) c.last = x.last;
-  });
-  Object.keys(freeBy).forEach(function(cls){
-    items.push({ kind:'free', id:cls, class:cls, className:classes[cls],
-                 title:'Free-writing (' + freeBy[cls].groups + ' bài)', deadline:'',
-                 endAt:new Date(freeBy[cls].last).toISOString(), rows:freeBy[cls].rows });
-  });
-
   // Translate sets — one item per set
   var si = rtCols(T.TR_SETS, ['Set ID','Class','Title','Deadline','Session End']);
   var sets = {};
@@ -281,7 +269,6 @@ function rtProcessQueue(t0) {
     var it = scans[job.teacherEmail][key];
     var r = !it ? { deleted:0, docs:0, skipped:true }
           : it.kind === 'translate' ? rtPurgeTranslate(it)
-          : it.kind === 'free'      ? rtPurgeFree(it)
           :                           rtPurgeAssignment(it, t0);
     rtReportAdd(job.teacherEmail, it, r);
     if (r.partial) { left = true; break; }
@@ -329,42 +316,6 @@ function rtPurgeAssignment(it, t0) {
   n += byTopic(T.QUERIES);
   n += byTopic(RT.MAILLOG);
   return { deleted:n, docs:docs };
-}
-
-/*  Free-writing: no Doc is generated (practice, possibly hundreds of
-    essays). A Doc URL is archived when the student already exported one. */
-function rtPurgeFree(it) {
-  var cutoff = Date.now() - RT.DAYS * RT_DAY;
-  var info = rtCols(T.FREE, ['Class','Student ID','Topic ID','Timestamp']);
-  var last = {};
-  for (var k = 0; k < info.n; k++) {
-    if (String(rtAt(info, 'Class', k)) !== it.id) continue;
-    var key = rtAt(info, 'Student ID', k) + '||' + rtAt(info, 'Topic ID', k);
-    last[key] = Math.max(last[key] || 0, rtMs(rtAt(info, 'Timestamp', k)) || 0);
-  }
-  var old = {};
-  Object.keys(last).forEach(function(key){ if (last[key] && last[key] <= cutoff) old[key] = true; });
-  var keyOf = function(i, k){ return rtAt(i, 'Student ID', k) + '||' + rtAt(i, 'Topic ID', k); };
-  var ks = rtMatch(info, function(k){ return String(rtAt(info, 'Class', k)) === it.id && old[keyOf(info, k)]; });
-  if (!ks.length) return { deleted:0, docs:0 };
-
-  var groups = {};
-  rtRows(info, ks).forEach(function(r){
-    var key = r['Student ID'] + '||' + r['Topic ID'];
-    (groups[key] = groups[key] || []).push(r);
-  });
-  rtArchiveAppend(Object.keys(groups).map(function(key){
-    var rows = groups[key];
-    return rtWritingSummary('free', String(rows[0]['Topic ID']), {}, rows);
-  }));
-
-  var n = rtDeleteWhere(T.FREE, ['Class','Student ID','Topic ID'], function(i, k){
-    return String(rtAt(i, 'Class', k)) === it.id && old[keyOf(i, k)];
-  });
-  n += rtDeleteWhere(T.HISTORY, ['Student ID','Topic ID'], function(i, k){ return old[keyOf(i, k)]; });
-  n += rtDeleteWhere(T.ANNOT, ['Student ID','Topic ID'], function(i, k){ return old[keyOf(i, k)]; });
-  n += rtDeleteWhere(T.QUERIES, ['Student ID','Topic ID'], function(i, k){ return old[keyOf(i, k)]; });
-  return { deleted:n, docs:0 };
 }
 
 function rtPurgeTranslate(it) {
@@ -452,13 +403,8 @@ function rtDocComplete(rows) {
 }
 
 function rtSomeoneWriting() {
-  var info = rtCols(T.LIVE, ['Status','Updated']), now = Date.now();
-  for (var k = 0; k < info.n; k++) {
-    if (String(rtAt(info, 'Status', k)) === 'Submitted') continue;
-    var t = rtMs(rtAt(info, 'Updated', k));
-    if (t && now - t < RT.ACTIVE_MS) return true;
-  }
-  return false;
+  var t = Number(CacheService.getScriptCache().get('lvlast') || 0);   // set by heartbeat()
+  return !!t && Date.now() - t < RT.ACTIVE_MS;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -551,56 +497,66 @@ function rtNotifyAssignment(a, t0, ctx) {
 }
 
 function rtStudentMail(s, a, klass, rows, required, docUrl) {
-  rows = rows.slice().sort(function(x, y){ return rtMs(x['Timestamp']) - rtMs(y['Timestamp']); });
   var modeLabel = a['Mode'] === 'homework' ? 'Homework' : 'In-class practice';
   var task = a['Task Type'] === 'task1' ? 'Task 1' : 'Task 2';
-  var h = '<div style="font-family:Arial,sans-serif;font-size:14px;color:#10222E;max-width:620px">' +
-    '<p>Chào <b>' + rtEsc(s['Name'] || s['Student ID']) + '</b>,</p>' +
+  var h = '<p>Chào <b>' + rtEsc(s['Name'] || s['Student ID']) + '</b>,</p>' +
     '<p>Bài <b>' + rtEsc(a['Topic']) + '</b> (' + modeLabel + ' · ' + task + ' · lớp ' +
     rtEsc(klass['Class Name'] || a['Class']) + ') đã hết hạn nộp lúc ' + rtFmt(a['Deadline']) + '.</p>';
-
   if (!rows.length) {
     h += '<p style="background:#FEF2F2;border:1px solid #FADCD9;color:#B42318;padding:10px 12px;border-radius:8px">' +
          '⚠ Bạn <b>chưa nộp</b> bài này (0/' + required + ' lần). Liên hệ giảng viên nếu cần hỗ trợ.</p>';
   } else {
-    // control classes (AI off) must not see AI bands — research design
-    var aiOn = String(klass['AI Enabled']).toLowerCase() !== 'false';
-    var bands = [];
-    h += '<table cellpadding="6" style="border-collapse:collapse;font-size:13px;margin:8px 0">' +
-         '<tr style="background:#0A6EBD;color:#fff"><th align="left">Lần</th><th align="left">Thời gian nộp</th>' +
-         (aiOn ? '<th>Band</th><th>TR</th><th>CC</th><th>LR</th><th>GRA</th>' : '') + '</tr>';
-    rows.forEach(function(r, i){
-      var b = parseFloat(r['AI Grading']); if (!isNaN(b)) bands.push(b);
-      h += '<tr style="border-bottom:1px solid #E5E9EE"><td>' + (i + 1) + '</td><td>' + rtFmt(r['Timestamp']) + '</td>' +
-           (aiOn ? '<td align="center"><b>' + rtEsc(r['AI Grading']) + '</b></td><td align="center">' + rtEsc(r['TR']) +
-           '</td><td align="center">' + rtEsc(r['CC']) + '</td><td align="center">' + rtEsc(r['LR']) +
-           '</td><td align="center">' + rtEsc(r['GRA']) + '</td>' : '') + '</tr>';
-    });
-    h += '</table>';
-    h += '<p>Số lần nộp: <b>' + rows.length + '/' + required + '</b>' +
-         (rows.length < required ? ' <span style="color:#B42318">(thiếu ' + (required - rows.length) + ' lần)</span>' : '') + '</p>';
-    if (aiOn && bands.length) {
-      var best = Math.max.apply(null, bands), diff = Math.round((bands[bands.length - 1] - bands[0]) * 10) / 10;
-      h += '<p>Band AI cao nhất: <b style="color:#0A6EBD">' + best + '</b>' +
-           (bands.length > 1 ? ' · ' + (diff > 0 ? 'tiến bộ +' + diff : diff < 0 ? 'giảm ' + (-diff) : 'giữ nguyên') + ' so với lần đầu' : '') + '</p>';
-    }
-    var ts = null;
-    rows.forEach(function(r){ if (r['Teacher Score']) { try { ts = JSON.parse(r['Teacher Score']); } catch (e) {} } });
-    if (ts && (ts.overall || ts.privateNote)) {   // ts.note is the teacher's private note — never mailed
-      h += '<div style="background:#EAF6EF;border-radius:8px;padding:10px 12px;margin:8px 0">' +
-           (ts.overall ? '<div><b>Điểm giảng viên: ' + rtEsc(ts.overall) + '</b>' +
-             ((ts.tr || ts.cc || ts.lr || ts.gra) ? ' (TR ' + rtEsc(ts.tr || '—') + ' · CC ' + rtEsc(ts.cc || '—') +
-             ' · LR ' + rtEsc(ts.lr || '—') + ' · GRA ' + rtEsc(ts.gra || '—') + ')' : '') + '</div>' : '') +
-           (ts.privateNote ? '<div style="margin-top:6px">💬 ' + rtEsc(ts.privateNote) + '</div>' : '') + '</div>';
-    }
-    h += docUrl
-      ? '<p style="margin:16px 0"><a href="' + docUrl + '" style="background:#0A6EBD;color:#fff;padding:10px 18px;border-radius:20px;text-decoration:none;font-weight:bold">📄 Mở báo cáo nhận xét (Google Docs)</a></p>'
-      : '<p style="color:#5B6B7A">Báo cáo Google Docs chưa tạo được — bạn có thể mở từ mục Results trong ứng dụng.</p>';
+    h += rtAttemptsHtml(rows, required, rtAiOn(klass)) + rtDocButton(docUrl);
   }
-  h += '<p style="color:#8A97A3;font-size:12px;margin-top:18px">Bài viết và nhận xét chi tiết được lưu trong Google Doc trên. ' +
-       'Sau ' + RT.DAYS + ' ngày kể từ hạn nộp, dữ liệu thô trên ứng dụng sẽ được lưu trữ; điểm vẫn hiển thị trong Results.<br>' +
-       '— ArticuWrite · Dong Nai University</p></div>';
+  return rtMailWrap(h, 'Bài viết và nhận xét chi tiết được lưu trong Google Doc trên. Sau ' + RT.DAYS +
+    ' ngày kể từ hạn nộp, dữ liệu thô trên ứng dụng sẽ được lưu trữ; điểm vẫn hiển thị trong Results.');
+}
+
+// control classes (AI off) must not see AI bands — research design
+function rtAiOn(klass) { return String((klass || {})['AI Enabled']).toLowerCase() !== 'false'; }
+
+function rtAttemptsHtml(rows, required, aiOn) {
+  rows = rows.slice().sort(function(x, y){ return rtMs(x['Timestamp']) - rtMs(y['Timestamp']); });
+  var bands = [];
+  var h = '<table cellpadding="6" style="border-collapse:collapse;font-size:13px;margin:8px 0">' +
+       '<tr style="background:#0A6EBD;color:#fff"><th align="left">Lần</th><th align="left">Thời gian nộp</th>' +
+       (aiOn ? '<th>Band</th><th>TR</th><th>CC</th><th>LR</th><th>GRA</th>' : '') + '</tr>';
+  rows.forEach(function(r, i){
+    var b = parseFloat(r['AI Grading']); if (!isNaN(b)) bands.push(b);
+    h += '<tr style="border-bottom:1px solid #E5E9EE"><td>' + (i + 1) + '</td><td>' + rtFmt(r['Timestamp']) + '</td>' +
+         (aiOn ? '<td align="center"><b>' + rtEsc(r['AI Grading']) + '</b></td><td align="center">' + rtEsc(r['TR']) +
+         '</td><td align="center">' + rtEsc(r['CC']) + '</td><td align="center">' + rtEsc(r['LR']) +
+         '</td><td align="center">' + rtEsc(r['GRA']) + '</td>' : '') + '</tr>';
+  });
+  h += '</table>';
+  h += '<p>Số lần nộp: <b>' + rows.length + '/' + required + '</b>' +
+       (rows.length < required ? ' <span style="color:#B42318">(thiếu ' + (required - rows.length) + ' lần)</span>' : '') + '</p>';
+  if (aiOn && bands.length) {
+    var best = Math.max.apply(null, bands), diff = Math.round((bands[bands.length - 1] - bands[0]) * 10) / 10;
+    h += '<p>Band AI cao nhất: <b style="color:#0A6EBD">' + best + '</b>' +
+         (bands.length > 1 ? ' · ' + (diff > 0 ? 'tiến bộ +' + diff : diff < 0 ? 'giảm ' + (-diff) : 'giữ nguyên') + ' so với lần đầu' : '') + '</p>';
+  }
+  var ts = null;
+  rows.forEach(function(r){ if (r['Teacher Score']) { try { ts = JSON.parse(r['Teacher Score']); } catch (e) {} } });
+  if (ts && (ts.overall || ts.privateNote)) {   // ts.note is the teacher's private note — never mailed
+    h += '<div style="background:#EAF6EF;border-radius:8px;padding:10px 12px;margin:8px 0">' +
+         (ts.overall ? '<div><b>Điểm giảng viên: ' + rtEsc(ts.overall) + '</b>' +
+           ((ts.tr || ts.cc || ts.lr || ts.gra) ? ' (TR ' + rtEsc(ts.tr || '—') + ' · CC ' + rtEsc(ts.cc || '—') +
+           ' · LR ' + rtEsc(ts.lr || '—') + ' · GRA ' + rtEsc(ts.gra || '—') + ')' : '') + '</div>' : '') +
+         (ts.privateNote ? '<div style="margin-top:6px">💬 ' + rtEsc(ts.privateNote) + '</div>' : '') + '</div>';
+  }
   return h;
+}
+
+function rtDocButton(docUrl) {
+  return docUrl
+    ? '<p style="margin:16px 0"><a href="' + rtEsc(docUrl) + '" style="background:#0A6EBD;color:#fff;padding:10px 18px;border-radius:20px;text-decoration:none;font-weight:bold">📄 Mở báo cáo nhận xét (Google Docs)</a></p>'
+    : '<p style="color:#5B6B7A">Báo cáo Google Docs chưa tạo được — bạn có thể mở từ mục Progress trong ứng dụng.</p>';
+}
+
+function rtMailWrap(inner, footer) {
+  return '<div style="font-family:Arial,sans-serif;font-size:14px;color:#10222E;max-width:620px">' + inner +
+    '<p style="color:#8A97A3;font-size:12px;margin-top:18px">' + footer + '<br>— ArticuWrite · Dong Nai University</p></div>';
 }
 
 function rtTeacherMail(a, klass, roster, groups, required) {
@@ -624,6 +580,134 @@ function rtTeacherMail(a, klass, roster, groups, required) {
     body + '</table>' +
     '<p style="color:#5B6B7A;font-size:12px;margin-top:14px">Dữ liệu thô của bài này đủ điều kiện dọn từ ' + rtFmt(purgeAt) +
     ' (' + RT.DAYS + ' ngày sau hạn). Ứng dụng sẽ nhắc khi thầy/cô đăng nhập.</p></div>';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FREE-WRITING LIFECYCLE (automatic)
+// ═══════════════════════════════════════════════════════════════
+/*  Group = student × Topic ID. DeadlineMailLog doubles as the state:
+      no log row → not mailed yet; log row → mailed at SentAt.
+    Work older than rtInstall() is never mailed; it is archived silently
+    FREE_DAYS after install.                                            */
+function rtFreeSweep(t0) {
+  var since = Number(PropertiesService.getScriptProperties().getProperty(RT.P_SINCE) || 0);
+  if (!since) return {};
+  var now = Date.now(), keep = RT.FREE_DAYS * RT_DAY;
+  var info = rtCols(T.FREE, ['Student ID','Topic ID','Timestamp']);
+  var groups = {};
+  for (var k = 0; k < info.n; k++) {
+    var sid = String(rtAt(info, 'Student ID', k)).trim(), tid = String(rtAt(info, 'Topic ID', k)).trim();
+    if (!sid || !tid) continue;
+    var g = groups[sid + '||' + tid] || (groups[sid + '||' + tid] = { sid:sid, tid:tid, n:0, last:0 });
+    g.n++;
+    var t = rtMs(rtAt(info, 'Timestamp', k));
+    if (t > g.last) g.last = t;
+  }
+  var keys = Object.keys(groups);
+  if (!keys.length) return {};
+
+  var log = rtCols(RT.MAILLOG, ['Topic ID','Student ID','SentAt']), sent = {};
+  for (var m = 0; m < log.n; m++) {
+    var lk = String(rtAt(log, 'Student ID', m)).trim() + '||' + String(rtAt(log, 'Topic ID', m)).trim();
+    if (groups[lk]) sent[lk] = rtMs(rtAt(log, 'SentAt', m)) || now;
+  }
+
+  var ctx = {}, due = [];
+  for (var i = 0; i < keys.length; i++) {
+    var gr = groups[keys[i]];
+    if (sent[keys[i]] != null) { if (now - sent[keys[i]] >= keep) due.push(gr); continue; }
+    if (gr.last < since)       { if (now - since >= keep) due.push(gr); continue; }
+    var complete = gr.n >= RT.FREE_ATTEMPTS, expired = now - gr.last >= keep;
+    if (!complete && !expired) continue;
+    if (Date.now() - t0 > RT.BUDGET_MS) return { partial:true };
+    if (MailApp.getRemainingDailyQuota() <= RT.MAIL_RESERVE) return { partial:true, quota:true };
+    rtFreeMail(gr, complete, ctx);
+    if (!complete) due.push(gr);                   // waited FREE_DAYS already — archive now
+  }
+  return due.length ? rtArchiveFree(due, t0) : {};
+}
+
+function rtFreeCtx(ctx) {
+  if (ctx.students) return ctx;
+  ctx.students = {}; ctx.classes = {};
+  readAll(T.STUDENTS).forEach(function(s){ ctx.students[String(s['Student ID']).trim()] = s; });
+  readAll(T.CLASSES).forEach(function(c){ ctx.classes[String(c['Class ID'])] = c; });
+  return ctx;
+}
+
+function rtFreeMail(g, complete, ctx) {
+  rtFreeCtx(ctx);
+  var rows = readRowsFor(T.FREE, g.sid, g.tid);
+  if (!rows.length) return;
+  var docUrl = '';
+  try {
+    var d = exportFeedbackDoc({ mode:'free', studentId:g.sid, topicId:g.tid });
+    if (d && d.success && d.data) docUrl = d.data.url;
+  } catch (e) {}
+  var s = ctx.students[g.sid] || {}, klass = ctx.classes[String(rows[0]['Class'] || s['Class'] || '')] || {};
+  var email = String(s['Email'] || '').trim(), title = rows[0]['Topic'] || g.tid;
+  if (email) {
+    var removeOn = rtFmt(Date.now() + RT.FREE_DAYS * RT_DAY).slice(0, 10);
+    var lead = complete
+      ? '<p>Bạn đã hoàn thành <b>' + rows.length + ' lần</b> viết bài Free-writing <b>' + rtEsc(title) + '</b>. Kết quả:</p>'
+      : '<p>Bài Free-writing <b>' + rtEsc(title) + '</b> đã ' + RT.FREE_DAYS + ' ngày chưa có lần viết mới (' +
+        rows.length + '/' + RT.FREE_ATTEMPTS + ' lần) nên được tổng kết. Kết quả:</p>';
+    var notice = complete
+      ? '⏳ Bài viết và nhận xét AI sẽ được <b>xoá khỏi ứng dụng vào ngày ' + removeOn + '</b> (sau ' + RT.FREE_DAYS + ' ngày). '
+      : '📦 Bài viết và nhận xét AI được <b>xoá khỏi ứng dụng</b> từ hôm nay. ';
+    notice += 'Tên bài, điểm và link Google Doc vẫn lưu trong <b>My Progress</b>. Vui lòng truy cập Google Doc để xem kết quả đầy đủ.';
+    MailApp.sendEmail({
+      to: email, name: 'ArticuWrite',
+      subject: '[ArticuWrite] Kết quả Free-writing "' + rtPlain(title) + '" (' + rows.length + '/' + RT.FREE_ATTEMPTS + ' lần)',
+      htmlBody: rtMailWrap(
+        '<p>Chào <b>' + rtEsc(s['Name'] || g.sid) + '</b>,</p>' + lead +
+        rtAttemptsHtml(rows, RT.FREE_ATTEMPTS, rtAiOn(klass)) + rtDocButton(docUrl) +
+        '<p style="background:#FFF8EC;border:1px solid #F3D9A4;color:#8A6410;padding:10px 12px;border-radius:8px">' + notice + '</p>',
+        'Email tự động từ ArticuWrite.')
+    });
+  }
+  rtTab(RT.MAILLOG).appendRow([g.tid, g.sid, email || '(no email)', nowIso(), docUrl]);
+}
+
+/*  Archive + delete free-writing groups. Each Doc is brought up to date
+    first (a student may have written a 4th attempt after the mail).     */
+function rtArchiveFree(due, t0) {
+  var already = {};
+  var ai = rtCols(RT.ARCHIVE, ['Mode','Student ID','Topic ID']);
+  for (var k = 0; k < ai.n; k++)
+    if (String(rtAt(ai, 'Mode', k)) === 'free') already[String(rtAt(ai, 'Student ID', k)).trim() + '||' + String(rtAt(ai, 'Topic ID', k)).trim()] = true;
+
+  var done = {}, out = [], partial = false;
+  for (var i = 0; i < due.length; i++) {
+    if (Date.now() - t0 > RT.BUDGET_MS) { partial = true; break; }
+    var g = due[i], key = g.sid + '||' + g.tid;
+    var rows = readRowsFor(T.FREE, g.sid, g.tid);
+    if (!rows.length) continue;
+    if (!rtDocHasAll(rows)) {
+      try {
+        var d = exportFeedbackDoc({ mode:'free', studentId:g.sid, topicId:g.tid });
+        if (d && d.success && d.data) rows._docUrl = d.data.url;
+      } catch (e) {}
+    }
+    if (!already[key]) out.push(rtWritingSummary('free', g.tid, {}, rows));
+    done[key] = true;
+  }
+  rtArchiveAppend(out);
+  var hit = function(i, k){ return done[String(rtAt(i, 'Student ID', k)).trim() + '||' + String(rtAt(i, 'Topic ID', k)).trim()]; };
+  [T.FREE, T.HISTORY, T.ANNOT, T.QUERIES, RT.MAILLOG].forEach(function(name){
+    rtDeleteWhere(name, ['Student ID','Topic ID'], hit);
+  });
+  return partial ? { partial:true } : {};
+}
+
+// Doc exists and already contains every stored attempt
+function rtDocHasAll(rows) {
+  var id = '', cnt = 0;
+  rows.forEach(function(r){
+    if (r['Feedback Doc ID']) id = r['Feedback Doc ID'];
+    var c = parseInt(r['Feedback Doc Attempts'], 10); if (c > cnt) cnt = c;
+  });
+  return !!id && cnt >= rows.length;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -795,6 +879,9 @@ function rtGroupBy(rows, col) {
     per block instead of one per row, and rows appended meanwhile (always
     below the scanned range) are never touched.                          */
 function rtDeleteWhere(name, cols, fn) {
+  return rtLocked(function(){ return rtDeleteWhereNow(name, cols, fn); });
+}
+function rtDeleteWhereNow(name, cols, fn) {
   var info = rtCols(name, cols);
   var rows = rtMatch(info, function(k){ return fn(info, k); }).map(function(k){ return k + 2; });
   if (!rows.length) return 0;
@@ -852,8 +939,8 @@ function rtQueueLoad() {
   catch (e) { return []; }
 }
 function rtQueueMutate(fn) {
-  var l = LockService.getUserLock();                // short hold; the script lock may be busy with the worker
-  l.waitLock(10000);
+  var l = LockService.getScriptLock();              // short hold — the worker never keeps it
+  l.waitLock(20000);
   try {
     var q = rtQueueLoad(), r = fn(q);
     PropertiesService.getScriptProperties().setProperty(RT.P_QUEUE, JSON.stringify(q));
