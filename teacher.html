@@ -59,6 +59,15 @@
   .rt-empty{font-size:.86rem;color:var(--aw-ink-3);margin:4px 0}
   .rt-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
   .rt-msg{flex:1 1 100%;font-size:.82rem;color:var(--aw-ink-2)}
+  .sem-cls small{display:block}
+  .sem-opt{display:flex;gap:9px;align-items:flex-start;font-size:.86rem;margin:6px 0;cursor:pointer;line-height:1.4}
+  .sem-opt input{margin-top:3px;flex:0 0 auto}
+  .sem-danger{background:#FEF2F2;border:1px solid #FADCD9;color:#7A1A12;border-radius:10px;padding:10px 12px;font-size:.84rem;line-height:1.5;margin:12px 0}
+  .sem-confirm{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.84rem}
+  .sem-confirm input{width:120px;padding:7px 10px;border:1px solid var(--aw-border);border-radius:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .sem-btn-danger{background:#B42318;color:#fff}
+  .sem-btn-danger:disabled{opacity:.45;cursor:not-allowed}
+  .sem-h{font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--aw-ink-3);margin:14px 0 6px}
   .rt-msg:empty{display:none}
   .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
   .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
@@ -3215,6 +3224,15 @@ function showSettings(){
       '</p>'+
       '<button class="aw-btn aw-btn-ghost" onclick="openRetention()" style="padding:8px 16px">🧹 Kiểm tra & dọn dữ liệu</button>'+
     '</div>'+
+    /* ── End of semester ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px;border:1px solid #FADCD9">'+
+      '<h3 style="margin:0 0 6px">🎓 Kết thúc học kỳ</h3>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">'+
+        'Xuất toàn bộ kết quả của các lớp thành <b>một báo cáo Google Sheets</b> (tổng quan, bảng điểm từng lớp, chi tiết từng bài, Translate, danh sách SV) '+
+        'và gửi link qua email. Sau đó có thể <b>xoá sạch dữ liệu</b> các lớp này để học kỳ mới bắt đầu với dữ liệu trống.'+
+      '</p>'+
+      '<button class="aw-btn sem-btn-danger" onclick="openSemesterReset()" style="padding:8px 16px">Tổng kết & reset học kỳ…</button>'+
+    '</div>'+
     /* ── Account ── */
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
     '<h3 style="margin:0 0 6px">Account</h3>'+
@@ -3968,6 +3986,84 @@ function showRetention(d){
       go.disabled=false; go.textContent='Thử lại';
     });
   };
+}
+
+/*═══════════ END OF SEMESTER ═══════════
+  Backend: gas/Semester.gs (queued, runs in the background). The report is
+  built before anything is deleted; the teacher gets it by email. */
+window.openSemesterReset=function(){
+  AW.toast('Đang tải danh sách lớp…');
+  AW.api('semester.preview',{ teacherEmail:sess.email }).then(function(res){
+    if(res&&res.success&&res.data) showSemesterReset(res.data);
+    else AW.toast((res&&res.error)||'Backend chưa cài Semester.gs','err',5000);
+  }).catch(function(){ AW.toast('Không kết nối được máy chủ','err'); });
+};
+
+function showSemesterReset(d){
+  var old=document.getElementById('semBg'); if(old) old.remove();
+  var busy=(d.queued||[]).length>0;
+  var list=(d.classes||[]).map(function(c){
+    var bits=[c.students+' SV', c.assignments+' bài tập', c.homework+' lượt HW', c.inclass+' lượt IC', c.free+' free', c.translate+' translate'];
+    return '<label class="rt-item sem-cls"><input type="checkbox" data-cls="'+AW.esc(c.classId)+'"'+(c.archived?'':' checked')+'>'+
+      '<span class="rt-main"><b>'+AW.esc(c.className)+' <span style="font-weight:400;color:var(--aw-ink-3)">('+AW.esc(c.classId)+')</span></b>'+
+      '<small>'+AW.esc((c.year||'')+(c.semester?' · HK'+c.semester:'')+(c.archived?' · đã lưu trữ':''))+'</small>'+
+      '<small>'+bits.join(' · ')+'</small></span></label>';
+  }).join('') || '<p class="rt-empty">Bạn chưa có lớp nào.</p>';
+  var bg=document.createElement('div');
+  bg.className='rt-bg'; bg.id='semBg';
+  bg.innerHTML=
+    '<div class="rt-box" role="dialog" aria-modal="true" aria-labelledby="semTitle">'+
+      '<div class="rt-head"><span id="semTitle">🎓 Kết thúc học kỳ</span><button class="rt-x" id="semX" aria-label="Đóng">×</button></div>'+
+      '<div class="rt-body">'+
+        (busy?'<div class="rt-queued">⏳ Đang xử lý: '+AW.esc(d.queued[0].title)+'. Thầy/cô sẽ nhận email khi xong.</div>':'')+
+        '<p class="rt-note">Hệ thống tạo <b>báo cáo Google Sheets</b> cho các lớp được chọn và gửi link qua email '+AW.esc(sess.email)+'. '+
+        'Báo cáo luôn được tạo <b>trước</b>; nếu tạo lỗi thì không xoá gì.</p>'+
+        '<div class="sem-h">Lớp</div><div class="rt-list">'+list+'</div>'+
+        '<div class="sem-h">Khi xoá dữ liệu</div>'+
+        '<label class="sem-opt"><input type="checkbox" id="semArchive" checked><span><b>Lưu trữ các lớp đã chọn</b> — ẩn khỏi danh sách lớp; học kỳ mới tạo lớp mới.</span></label>'+
+        '<label class="sem-opt"><input type="checkbox" id="semStudents"><span><b>Xoá tài khoản sinh viên</b> của các lớp này — SV phải đăng ký lại ở học kỳ mới. '+
+          'Bỏ chọn nếu SV học tiếp với thầy/cô (có thể chuyển lớp cho SV sau).</span></label>'+
+        '<div class="sem-danger">🗑 <b>Xoá sạch</b> của các lớp đã chọn: bài nộp (Homework, In-class, Free-writing), bài tập, lịch sử, annotation, câu hỏi, '+
+          'Translate, kết quả lưu trữ, email log. <b>Không thể hoàn tác.</b> Google Docs nhận xét của SV vẫn giữ trên Drive.</div>'+
+        '<div class="sem-confirm"><span>Gõ <b>RESET</b> để bật nút xoá:</span><input id="semConfirm" autocomplete="off" spellcheck="false" aria-label="Gõ RESET để xác nhận"></div>'+
+      '</div>'+
+      '<div class="rt-foot"><span class="rt-msg" id="semMsg"></span>'+
+        '<button class="aw-btn aw-btn-ghost" id="semClose">Đóng</button>'+
+        '<button class="aw-btn aw-btn-ghost" id="semExport"'+(busy?' disabled':'')+'>Chỉ xuất báo cáo</button>'+
+        '<button class="aw-btn sem-btn-danger" id="semWipe" disabled>Xuất báo cáo & xoá dữ liệu</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(bg);
+  var close=function(){ bg.remove(); };
+  bg.addEventListener('click',function(e){ if(e.target===bg) close(); });
+  document.getElementById('semX').onclick=close;
+  document.getElementById('semClose').onclick=close;
+  var picked=function(){ return AW.els('.sem-cls input:checked',bg).map(function(cb){ return cb.dataset.cls; }); };
+  var wipeBtn=document.getElementById('semWipe'), expBtn=document.getElementById('semExport'), conf=document.getElementById('semConfirm');
+  var sync=function(){
+    var n=picked().length;
+    expBtn.disabled=busy||!n;
+    wipeBtn.disabled=busy||!n||conf.value.trim().toUpperCase()!=='RESET';
+  };
+  AW.els('.sem-cls input',bg).forEach(function(cb){ cb.onchange=sync; });
+  conf.oninput=sync; sync();
+  var send=function(wipe){
+    var classes=picked(); if(!classes.length) return;
+    if(wipe && !confirm('Xoá toàn bộ dữ liệu của '+classes.length+' lớp sau khi xuất báo cáo?\n\nKhông thể hoàn tác.')) return;
+    expBtn.disabled=wipeBtn.disabled=true;
+    var msg=document.getElementById('semMsg'); msg.textContent='Đang gửi yêu cầu…';
+    AW.api('semester.reset',{ teacherEmail:sess.email, classes:classes, wipe:wipe, confirm:conf.value,
+      archiveClasses:document.getElementById('semArchive').checked, deleteStudents:document.getElementById('semStudents').checked
+    }).then(function(res){
+      if(res&&res.success){
+        busy=true;
+        msg.textContent='✓ Đã nhận yêu cầu. Hệ thống xử lý nền (thường vài phút; nếu đang có SV làm bài sẽ chờ đến khi xong) '+
+          'và gửi email kèm link Google Sheets tới '+sess.email+'.'+(wipe?' Tải lại trang sau khi nhận email.':'');
+      } else { msg.textContent='⚠ '+((res&&res.error)||'Không gửi được yêu cầu'); sync(); }
+    }).catch(function(){ msg.textContent='⚠ Không kết nối được máy chủ'; sync(); });
+  };
+  expBtn.onclick=function(){ send(false); };
+  wipeBtn.onclick=function(){ send(true); };
 }
 
 function routeInitial(){

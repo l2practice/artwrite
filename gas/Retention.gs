@@ -9,9 +9,10 @@
                    tabs at the end of the semester. No mail, no purge.
     • Homework   — automatic, 21 days after the deadline: every student
                    who submitted gets ONE email (attempts, bands, teacher
-                   score + note, feedback Doc link, "removed from the app"),
-                   the teacher gets one summary email, then the raw rows
-                   are archived and deleted.
+                   score + note, feedback Doc link, "removed from the app");
+                   every student who did not gets a warning email; the
+                   teacher gets one summary listing both; then the raw
+                   rows are archived and deleted.
     • Free-writing — automatic:
                    3rd attempt  → result mail within ~1 min (saveResult
                                   schedules a run); raw rows removed
@@ -24,6 +25,9 @@
   teacher score, Doc link — still shown in the student's Progress and the
   teacher's Results, where a click opens the Doc) and the raw rows
   (essay, AI feedback JSON, annotations, history, queries) deleted.
+
+  End of semester (report + wipe) lives in Semester.gs and runs through
+  the same background queue.
 
   INSTALL (one time)
     a) Code.gs from this repo already calls into this file.
@@ -68,6 +72,8 @@ function rtDispatch(action, p) {
   switch (action) {
     case 'retention.status': return rtStatus(p || {});
     case 'retention.purge':  return rtRequestPurge(p || {});
+    case 'semester.preview': return semPreview(p || {});
+    case 'semester.reset':   return semRequest(p || {});
   }
   return null;
 }
@@ -100,8 +106,8 @@ function rtWorker() {
       if (h.partial && !h.quota) again = 1;
     }
     if (rtQueueLoad().length && Date.now() - t0 < RT.BUDGET_MS) {
-      if (rtSomeoneWriting()) again = again || 15;   // class in progress — retry later
-      else if (rtProcessQueue(t0)) again = 1;
+      var q = rtProcessQueue(t0);                    // minutes until the queue wants another run
+      if (q) again = again ? Math.min(again, q) : q;
     }
   } finally {
     rtLease(false);
@@ -222,25 +228,38 @@ function rtScan(teacherEmail) {
 // ═══════════════════════════════════════════════════════════════
 //  PURGE (background)
 // ═══════════════════════════════════════════════════════════════
-/*  Returns true when work remains. Each job is re-validated against a
-    fresh scan so a stale queue can never delete rows that are not yet
-    eligible or that belong to another teacher.                        */
+/*  Returns minutes until another run is needed (0 = queue empty).
+    Translate jobs are re-validated against a fresh scan so a stale queue
+    can never delete rows that are not yet eligible or belong to another
+    teacher. Jobs that delete rows wait while a student is writing
+    (a heartbeat in the last 3 minutes); a report-only job does not.    */
 function rtProcessQueue(t0) {
-  var scans = {}, left = false;
+  var scans = {}, left = 0, writing = null;
   var queue = rtQueueLoad();
   for (var i = 0; i < queue.length; i++) {
-    if (Date.now() - t0 > RT.BUDGET_MS) { left = true; break; }
+    if (Date.now() - t0 > RT.BUDGET_MS) { left = 1; break; }
     var job = queue[i], key = job.kind + '|' + job.id;
-    if (!scans[job.teacherEmail]) {
-      scans[job.teacherEmail] = {};
-      rtScan(job.teacherEmail).items.forEach(function(it){ scans[job.teacherEmail][it.kind + '|' + it.id] = it; });
+    var deletes = job.kind !== 'semester' || job.wipe;
+    if (deletes) {
+      if (writing === null) writing = rtSomeoneWriting();
+      if (writing) { left = left || 15; continue; }
     }
-    var it = scans[job.teacherEmail][key];
-    var r = !it ? { deleted:0, docs:0, skipped:true }
-          : it.kind === 'translate' ? rtPurgeTranslate(it)
-          :                           rtPurgeAssignment(it, t0);
-    rtReportAdd(job.teacherEmail, it, r);
-    if (r.partial) { left = true; break; }
+    var r;
+    if (job.kind === 'semester') {
+      r = semRun(job, t0);
+      if (r.partial) { left = r.quota ? (left || 60) : 1; break; }
+    } else {
+      if (!scans[job.teacherEmail]) {
+        scans[job.teacherEmail] = {};
+        rtScan(job.teacherEmail).items.forEach(function(it){ scans[job.teacherEmail][it.kind + '|' + it.id] = it; });
+      }
+      var it = scans[job.teacherEmail][key];
+      r = !it ? { deleted:0, docs:0, skipped:true }
+        : it.kind === 'translate' ? rtPurgeTranslate(it)
+        :                           rtPurgeAssignment(it, t0);
+      rtReportAdd(job.teacherEmail, it, r);
+      if (r.partial) { left = 1; break; }
+    }
     rtQueueMutate(function(q){
       for (var j = q.length - 1; j >= 0; j--) if (q[j].kind + '|' + q[j].id === key) q.splice(j, 1);
     });
@@ -419,47 +438,55 @@ function rtRetireHomework(a, t0, ctx, silent) {
   var info = rtCols(T.HOMEWORK, ['Topic ID']);
   var groups = rtGroupBy(rtRows(info, rtMatch(info, function(k){ return String(rtAt(info, 'Topic ID', k)) === tid; })), 'Student ID');
   var sids = Object.keys(groups);
-  if (!sids.length) return {};                     // nothing stored (or already removed)
+  if (!sids.length && rtArchiveHas('homework', tid)) return {};   // finished by an earlier, interrupted run
+
+  // Everyone concerned: current class members + anyone who submitted
+  var roster = [], seen = {};
+  Object.keys(ctx.students).forEach(function(id){
+    var st = ctx.students[id];
+    if (String(st['Class']) !== cls) return;
+    if (st['Archived'] === true || String(st['Archived']).toLowerCase() === 'true') return;
+    roster.push(st); seen[id] = true;
+  });
+  sids.forEach(function(id){ if (!seen[id]) roster.push(ctx.students[id] || { 'Student ID':id, 'Name':groups[id][0]['Name'] }); });
 
   if (!silent) {
     var sent = {}, log = rtCols(RT.MAILLOG, ['Topic ID','Student ID']);
     for (var k = 0; k < log.n; k++) if (String(rtAt(log, 'Topic ID', k)) === tid) sent[String(rtAt(log, 'Student ID', k)).trim()] = true;
     var logSh = rtTab(RT.MAILLOG);
-    for (var i = 0; i < sids.length; i++) {
-      var sid = sids[i];
+    for (var i = 0; i < roster.length; i++) {
+      var s = roster[i], sid = String(s['Student ID']).trim(), rows = groups[sid];
       if (sent[sid]) continue;
       if (Date.now() - t0 > RT.BUDGET_MS) return { partial:true };
       if (MailApp.getRemainingDailyQuota() <= RT.MAIL_RESERVE + 1) return { partial:true, quota:true };  // +1: teacher summary
       var docUrl = '';
-      try {
-        var d = exportFeedbackDoc({ mode:'homework', studentId:sid, topicId:tid });
-        if (d && d.success && d.data) docUrl = d.data.url;
-      } catch (e) {}
-      var s = ctx.students[sid] || {}, email = String(s['Email'] || '').trim();
+      if (rows) {
+        try {
+          var d = exportFeedbackDoc({ mode:'homework', studentId:sid, topicId:tid });
+          if (d && d.success && d.data) docUrl = d.data.url;
+        } catch (e) {}
+      }
+      var email = String(s['Email'] || '').trim();
       if (email) {
-        MailApp.sendEmail({
+        MailApp.sendEmail(rows ? {
           to: email, name: 'ArticuWrite',
           subject: '[ArticuWrite] Tổng kết Homework "' + rtPlain(a['Topic']) + '" — bài viết được lưu trữ',
-          htmlBody: rtHomeworkMail(s, a, klass, groups[sid], required, docUrl)
+          htmlBody: rtHomeworkMail(s, a, klass, rows, required, docUrl)
+        } : {
+          to: email, name: 'ArticuWrite',
+          subject: '[ArticuWrite] Nhắc nhở: bạn chưa nộp Homework "' + rtPlain(a['Topic']) + '"',
+          htmlBody: rtMissingMail(s, a, klass, required)
         });
       }
-      logSh.appendRow([tid, sid, email || '(no email)', nowIso(), docUrl]);
+      logSh.appendRow([tid, sid, email || '(no email)', nowIso(), rows ? docUrl : '(missing)']);
     }
   }
 
-  var r = rtPurgeAssignment({ kind:'homework', id:tid }, t0);
+  var r = sids.length ? rtPurgeAssignment({ kind:'homework', id:tid }, t0) : { deleted:0 };
   if (r.partial) return r;
 
   var to = String(klass['Teacher Email'] || '').trim();
   if (!silent && to && MailApp.getRemainingDailyQuota() > RT.MAIL_RESERVE) {
-    var roster = [], seen = {};
-    Object.keys(ctx.students).forEach(function(id){
-      var st = ctx.students[id];
-      if (String(st['Class']) !== cls) return;
-      if (st['Archived'] === true || String(st['Archived']).toLowerCase() === 'true') return;
-      roster.push(st); seen[id] = true;
-    });
-    sids.forEach(function(id){ if (!seen[id]) roster.push(ctx.students[id] || { 'Student ID':id, 'Name':groups[id][0]['Name'] }); });
     MailApp.sendEmail({
       to: to, name: 'ArticuWrite',
       subject: '[ArticuWrite] Tổng kết Homework "' + rtPlain(a['Topic']) + '" — lớp ' + (klass['Class Name'] || cls),
@@ -467,6 +494,21 @@ function rtRetireHomework(a, t0, ctx, silent) {
     });
   }
   return {};
+}
+
+// Warning for a student who submitted nothing
+function rtMissingMail(s, a, klass, required) {
+  var task = a['Task Type'] === 'task1' ? 'Task 1' : 'Task 2';
+  return rtMailWrap(
+    '<p>Chào <b>' + rtEsc(s['Name'] || s['Student ID'] || '') + '</b>,</p>' +
+    '<div style="background:#FEF2F2;border:1px solid #FADCD9;border-left:4px solid #B42318;color:#7A1A12;padding:12px 14px;border-radius:8px;margin:10px 0">' +
+    '<b>⚠ Cảnh báo: bạn chưa nộp bài Homework.</b><br>' +
+    'Bài <b>' + rtEsc(a['Topic']) + '</b> (' + task + ' · lớp ' + rtEsc(klass['Class Name'] || a['Class']) +
+    ') hết hạn lúc ' + rtFmt(a['Deadline']) + '. Hệ thống không ghi nhận lần nộp nào của bạn (0/' + required + ' lần).</div>' +
+    '<p>Việc không hoàn thành bài tập về nhà được ghi nhận vào kết quả học tập và có thể ảnh hưởng đến điểm quá trình của bạn. ' +
+    'Nếu bạn có lý do chính đáng hoặc gặp sự cố khi nộp bài, hãy liên hệ giảng viên sớm nhất có thể.</p>' +
+    '<p>Hãy theo dõi các bài tập tiếp theo trong mục <b>Assignments</b> của ArticuWrite để không bỏ lỡ hạn nộp.</p>',
+    'Email tự động từ ArticuWrite. Giảng viên đã nhận danh sách sinh viên chưa nộp bài.');
 }
 
 function rtHomeworkMail(s, a, klass, rows, required, docUrl) {
@@ -530,25 +572,39 @@ function rtMailWrap(inner, footer) {
 }
 
 function rtTeacherMail(a, klass, roster, groups, required, deleted) {
-  var aiOn = rtAiOn(klass), done = 0, missing = [];
-  var body = roster.map(function(s){
-    var sid = String(s['Student ID']).trim(), rows = groups[sid] || [];
+  var aiOn = rtAiOn(klass), done = [], missing = [];
+  roster.forEach(function(s){ (groups[String(s['Student ID']).trim()] ? done : missing).push(s); });
+  var th = function(t, left){ return '<th' + (left ? ' align="left"' : '') + '>' + t + '</th>'; };
+  var doneRows = done.map(function(s){
+    var rows = groups[String(s['Student ID']).trim()];
     var bands = rows.map(function(r){ return parseFloat(r['AI Grading']); }).filter(function(v){ return !isNaN(v); });
-    if (rows.length) done++; else missing.push(s['Name'] || sid);
-    return '<tr style="border-bottom:1px solid #E5E9EE"><td>' + rtEsc(sid) + '</td><td>' + rtEsc(s['Name']) + '</td>' +
+    return '<tr style="border-bottom:1px solid #E5E9EE"><td>' + rtEsc(s['Student ID']) + '</td><td>' + rtEsc(s['Name']) + '</td>' +
       '<td align="center">' + rows.length + '/' + required + '</td>' +
       (aiOn ? '<td align="center">' + (bands.length ? Math.max.apply(null, bands) : '—') + '</td>' : '') + '</tr>';
+  }).join('');
+  var missRows = missing.map(function(s){
+    return '<tr style="border-bottom:1px solid #FADCD9"><td>' + rtEsc(s['Student ID']) + '</td><td>' + rtEsc(s['Name']) +
+      '</td><td>' + rtEsc(s['Email'] || '—') + '</td></tr>';
   }).join('');
   return rtMailWrap(
     '<p>Bài Homework <b>' + rtEsc(a['Topic']) + '</b> — lớp ' + rtEsc(klass['Class Name'] || a['Class']) +
     ' (hạn ' + rtFmt(a['Deadline']) + ') đã qua ' + RT.DAYS + ' ngày.</p>' +
-    '<ul style="padding-left:18px"><li>Đã gửi email tổng kết + link Google Doc cho <b>' + done + '</b> sinh viên đã nộp.</li>' +
-    '<li>Chưa nộp: <b>' + missing.length + '</b>' + (missing.length ? ' (' + rtEsc(missing.join(', ')) + ')' : '') + '</li>' +
+    '<ul style="padding-left:18px">' +
+    '<li>Đã nộp: <b>' + done.length + '/' + roster.length + '</b> — đã nhận email tổng kết + link Google Doc.</li>' +
+    '<li>Chưa nộp: <b style="color:#B42318">' + missing.length + '</b> — đã nhận email cảnh báo.</li>' +
     '<li>Đã lưu trữ và xoá <b>' + (deleted || 0) + '</b> dòng dữ liệu thô. Điểm vẫn hiển thị trong Results (nhãn "lưu trữ"); ' +
     'bấm vào điểm sẽ mở Google Doc của sinh viên.</li></ul>' +
-    '<table cellpadding="6" style="border-collapse:collapse;font-size:13px">' +
-    '<tr style="background:#0A6EBD;color:#fff"><th align="left">Student ID</th><th align="left">Họ tên</th><th>Số lần</th>' +
-    (aiOn ? '<th>Best AI</th>' : '') + '</tr>' + body + '</table>',
+    (missing.length
+      ? '<h3 style="font-size:15px;color:#B42318;margin:18px 0 6px">⚠ Sinh viên chưa nộp bài (' + missing.length + ')</h3>' +
+        '<table cellpadding="6" style="border-collapse:collapse;font-size:13px;background:#FFF7F6">' +
+        '<tr style="background:#B42318;color:#fff">' + th('Student ID', 1) + th('Họ tên', 1) + th('Email', 1) + '</tr>' + missRows + '</table>'
+      : '<p style="color:#1E7E42"><b>✓ Tất cả sinh viên đều đã nộp bài.</b></p>') +
+    (done.length
+      ? '<h3 style="font-size:15px;color:#0A3D62;margin:18px 0 6px">Sinh viên đã nộp (' + done.length + ')</h3>' +
+        '<table cellpadding="6" style="border-collapse:collapse;font-size:13px">' +
+        '<tr style="background:#0A6EBD;color:#fff">' + th('Student ID', 1) + th('Họ tên', 1) + th('Số lần') +
+        (aiOn ? th('Best AI') : '') + '</tr>' + doneRows + '</table>'
+      : ''),
     'Email tự động từ ArticuWrite.');
 }
 

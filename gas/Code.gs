@@ -12,8 +12,9 @@
   full Drive scope (needed for folder/file operations).
 
   Router: both doGet (JSONP) and doPost (fetch) dispatch on `action`.
-  Companion file: Retention.gs (homework 21-day / free-writing 10-day
-  result mail + archive; in-class is kept until the semester reset).
+  Companion files: Retention.gs (homework 21-day / free-writing 10-day
+  result mail + archive; in-class is kept until the semester reset) and
+  Semester.gs (end-of-semester Google Sheets report + wipe).
   Live observation lives in CacheService, not the sheet.
   All responses: { success:Boolean, data|error }
 ───────────────────────────────────────────────────────────────*/
