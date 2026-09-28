@@ -8,9 +8,10 @@
        saved in the feedback Drive folder and shared with the teacher;
     2. (optional) wipes every row of those classes: submissions, history,
        annotations, queries, assignments, translate sets + results,
-       ResultArchive, mail log, live cache; archives the classes and
-       (optional) deletes the student accounts — next semester starts on
-       empty tabs;
+       ResultArchive, mail log, live cache — next semester starts on empty
+       tabs — and archives the classes. Student accounts are NOT deleted:
+       archiving a class locks its students' login; Settings ▸ "Lớp đã
+       lưu trữ" ▸ Restore unlocks them (archiveClass, Code.gs);
     3. emails the teacher the summary + the report link.
 
   Runs in the background worker (queue kind 'semester', Retention.gs).
@@ -21,7 +22,7 @@
 
 var SEM_NAVY = '#0A3D62', SEM_BLUE = '#0A6EBD', SEM_MISS = '#FDECEA', SEM_GREY = '#5B6B7A';
 var SEM_WIPE_STEPS = ['maillog','history','annot','queries','homework','inclass','free',
-                      'trresults','trsets','assign','archive','live','classes','students'];
+                      'trresults','trsets','assign','archive','live','classes'];
 
 // ── Preview (Settings modal) ───────────────────────────────────
 function semPreview(p) {
@@ -64,8 +65,7 @@ function semRequest(p) {
     if (dup) return;
     q.push({ kind:'semester', id:'sem-' + Date.now(), teacherEmail:me, queuedAt:nowIso(),
              title:(wipe ? 'Kết thúc học kỳ' : 'Báo cáo học kỳ') + ' (' + classes.length + ' lớp)',
-             classes:classes, wipe:wipe, archiveClasses:p.archiveClasses !== false,
-             deleteStudents:!!p.deleteStudents, step:0, deleted:0 });
+             classes:classes, wipe:wipe, step:0, deleted:0 });
   });
   if (dup) return { success:false, error:'Đang có một yêu cầu tổng kết học kỳ chưa xử lý xong.' };
   rtScheduleKick(1);
@@ -139,11 +139,11 @@ function semWipe(job, set, t0) {
     assign:   function(){ return rtDeleteWhere(T.ASSIGN, ['Class'], byClass); },
     archive:  function(){ return rtDeleteWhere(RT.ARCHIVE, ['Class'], byClass); },
     live:     function(){ job.classes.forEach(function(c){ clearLiveSessions({ class:c }); CacheService.getScriptCache().remove('lvr:' + c); }); return 0; },
+    // class archived → its students' login is locked (accounts kept, restorable)
     classes:  function(){
-      if (job.archiveClasses) job.classes.forEach(function(c){ rtLocked(function(){ archiveClass({ classId:c }); }); });
+      job.classes.forEach(function(c){ rtLocked(function(){ archiveClass({ classId:c }); }); });
       return 0;
-    },
-    students: function(){ return job.deleteStudents ? rtDeleteWhere(T.STUDENTS, ['Class'], byClass) : 0; }
+    }
   };
   for (var s = job.step || 0; s < SEM_WIPE_STEPS.length; s++) {
     if (Date.now() - t0 > RT.BUDGET_MS) return { partial:true };
@@ -428,7 +428,7 @@ function semGradebookTab(sh, D, c) {
     semBandFormat(sh, bandRanges);
     // one RangeList call; setBackgrounds on the whole block would paint every
     // cell white and hide the row banding
-    if (miss.length) sh.getRangeList(miss.map(function(m){ return semA1(top + 2 + m[0], m[1] + 1); })).setBackground(SEM_MISS);
+    if (miss.length) sh.getRangeList(miss.map(function(m){ return colA1(top + 2 + m[0], m[1] + 1); })).setBackground(SEM_MISS);
   }
   sh.setFrozenColumns(3);
 }
@@ -546,11 +546,6 @@ function semText(v) {
   var s = String(v == null ? '' : v).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   return /^[=+\-@]/.test(s) ? "'" + s : s;
 }
-function semA1(row, col) {
-  var s = '';
-  for (; col > 0; col = Math.floor((col - 1) / 26)) s = String.fromCharCode(65 + (col - 1) % 26) + s;
-  return s + row;
-}
 function rtNum(v) { var n = parseFloat(v); return isNaN(n) ? '' : n; }
 
 // ── Mail ───────────────────────────────────────────────────────
@@ -566,10 +561,9 @@ function semDoneMail(job) {
   var th = function(t){ return '<th style="padding:6px 8px">' + t + '</th>'; };
   var wiped = job.wipe
     ? '<div style="background:#FEF2F2;border:1px solid #FADCD9;color:#7A1A12;padding:10px 12px;border-radius:8px;margin:12px 0">' +
-      '🗑 Đã xoá <b>' + (job.deleted || 0) + '</b> dòng dữ liệu của ' + S.length + ' lớp' +
-      (job.archiveClasses ? '; các lớp đã được lưu trữ (ẩn khỏi danh sách lớp)' : '') +
-      (job.deleteStudents ? '; tài khoản sinh viên của các lớp này đã bị xoá' : '; tài khoản sinh viên được giữ lại') +
-      '. Học kỳ mới bắt đầu với dữ liệu trống.</div>'
+      '🗑 Đã xoá <b>' + (job.deleted || 0) + '</b> dòng dữ liệu bài viết của ' + S.length + ' lớp. ' +
+      'Các lớp đã được lưu trữ và tài khoản sinh viên của các lớp này tạm khoá đăng nhập (không bị xoá). ' +
+      'Nếu dạy lại lớp nào ở học kỳ mới: Settings ▸ <b>Lớp đã lưu trữ</b> ▸ <b>Khôi phục</b> — sinh viên đăng nhập và dùng tiếp như cũ.</div>'
     : '<p style="color:#5B6B7A">Chỉ xuất báo cáo — dữ liệu trên ứng dụng được giữ nguyên.</p>';
   MailApp.sendEmail({
     to: job.teacherEmail, name: 'ArticuWrite',

@@ -150,7 +150,7 @@ document.getElementById('form').onsubmit = function(e){
       } else {
         hideLoading();
         isSubmitting = false;
-        AW.toast((res&&res.error)||'Đăng nhập thất bại.','err',4000);
+        AW.toast((res&&res.error)||'Đăng nhập thất bại.','err',(res&&res.archived)?9000:4000);
       }
     }).catch(function(){
       hideLoading();

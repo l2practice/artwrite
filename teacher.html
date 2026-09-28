@@ -3218,11 +3218,18 @@ function showSettings(){
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
       '<h3 style="margin:0 0 6px">Dữ liệu & lưu trữ</h3>'+
       '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">'+
-        '<b>Homework</b>: tự động sau 21 ngày kể từ hạn nộp — gửi mail tổng kết cho SV và GV, rồi lưu trữ. '+
+        '<b>Homework</b>: đến hạn nộp → mail kết quả cho SV, cảnh báo SV chưa nộp, tổng kết cho GV; 7 ngày sau hạn tự động lưu trữ. '+
         '<b>Free-writing</b>: tự động sau 10 ngày. <b>In-class</b>: giữ nguyên đến khi reset cuối kỳ. '+
         '<b>Translate</b>: dọn tại đây. Bài đã lưu trữ vẫn có điểm trong Results; bấm vào sẽ mở Google Doc.'+
       '</p>'+
       '<button class="aw-btn aw-btn-ghost" onclick="openRetention()" style="padding:8px 16px">🧹 Kiểm tra & dọn dữ liệu</button>'+
+    '</div>'+
+    /* ── Archived classes ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+      '<h3 style="margin:0 0 6px">🗄 Lớp đã lưu trữ</h3>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">Sinh viên của lớp đã lưu trữ tạm khoá đăng nhập. '+
+        '<b>Khôi phục</b> để mở lại lớp và tài khoản sinh viên (ví dụ khi dạy lại lớp ở học kỳ mới).</p>'+
+      '<div id="archivedClasses" style="font-size:.86rem;color:var(--aw-ink-3)">Đang tải…</div>'+
     '</div>'+
     /* ── End of semester ── */
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px;border:1px solid #FADCD9">'+
@@ -3295,6 +3302,7 @@ function showSettings(){
   };
 
   // Save
+  loadArchivedClasses();
   document.getElementById('tkSave').onclick = function(){
     var k = tkIn.value.trim();
     if(!k){ AW.toast('Nhập key trước.','warn'); return; }
@@ -3473,13 +3481,39 @@ function showResetModal(){
   layer1();
 }
 window.archiveClass=function(classId,className){
-  if(!confirm('Archive class "'+className+'"?\nStudents will no longer see it and it will be hidden from your dashboard. Data is preserved.'))return;
+  if(!confirm('Lưu trữ lớp "'+className+'"?\n\nLớp sẽ ẩn khỏi dashboard và sinh viên của lớp tạm KHÔNG đăng nhập được. '+
+              'Dữ liệu và tài khoản được giữ nguyên; khôi phục bất cứ lúc nào ở Settings ▸ Lớp đã lưu trữ.'))return;
   AW.api('class.archive',{classId:classId}).then(function(res){
     if(res&&res.success){
-      AW.toast('Class archived','ok');
+      AW.toast('Đã lưu trữ lớp'+(res.data&&res.data.students?' · khoá '+res.data.students+' tài khoản SV':''),'ok');
       if(curClass()===classId) localStorage.removeItem(CLASS_KEY);
       setTimeout(function(){location.reload();},700);
     } else AW.toast((res&&res.error)||'Failed','err');
+  });
+};
+function loadArchivedClasses(){
+  var box=document.getElementById('archivedClasses'); if(!box) return;
+  AW.api('class.listArchived',{ teacherEmail:sess.email }).then(function(res){
+    var rows=(res&&res.success&&res.data)||[];
+    if(!document.getElementById('archivedClasses')) return;
+    if(!rows.length){ box.innerHTML='Chưa có lớp nào được lưu trữ.'; return; }
+    box.innerHTML='<div class="rt-list">'+rows.map(function(c){
+      return '<div class="rt-item" style="cursor:default">'+
+        '<span class="rt-main"><b>'+AW.esc(c.className||c.classId)+' <span style="font-weight:400;color:var(--aw-ink-3)">('+AW.esc(c.classId)+')</span></b>'+
+        '<small>'+AW.esc((c.year||'')+(c.semester?' · HK'+c.semester:''))+' · '+c.students+' tài khoản SV đang khoá</small></span>'+
+        '<button class="aw-btn aw-btn-primary" style="padding:6px 14px;font-size:.8rem" onclick="restoreClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className||c.classId)+'\','+c.students+')">Khôi phục</button>'+
+      '</div>';
+    }).join('')+'</div>';
+  }).catch(function(){ box.textContent='Không tải được danh sách.'; });
+}
+window.restoreClass=function(classId,className,n){
+  if(!confirm('Khôi phục lớp "'+className+'"?\n\nLớp hiện lại trong dashboard và '+n+' sinh viên đăng nhập, dùng tiếp ứng dụng như cũ.'))return;
+  AW.api('class.archive',{ classId:classId, archived:false }).then(function(res){
+    if(res&&res.success){
+      AW.toast('Đã khôi phục lớp · mở '+((res.data&&res.data.students)||0)+' tài khoản SV','ok',4000);
+      setCurClass(classId);
+      setTimeout(function(){ location.reload(); },900);
+    } else AW.toast((res&&res.error)||'Không khôi phục được','err');
   });
 };
 window.archiveStudent=function(studentId,name){
@@ -3949,7 +3983,7 @@ function showRetention(d){
           ? '<p class="rt-note">Các bài Translate dưới đây đã quá <b>'+d.days+' ngày</b> sau hạn. Khi dọn: số lần làm, điểm cao nhất, số câu đã qua '+
             '<b>vẫn hiển thị trong Results</b>; dữ liệu từng lượt bị xoá khỏi Sheet. (Homework và Free-writing được lưu trữ tự động; In-class giữ đến cuối kỳ.)</p>'+
             '<div class="rt-list">'+list+'</div>'
-          : '<p class="rt-empty">Không có bài Translate nào cần dọn. Homework (21 ngày) và Free-writing (10 ngày) được lưu trữ tự động; In-class giữ đến khi reset cuối kỳ.</p>')+
+          : '<p class="rt-empty">Không có bài Translate nào cần dọn. Homework (7 ngày sau hạn) và Free-writing (10 ngày) được lưu trữ tự động; In-class giữ đến khi reset cuối kỳ.</p>')+
       '</div>'+
       '<div class="rt-foot"><span class="rt-msg" id="rtMsg"></span>'+
         '<button class="aw-btn aw-btn-ghost" id="rtLater">'+(items.length?'Để sau':'Đóng')+'</button>'+
@@ -4019,12 +4053,10 @@ function showSemesterReset(d){
         '<p class="rt-note">Hệ thống tạo <b>báo cáo Google Sheets</b> cho các lớp được chọn và gửi link qua email '+AW.esc(sess.email)+'. '+
         'Báo cáo luôn được tạo <b>trước</b>; nếu tạo lỗi thì không xoá gì.</p>'+
         '<div class="sem-h">Lớp</div><div class="rt-list">'+list+'</div>'+
-        '<div class="sem-h">Khi xoá dữ liệu</div>'+
-        '<label class="sem-opt"><input type="checkbox" id="semArchive" checked><span><b>Lưu trữ các lớp đã chọn</b> — ẩn khỏi danh sách lớp; học kỳ mới tạo lớp mới.</span></label>'+
-        '<label class="sem-opt"><input type="checkbox" id="semStudents"><span><b>Xoá tài khoản sinh viên</b> của các lớp này — SV phải đăng ký lại ở học kỳ mới. '+
-          'Bỏ chọn nếu SV học tiếp với thầy/cô (có thể chuyển lớp cho SV sau).</span></label>'+
-        '<div class="sem-danger">🗑 <b>Xoá sạch</b> của các lớp đã chọn: bài nộp (Homework, In-class, Free-writing), bài tập, lịch sử, annotation, câu hỏi, '+
+        '<div class="sem-danger">🗑 <b>Xoá sạch dữ liệu bài viết</b> của các lớp đã chọn: bài nộp (Homework, In-class, Free-writing), bài tập, lịch sử, annotation, câu hỏi, '+
           'Translate, kết quả lưu trữ, email log. <b>Không thể hoàn tác.</b> Google Docs nhận xét của SV vẫn giữ trên Drive.</div>'+
+        '<p class="rt-note">🗄 Các lớp được <b>lưu trữ</b>; tài khoản sinh viên <b>không bị xoá</b> mà tạm khoá đăng nhập. '+
+          'Dạy lại lớp nào ở học kỳ mới: Settings ▸ <b>Lớp đã lưu trữ</b> ▸ <b>Khôi phục</b> — sinh viên dùng tiếp như cũ.</p>'+
         '<div class="sem-confirm"><span>Gõ <b>RESET</b> để bật nút xoá:</span><input id="semConfirm" autocomplete="off" spellcheck="false" aria-label="Gõ RESET để xác nhận"></div>'+
       '</div>'+
       '<div class="rt-foot"><span class="rt-msg" id="semMsg"></span>'+
@@ -4052,9 +4084,7 @@ function showSemesterReset(d){
     if(wipe && !confirm('Xoá toàn bộ dữ liệu của '+classes.length+' lớp sau khi xuất báo cáo?\n\nKhông thể hoàn tác.')) return;
     expBtn.disabled=wipeBtn.disabled=true;
     var msg=document.getElementById('semMsg'); msg.textContent='Đang gửi yêu cầu…';
-    AW.api('semester.reset',{ teacherEmail:sess.email, classes:classes, wipe:wipe, confirm:conf.value,
-      archiveClasses:document.getElementById('semArchive').checked, deleteStudents:document.getElementById('semStudents').checked
-    }).then(function(res){
+    AW.api('semester.reset',{ teacherEmail:sess.email, classes:classes, wipe:wipe, confirm:conf.value }).then(function(res){
       if(res&&res.success){
         busy=true;
         msg.textContent='✓ Đã nhận yêu cầu. Hệ thống xử lý nền (thường vài phút; nếu đang có SV làm bài sẽ chờ đến khi xong) '+

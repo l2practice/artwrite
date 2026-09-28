@@ -147,9 +147,10 @@ function dispatch(action, p) {
     case 'class.list':               return classList(p);
     case 'class.get':                return classGet(p);
     case 'class.roster':             return getRoster(p);
-    case 'class.archive':            return archiveClass(p);
+    case 'class.archive':            return rtLocked(function(){ return archiveClass(p); });
+    case 'class.listArchived':       return classListArchived(p);
     case 'class.setAiEnabled':       return classSetAiEnabled(p);
-    case 'student.archive':          return archiveStudent(p);
+    case 'student.archive':          return rtLocked(function(){ return archiveStudent(p); });
     case 'student.getById':          return studentGetById(p);
     case 'student.edit':             return studentEdit(p);
     // writing (student)
@@ -415,6 +416,8 @@ function studentSignup(p) {
     return String(r['Class ID']) === String(p.class).trim().toUpperCase();
   })[0];
   if (!cls) return { success:false, error:'Mã lớp "' + p.class + '" không tồn tại. Kiểm tra lại với giảng viên.' };
+  if (String(cls['Archived']).toLowerCase() === 'true')
+    return { success:false, error:'Lớp "' + p.class + '" đã kết thúc. Hỏi giảng viên mã lớp của học kỳ này.' };
 
   // ── 3. Duplicate checks ─────────────────────────────────────────
   var rows  = readAll(T.STUDENTS);
@@ -454,12 +457,19 @@ function studentLogin(p) {
 
   // Match by Student ID (exact, trimmed) OR by email (case-insensitive)
   var rows    = readAll(T.STUDENTS);
-  var matches = rows.filter(function(r){
-    if (r['Archived'] === true || String(r['Archived']).toLowerCase() === 'true') return false;
-    return String(r['Student ID']).trim() === idOrEmail ||
-           String(r['Email'] || '').trim().toLowerCase() === lower;
-  });
-  if (!matches.length) return { success:false, error:'Sai Student ID/email hoặc mật khẩu.' };
+  var isArch  = function(r){ return r['Archived'] === true || String(r['Archived']).toLowerCase() === 'true'; };
+  var mine    = function(r){ return String(r['Student ID']).trim() === idOrEmail ||
+                                    String(r['Email'] || '').trim().toLowerCase() === lower; };
+  var matches = rows.filter(function(r){ return !isArch(r) && mine(r); });
+  if (!matches.length) {
+    // Correct password on an archived account: say why instead of "wrong password"
+    var arch = rows.filter(function(r){ return isArch(r) && mine(r) && samePassword(r['Password'], pass); })[0];
+    if (arch) return { success:false, archived:true,
+      error: String(arch['Archived Reason']) === 'class'
+        ? 'Lớp của bạn đã kết thúc học kỳ nên tài khoản tạm khoá. Khi giảng viên mở lại lớp, bạn sẽ đăng nhập được như cũ.'
+        : 'Tài khoản đã được giảng viên lưu trữ. Liên hệ giảng viên nếu cần mở lại.' };
+    return { success:false, error:'Sai Student ID/email hoặc mật khẩu.' };
+  }
 
   var u = matches.filter(function(r){ return samePassword(r['Password'], pass); })[0];
   if (!u) return { success:false, error:'Sai Student ID/email hoặc mật khẩu.' };
@@ -639,18 +649,72 @@ function getRoster(p) {
   }) };
 }
 
+/*  archiveClass — archive (default) or restore (archived:false) a class.
+    Its students follow: archiving locks their login (Archived = 'true',
+    Archived Reason = 'class'); restoring unlocks exactly those accounts.
+    A student the teacher archived individually (no reason) stays archived.
+    Runs under the script lock (dispatch → rtLocked).                    */
 function archiveClass(p) {
   if (!p.classId) return { success:false, error:'Missing classId.' };
+  var restore = p.archived === false;
   var sh = sheet(T.CLASSES), idx = headerIndex(T.CLASSES);
   if (idx['Archived']==null) { sh.getRange(1,sh.getLastColumn()+1).setValue('Archived'); idx=headerIndex(T.CLASSES); }
-  var data = sh.getDataRange().getValues();
+  var data = sh.getDataRange().getValues(), found = false;
   for (var i=1;i<data.length;i++){
     if (String(data[i][idx['Class ID']])===String(p.classId)) {
-      sh.getRange(i+1, idx['Archived']+1).setValue(p.archived===false?'':'true');
-      return { success:true };
+      sh.getRange(i+1, idx['Archived']+1).setValue(restore?'':'true');
+      found = true; break;
     }
   }
-  return { success:false, error:'Class not found.' };
+  if (!found) return { success:false, error:'Class not found.' };
+
+  var ss2 = sheet(T.STUDENTS), sx = headerIndex(T.STUDENTS);
+  if (sx['Archived']==null)        { ss2.getRange(1,ss2.getLastColumn()+1).setValue('Archived'); sx=headerIndex(T.STUDENTS); }
+  if (sx['Archived Reason']==null) { ss2.getRange(1,ss2.getLastColumn()+1).setValue('Archived Reason'); sx=headerIndex(T.STUDENTS); }
+  var n = Math.max(0, ss2.getLastRow()-1), cells = [], reasons = [];
+  if (n) {
+    var col = function(h){ return ss2.getRange(2, sx[h]+1, n, 1).getValues(); };
+    var cls = col('Class'), arc = col('Archived'), why = col('Archived Reason');
+    for (var k=0;k<n;k++){
+      if (String(cls[k][0]).trim() !== String(p.classId)) continue;
+      var on = String(arc[k][0]).toLowerCase() === 'true';
+      if (restore ? (on && String(why[k][0]) === 'class') : !on) {
+        cells.push(colA1(k+2, sx['Archived']+1)); reasons.push(colA1(k+2, sx['Archived Reason']+1));
+      }
+    }
+    // one RangeList write per column — only the rows that change
+    if (cells.length) {
+      ss2.getRangeList(cells).setValue(restore ? '' : 'true');
+      ss2.getRangeList(reasons).setValue(restore ? '' : 'class');
+    }
+  }
+  try { CacheService.getScriptCache().remove('lvr:' + p.classId); } catch (e) {}
+  return { success:true, data:{ classId:p.classId, archived:!restore, students:cells.length } };
+}
+
+// Archived classes of a teacher, for Settings ▸ "Lớp đã lưu trữ"
+function classListArchived(p) {
+  var me = String(p.teacherEmail||'').trim().toLowerCase();
+  var locked = {};
+  readAll(T.STUDENTS).forEach(function(s){
+    if (String(s['Archived']).toLowerCase()==='true' && String(s['Archived Reason'])==='class') {
+      var c = String(s['Class']).trim(); locked[c] = (locked[c]||0) + 1;
+    }
+  });
+  var rows = readAll(T.CLASSES).filter(function(r){
+    return String(r['Archived']).toLowerCase()==='true' &&
+           (!me || String(r['Teacher Email']).trim().toLowerCase()===me);
+  });
+  return { success:true, data: rows.map(function(r){
+    var id = String(r['Class ID']);
+    return { classId:id, className:r['Class Name'], year:r['Academic Year'], semester:r['Semester'], students:locked[id]||0 };
+  }) };
+}
+
+function colA1(row, col) {
+  var s = '';
+  for (; col > 0; col = Math.floor((col - 1) / 26)) s = String.fromCharCode(65 + (col - 1) % 26) + s;
+  return s + row;
 }
 
 function archiveStudent(p) {
@@ -661,6 +725,7 @@ function archiveStudent(p) {
   for (var i=1;i<data.length;i++){
     if (String(data[i][idx['Student ID']])===String(p.studentId)) {
       sh.getRange(i+1, idx['Archived']+1).setValue(p.archived===false?'':'true');
+      if (idx['Archived Reason']!=null) sh.getRange(i+1, idx['Archived Reason']+1).setValue('');   // individual — never auto-restored
       return { success:true };
     }
   }
