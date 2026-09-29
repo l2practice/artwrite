@@ -84,16 +84,42 @@ function rtDispatch(action, p) {
 }
 
 // ── One-time setup (run from the editor) ───────────────────────
+/*  Trigger + start time first: they do not touch the spreadsheet, so they
+    succeed even when Sheets is slow. The two tabs are then created with a
+    few retries ("Service Spreadsheets timed out" is a transient Google-side
+    error on large files); if Sheets is still busy they are created later by
+    the first worker run that needs them, so the install is complete anyway. */
 function rtInstall() {
-  rtTab(RT.ARCHIVE); rtTab(RT.MAILLOG);
   rtDropTriggers('rtHourly');
   // every 15 min so deadline mail goes out within 15 min of the deadline;
   // an idle pass reads a few small columns (a few seconds)
   ScriptApp.newTrigger('rtHourly').timeBased().everyMinutes(15).create();
   var props = PropertiesService.getScriptProperties();
   if (!props.getProperty(RT.P_SINCE)) props.setProperty(RT.P_SINCE, String(Date.now()));
-  Logger.log('Retention installed. Deadline mail for assignments closing after ' +
+  Logger.log('✓ Trigger installed (every 15 min). Mail only for work due after ' +
              new Date(Number(props.getProperty(RT.P_SINCE))));
+  [RT.ARCHIVE, RT.MAILLOG].forEach(function(name){
+    try {
+      rtRetry(function(){ return rtTab(name); });
+      Logger.log('✓ Tab ready: ' + name);
+    } catch (e) {
+      Logger.log('… Tab "' + name + '" not created yet (' + e.message + '). It will be created automatically on the first run — nothing else to do.');
+    }
+  });
+  Logger.log('Retention installed.');
+}
+
+// Retry a Sheets call that can hit a transient "Service Spreadsheets timed out"
+function rtRetry(fn, tries) {
+  tries = tries || 3;
+  for (var i = 1; ; i++) {
+    try { return fn(); }
+    catch (e) {
+      if (i >= tries || !/timed out|Service|temporar/i.test(String(e && e.message))) throw e;
+      Utilities.sleep(2000 * i);
+      _rtSheets = {};                            // re-open the file on the next attempt
+    }
+  }
 }
 
 function rtHourly() { rtWorker(); }   // name kept for installed triggers; runs every 15 min
