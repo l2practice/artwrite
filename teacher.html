@@ -29,6 +29,46 @@
   .res-caret{opacity:.55;font-size:.7em}
   .res-new{display:inline-block;background:var(--aw-writing);color:#fff;font-size:.6rem;font-weight:700;
     text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
+  .res-arch{display:inline-block;background:#EEF1F4;color:var(--aw-ink-2);border:1px solid var(--aw-border);font-size:.6rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
+  /* data retention modal */
+  .rt-bg{position:fixed;inset:0;background:rgba(15,23,32,.55);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
+  .rt-box{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:calc(100vh - 32px);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:awPop .16s ease}
+  .rt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--aw-border-2);font-weight:800;font-size:1.05rem}
+  .rt-x{background:none;border:none;font-size:1.5rem;line-height:1;color:var(--aw-ink-3);cursor:pointer;padding:0 4px}
+  .rt-body{padding:16px 18px;overflow-y:auto}
+  .rt-meter{background:var(--aw-surface-2);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+  .rt-meter-top{display:flex;justify-content:space-between;font-size:.86rem;margin-bottom:6px}
+  .rt-bar{height:8px;background:#E5E9EE;border-radius:5px;overflow:hidden}
+  .rt-bar>div{height:100%;background:var(--aw-primary);border-radius:5px}
+  .rt-bar>div.rt-over-bg{background:var(--aw-danger)}
+  .rt-over{color:var(--aw-danger)}
+  .rt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .rt-chip{font-size:.72rem;background:#fff;border:1px solid var(--aw-border);border-radius:10px;padding:2px 8px;color:var(--aw-ink-2)}
+  .rt-note{font-size:.84rem;line-height:1.5;color:var(--aw-ink-2);margin:0 0 10px}
+  .rt-warn{background:#FEF2F2;border:1px solid #FADCD9;color:#B42318;border-radius:10px;padding:9px 12px;font-size:.84rem;margin-bottom:10px}
+  .rt-queued{background:#FFF8EC;border:1px solid #F3D9A4;color:#8A6410;border-radius:10px;padding:9px 12px;font-size:.84rem;margin-bottom:10px}
+  .rt-list{display:flex;flex-direction:column;gap:6px}
+  .rt-item{display:flex;align-items:center;gap:10px;border:1px solid var(--aw-border);border-radius:10px;padding:9px 11px;cursor:pointer}
+  .rt-item input{flex:0 0 auto;width:16px;height:16px}
+  .rt-kind{flex:0 0 auto;font-size:.64rem;font-weight:800;padding:2px 6px;border-radius:7px;background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .rt-main{flex:1;min-width:0;display:flex;flex-direction:column;font-size:.86rem}
+  .rt-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rt-main small{color:var(--aw-ink-3);font-size:.74rem}
+  .rt-rows{flex:0 0 auto;font-size:.76rem;color:var(--aw-ink-3);white-space:nowrap}
+  .rt-empty{font-size:.86rem;color:var(--aw-ink-3);margin:4px 0}
+  .rt-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
+  .rt-msg{flex:1 1 100%;font-size:.82rem;color:var(--aw-ink-2)}
+  .sem-cls small{display:block}
+  .sem-opt{display:flex;gap:9px;align-items:flex-start;font-size:.86rem;margin:6px 0;cursor:pointer;line-height:1.4}
+  .sem-opt input{margin-top:3px;flex:0 0 auto}
+  .sem-danger{background:#FEF2F2;border:1px solid #FADCD9;color:#7A1A12;border-radius:10px;padding:10px 12px;font-size:.84rem;line-height:1.5;margin:12px 0}
+  .sem-confirm{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.84rem}
+  .sem-confirm input{width:120px;padding:7px 10px;border:1px solid var(--aw-border);border-radius:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .sem-btn-danger{background:#B42318;color:#fff}
+  .sem-btn-danger:disabled{opacity:.45;cursor:not-allowed}
+  .sem-h{font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--aw-ink-3);margin:14px 0 6px}
+  .rt-msg:empty{display:none}
   .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
   .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
     border-radius:18px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
@@ -710,6 +750,7 @@ function bootClasses(){
     injectClassBar();
     if(!myClasses.length){ showClasses(); }
     else { routeInitial(); }
+    rtCheckOnLogin();
   });
 }
 
@@ -2334,7 +2375,8 @@ function renderResults(){
     var _last=groupLastTs(g);
     var newBadge=(_last && (Date.now()-_last) < 86400000 && isResultUnseen(gkey,_last))
       ? ' <span class="res-new" title="Nộp trong 24 giờ qua — chưa xem">new</span>' : '';
-    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+'</td>'+
+    var archBadge=g.archived?' <span class="res-arch" title="Đã lưu trữ — bài viết và feedback đầy đủ nằm trong Google Doc">lưu trữ</span>':'';
+    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+archBadge+'</td>'+
       '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell;
     picks.forEach(function(p,pi){
       // map pick index to actual write index (best uses bestI)
@@ -2363,6 +2405,12 @@ function renderResults(){
     cell.style.cursor='pointer';
     cell.title='Click to view this attempt';
     cell.onclick=function(){ viewEssays(cell.dataset.openKey, +cell.dataset.openWi); };
+  });
+  // archived results are read-only: their raw submission rows were purged,
+  // so saveManualScore would have nothing to write to
+  AW.els('tr[data-key]').forEach(function(tr){
+    var g=findResult(tr.dataset.key); if(!g||!g.archived) return;
+    tr.querySelectorAll('.ms-in,.ms-note,.ms-save,.pv-note,.pv-save').forEach(function(el){ el.disabled=true; });
   });
   // manual score save + auto-average overall (IELTS rounding)
   AW.els('.grp-best').forEach(function(cell){
@@ -2409,6 +2457,9 @@ function renderResults(){
 // view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
 window.viewEssays=function(gkey, writeIdx){
   var g=findResult(gkey); if(!g){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
+  // essay + AI feedback of an archived attempt were removed — the Doc is the record
+  var wSel=(writeIdx!=null && writeIdx>=0) ? (g.writes||[])[writeIdx] : null;
+  if (g.docUrl && ((wSel && wSel.archived) || (!wSel && g.archived))) { window.open(g.docUrl,'_blank'); return; }
   markResultSeen(gkey, groupLastTs(g));
   AW.els('tr[data-key]').forEach(function(tr){
     if(tr.dataset.key===gkey){ var b=tr.querySelector('.res-new'); if(b) b.remove(); }
@@ -2441,7 +2492,11 @@ window.viewEssays=function(gkey, writeIdx){
           '<div style="flex:1">'+crit(c1label,x.tr)+crit('Coherence & Cohesion',x.cc)+crit('Lexical Resource',x.lr)+crit('Grammar',x.gra)+'</div>'+
         '</div>'+
         '<div id="detail_'+i+'" style="color:var(--aw-ink-3);font-size:.85rem">'+
-          '<span class="aw-spin aw-spin-dark"></span> Đang tải nội dung bài viết…'+
+          (x.archived
+            ? '📦 Bài này đã được lưu trữ. '+(g.docUrl
+                ? '<a href="'+AW.esc(g.docUrl)+'" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Mở Google Doc</a> để xem bài viết và feedback.'
+                : 'Không có Google Doc cho bài này.')
+            : '<span class="aw-spin aw-spin-dark"></span> Đang tải nội dung bài viết…')+
         '</div>'+
       '</div>';
     }).join('')+
@@ -2450,11 +2505,15 @@ window.viewEssays=function(gkey, writeIdx){
   document.getElementById('essayModalBody').innerHTML = header + scoreOnlyBody;
   document.getElementById('essayModal').classList.add('show');
 
-  // Now fetch full essay+feedback lazily
+  // Now fetch full essay+feedback lazily. Archived attempts (oldest first)
+  // have no raw row any more, so raw detail j maps to write j+nArch.
+  var nArch=(g.writes||[]).filter(function(x){ return x.archived; }).length;
+  if (nArch && nArch===(g.writes||[]).length) return;
   AW.api('teacher.getAttemptDetail',{ studentId:g.studentId, topicId:g.topicId, mode:curMode })
     .then(function(res){
       if (!res||!res.success) return;
-      res.data.forEach(function(d, i){
+      res.data.forEach(function(d, j){
+        var i=j+nArch;
         if (writeIdx!=null && writeIdx>=0 && i!==writeIdx) return;
         var el = document.getElementById('detail_'+i);
         if (!el) return;
@@ -2542,6 +2601,11 @@ function showRecreateWarning(gkey){
 
 function runExportDoc(gkey, regenerate){
   var g=findResult(gkey); if(!g) return;
+  if(g.archived){
+    if(g.docUrl) window.open(g.docUrl,'_blank');
+    else AW.toast('Bài đã lưu trữ và không có Google Doc.','err',4000);
+    return;
+  }
   AW.toast(regenerate ? 'Đang tạo lại Doc…' : 'Đang mở Doc…');
   AW.api('write.exportDoc',{
     studentId:g.studentId, topicId:g.topicId,
@@ -3150,6 +3214,32 @@ function showSettings(){
         '→ <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:600">Get free key at Google AI Studio</a>'+
       '</p>'+
     '</div>'+
+    /* ── Data retention ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+      '<h3 style="margin:0 0 6px">Dữ liệu & lưu trữ</h3>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">'+
+        '<b>Homework</b>: đến hạn nộp → mail kết quả cho SV, cảnh báo SV chưa nộp, tổng kết cho GV; 7 ngày sau hạn tự động lưu trữ. '+
+        '<b>Free-writing</b>: tự động sau 10 ngày. <b>In-class</b>: giữ nguyên đến khi reset cuối kỳ. '+
+        '<b>Translate</b>: dọn tại đây. Bài đã lưu trữ vẫn có điểm trong Results; bấm vào sẽ mở Google Doc.'+
+      '</p>'+
+      '<button class="aw-btn aw-btn-ghost" onclick="openRetention()" style="padding:8px 16px">🧹 Kiểm tra & dọn dữ liệu</button>'+
+    '</div>'+
+    /* ── Archived classes ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+      '<h3 style="margin:0 0 6px">🗄 Lớp đã lưu trữ</h3>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">Sinh viên của lớp đã lưu trữ tạm khoá đăng nhập. '+
+        '<b>Khôi phục</b> để mở lại lớp và tài khoản sinh viên (ví dụ khi dạy lại lớp ở học kỳ mới).</p>'+
+      '<div id="archivedClasses" style="font-size:.86rem;color:var(--aw-ink-3)">Đang tải…</div>'+
+    '</div>'+
+    /* ── End of semester ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px;border:1px solid #FADCD9">'+
+      '<h3 style="margin:0 0 6px">🎓 Kết thúc học kỳ</h3>'+
+      '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 12px">'+
+        'Xuất toàn bộ kết quả của các lớp thành <b>một báo cáo Google Sheets</b> (tổng quan, bảng điểm từng lớp, chi tiết từng bài, Translate, danh sách SV) '+
+        'và gửi link qua email. Sau đó có thể <b>xoá sạch dữ liệu</b> các lớp này để học kỳ mới bắt đầu với dữ liệu trống.'+
+      '</p>'+
+      '<button class="aw-btn sem-btn-danger" onclick="openSemesterReset()" style="padding:8px 16px">Tổng kết & reset học kỳ…</button>'+
+    '</div>'+
     /* ── Account ── */
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
     '<h3 style="margin:0 0 6px">Account</h3>'+
@@ -3212,6 +3302,7 @@ function showSettings(){
   };
 
   // Save
+  loadArchivedClasses();
   document.getElementById('tkSave').onclick = function(){
     var k = tkIn.value.trim();
     if(!k){ AW.toast('Nhập key trước.','warn'); return; }
@@ -3390,13 +3481,39 @@ function showResetModal(){
   layer1();
 }
 window.archiveClass=function(classId,className){
-  if(!confirm('Archive class "'+className+'"?\nStudents will no longer see it and it will be hidden from your dashboard. Data is preserved.'))return;
+  if(!confirm('Lưu trữ lớp "'+className+'"?\n\nLớp sẽ ẩn khỏi dashboard và sinh viên của lớp tạm KHÔNG đăng nhập được. '+
+              'Dữ liệu và tài khoản được giữ nguyên; khôi phục bất cứ lúc nào ở Settings ▸ Lớp đã lưu trữ.'))return;
   AW.api('class.archive',{classId:classId}).then(function(res){
     if(res&&res.success){
-      AW.toast('Class archived','ok');
+      AW.toast('Đã lưu trữ lớp'+(res.data&&res.data.students?' · khoá '+res.data.students+' tài khoản SV':''),'ok');
       if(curClass()===classId) localStorage.removeItem(CLASS_KEY);
       setTimeout(function(){location.reload();},700);
     } else AW.toast((res&&res.error)||'Failed','err');
+  });
+};
+function loadArchivedClasses(){
+  var box=document.getElementById('archivedClasses'); if(!box) return;
+  AW.api('class.listArchived',{ teacherEmail:sess.email }).then(function(res){
+    var rows=(res&&res.success&&res.data)||[];
+    if(!document.getElementById('archivedClasses')) return;
+    if(!rows.length){ box.innerHTML='Chưa có lớp nào được lưu trữ.'; return; }
+    box.innerHTML='<div class="rt-list">'+rows.map(function(c){
+      return '<div class="rt-item" style="cursor:default">'+
+        '<span class="rt-main"><b>'+AW.esc(c.className||c.classId)+' <span style="font-weight:400;color:var(--aw-ink-3)">('+AW.esc(c.classId)+')</span></b>'+
+        '<small>'+AW.esc((c.year||'')+(c.semester?' · HK'+c.semester:''))+' · '+c.students+' tài khoản SV đang khoá</small></span>'+
+        '<button class="aw-btn aw-btn-primary" style="padding:6px 14px;font-size:.8rem" onclick="restoreClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className||c.classId)+'\','+c.students+')">Khôi phục</button>'+
+      '</div>';
+    }).join('')+'</div>';
+  }).catch(function(){ box.textContent='Không tải được danh sách.'; });
+}
+window.restoreClass=function(classId,className,n){
+  if(!confirm('Khôi phục lớp "'+className+'"?\n\nLớp hiện lại trong dashboard và '+n+' sinh viên đăng nhập, dùng tiếp ứng dụng như cũ.'))return;
+  AW.api('class.archive',{ classId:classId, archived:false }).then(function(res){
+    if(res&&res.success){
+      AW.toast('Đã khôi phục lớp · mở '+((res.data&&res.data.students)||0)+' tài khoản SV','ok',4000);
+      setCurClass(classId);
+      setTimeout(function(){ location.reload(); },900);
+    } else AW.toast((res&&res.error)||'Không khôi phục được','err');
   });
 };
 window.archiveStudent=function(studentId,name){
@@ -3800,6 +3917,185 @@ function saveTrSet(){
 }
 
 /*═══════════ init ═══════════*/
+/*═══════════ DATA RETENTION ═══════════
+  Backend: gas/Retention.gs. Raw rows (essays, AI feedback JSON, translate
+  runs) become purgeable 21 days after the deadline. Purging archives each
+  student's scores into ResultArchive (merged back into Results) and keeps
+  the essay text in their Google Doc. The server does the work in the
+  background, so this only queues it. Reminded once per login session. */
+var RT_KIND = { homework:'HW', inclass:'IC', free:'FW', translate:'TR' };
+var RT_TAB  = { 'Homework':'Homework', 'In-class Practice':'In-class', 'Free-writing':'Free-writing',
+                'History':'History', 'Annotations':'Annotations', 'FeedbackQueries':'Queries', 'TranslateResults':'Translate' };
+
+function rtCheckOnLogin(){
+  try { if (sessionStorage.getItem('aw_rt_checked')) return; sessionStorage.setItem('aw_rt_checked','1'); } catch(e){}
+  AW.api('retention.status',{ teacherEmail:sess.email }).then(function(res){
+    if(!res||!res.success||!res.data) return;          // backend without Retention.gs: stay silent
+    var d=res.data, queued=rtQueuedKeys(d);
+    var fresh=(d.items||[]).filter(function(it){ return !queued[it.kind+'|'+it.id]; });
+    // homework / free-writing retire themselves; only a manual item (translate)
+    // or a missing trigger is worth interrupting the teacher for
+    if(fresh.length || d.triggerOn===false) showRetention(d);
+  }).catch(function(){});
+}
+function rtQueuedKeys(d){
+  var q={}; (d.queued||[]).forEach(function(j){ q[j.kind+'|'+j.id]=true; }); return q;
+}
+window.openRetention=function(){
+  AW.toast('Đang kiểm tra dữ liệu…');
+  AW.api('retention.status',{ teacherEmail:sess.email }).then(function(res){
+    if(res&&res.success&&res.data) showRetention(res.data);
+    else AW.toast((res&&res.error)||'Backend chưa cài Retention.gs','err',5000);
+  }).catch(function(){ AW.toast('Không kết nối được máy chủ','err'); });
+};
+
+function showRetention(d){
+  var old=document.getElementById('rtBg'); if(old) old.remove();
+  var queued=rtQueuedKeys(d);
+  var items=(d.items||[]).filter(function(it){ return !queued[it.kind+'|'+it.id]; });
+  var over=d.total>d.budget, pct=Math.min(100,Math.round(d.total/Math.max(1,d.budget)*100));
+  var chips=Object.keys(d.counts||{}).filter(function(k){ return d.counts[k]>0; }).map(function(k){
+    return '<span class="rt-chip">'+AW.esc(RT_TAB[k]||k)+' <b>'+d.counts[k]+'</b></span>';
+  }).join('');
+  var list=items.map(function(it){
+    var end=it.deadline ? 'hạn '+AW.fmtDate(it.deadline) : 'hoạt động cuối '+AW.fmtDate(it.endAt);
+    var ago=Math.floor((Date.now()-new Date(it.endAt).getTime())/86400000);
+    return '<label class="rt-item"><input type="checkbox" checked data-kind="'+AW.esc(it.kind)+'" data-id="'+AW.esc(it.id)+'">'+
+      '<span class="rt-kind">'+(RT_KIND[it.kind]||it.kind)+'</span>'+
+      '<span class="rt-main"><b title="'+AW.esc(it.title)+'">'+AW.esc(it.title)+'</b>'+
+        '<small>'+AW.esc(it.className||it.class||'')+' · '+end+' · '+ago+' ngày trước</small></span>'+
+      '<span class="rt-rows">'+it.rows+' dòng</span></label>';
+  }).join('');
+  var bg=document.createElement('div');
+  bg.className='rt-bg'; bg.id='rtBg';
+  bg.innerHTML=
+    '<div class="rt-box" role="dialog" aria-modal="true" aria-labelledby="rtTitle">'+
+      '<div class="rt-head"><span id="rtTitle">🧹 Dọn dữ liệu định kỳ</span><button class="rt-x" id="rtX" aria-label="Đóng">×</button></div>'+
+      '<div class="rt-body">'+
+        '<div class="rt-meter">'+
+          '<div class="rt-meter-top"><span>Dữ liệu thô trong Sheet</span><b class="'+(over?'rt-over':'')+'">'+d.total+' / '+d.budget+' dòng</b></div>'+
+          '<div class="rt-bar"><div class="'+(over?'rt-over-bg':'')+'" style="width:'+pct+'%"></div></div>'+
+          (chips?'<div class="rt-chips">'+chips+'</div>':'')+
+        '</div>'+
+        (d.triggerOn===false?'<div class="rt-warn">⚠ Trigger nền chưa được bật (chạy <b>rtInstall()</b> trong Apps Script). Email sau deadline và việc dọn dữ liệu sẽ không chạy.</div>':'')+
+        ((d.queued||[]).length?'<div class="rt-queued">⏳ Đang xử lý nền: '+d.queued.map(function(j){ return AW.esc(j.title); }).join(', ')+'. Thầy/cô sẽ nhận email khi xong.</div>':'')+
+        (items.length
+          ? '<p class="rt-note">Các bài Translate dưới đây đã quá <b>'+d.days+' ngày</b> sau hạn. Khi dọn: số lần làm, điểm cao nhất, số câu đã qua '+
+            '<b>vẫn hiển thị trong Results</b>; dữ liệu từng lượt bị xoá khỏi Sheet. (Homework và Free-writing được lưu trữ tự động; In-class giữ đến cuối kỳ.)</p>'+
+            '<div class="rt-list">'+list+'</div>'
+          : '<p class="rt-empty">Không có bài Translate nào cần dọn. Homework (7 ngày sau hạn) và Free-writing (10 ngày) được lưu trữ tự động; In-class giữ đến khi reset cuối kỳ.</p>')+
+      '</div>'+
+      '<div class="rt-foot"><span class="rt-msg" id="rtMsg"></span>'+
+        '<button class="aw-btn aw-btn-ghost" id="rtLater">'+(items.length?'Để sau':'Đóng')+'</button>'+
+        (items.length?'<button class="aw-btn aw-btn-primary" id="rtGo">Dọn '+items.length+' mục</button>':'')+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(bg);
+  var close=function(){ bg.remove(); };
+  bg.addEventListener('click',function(e){ if(e.target===bg) close(); });
+  document.getElementById('rtX').onclick=close;
+  document.getElementById('rtLater').onclick=close;
+  var go=document.getElementById('rtGo');
+  if(!go) return;
+  var picked=function(){ return AW.els('.rt-item input:checked',bg); };
+  AW.els('.rt-item input',bg).forEach(function(cb){
+    cb.onchange=function(){ var n=picked().length; go.textContent='Dọn '+n+' mục'; go.disabled=!n; };
+  });
+  go.onclick=function(){
+    var sel=picked().map(function(cb){ return { kind:cb.dataset.kind, id:cb.dataset.id }; });
+    if(!sel.length) return;
+    go.disabled=true; go.textContent='Đang gửi…';
+    AW.api('retention.purge',{ teacherEmail:sess.email, items:sel }).then(function(res){
+      var msg=document.getElementById('rtMsg');
+      if(res&&res.success){
+        msg.textContent='✓ Đã xếp hàng '+res.data.queued+' mục. Hệ thống xử lý trong nền (chờ lúc không có SV đang viết) và gửi email khi xong.';
+        go.remove();
+        document.getElementById('rtLater').textContent='Đóng';
+      } else {
+        msg.textContent='⚠ '+((res&&res.error)||'Không gửi được yêu cầu');
+        go.disabled=false; go.textContent='Thử lại';
+      }
+    }).catch(function(){
+      document.getElementById('rtMsg').textContent='⚠ Không kết nối được máy chủ';
+      go.disabled=false; go.textContent='Thử lại';
+    });
+  };
+}
+
+/*═══════════ END OF SEMESTER ═══════════
+  Backend: gas/Semester.gs (queued, runs in the background). The report is
+  built before anything is deleted; the teacher gets it by email. */
+window.openSemesterReset=function(){
+  AW.toast('Đang tải danh sách lớp…');
+  AW.api('semester.preview',{ teacherEmail:sess.email }).then(function(res){
+    if(res&&res.success&&res.data) showSemesterReset(res.data);
+    else AW.toast((res&&res.error)||'Backend chưa cài Semester.gs','err',5000);
+  }).catch(function(){ AW.toast('Không kết nối được máy chủ','err'); });
+};
+
+function showSemesterReset(d){
+  var old=document.getElementById('semBg'); if(old) old.remove();
+  var busy=(d.queued||[]).length>0;
+  var list=(d.classes||[]).map(function(c){
+    var bits=[c.students+' SV', c.assignments+' bài tập', c.homework+' lượt HW', c.inclass+' lượt IC', c.free+' free', c.translate+' translate'];
+    return '<label class="rt-item sem-cls"><input type="checkbox" data-cls="'+AW.esc(c.classId)+'"'+(c.archived?'':' checked')+'>'+
+      '<span class="rt-main"><b>'+AW.esc(c.className)+' <span style="font-weight:400;color:var(--aw-ink-3)">('+AW.esc(c.classId)+')</span></b>'+
+      '<small>'+AW.esc((c.year||'')+(c.semester?' · HK'+c.semester:'')+(c.archived?' · đã lưu trữ':''))+'</small>'+
+      '<small>'+bits.join(' · ')+'</small></span></label>';
+  }).join('') || '<p class="rt-empty">Bạn chưa có lớp nào.</p>';
+  var bg=document.createElement('div');
+  bg.className='rt-bg'; bg.id='semBg';
+  bg.innerHTML=
+    '<div class="rt-box" role="dialog" aria-modal="true" aria-labelledby="semTitle">'+
+      '<div class="rt-head"><span id="semTitle">🎓 Kết thúc học kỳ</span><button class="rt-x" id="semX" aria-label="Đóng">×</button></div>'+
+      '<div class="rt-body">'+
+        (busy?'<div class="rt-queued">⏳ Đang xử lý: '+AW.esc(d.queued[0].title)+'. Thầy/cô sẽ nhận email khi xong.</div>':'')+
+        '<p class="rt-note">Hệ thống tạo <b>báo cáo Google Sheets</b> cho các lớp được chọn và gửi link qua email '+AW.esc(sess.email)+'. '+
+        'Báo cáo luôn được tạo <b>trước</b>; nếu tạo lỗi thì không xoá gì.</p>'+
+        '<div class="sem-h">Lớp</div><div class="rt-list">'+list+'</div>'+
+        '<div class="sem-danger">🗑 <b>Xoá sạch dữ liệu bài viết</b> của các lớp đã chọn: bài nộp (Homework, In-class, Free-writing), bài tập, lịch sử, annotation, câu hỏi, '+
+          'Translate, kết quả lưu trữ, email log. <b>Không thể hoàn tác.</b> Google Docs nhận xét của SV vẫn giữ trên Drive.</div>'+
+        '<p class="rt-note">🗄 Các lớp được <b>lưu trữ</b>; tài khoản sinh viên <b>không bị xoá</b> mà tạm khoá đăng nhập. '+
+          'Dạy lại lớp nào ở học kỳ mới: Settings ▸ <b>Lớp đã lưu trữ</b> ▸ <b>Khôi phục</b> — sinh viên dùng tiếp như cũ.</p>'+
+        '<div class="sem-confirm"><span>Gõ <b>RESET</b> để bật nút xoá:</span><input id="semConfirm" autocomplete="off" spellcheck="false" aria-label="Gõ RESET để xác nhận"></div>'+
+      '</div>'+
+      '<div class="rt-foot"><span class="rt-msg" id="semMsg"></span>'+
+        '<button class="aw-btn aw-btn-ghost" id="semClose">Đóng</button>'+
+        '<button class="aw-btn aw-btn-ghost" id="semExport"'+(busy?' disabled':'')+'>Chỉ xuất báo cáo</button>'+
+        '<button class="aw-btn sem-btn-danger" id="semWipe" disabled>Xuất báo cáo & xoá dữ liệu</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(bg);
+  var close=function(){ bg.remove(); };
+  bg.addEventListener('click',function(e){ if(e.target===bg) close(); });
+  document.getElementById('semX').onclick=close;
+  document.getElementById('semClose').onclick=close;
+  var picked=function(){ return AW.els('.sem-cls input:checked',bg).map(function(cb){ return cb.dataset.cls; }); };
+  var wipeBtn=document.getElementById('semWipe'), expBtn=document.getElementById('semExport'), conf=document.getElementById('semConfirm');
+  var sync=function(){
+    var n=picked().length;
+    expBtn.disabled=busy||!n;
+    wipeBtn.disabled=busy||!n||conf.value.trim().toUpperCase()!=='RESET';
+  };
+  AW.els('.sem-cls input',bg).forEach(function(cb){ cb.onchange=sync; });
+  conf.oninput=sync; sync();
+  var send=function(wipe){
+    var classes=picked(); if(!classes.length) return;
+    if(wipe && !confirm('Xoá toàn bộ dữ liệu của '+classes.length+' lớp sau khi xuất báo cáo?\n\nKhông thể hoàn tác.')) return;
+    expBtn.disabled=wipeBtn.disabled=true;
+    var msg=document.getElementById('semMsg'); msg.textContent='Đang gửi yêu cầu…';
+    AW.api('semester.reset',{ teacherEmail:sess.email, classes:classes, wipe:wipe, confirm:conf.value }).then(function(res){
+      if(res&&res.success){
+        busy=true;
+        msg.textContent='✓ Đã nhận yêu cầu. Hệ thống xử lý nền (thường vài phút; nếu đang có SV làm bài sẽ chờ đến khi xong) '+
+          'và gửi email kèm link Google Sheets tới '+sess.email+'.'+(wipe?' Tải lại trang sau khi nhận email.':'');
+      } else { msg.textContent='⚠ '+((res&&res.error)||'Không gửi được yêu cầu'); sync(); }
+    }).catch(function(){ msg.textContent='⚠ Không kết nối được máy chủ'; sync(); });
+  };
+  expBtn.onclick=function(){ send(false); };
+  wipeBtn.onclick=function(){ send(true); };
+}
+
 function routeInitial(){
   var hash=(location.hash||'').replace('#','');
   if(hash==='live'){showLive();AW.setActiveNav('live');}
