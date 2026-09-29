@@ -3137,7 +3137,7 @@ function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
   var clsRows=myClasses.map(function(c){
     return '<tr><td>'+AW.esc(c.className)+'</td><td><b>'+AW.esc(c.classId)+'</b></td><td>'+AW.esc(c.year||'')+'</td><td>'+(c.semester?'HK'+AW.esc(c.semester):'')+'</td>'+
-      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;color:var(--aw-danger)" onclick="archiveClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className)+'\')">Archive</button></td></tr>';
+      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;color:var(--aw-danger);white-space:nowrap" onclick="openEndSemester(\''+AW.esc(c.classId)+'\')">🎓 Kết thúc HK</button></td></tr>';
   }).join('');
 
   var gKey = AW.geminiKey.get();
@@ -3181,6 +3181,13 @@ function showSettings(){
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
     '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
     (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th><th></th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
+    '<p style="margin:10px 0 0;font-size:.8rem;color:var(--aw-ink-3)">🎓 <b>Kết thúc HK</b>: tạo bảng tổng kết (gửi email), sao lưu rồi xoá bài làm của lớp để sheet luôn nhẹ, và lưu trữ lớp.</p>'+
+    '</div>'+
+    /* ── Archived classes ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+      '<h3 style="margin:0 0 6px">🗃 Lớp đã lưu trữ</h3>'+
+      '<p style="margin:0 0 12px;font-size:.82rem;color:var(--aw-ink-3)">Sinh viên của các lớp này không đăng nhập được. Kích hoạt lại khi dạy lại lớp: tài khoản hoạt động như mới, không còn điểm cũ.</p>'+
+      '<div id="archivedBox"><span class="aw-spin aw-spin-dark"></span></div>'+
     '</div>'+
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
       '<h3 style="margin:0 0 14px">Change Password</h3>'+
@@ -3282,6 +3289,7 @@ function showSettings(){
   };
 
   document.getElementById('resetDataBtn').onclick = function(){ showResetModal(); };
+  loadArchivedClasses();
 }
 
 /*═══════════ RESET DATA — 3-layer confirmation ═══════════
@@ -3411,15 +3419,154 @@ function showResetModal(){
   bg.addEventListener('click', function(e){ if(e.target===bg) closeBg(); });
   layer1();
 }
-window.archiveClass=function(classId,className){
-  if(!confirm('Archive class "'+className+'"?\nStudents will no longer see it and it will be hidden from your dashboard. Data is preserved.'))return;
-  AW.api('class.archive',{classId:classId}).then(function(res){
-    if(res&&res.success){
-      AW.toast('Class archived','ok');
-      if(curClass()===classId) localStorage.removeItem(CLASS_KEY);
-      setTimeout(function(){location.reload();},700);
-    } else AW.toast((res&&res.error)||'Failed','err');
-  });
+/*═══════════ END OF SEMESTER / ARCHIVED CLASSES ═══════════
+  Backend: Semester.gs (class.endSemester · class.listArchived · class.restore).
+  Destructive calls re-send the teacher password; the server re-checks it.   */
+function semModal(){
+  var bg=document.createElement('div');
+  bg.style.cssText='position:fixed;inset:0;background:rgba(16,34,46,.65);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  document.body.appendChild(bg);
+  return {
+    bg:bg,
+    close:function(){ bg.remove(); },
+    show:function(head,color,body){
+      bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+
+        '<div style="background:'+color+';color:#fff;padding:16px 20px;font-weight:800;font-size:1.05rem">'+head+'</div>'+
+        '<div style="padding:20px 22px;font-size:.88rem;color:var(--aw-ink-2);line-height:1.6">'+body+'</div></div>';
+    }
+  };
+}
+function semCountsLine(counts){
+  return Object.keys(counts||{}).filter(function(k){return counts[k];})
+    .map(function(k){return AW.esc(k)+' '+counts[k];}).join(' · ');
+}
+
+window.openEndSemester=function(classId){
+  var c=myClasses.filter(function(x){return x.classId===classId;})[0]; if(!c) return;
+  var m=semModal(), RED='#B42318';
+  function step1(){
+    m.show('🎓 Kết thúc học kỳ — '+AW.esc(c.className), RED,
+      '<p style="margin:0 0 10px">Lớp <b>'+AW.esc(c.className)+'</b> ('+AW.esc(c.classId)+'). Hệ thống sẽ:</p>'+
+      '<ol style="margin:0 0 12px;padding-left:20px">'+
+        '<li>📊 Tạo <b>bảng tổng kết</b> (Google Sheet): SV, số bài, số lần, điểm, xếp hạng siêng năng &amp; tiến bộ, biểu đồ, nhận xét.</li>'+
+        '<li>🗄 <b>Sao lưu</b> toàn bộ bài làm của lớp vào chính file đó, kiểm tra số dòng khớp.</li>'+
+        '<li>🧹 Chỉ khi khớp mới <b>xoá</b> bài làm &amp; kết quả của lớp khỏi ArticuWrite (Homework, In-class, Free writing, Translate, Queries, Annotations, History).</li>'+
+        '<li>📧 Gửi email kèm link báo cáo tới <b>'+AW.esc(sess.email||'')+'</b>.</li>'+
+      '</ol>'+
+      '<p style="margin:0 0 12px;font-size:.8rem;color:var(--aw-ink-3)">Giữ lại: danh sách SV, bài tập đã giao, boards, bộ Translate.</p>'+
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="esClear" checked style="margin-top:4px"> <span><b>Xoá dữ liệu</b> sau khi sao lưu <span style="color:var(--aw-ink-3)">(bỏ chọn = chỉ xuất báo cáo)</span></span></label>'+
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="esArchive" checked style="margin-top:4px"> <span><b>Lưu trữ lớp</b>: SV không đăng nhập được cho tới khi kích hoạt lại</span></label>'+
+      '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+        '<button id="esCancel" class="aw-btn aw-btn-ghost">Huỷ</button>'+
+        '<button id="esNext" class="aw-btn" style="background:'+RED+';color:#fff;font-weight:700">Tiếp tục →</button></div>');
+    var cb=document.getElementById('esClear'), ab=document.getElementById('esArchive');
+    // Archive only together with clear: an archived class must never hold stale data
+    cb.onchange=function(){ ab.disabled=!cb.checked; if(!cb.checked) ab.checked=false; };
+    document.getElementById('esCancel').onclick=m.close;
+    document.getElementById('esNext').onclick=function(){ step2(cb.checked, ab.checked); };
+  }
+  function step2(clear, archive){
+    var destructive=clear;
+    m.show('🔐 Xác nhận', RED,
+      '<div class="aw-field"><label class="aw-label">Mật khẩu giảng viên</label><input class="aw-input" id="esPass" type="password" autocomplete="current-password"></div>'+
+      (destructive?'<div class="aw-field"><label class="aw-label">Gõ mã lớp <b style="font-family:monospace;color:'+RED+'">'+AW.esc(c.classId)+'</b> để xác nhận xoá</label>'+
+        '<input class="aw-input" id="esCode" autocomplete="off" style="font-family:monospace;text-transform:uppercase"></div>':'')+
+      '<p style="margin:0 0 14px;font-size:.8rem;color:var(--aw-ink-3)">⏳ Có thể mất 1–2 phút. Đừng đóng tab trong lúc chạy.</p>'+
+      '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+        '<button id="esBack" class="aw-btn aw-btn-ghost">← Quay lại</button>'+
+        '<button id="esGo" class="aw-btn" style="background:'+RED+';color:#fff;font-weight:700"'+(destructive?' disabled':'')+'>'+(destructive?'🧹 Tổng kết &amp; xoá':'📊 Xuất báo cáo')+'</button></div>');
+    var go=document.getElementById('esGo'), code=document.getElementById('esCode');
+    if(code) code.oninput=function(){ go.disabled=code.value.trim().toUpperCase()!==c.classId.toUpperCase(); };
+    document.getElementById('esBack').onclick=step1;
+    go.onclick=function(){
+      var pass=document.getElementById('esPass').value;
+      if(!pass){ AW.toast('Nhập mật khẩu.','warn'); return; }
+      run(clear, archive, pass);
+    };
+    setTimeout(function(){ document.getElementById('esPass').focus(); },50);
+  }
+  function run(clear, archive, pass){
+    m.show('⏳ Đang xử lý…', '#0A6EBD',
+      '<div style="text-align:center;padding:12px 0"><span class="aw-spin aw-spin-dark"></span>'+
+      '<p style="margin:12px 0 0">Đang tạo báo cáo'+(clear?', sao lưu và dọn dữ liệu':'')+'…</p></div>');
+    AW.api('class.endSemester',{classId:c.classId, teacherEmail:sess.email, password:pass, clear:clear, archive:archive})
+      .then(function(res){
+        if(res&&res.success){ done(res.data); return; }
+        var url=res&&res.data&&res.data.url;
+        m.show('⚠️ Chưa hoàn tất', RED,
+          '<p style="margin:0 0 12px">'+AW.esc((res&&res.error)||'Thất bại.')+'</p>'+
+          (url?'<p><a href="'+AW.esc(url)+'" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:700">📊 Mở báo cáo đã tạo</a></p>':'')+
+          '<div style="text-align:right"><button id="esClose" class="aw-btn aw-btn-ghost">Đóng</button></div>');
+        document.getElementById('esClose').onclick=m.close;
+      }).catch(function(){
+        m.show('⚠️ Mất kết nối', RED,
+          '<p>Không nhận được phản hồi, nhưng máy chủ có thể vẫn đang chạy. Sau 2–3 phút hãy kiểm tra email và mục <b>Lớp đã lưu trữ</b> trước khi thử lại.</p>'+
+          '<div style="text-align:right"><button id="esClose" class="aw-btn aw-btn-ghost">Đóng</button></div>');
+        document.getElementById('esClose').onclick=function(){ m.close(); location.reload(); };
+      });
+  }
+  function done(d){
+    var line=semCountsLine(d.counts);
+    m.show('✅ Hoàn tất', '#12B76A',
+      '<p style="margin:0 0 8px">📊 Bảng tổng kết đã tạo'+(d.emailed?' và gửi tới email của bạn':' (gửi email thất bại, dùng link bên dưới)')+'.</p>'+
+      (d.cleared?'<p style="margin:0 0 8px">🧹 Đã sao lưu &amp; xoá <b>'+(d.removed||0)+'</b> dòng'+(line?' ('+line+')':'')+'.</p>':'')+
+      (d.archived?'<p style="margin:0 0 8px">🗃 Lớp đã lưu trữ, sinh viên không đăng nhập được nữa.</p>':'')+
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">'+
+        '<a class="aw-btn aw-btn-primary" href="'+AW.esc(d.url)+'" target="_blank" rel="noopener">📊 Mở báo cáo</a>'+
+        '<button id="esClose" class="aw-btn aw-btn-ghost">Đóng</button></div>');
+    document.getElementById('esClose').onclick=function(){
+      m.close();
+      if(d.archived){ if(curClass()===c.classId) localStorage.removeItem(CLASS_KEY); location.reload(); }
+    };
+  }
+  step1();
+};
+
+function loadArchivedClasses(){
+  var box=document.getElementById('archivedBox'); if(!box) return;
+  AW.api('class.listArchived',{teacherEmail:sess.email}).then(function(res){
+    box=document.getElementById('archivedBox'); if(!box) return;
+    var rows=(res&&res.success&&res.data)||[];
+    if(!(res&&res.success)){ box.innerHTML='<p style="color:var(--aw-danger);font-size:.85rem">'+AW.esc((res&&res.error)||'Không tải được danh sách.')+'</p>'; return; }
+    if(!rows.length){ box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.85rem;margin:0">Chưa có lớp nào được lưu trữ.</p>'; return; }
+    box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Lớp</th><th>Mã</th><th>SV</th><th>Lưu trữ</th><th></th></tr></thead><tbody>'+
+      rows.map(function(c){
+        var when=c.archivedAt?new Date(c.archivedAt):null;
+        return '<tr><td>'+AW.esc(c.className||'')+(c.year||c.semester?'<div style="font-size:.75rem;color:var(--aw-ink-3)">'+AW.esc(c.year||'')+(c.semester?' · HK'+AW.esc(c.semester):'')+'</div>':'')+'</td>'+
+          '<td><b>'+AW.esc(c.classId)+'</b></td><td>'+(c.students||0)+'</td>'+
+          '<td style="font-size:.8rem">'+(when&&!isNaN(when)?when.toLocaleDateString('vi-VN'):'—')+
+            (c.reportUrl?'<br><a href="'+AW.esc(c.reportUrl)+'" target="_blank" rel="noopener" style="color:var(--aw-primary)">📊 Báo cáo</a>':'')+'</td>'+
+          '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;white-space:nowrap" onclick="openRestoreClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className||'')+'\')">♻️ Kích hoạt lại</button></td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }).catch(function(){ if(box) box.innerHTML='<p style="color:var(--aw-danger);font-size:.85rem">Lỗi kết nối.</p>'; });
+}
+
+window.openRestoreClass=function(classId, className){
+  var m=semModal(), BLUE='#0A6EBD';
+  m.show('♻️ Kích hoạt lại lớp '+AW.esc(className), BLUE,
+    '<p style="margin:0 0 12px">Sinh viên lớp <b>'+AW.esc(className)+'</b> ('+AW.esc(classId)+') sẽ đăng nhập lại được bằng tài khoản cũ, <b>không còn điểm hay bài làm cũ</b>. '+
+    'Nếu lớp còn dữ liệu sót lại (lưu trữ theo cách cũ), hệ thống sẽ sao lưu vào báo cáo, gửi email, rồi xoá trước khi kích hoạt.</p>'+
+    '<div class="aw-field"><label class="aw-label">Mật khẩu giảng viên</label><input class="aw-input" id="rsPass" type="password" autocomplete="current-password"></div>'+
+    '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+      '<button id="rsCancel" class="aw-btn aw-btn-ghost">Huỷ</button>'+
+      '<button id="rsGo" class="aw-btn aw-btn-primary">♻️ Kích hoạt lại</button></div>');
+  document.getElementById('rsCancel').onclick=m.close;
+  document.getElementById('rsGo').onclick=function(){
+    var pass=document.getElementById('rsPass').value;
+    if(!pass){ AW.toast('Nhập mật khẩu.','warn'); return; }
+    var btn=this; btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span>';
+    AW.api('class.restore',{classId:classId, teacherEmail:sess.email, password:pass}).then(function(res){
+      if(res&&res.success){
+        m.close();
+        AW.toast('Đã kích hoạt lại '+className+' ('+(res.data.students||0)+' SV)'+(res.data.leftoverCleared?' — đã dọn '+res.data.leftoverCleared+' dòng cũ, xem email':''),'ok',6000);
+        setTimeout(function(){ location.reload(); },1500);
+      } else {
+        btn.disabled=false; btn.textContent='♻️ Kích hoạt lại';
+        AW.toast((res&&res.error)||'Thất bại','err',5000);
+      }
+    }).catch(function(){ btn.disabled=false; btn.textContent='♻️ Kích hoạt lại'; AW.toast('Lỗi kết nối — kiểm tra lại mục Lớp đã lưu trữ sau ít phút.','err',5000); });
+  };
+  setTimeout(function(){ document.getElementById('rsPass').focus(); },50);
 };
 window.archiveStudent=function(studentId,name){
   if(!confirm('Archive student "'+name+'" ('+studentId+')?\nThey will be removed from the roster. Data is preserved.'))return;

@@ -141,6 +141,9 @@ function dispatch(action, p) {
     case 'class.get':                return classGet(p);
     case 'class.roster':             return getRoster(p);
     case 'class.archive':            return archiveClass(p);
+    case 'class.endSemester':        return classEndSemester(p);   // Semester.gs
+    case 'class.listArchived':       return classListArchived(p);  // Semester.gs
+    case 'class.restore':            return classRestore(p);       // Semester.gs
     case 'class.setAiEnabled':       return classSetAiEnabled(p);
     case 'student.archive':          return archiveStudent(p);
     case 'student.getById':          return studentGetById(p);
@@ -296,6 +299,26 @@ function readFiltered(name, filterFn, limit) {
   return rows;
 }
 
+/*  readColumns — read only the named columns (all data rows).
+    Skips heavy text columns (Essay, Feedback) when a caller only needs IDs.  */
+function readColumns(name, cols) {
+  var sh      = sheet(name);
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return [];
+  var head = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0];
+  var got  = cols.map(function(c) {
+    var i = head.indexOf(c);
+    return i < 0 ? null : sh.getRange(2, i + 1, lastRow - 1, 1).getValues();
+  });
+  var rows = [];
+  for (var r = 0; r < lastRow - 1; r++) {
+    var o = { _row: r + 2 };
+    cols.forEach(function(c, k) { o[c] = got[k] ? got[k][r][0] : ''; });
+    rows.push(o);
+  }
+  return rows;
+}
+
 /*  readRecent — read N rows from the bottom up (newest-first).
     Efficient for append-only tables like results/queries.      */
 function readRecent(name, limit, filterFn, scan) {
@@ -370,6 +393,8 @@ function studentSignup(p) {
     return String(r['Class ID']) === String(p.class).trim().toUpperCase();
   })[0];
   if (!cls) return { success:false, error:'Mã lớp "' + p.class + '" không tồn tại. Kiểm tra lại với giảng viên.' };
+  if (cls['Archived'] === true || String(cls['Archived']).toLowerCase() === 'true')
+    return { success:false, error:'Lớp "' + (cls['Class Name'] || cls['Class ID']) + '" đã kết thúc học kỳ. Liên hệ giảng viên.' };
 
   // ── 3. Duplicate checks ─────────────────────────────────────────
   var rows  = readAll(T.STUDENTS);
@@ -427,6 +452,12 @@ function studentLogin(p) {
     if (sameEmail.length > 1)
       return { success:false, error:'Email này gắn với nhiều tài khoản. Hãy đăng nhập bằng Student ID.' };
   }
+  // Archived class (semester ended) → account is paused until the teacher reactivates the class
+  var cls = readAll(T.CLASSES).filter(function(c){
+    return String(c['Class ID']).trim() === String(u['Class']).trim();
+  })[0];
+  if (cls && (cls['Archived'] === true || String(cls['Archived']).toLowerCase() === 'true'))
+    return { success:false, error:'Lớp "' + (cls['Class Name'] || cls['Class ID']) + '" đã kết thúc học kỳ nên tài khoản tạm khoá. Liên hệ giảng viên nếu bạn học lại lớp này.' };
   return { success:true, data:{ studentId:u['Student ID'], name:u['Name'], class:u['Class'], email:u['Email'] } };
 }
 
@@ -853,7 +884,9 @@ function saveResult(p) {
   if (!lockAcquired) return { success:false, error:'Server đang bận. Vui lòng thử lại sau 5 giây.', retry:true };
 
   try {
-  var allRows = readAll(tab);
+  // Only the ID columns: this runs under the global lock on every submission,
+  // so reading every essay + feedback here made each save slower as the tab grew.
+  var allRows = readColumns(tab, ['Student ID','Topic ID','Submission ID','Attempt']);
   // ── IDEMPOTENCY: same submissionId = same submission (POST+JSONP fallback,
   //    client retries after timeout). Return the existing row, never append. ──
   if (p.submissionId) {
