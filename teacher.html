@@ -2409,6 +2409,7 @@ function renderResults(){
 // view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
 window.viewEssays=function(gkey, writeIdx){
   var g=findResult(gkey); if(!g){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
+  window._rvGkey = gkey;
   markResultSeen(gkey, groupLastTs(g));
   AW.els('tr[data-key]').forEach(function(tr){
     if(tr.dataset.key===gkey){ var b=tr.querySelector('.res-new'); if(b) b.remove(); }
@@ -2434,7 +2435,11 @@ window.viewEssays=function(gkey, writeIdx){
       if (writeIdx!=null && writeIdx>=0 && i!==writeIdx) return '';
       var c1label = (g.taskType==='task1') ? 'Task Achievement' : 'Task Response';
       return '<div class="rv-block">'+
-        '<h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'+
+          '<h4 style="margin:0">Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+
+          '<button class="aw-btn aw-btn-ghost" onclick="deleteAttempt('+i+')" title="Xoá lượt này để sinh viên làm lại" '+
+            'style="padding:4px 12px;font-size:.78rem;color:#D93025;border-color:#F3C2BD">🗑 Xoá bài</button>'+
+        '</div>'+
         (x.timestamp?'<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 '+AW.fmtDate(x.timestamp)+'</div>':'')+
         '<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
           '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
@@ -2500,6 +2505,23 @@ window.viewEssays=function(gkey, writeIdx){
     }).catch(function(e){
       console.error('getAttemptDetail failed', e);
     });
+};
+window.deleteAttempt=function(i){
+  var g=findResult(window._rvGkey); if(!g) return;
+  var x=(g.writes||[])[i]; if(!x||!x.timestamp){ AW.toast('Không xác định được bài cần xoá.','err'); return; }
+  var who=(g.name||g.studentId);
+  if(!confirm('🗑 Xoá Attempt '+(i+1)+' của '+who+'?\n\n'+
+    'Bài viết, điểm và nhận xét AI của lượt này sẽ bị xoá vĩnh viễn.\n'+
+    'Sinh viên sẽ được làm lại lượt này.\n\nKhông thể hoàn tác.')) return;
+  var mode=(document.querySelector('.aw-tab.active')||{}).dataset.mode||'inclass';
+  AW.api('teacher.deleteAttempt',{ studentId:g.studentId, topicId:g.topicId, mode:mode, timestamp:x.timestamp })
+    .then(function(res){
+      if(res&&res.success){
+        AW.toast('Đã xoá — '+who+' có thể làm lại.','ok',5000);
+        closeEssayModal();
+        var lb=document.getElementById('loadResBtn'); if(lb) lb.click();   // refresh table
+      } else AW.toast((res&&res.error)||'Xoá thất bại','err',5000);
+    }).catch(function(){ AW.toast('Lỗi kết nối, thử lại.','err'); });
 };
 window.closeEssayModal=function(){document.getElementById('essayModal').classList.remove('show');};
 window.printTeacherFeedback=function(){
