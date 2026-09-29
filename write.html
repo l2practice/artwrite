@@ -634,20 +634,9 @@ function showTimeUpBanner(wordCount, result) {
   document.body.appendChild(bannerEl);
 }
 
-/*──────── heartbeat (live observation) ────────
-   Load: a ping is sent only when the text or status changed (checked every
-   10 s) or as a 20 s keep-alive (server marks Offline after 45 s). A random
-   start offset keeps 60 students who open the page together from pinging
-   in lock-step. Idle students cost 1 request / 20 s instead of 1 / 10 s. */
-var lastStatus='Writing', idleTimer=null, _hbSig='', _hbAt=0;
-function heartbeatTick(){
-  var sig = lastStatus + '|' + editor.innerText.length + '|' + editor.innerText.slice(-40);
-  if (sig === _hbSig && Date.now() - _hbAt < 20000) return;
-  sendHeartbeat(lastStatus);
-}
+/*──────── heartbeat (live observation) ────────*/
+var lastStatus='Writing', idleTimer=null;
 function sendHeartbeat(status, raiseHand){
-  _hbSig = (status||'Writing') + '|' + editor.innerText.length + '|' + editor.innerText.slice(-40);
-  _hbAt  = Date.now();
   var payload = {
     studentId: sess.studentId, name: sess.name, class: sess.class,
     topicId: TOPIC_ID, topic: TOPIC, mode: MODE,
@@ -683,40 +672,14 @@ window.openBoardView=function(){
   }
   ov.classList.add('show');
 };
-// check every 10s while on page (see heartbeatTick); mark idle after 45s no typing
-setTimeout(function(){ setInterval(heartbeatTick, 10000); }, Math.floor(Math.random()*10000));
+// send every 10s while on page; mark idle after 45s no typing
+setInterval(function(){ sendHeartbeat(lastStatus); }, 10000);
 editor.addEventListener('input', function(){
   lastStatus='Writing';
   clearTimeout(idleTimer);
   idleTimer=setTimeout(function(){ lastStatus='Idle'; }, 45000);
 });
 sendHeartbeat('Writing'); // initial ping
-
-/*──────── saveResult with retry ────────
-   When many students submit at once the server may answer {retry:true}
-   ("Server đang bận": the attempt was NOT stored). Retrying (3 s, 6 s,
-   12 s + jitter) keeps the attempt instead of losing it. Any other answer
-   (saved / locked / past deadline / network error) is returned as is.  */
-function saveResultWithRetry(payload){
-  var waits=[3000,6000,12000];
-  function attemptSave(i){
-    return AW.api('write.saveResult', payload).then(function(res){
-      if (res && res.success) return res;
-      if (res && res.retry && i < waits.length) return later(i);
-      return res || { success:false, error:'Không lưu được bài.' };
-    }, function(err){
-      // no retry here: the request may have been stored before the answer was
-      // lost, and a blind resend would add a phantom attempt
-      return { success:false, error:(err&&err.message)||'Mất kết nối máy chủ.' };
-    });
-  }
-  function later(i){
-    AW.toast('Máy chủ đang bận — tự thử lưu lại ('+(i+1)+'/'+waits.length+')…','ok',2500);
-    return new Promise(function(r){ setTimeout(r, waits[i] + Math.floor(Math.random()*2000)); })
-      .then(function(){ return attemptSave(i+1); });
-  }
-  return attemptSave(0);
-}
 
 /*──────── plain submission (control classes, no AI) ────────
    Same storage path as a graded attempt, minus every AI field, so the teacher
@@ -730,7 +693,7 @@ function submitWithoutAI(btn, text){
   btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
   writePhase = 'grading';
 
-  saveResultWithRetry({
+  AW.api('write.saveResult', {
     studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
     startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
     duration:Math.round((Date.now()-startTime)/1000),
@@ -961,7 +924,7 @@ function gradeBtnHandler(){
         editor.innerText = lastPlainEssay;
       }
       renderFeedback(result);
-      return saveResultWithRetry({
+      return AW.api('write.saveResult', {
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
@@ -978,19 +941,7 @@ function gradeBtnHandler(){
         btn.disabled=true; btn.textContent='Đã khoá';
         return;
       }
-      if (!saveRes || !saveRes.success) {
-        // Not stored — keep the draft and let the student submit again
-        writePhase = 'editing'; isGrading = false;
-        btn.disabled=false; btn.textContent=orig;
-        AW.toast('⚠ Bài CHƯA được lưu lên máy chủ ('+((saveRes&&saveRes.error)||'lỗi kết nối')+'). Bài viết vẫn còn — bấm nộp lại.','err',8000);
-        return;
-      }
-      attempt = (saveRes.data.attempt||attempt)+1;
-      if (saveRes.data.freeComplete) {
-        setTimeout(function(){
-          AW.toast('🎉 Đã đủ 3 lần! Email kết quả + link Google Doc sẽ gửi trong vài phút. Bài viết và nhận xét AI được giữ '+(saveRes.data.freeKeepDays||10)+' ngày, sau đó xem lại trong Google Doc.','ok',9000);
-        }, 2800);
-      }
+      if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
       // For Free Writing, the backend generates a topicId on first save — capture it
       if (saveRes && saveRes.success && saveRes.data && saveRes.data.topicId && !TOPIC_ID) {
         TOPIC_ID = saveRes.data.topicId;
@@ -1007,11 +958,7 @@ function gradeBtnHandler(){
       if (exportTopicId && sess.studentId) {
         var docBtnEl = document.getElementById('docExportBtn');
         if (docBtnEl) { docBtnEl.disabled=true; docBtnEl.innerHTML='<span class="aw-spin"></span> Đang tạo Google Doc…'; }
-        var exportOnce = function(){ return AW.api('write.exportDoc', { studentId:sess.studentId, topicId:exportTopicId, mode:MODE }); };
-        exportOnce()
-          .then(function(r){ return (r && r.success) ? r
-            : new Promise(function(ok){ setTimeout(ok, 5000 + Math.floor(Math.random()*10000)); }).then(exportOnce); },
-            function(){ return new Promise(function(ok){ setTimeout(ok, 5000 + Math.floor(Math.random()*10000)); }).then(exportOnce); })
+        AW.api('write.exportDoc', { studentId:sess.studentId, topicId:exportTopicId, mode:MODE })
           .then(function(docRes){
             var wrap = document.getElementById('docBtnWrap');
             if (!wrap) return;
