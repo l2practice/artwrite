@@ -1574,6 +1574,10 @@ function exportFeedbackDoc(p) {
   var classNames = {};
   readAll(T.CLASSES).forEach(function(c){ classNames[c['Class ID']] = c['Class Name']; });
   var className   = classNames[rows[0]['Class']] || rows[0]['Class'] || 'Class';
+  // Control classes (AI off) do not get the CEFR vocabulary profile — same rule as the app
+  var classAiOn   = !readAll(T.CLASSES).some(function(c){
+    return String(c['Class ID'])===String(rows[0]['Class']) && String(c['AI Enabled']).toLowerCase()==='false';
+  });
   var asg         = readAll(T.ASSIGN).filter(function(r){ return String(r['Topic ID'])===String(p.topicId); })[0];
   var assignDate  = asg && asg['CreatedAt'] ? new Date(asg['CreatedAt']) : new Date(rows[0]['Timestamp']);
   var dateStr     = Utilities.formatDate(assignDate, Session.getScriptTimeZone(), 'yyyy-dd-MM');
@@ -1726,20 +1730,13 @@ function exportFeedbackDoc(p) {
     h2('📄 '+(taskType==='task1'?'Response':'Essay'));
     var essayText = S(r['Essay']) || '(no text)';
 
-    // ── Word count note ──────────────────────────────────────────────
-    var essayWC  = essayText.trim() ? essayText.trim().split(/\s+/).filter(Boolean).length : 0;
-    var asgMinW  = asg ? parseInt(asg['Min Words']||'0',10)||0 : 0;
-    var ieltsDef = taskType==='task1' ? 150 : 250;
-    var minWC    = asgMinW > 0 ? asgMinW : ieltsDef;
-    var wcOk     = essayWC >= minWC;
-    var wcSource = asgMinW > 0 ? 'yêu cầu của GV: '+minWC+' từ' : 'chuẩn IELTS '+taskType.toUpperCase()+': '+minWC+' từ';
-    note((wcOk?'✓':'⚠')+' Word count: '+essayWC+' từ — '+(wcOk?'đạt ':' chưa đạt ')+wcSource, wcOk?GREEN:RED, 9.5);
-
-    // Split essay — double newline first, fallback to single newline for legacy essays
-    var essayParas = essayText.split(/\n\n+/).map(function(p){ return p.replace(/\n/g,' ').trim(); }).filter(Boolean);
-    if (essayParas.length<=1 && essayText.indexOf('\n')!==-1)
-      essayParas = essayText.split(/\n+/).map(function(p){ return p.trim(); }).filter(Boolean);
+    // Paragraphs follow the student's Enter key: one Enter or several = a
+    // new paragraph. (The editor emits a mix of \n and \n\n; splitting on
+    // \n\n first used to glue single-Enter paragraphs back together.)
+    var essayParas = essayText.replace(/\r\n?/g,'\n').replace(/\u00a0/g,' ').split('\n')
+      .map(function(p){ return p.replace(/[ \t]+/g,' ').trim(); }).filter(Boolean);
     if (!essayParas.length) essayParas = ['(no text)'];
+
     essayParas.forEach(function(paraText, paraIdx){
       var ep = body.appendParagraph(paraText);
       ep.setHeading(DocumentApp.ParagraphHeading.NORMAL);
@@ -1751,10 +1748,49 @@ function exportFeedbackDoc(p) {
         INDENT_START:    14,
         INDENT_END:      8,
         LINE_SPACING:    1.4,
-        SPACING_BEFORE:  paraIdx===0 ? 0 : 10,
+        INDENT_FIRST_LINE: 32,             // each paragraph visibly starts on its own
+        SPACING_BEFORE:  paraIdx===0 ? 0 : 12,
         SPACING_AFTER:   4,
       });
     });
+
+
+    // ── 📊 Vocabulary statistics (same CEFR analyser as the app: Cefr.gs) ──
+    var essayWC  = essayText.trim() ? essayText.trim().split(/\s+/).filter(Boolean).length : 0;
+    var asgMinW  = asg ? parseInt(asg['Min Words']||'0',10)||0 : 0;
+    var ieltsDef = taskType==='task1' ? 150 : 250;
+    var minWC    = asgMinW > 0 ? asgMinW : ieltsDef;
+    var wcOk     = essayWC >= minWC;
+    var wcSource = asgMinW > 0 ? 'yêu cầu của GV: '+minWC+' từ' : 'chuẩn IELTS '+taskType.toUpperCase()+': '+minWC+' từ';
+    var nPara    = essayText.trim() ? essayParas.length : 0;
+    var paraWant = taskType==='task1' ? 3 : 4;
+    var paraBad  = taskType==='task1' ? nPara < 3 : nPara !== 4;   // Task 2: exactly 4 (intro · 2 body · conclusion)
+    var sentences= essayText.split(/[.!?]+(?=\s|$)/).filter(function(x){ return /[A-Za-z]/.test(x); }).length;
+    var statRows = [
+      ['Số từ',  essayWC+' từ  '+(wcOk?'✓ đạt ':'⚠ chưa đạt ')+wcSource],
+      ['Số đoạn', nPara+' đoạn'+(paraBad ? '  ⚠ '+(taskType==='task1'
+          ? 'Task 1 nên có ít nhất 3 đoạn: mở bài · tổng quan · chi tiết'
+          : 'Task 2 nên có 4 đoạn: mở bài · 2 thân bài · kết bài') : '  ✓')],
+      ['Số câu', sentences+' câu'+(sentences?' · trung bình '+Math.round(essayWC/sentences)+' từ/câu':'')]
+    ];
+    var vp = null;
+    try { if (classAiOn && typeof AWCEFR !== 'undefined' && essayWC) vp = AWCEFR.analyseVocabulary(essayText); } catch(e){}
+    if (vp) {
+      var lv = ['A1','A2','B1','B2','C1','C2'];
+      var adv = [];
+      ['C2','C1','B2'].forEach(function(l){ if (vp.wordsByLevel[l].length) adv.push(l+': '+vp.wordsByLevel[l].slice(0,15).join(', ')); });
+      statRows.push(['Từ vựng', vp.uniqueLemmas+' từ gốc khác nhau · độ đa dạng '+vp.diversity+'%']);
+      statRows.push(['Trình độ CEFR', lv.map(function(l){ return l+' '+vp.pctByLevel[l]+'%'; }).join('  ·  ')]);
+      statRows.push(['B2 trở lên', vp.pctUpperMid+'% số từ (C1+: '+vp.pctAdvanced+'%)']);
+      if (adv.length) statRows.push(['Từ B2+ đã dùng', adv.join('\n')]);
+      if (vp.unlisted) statRows.push(['Ngoài từ điển', vp.unlisted+' từ (tên riêng, từ hiếm hoặc sai chính tả)']);
+    }
+    note('📊 Thống kê từ vựng', NAVY, 10.5).setAttributes({BOLD:true, SPACING_BEFORE:10});
+    var stbl0 = infoTable(statRows);
+    stbl0.getRow(0).getCell(1).editAsText().setForegroundColor(wcOk ? GREEN : RED);
+    if (paraBad) stbl0.getRow(1).getCell(1).editAsText().setForegroundColor(RED);
+    for (var sr0=0; sr0<stbl0.getNumRows(); sr0++) stbl0.getRow(sr0).getCell(0).setWidth(120);
+    body.appendParagraph('').setAttributes({SPACING_AFTER:2});
 
     var fb=null; try{ fb=r['Feedback']?JSON.parse(r['Feedback']):null; }catch(e){}
     if (!fb){ note('Không có dữ liệu phản hồi AI cho lần nộp này.',LIGHT,10); return; }
