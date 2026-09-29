@@ -892,9 +892,9 @@ function rtTab(name) {
   if (!head) sh = sheet(name);
   else {
     var book = ss();
-    sh = book.getSheetByName(name);
-    if (!sh) {
-      sh = book.insertSheet(name);
+    sh = book.getSheetByName(name) || book.insertSheet(name);
+    // also covers a tab left without its header row by an interrupted install
+    if (sh.getLastColumn() === 0) {
       sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
       sh.setFrozenRows(1);
     }
