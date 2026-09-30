@@ -596,7 +596,7 @@ function _semMail(g, run, o) {
                            (removedLine ? ' (' + _semEsc(removedLine) + ')' : '') +
                            '. Bản sao đầy đủ, kể cả bài viết, nằm trong các tab 🗄 của file báo cáo.</p>';
   if (o.archived) status += '<p>🗃 Lớp đã được <b>lưu trữ</b>: sinh viên không đăng nhập được nữa. Khi dạy lại lớp này, vào ' +
-                            '<i>Settings ▸ Lớp đã lưu trữ ▸ Kích hoạt lại</i>, tài khoản sinh viên sẽ hoạt động lại như mới.</p>';
+                            '<i>Settings ▸ Archived Classes ▸ Reactivate</i>, tài khoản sinh viên sẽ hoạt động lại như mới.</p>';
   if (o.restored) status += '<p>♻️ Lớp đã được <b>kích hoạt lại</b>. Dữ liệu cũ còn sót đã được sao lưu vào báo cáo này rồi xoá.</p>';
 
   var html =
