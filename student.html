@@ -474,13 +474,20 @@ function loadAssignments(mode){
           (a.requiredAttempts?'<span class="aw-tag aw-tag-medium">'+a.requiredAttempts+' revisions</span>':'')+
         '</div>'+
         '<p class="aw-lib-desc">'+AW.esc(plain.slice(0,140))+(plain.length>140?'…':'')+'</p>'+
-        deadlineHtml+
+        (a.dataStatus
+          ? '<div style="margin-top:6px;font-size:.76rem;background:#F2F4F7;border:1px solid #D0D5DD;border-radius:6px;padding:4px 8px;color:#475467">🗄 <b>Đã đóng</b> · Xem kết quả trong <b>My Results</b></div>'
+          : deadlineHtml)+
       '</div>';
     }).join('')+'</div>';
     AW.els('[data-a]').forEach(function(c){
       c.onclick=function(e){
         if (e.target.closest && e.target.closest('.aw-chart-thumb-wrap')) return;
         var a=JSON.parse(c.dataset.a);
+        // Teacher ran Clear Data: closed for submissions, results live in the Doc
+        if (a.dataStatus) {
+          AW.toast('Bài này đã đóng. Xem kết quả và bài viết trong My Results.','ok',5000);
+          return;
+        }
         // Block past-deadline assignments
         if (a.isPastDeadline) {
           AW.toast('Bài tập này đã quá hạn nộp (deadline: '+AW.fmtDate(a.deadline)+'). Liên hệ giáo viên nếu cần nộp trễ.','err',5000);
@@ -594,7 +601,8 @@ function renderProgress(){
       '<td><span class="aw-tag aw-tag-type" style="font-size:.7rem">'+AW.esc(modeLabel[g.mode]||g.mode)+'</span></td>';
     picks.forEach(function(p,pi){ tds+=scoreCell(p,gi,idxs[pi],groups[pi]); });
     tds+='<td class="pg-b">'+teacherCell+'</td>';
-    tds+='<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">Re-try</button></td>';
+    tds+=g.cleared ? '<td><span style="font-size:.75rem;color:#475467" title="Giáo viên đã lưu trữ bài này">🗄 Closed</span></td>' :
+      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">Re-try</button></td>';
     return '<tr>'+tds+'</tr>';
   }).join('');
 
@@ -607,6 +615,12 @@ function renderProgress(){
 window.reviewGroupWrite=function(gi,wi){
   var g=(window._myGroups||[])[gi]; if(!g)return;
   var w=(g.writes||[])[wi]; if(!w){AW.toast('You have not completed this attempt yet.','ok');return;}
+  // Clear Data: essay + feedback are in the Google Doc now
+  if (g.cleared){
+    if (g.docUrl) window.open(g.docUrl,'_blank');
+    else AW.toast('Không tìm thấy Google Doc của bài này. Liên hệ giáo viên.','err',5000);
+    return;
+  }
   // build a flat record for reviewFeedback
   window._myResults=window._myResults||[];
   var rec={topic:g.topic,topicId:g.topicId,mode:g.mode,attempt:w.attempt,

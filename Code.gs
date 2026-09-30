@@ -180,6 +180,7 @@ function dispatch(action, p) {
     case 'teacher.createAssignment': return createAssignment(p);
     case 'teacher.updateAssignment': return updateAssignment(p);
     case 'teacher.deleteAssignment': return deleteAssignment(p);
+    case 'assign.clearData':         return assignClearData(p);    // ClearData.gs
     case 'teacher.getAlerts':        return getAlerts(p);
     // vocab
     case 'vocab.today':              return getTodaysWord(p);
@@ -777,7 +778,8 @@ function getAssignments(p) {
       aiNotes:          r['AI Notes']   || '',
       requiredAttempts: r['Required Attempts'],
       durationMin:      r['Duration Min'],
-      deadline:         r['Deadline']
+      deadline:         r['Deadline'],
+      dataStatus:       String(r['Data Status'] || '')   // '' | 'clearing' | 'cleared' (ClearData.gs)
     };
   }) };
 }
@@ -903,6 +905,8 @@ function saveResult(p) {
 
   if (p.mode !== 'free' && p.topicId) {
     var asg = readAll(T.ASSIGN).filter(function(r){ return String(r['Topic ID'])===String(p.topicId); })[0];
+    if (asg && asg['Data Status'])
+      return { success:false, error:'Bài này đã được giáo viên lưu trữ (Clear Data), không nộp thêm được.', locked:true, attempt:prior.length };
     if (asg && asg['Deadline']) {
       var dl = new Date(asg['Deadline']);
       if (!isNaN(dl) && new Date() > new Date(dl.getTime()+86400000))
@@ -1291,6 +1295,11 @@ function getResults(p) {
     if (r['Teacher Score']) {
       try { groups[key].teacherScore = JSON.parse(r['Teacher Score']); } catch(e){}
     }
+    // Clear Data (ClearData.gs): essay + feedback live in the student's Google Doc
+    if (String(r['Data Cleared']||'') === '1') {
+      groups[key].cleared = true;
+      groups[key].docUrl  = r['Feedback Doc URL'] || (r['Feedback Doc ID'] ? 'https://docs.google.com/document/d/'+r['Feedback Doc ID']+'/edit' : '');
+    }
     // ── Strip essay/feedback from list response (heavy, only needed on detail view) ──
     // essay and feedback JSON can be 3-5KB each; with 40 students × 3 attempts = ~360-600KB
     // Teacher results table only needs scores + timestamps, not full text.
@@ -1446,6 +1455,10 @@ function getMyResults(p) {
         deadline:   ai.deadline || '',
         writes:[], teacherScore:null
       };
+      if (String(r['Data Cleared']||'') === '1') {
+        groups[key].cleared = true;
+        groups[key].docUrl  = r['Feedback Doc URL'] || (r['Feedback Doc ID'] ? 'https://docs.google.com/document/d/'+r['Feedback Doc ID']+'/edit' : '');
+      }
       if (r['Teacher Score']) {
         try {
           var ts = JSON.parse(r['Teacher Score']);
@@ -1518,6 +1531,15 @@ function exportFeedbackDoc(p) {
   });
   if (!rows.length) return { success:false, error:'No submissions to export.' };
   rows.sort(function(a,b){ return new Date(a['Timestamp'])-new Date(b['Timestamp']); });
+
+  // Clear Data moved the essays into the Doc and blanked them here:
+  // never rebuild (it would write empty essays) — just return the Doc.
+  var clearedRow = rows.filter(function(r){ return String(r['Data Cleared']||'') === '1'; })[0];
+  if (clearedRow) {
+    var cUrl = clearedRow['Feedback Doc URL'] || (clearedRow['Feedback Doc ID'] ? 'https://docs.google.com/document/d/'+clearedRow['Feedback Doc ID']+'/edit' : '');
+    if (!cUrl) return { success:false, error:'Bài này đã lưu trữ nhưng không tìm thấy Google Doc.' };
+    return { success:true, data:{ url:cUrl, reused:true, cleared:true } };
+  }
 
   var classNames = {};
   readAll(T.CLASSES).forEach(function(c){ classNames[c['Class ID']] = c['Class Name']; });
