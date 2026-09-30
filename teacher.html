@@ -430,6 +430,7 @@
     <div class="aw-assign-detail-actions">
       <button class="aw-btn aw-btn-ghost" id="adEditBtn" style="display:inline-flex">✏️ Edit</button>
       <button class="aw-btn aw-btn-ghost" id="adDeleteBtn" style="color:var(--aw-danger);border-color:var(--aw-danger)">🗑 Delete</button>
+      <button class="aw-btn aw-btn-ghost" id="adClearBtn" style="color:#B54708;border-color:#F79009" title="Move students' essays + feedback into Google Docs to keep the app fast">🧹 Clear Data</button>
       <div style="flex:1"></div>
       <button class="aw-btn aw-btn-ghost" id="adClose2">Close</button>
     </div>
@@ -2360,9 +2361,14 @@ function renderResults(){
   });
   // click a Result score to view that attempt's essay + feedback
   AW.els('[data-open-key]').forEach(function(cell){
+    var g=findResult(cell.dataset.openKey);
+    var docUrl=g&&g.cleared&&g.docUrl;
     cell.style.cursor='pointer';
-    cell.title='Click to view this attempt';
-    cell.onclick=function(){ viewEssays(cell.dataset.openKey, +cell.dataset.openWi); };
+    cell.title=docUrl?'🗄 Data cleared — click to open Google Doc':'Click to view this attempt';
+    cell.onclick=function(){
+      if (docUrl){ window.open(docUrl,'_blank'); if (g) markResultSeen(cell.dataset.openKey, groupLastTs(g)); return; }
+      viewEssays(cell.dataset.openKey, +cell.dataset.openWi);
+    };
   });
   // manual score save + auto-average overall (IELTS rounding)
   AW.els('.grp-best').forEach(function(cell){
@@ -2621,8 +2627,8 @@ function loadAssignmentList(mode){
           ? '<span class="aw-task-badge t1">Task 1</span>'
           : '<span class="aw-task-badge t2">Task 2</span>';
         var chartIcon = (a.taskType==='task1' && a.chartImageId) ? ' <span style="color:#1A9E5C;font-size:.85rem" title="Has chart image">📊</span>' : '';
-        return '<tr class="aw-assign-row" style="cursor:pointer" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
-          '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartIcon+'</td>'+
+        return '<tr class="aw-assign-row" style="cursor:pointer'+(a.dataStatus?';opacity:.72':'')+'" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
+          '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartIcon+dataStatusBadge(a.dataStatus)+'</td>'+
           '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
@@ -2635,6 +2641,13 @@ function loadAssignmentList(mode){
       row.onclick=function(){ showAssignDetail(JSON.parse(row.dataset.a)); };
     });
   });
+}
+
+/*── Clear Data status (ClearData.gs) ──*/
+function dataStatusBadge(st){
+  if (st==='clearing') return ' <span class="aw-tag" style="background:#FFFAEB;color:#B54708;border:1px solid #FEDF89;font-size:.7rem;font-weight:700" title="Đang chuyển bài làm sang Google Docs">⏳ Clearing…</span>';
+  if (st==='cleared')  return ' <span class="aw-tag" style="background:#F2F4F7;color:#475467;border:1px solid #D0D5DD;font-size:.7rem;font-weight:700" title="Bài làm đã chuyển sang Google Docs, điểm vẫn trong Results">🗄 Data cleared</span>';
+  return '';
 }
 
 /*── Assignment detail modal ──*/
@@ -2652,7 +2665,13 @@ function showAssignDetail(a){
   if (a.mode) metaParts.push(a.mode==='homework'?'📋 Homework':'🏫 In-class Practice');
   if (a.requiredAttempts) metaParts.push('🔁 '+a.requiredAttempts+' revisions');
   if (a.deadline) metaParts.push('⏰ Deadline: '+AW.fmtDate(a.deadline));
+  if (a.dataStatus==='clearing') metaParts.push('⏳ Clearing data…');
+  if (a.dataStatus==='cleared')  metaParts.push('🗄 Data cleared');
   document.getElementById('adMeta').textContent = metaParts.join('  ·  ');
+  // Clear Data: homework / in-class only, once
+  var cb = document.getElementById('adClearBtn');
+  cb.style.display = (a.mode==='homework'||a.mode==='inclass') && !a.dataStatus ? '' : 'none';
+  cb.disabled = false; cb.textContent = '🧹 Clear Data';
   // Prompt
   document.getElementById('adPrompt').innerHTML = a.prompt || '<em style="color:var(--aw-ink-3)">No prompt set.</em>';
   // Chart
@@ -2756,6 +2775,30 @@ document.getElementById('adDeleteBtn').onclick = function(){
       if (activeTab) loadAssignmentList(activeTab.dataset.amode);
     } else AW.toast((res&&res.error)||'Delete failed','err');
   });
+};
+
+// Clear Data — essays + feedback → each student's Google Doc; scores stay in Results
+document.getElementById('adClearBtn').onclick = function(){
+  var a = _curDetailAssign; if (!a) return;
+  if (!confirm('Clear Data cho bài "'+(a.topic||'')+'"?\n\n'+
+    '• Bài viết & feedback của sinh viên được chuyển sang Google Docs (chạy nền vài phút).\n'+
+    '• Điểm vẫn hiển thị trong Results; bấm vào điểm sẽ mở Doc.\n'+
+    '• Sinh viên không nộp thêm bài này được nữa.\n'+
+    '• Khi xong, bạn nhận email kèm Google Sheet tổng kết.\n\n'+
+    'Không thể hoàn tác.')) return;
+  var btn=this; btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span>';
+  AW.api('assign.clearData',{ topicId:a.topicId, teacherEmail:sess.email }).then(function(res){
+    if (res&&res.success){
+      AW.toast(res.data.already ? 'Bài này đang được xử lý.' :
+        '🧹 Đang chuyển bài làm của '+(res.data.students||0)+' sinh viên sang Google Docs. Email sẽ gửi khi xong.','ok',7000);
+      document.getElementById('assignDetailBg').classList.remove('show');
+      var activeTab = document.querySelector('[data-amode].active');
+      if (activeTab) loadAssignmentList(activeTab.dataset.amode);
+    } else {
+      btn.disabled=false; btn.textContent='🧹 Clear Data';
+      AW.toast((res&&res.error)||'Clear Data failed','err',5000);
+    }
+  }).catch(function(){ btn.disabled=false; btn.textContent='🧹 Clear Data'; AW.toast('Lỗi kết nối.','err'); });
 };
 
 /*── Assignment modal state ──*/
@@ -3137,7 +3180,7 @@ function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
   var clsRows=myClasses.map(function(c){
     return '<tr><td>'+AW.esc(c.className)+'</td><td><b>'+AW.esc(c.classId)+'</b></td><td>'+AW.esc(c.year||'')+'</td><td>'+(c.semester?'HK'+AW.esc(c.semester):'')+'</td>'+
-      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;color:var(--aw-danger)" onclick="archiveClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className)+'\')">Archive</button></td></tr>';
+      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;color:var(--aw-danger);white-space:nowrap" onclick="openEndSemester(\''+AW.esc(c.classId)+'\')">🎓 End Course</button></td></tr>';
   }).join('');
 
   var gKey = AW.geminiKey.get();
@@ -3181,6 +3224,13 @@ function showSettings(){
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
     '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
     (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th><th></th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
+    '<p style="margin:10px 0 0;font-size:.8rem;color:var(--aw-ink-3)">🎓 <b>End Course</b>: tạo bảng tổng kết (gửi email), sao lưu rồi xoá bài làm của lớp để sheet luôn nhẹ, và lưu trữ lớp.</p>'+
+    '</div>'+
+    /* ── Archived classes ── */
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
+      '<h3 style="margin:0 0 6px">🗃 Archived Classes</h3>'+
+      '<p style="margin:0 0 12px;font-size:.82rem;color:var(--aw-ink-3)">Sinh viên của các lớp này không đăng nhập được. Bấm <b>Reactivate</b> khi dạy lại lớp: tài khoản hoạt động như mới, không còn điểm cũ.</p>'+
+      '<div id="archivedBox"><span class="aw-spin aw-spin-dark"></span></div>'+
     '</div>'+
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
       '<h3 style="margin:0 0 14px">Change Password</h3>'+
@@ -3282,6 +3332,7 @@ function showSettings(){
   };
 
   document.getElementById('resetDataBtn').onclick = function(){ showResetModal(); };
+  loadArchivedClasses();
 }
 
 /*═══════════ RESET DATA — 3-layer confirmation ═══════════
@@ -3310,7 +3361,7 @@ function showResetModal(){
             'Chỉ dùng chức năng này khi <b>giai đoạn thử nghiệm kết thúc</b> và bạn muốn bắt đầu thu thập dữ liệu NCKH thật sự.'+
           '</p>'+
           '<div style="display:flex;gap:10px;justify-content:flex-end">'+
-            '<button id="r1Cancel" class="aw-btn aw-btn-ghost">Huỷ</button>'+
+            '<button id="r1Cancel" class="aw-btn aw-btn-ghost">Cancel</button>'+
             '<button id="r1Next" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700">Tôi hiểu — Tiếp tục →</button>'+
           '</div>'+
         '</div>'+
@@ -3331,9 +3382,9 @@ function showResetModal(){
           '<input id="r2Email" class="aw-input" type="email" placeholder="'+AW.esc(sess.email||'your@email.com')+'" style="margin-bottom:6px">'+
           '<p id="r2Err" style="margin:4px 0 14px;font-size:.8rem;color:#B42318;display:none">Email không khớp. Nhập đúng email tài khoản đang đăng nhập.</p>'+
           '<div style="display:flex;gap:10px;justify-content:flex-end">'+
-            '<button id="r2Cancel" class="aw-btn aw-btn-ghost">Huỷ</button>'+
-            '<button id="r2Back" class="aw-btn aw-btn-ghost">← Quay lại</button>'+
-            '<button id="r2Next" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700">Tiếp tục →</button>'+
+            '<button id="r2Cancel" class="aw-btn aw-btn-ghost">Cancel</button>'+
+            '<button id="r2Back" class="aw-btn aw-btn-ghost">← Back</button>'+
+            '<button id="r2Next" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700">Continue →</button>'+
           '</div>'+
         '</div>'+
       '</div>';
@@ -3366,7 +3417,7 @@ function showResetModal(){
           '<p id="r3Err" style="margin:4px 0 14px;font-size:.8rem;color:#B42318;display:none">Cụm từ không đúng. Gõ chính xác: RESET (viết hoa).</p>'+
           '<div style="display:flex;gap:10px;justify-content:flex-end">'+
             '<button id="r3Cancel" class="aw-btn aw-btn-ghost">Huỷ — Không reset</button>'+
-            '<button id="r3Back" class="aw-btn aw-btn-ghost">← Quay lại</button>'+
+            '<button id="r3Back" class="aw-btn aw-btn-ghost">← Back</button>'+
             '<button id="r3Go" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700" disabled>🗑 Xoá dữ liệu ngay</button>'+
           '</div>'+
         '</div>'+
@@ -3411,15 +3462,154 @@ function showResetModal(){
   bg.addEventListener('click', function(e){ if(e.target===bg) closeBg(); });
   layer1();
 }
-window.archiveClass=function(classId,className){
-  if(!confirm('Archive class "'+className+'"?\nStudents will no longer see it and it will be hidden from your dashboard. Data is preserved.'))return;
-  AW.api('class.archive',{classId:classId}).then(function(res){
-    if(res&&res.success){
-      AW.toast('Class archived','ok');
-      if(curClass()===classId) localStorage.removeItem(CLASS_KEY);
-      setTimeout(function(){location.reload();},700);
-    } else AW.toast((res&&res.error)||'Failed','err');
-  });
+/*═══════════ END OF SEMESTER / ARCHIVED CLASSES ═══════════
+  Backend: Semester.gs (class.endSemester · class.listArchived · class.restore).
+  Destructive calls re-send the teacher password; the server re-checks it.   */
+function semModal(){
+  var bg=document.createElement('div');
+  bg.style.cssText='position:fixed;inset:0;background:rgba(16,34,46,.65);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  document.body.appendChild(bg);
+  return {
+    bg:bg,
+    close:function(){ bg.remove(); },
+    show:function(head,color,body){
+      bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+
+        '<div style="background:'+color+';color:#fff;padding:16px 20px;font-weight:800;font-size:1.05rem">'+head+'</div>'+
+        '<div style="padding:20px 22px;font-size:.88rem;color:var(--aw-ink-2);line-height:1.6">'+body+'</div></div>';
+    }
+  };
+}
+function semCountsLine(counts){
+  return Object.keys(counts||{}).filter(function(k){return counts[k];})
+    .map(function(k){return AW.esc(k)+' '+counts[k];}).join(' · ');
+}
+
+window.openEndSemester=function(classId){
+  var c=myClasses.filter(function(x){return x.classId===classId;})[0]; if(!c) return;
+  var m=semModal(), RED='#B42318';
+  function step1(){
+    m.show('🎓 End Course — '+AW.esc(c.className), RED,
+      '<p style="margin:0 0 10px">Lớp <b>'+AW.esc(c.className)+'</b> ('+AW.esc(c.classId)+'). Hệ thống sẽ:</p>'+
+      '<ol style="margin:0 0 12px;padding-left:20px">'+
+        '<li>📊 Tạo <b>bảng tổng kết</b> (Google Sheet): SV, số bài, số lần, điểm, xếp hạng siêng năng &amp; tiến bộ, biểu đồ, nhận xét.</li>'+
+        '<li>🗄 <b>Sao lưu</b> toàn bộ bài làm của lớp vào chính file đó, kiểm tra số dòng khớp.</li>'+
+        '<li>🧹 Chỉ khi khớp mới <b>xoá</b> bài làm &amp; kết quả của lớp khỏi ArticuWrite (Homework, In-class, Free writing, Translate, Queries, Annotations, History).</li>'+
+        '<li>📧 Gửi email kèm link báo cáo tới <b>'+AW.esc(sess.email||'')+'</b>.</li>'+
+      '</ol>'+
+      '<p style="margin:0 0 12px;font-size:.8rem;color:var(--aw-ink-3)">Giữ lại: danh sách SV, bài tập đã giao, boards, bộ Translate.</p>'+
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="esClear" checked style="margin-top:4px"> <span><b>Clear class data</b> after backup <span style="color:var(--aw-ink-3)">(bỏ chọn = chỉ xuất báo cáo)</span></span></label>'+
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="esArchive" checked style="margin-top:4px"> <span><b>Archive class</b> <span style="color:var(--aw-ink-3)">(SV không đăng nhập được cho tới khi Reactivate)</span></span></label>'+
+      '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+        '<button id="esCancel" class="aw-btn aw-btn-ghost">Cancel</button>'+
+        '<button id="esNext" class="aw-btn" style="background:'+RED+';color:#fff;font-weight:700">Continue →</button></div>');
+    var cb=document.getElementById('esClear'), ab=document.getElementById('esArchive');
+    // Archive only together with clear: an archived class must never hold stale data
+    cb.onchange=function(){ ab.disabled=!cb.checked; if(!cb.checked) ab.checked=false; };
+    document.getElementById('esCancel').onclick=m.close;
+    document.getElementById('esNext').onclick=function(){ step2(cb.checked, ab.checked); };
+  }
+  function step2(clear, archive){
+    var destructive=clear;
+    m.show('🔐 Confirm', RED,
+      '<div class="aw-field"><label class="aw-label">Teacher password</label><input class="aw-input" id="esPass" type="password" autocomplete="current-password"></div>'+
+      (destructive?'<div class="aw-field"><label class="aw-label">Type the class code <b style="font-family:monospace;color:'+RED+'">'+AW.esc(c.classId)+'</b> to confirm</label>'+
+        '<input class="aw-input" id="esCode" autocomplete="off" style="font-family:monospace;text-transform:uppercase"></div>':'')+
+      '<p style="margin:0 0 14px;font-size:.8rem;color:var(--aw-ink-3)">⏳ Có thể mất 1–2 phút. Đừng đóng tab trong lúc chạy.</p>'+
+      '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+        '<button id="esBack" class="aw-btn aw-btn-ghost">← Back</button>'+
+        '<button id="esGo" class="aw-btn" style="background:'+RED+';color:#fff;font-weight:700"'+(destructive?' disabled':'')+'>'+(destructive?'🧹 End Course &amp; Clear':'📊 Export Report')+'</button></div>');
+    var go=document.getElementById('esGo'), code=document.getElementById('esCode');
+    if(code) code.oninput=function(){ go.disabled=code.value.trim().toUpperCase()!==c.classId.toUpperCase(); };
+    document.getElementById('esBack').onclick=step1;
+    go.onclick=function(){
+      var pass=document.getElementById('esPass').value;
+      if(!pass){ AW.toast('Please enter your password.','warn'); return; }
+      run(clear, archive, pass);
+    };
+    setTimeout(function(){ document.getElementById('esPass').focus(); },50);
+  }
+  function run(clear, archive, pass){
+    m.show('⏳ Processing…', '#0A6EBD',
+      '<div style="text-align:center;padding:12px 0"><span class="aw-spin aw-spin-dark"></span>'+
+      '<p style="margin:12px 0 0">Đang tạo báo cáo'+(clear?', sao lưu và dọn dữ liệu':'')+'…</p></div>');
+    AW.api('class.endSemester',{classId:c.classId, teacherEmail:sess.email, password:pass, clear:clear, archive:archive})
+      .then(function(res){
+        if(res&&res.success){ done(res.data); return; }
+        var url=res&&res.data&&res.data.url;
+        m.show('⚠️ Not completed', RED,
+          '<p style="margin:0 0 12px">'+AW.esc((res&&res.error)||'Thất bại.')+'</p>'+
+          (url?'<p><a href="'+AW.esc(url)+'" target="_blank" rel="noopener" style="color:var(--aw-primary);font-weight:700">📊 Open report</a></p>':'')+
+          '<div style="text-align:right"><button id="esClose" class="aw-btn aw-btn-ghost">Close</button></div>');
+        document.getElementById('esClose').onclick=m.close;
+      }).catch(function(){
+        m.show('⚠️ Connection lost', RED,
+          '<p>Không nhận được phản hồi, nhưng máy chủ có thể vẫn đang chạy. Sau 2–3 phút hãy kiểm tra email và mục <b>Archived Classes</b> trước khi thử lại.</p>'+
+          '<div style="text-align:right"><button id="esClose" class="aw-btn aw-btn-ghost">Close</button></div>');
+        document.getElementById('esClose').onclick=function(){ m.close(); location.reload(); };
+      });
+  }
+  function done(d){
+    var line=semCountsLine(d.counts);
+    m.show('✅ Done', '#12B76A',
+      '<p style="margin:0 0 8px">📊 Bảng tổng kết đã tạo'+(d.emailed?' và gửi tới email của bạn':' (gửi email thất bại, dùng link bên dưới)')+'.</p>'+
+      (d.cleared?'<p style="margin:0 0 8px">🧹 Đã sao lưu &amp; xoá <b>'+(d.removed||0)+'</b> dòng'+(line?' ('+line+')':'')+'.</p>':'')+
+      (d.archived?'<p style="margin:0 0 8px">🗃 Lớp đã lưu trữ, sinh viên không đăng nhập được nữa.</p>':'')+
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">'+
+        '<a class="aw-btn aw-btn-primary" href="'+AW.esc(d.url)+'" target="_blank" rel="noopener">📊 Open Report</a>'+
+        '<button id="esClose" class="aw-btn aw-btn-ghost">Close</button></div>');
+    document.getElementById('esClose').onclick=function(){
+      m.close();
+      if(d.archived){ if(curClass()===c.classId) localStorage.removeItem(CLASS_KEY); location.reload(); }
+    };
+  }
+  step1();
+};
+
+function loadArchivedClasses(){
+  var box=document.getElementById('archivedBox'); if(!box) return;
+  AW.api('class.listArchived',{teacherEmail:sess.email}).then(function(res){
+    box=document.getElementById('archivedBox'); if(!box) return;
+    var rows=(res&&res.success&&res.data)||[];
+    if(!(res&&res.success)){ box.innerHTML='<p style="color:var(--aw-danger);font-size:.85rem">'+AW.esc((res&&res.error)||'Không tải được danh sách.')+'</p>'; return; }
+    if(!rows.length){ box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.85rem;margin:0">Chưa có lớp nào được lưu trữ.</p>'; return; }
+    box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class</th><th>Code</th><th>Students</th><th>Archived</th><th></th></tr></thead><tbody>'+
+      rows.map(function(c){
+        var when=c.archivedAt?new Date(c.archivedAt):null;
+        return '<tr><td>'+AW.esc(c.className||'')+(c.year||c.semester?'<div style="font-size:.75rem;color:var(--aw-ink-3)">'+AW.esc(c.year||'')+(c.semester?' · HK'+AW.esc(c.semester):'')+'</div>':'')+'</td>'+
+          '<td><b>'+AW.esc(c.classId)+'</b></td><td>'+(c.students||0)+'</td>'+
+          '<td style="font-size:.8rem">'+(when&&!isNaN(when)?when.toLocaleDateString('vi-VN'):'—')+
+            (c.reportUrl?'<br><a href="'+AW.esc(c.reportUrl)+'" target="_blank" rel="noopener" style="color:var(--aw-primary)">📊 Report</a>':'')+'</td>'+
+          '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;white-space:nowrap" onclick="openRestoreClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className||'')+'\')">♻️ Reactivate</button></td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }).catch(function(){ if(box) box.innerHTML='<p style="color:var(--aw-danger);font-size:.85rem">Lỗi kết nối.</p>'; });
+}
+
+window.openRestoreClass=function(classId, className){
+  var m=semModal(), BLUE='#0A6EBD';
+  m.show('♻️ Reactivate class '+AW.esc(className), BLUE,
+    '<p style="margin:0 0 12px">Sinh viên lớp <b>'+AW.esc(className)+'</b> ('+AW.esc(classId)+') sẽ đăng nhập lại được bằng tài khoản cũ, <b>không còn điểm hay bài làm cũ</b>. '+
+    'Nếu lớp còn dữ liệu sót lại (lưu trữ theo cách cũ), hệ thống sẽ sao lưu vào báo cáo, gửi email, rồi xoá trước khi kích hoạt.</p>'+
+    '<div class="aw-field"><label class="aw-label">Teacher password</label><input class="aw-input" id="rsPass" type="password" autocomplete="current-password"></div>'+
+    '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+      '<button id="rsCancel" class="aw-btn aw-btn-ghost">Cancel</button>'+
+      '<button id="rsGo" class="aw-btn aw-btn-primary">♻️ Reactivate</button></div>');
+  document.getElementById('rsCancel').onclick=m.close;
+  document.getElementById('rsGo').onclick=function(){
+    var pass=document.getElementById('rsPass').value;
+    if(!pass){ AW.toast('Please enter your password.','warn'); return; }
+    var btn=this; btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span>';
+    AW.api('class.restore',{classId:classId, teacherEmail:sess.email, password:pass}).then(function(res){
+      if(res&&res.success){
+        m.close();
+        AW.toast('Đã kích hoạt lại '+className+' ('+(res.data.students||0)+' SV)'+(res.data.leftoverCleared?' — đã dọn '+res.data.leftoverCleared+' dòng cũ, xem email':''),'ok',6000);
+        setTimeout(function(){ location.reload(); },1500);
+      } else {
+        btn.disabled=false; btn.textContent='♻️ Reactivate';
+        AW.toast((res&&res.error)||'Thất bại','err',5000);
+      }
+    }).catch(function(){ btn.disabled=false; btn.textContent='♻️ Reactivate'; AW.toast('Lỗi kết nối — kiểm tra lại mục Archived Classes sau ít phút.','err',5000); });
+  };
+  setTimeout(function(){ document.getElementById('rsPass').focus(); },50);
 };
 window.archiveStudent=function(studentId,name){
   if(!confirm('Archive student "'+name+'" ('+studentId+')?\nThey will be removed from the roster. Data is preserved.'))return;
