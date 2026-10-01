@@ -9,8 +9,26 @@
   // ── CONFIG ─────────────────────────────────────
   var GAS = 'https://script.google.com/macros/s/AKfycbxgVhsy3WKU-hL7rW7GZaNsn0B-z6zt6iH2Q-UlpbJVqP9koAE49P175m0tR3ISGp-m/exec';
 
+  /*── FIREBASE ─────────────────────────────────────
+    Paste the Web app config from Firebase console → Project settings →
+    Your apps. Leave apiKey empty to keep using the Google Sheet backend
+    (switch on only after the migration in Firebase.gs has run).        */
+  var AW_FIREBASE = global.AW_FIREBASE || {
+    config: {
+      apiKey: '',
+      authDomain: '',
+      projectId: '',
+      storageBucket: '',
+      messagingSenderId: '',
+      appId: ''
+    },
+    studentDomain: 'students.articuwrite.app'   // must match FB.STUDENT_DOMAIN in Firebase.gs
+  };
+  global.AW_FIREBASE = AW_FIREBASE;
+
   var AW = {
     GAS: GAS,
+    firebaseOn: !!(AW_FIREBASE.config && AW_FIREBASE.config.apiKey),
     // where to send unauthenticated users
     LOGIN_PAGE: 'login.html',
     STUDENT_HOME: 'student.html',
@@ -22,12 +40,48 @@
     if fetch is blocked by CORS/redirect on some setups.
     Returns a Promise resolving to the parsed response.
   ─────────────────────────────────────────────────*/
-  AW.api = function (action, payload) {
+  AW._legacyApi = function (action, payload) {
     payload = payload || {};
     return postJSON(action, payload).catch(function () {
       // fallback to JSONP for read actions
       return jsonp(action, payload);
     });
+  };
+
+  // Firebase on: fbdata.js answers (Firestore, or Apps Script for the rest).
+  AW.api = function (action, payload) {
+    if (!AW.firebaseOn) return AW._legacyApi(action, payload);
+    return AW.firebaseReady().then(function (FB) { return FB.call(action, payload || {}); })
+      .then(function (res) {
+        if (res && res.success === false && res.error === 'SESSION_EXPIRED') {
+          AW.session.clear();
+          if (!/(login|signup)\.html/.test(location.pathname)) location.href = AW.LOGIN_PAGE;
+        }
+        return res;
+      });
+  };
+
+  /*── Firebase SDK + fbdata.js, loaded once on first use ──*/
+  var FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  var _fbLoad = null;
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src; s.onload = res;
+      s.onerror = function () { rej(new Error('Không tải được ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  AW.firebaseReady = function () {
+    if (!_fbLoad) {
+      _fbLoad = loadScript(FB_SDK + 'firebase-app-compat.js')
+        .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
+                                                loadScript(FB_SDK + 'firebase-firestore-compat.js')]); })
+        .then(function () { return loadScript('fbdata.js?v=1'); })
+        .then(function () { return global.FB; });
+      _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
+    }
+    return _fbLoad;
   };
 
   /*── AW.apiLarge ──────────────────────────────────────────────────
@@ -143,6 +197,8 @@
     clear: function() {
       try { localStorage.removeItem(SKEY);   } catch(e) {}
       try { sessionStorage.removeItem(SKEY); } catch(e) {}
+      // Firebase keeps its own sign-in: end it too (idle-out, logout, expiry)
+      if (AW.firebaseOn) AW.firebaseReady().then(function (FB) { return FB.signOut(); }).catch(function () {});
       // Keep: aw_gemini_key, aw_groq_key, aw_last_active
     },
     role:   function() { var s = AW.session.get(); return s ? s.role : null; },
@@ -155,7 +211,14 @@
       _refreshIdle(); // reset idle clock on every page load
       return s;
     },
-    logout: function() { AW.session.clear(); location.href = AW.LOGIN_PAGE; },
+    logout: function() {
+      var go = function () { location.href = AW.LOGIN_PAGE; };
+      if (!AW.firebaseOn) { AW.session.clear(); go(); return; }
+      // wait for the Firebase sign-out (max 2 s) before leaving the page
+      try { localStorage.removeItem(SKEY); sessionStorage.removeItem(SKEY); } catch (e) {}
+      Promise.race([AW.firebaseReady().then(function (FB) { return FB.signOut(); }),
+                    new Promise(function (r) { setTimeout(r, 2000); })]).then(go, go);
+    },
   };
 
   // Activity listeners — reset idle clock on any interaction

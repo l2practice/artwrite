@@ -108,12 +108,13 @@ function doPost(e) { return handle(e, 'POST'); }
 function handle(e, method) {
   var params  = (e && e.parameter) || {};
   var action  = params.action || '';
-  var payload = {};
+  var payload = {}, idToken = '';
   try {
     if (method === 'POST' && e.postData && e.postData.contents) {
       var body = JSON.parse(e.postData.contents);
       action   = body.action  || action;
       payload  = body.payload || {};
+      idToken  = body.idToken || '';
     } else if (params.payload) {
       payload = JSON.parse(params.payload);
     }
@@ -121,7 +122,8 @@ function handle(e, method) {
     return respond(e, { success:false, error:'Bad payload: ' + err.message });
   }
   var out;
-  try   { out = dispatch(action, payload); }
+  try   { out = action.indexOf('fb.') === 0 ? fbRoute(action, payload, idToken)   // Firebase.gs
+                                             : dispatch(action, payload); }
   catch (err) { out = { success:false, error:err.message, action:action }; }
   return respond(e, out);
 }
@@ -1545,6 +1547,33 @@ function exportFeedbackDoc(p) {
   readAll(T.CLASSES).forEach(function(c){ classNames[c['Class ID']] = c['Class Name']; });
   var className   = classNames[rows[0]['Class']] || rows[0]['Class'] || 'Class';
   var asg         = readAll(T.ASSIGN).filter(function(r){ return String(r['Topic ID'])===String(p.topicId); })[0];
+  // Store doc ID back on all rows so future calls append instead of recreate
+  return renderFeedbackDoc_(p, rows, asg, className, function(newDocId, currentCnt, summaryAdded){
+    var docIdCol = 'Feedback Doc ID', docCntCol = 'Feedback Doc Attempts', docSumCol = 'Feedback Doc Summarized';
+    var sh2=sheet(tab), idx2=headerIndex(tab), data2=sh2.getDataRange().getValues();
+    if (idx2[docIdCol]==null){ sh2.getRange(1,sh2.getLastColumn()+1).setValue(docIdCol); idx2=headerIndex(tab); }
+    if (idx2[docCntCol]==null){ sh2.getRange(1,sh2.getLastColumn()+1).setValue(docCntCol); idx2=headerIndex(tab); }
+    if (idx2[docSumCol]==null){ sh2.getRange(1,sh2.getLastColumn()+1).setValue(docSumCol); idx2=headerIndex(tab); }
+    data2=sh2.getDataRange().getValues();
+    for (var di=1;di<data2.length;di++){
+      if (String(data2[di][idx2['Student ID']])===String(p.studentId)&&String(data2[di][idx2['Topic ID']])===String(p.topicId)){
+        sh2.getRange(di+1,idx2[docIdCol]+1).setValue(newDocId);
+        sh2.getRange(di+1,idx2[docCntCol]+1).setValue(currentCnt);
+        if (summaryAdded) sh2.getRange(di+1,idx2[docSumCol]+1).setValue('1');
+      }
+    }
+  });
+}
+
+/*  Builds / appends the feedback Google Doc. Shared by the Sheet version
+    (exportFeedbackDoc) and the Firestore version (Firebase.gs):
+      rows  attempts of one student + topic, oldest first, keyed like the
+            submission tabs ('Timestamp','Essay','Feedback','AI Grading',
+            'TR'…'GRA','Duration','Topic','Name','Task Type','Feedback Doc ID',
+            'Feedback Doc Attempts','Feedback Doc Summarized')
+      asg   assignment keyed like the Assignments tab (or undefined)
+      saveMeta(docId, attemptCount, summaryAdded) remembers the Doc for next time */
+function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
   var assignDate  = asg && asg['CreatedAt'] ? new Date(asg['CreatedAt']) : new Date(rows[0]['Timestamp']);
   var dateStr     = Utilities.formatDate(assignDate, Session.getScriptTimeZone(), 'yyyy-dd-MM');
   var taskType    = (asg && asg['Task Type']) || rows[0]['Task Type'] || 'task2';
@@ -1811,19 +1840,7 @@ function exportFeedbackDoc(p) {
   doc.saveAndClose();
   var newDocId=doc.getId();
 
-  // Store doc ID back on all rows so future calls append instead of recreate
-  var sh2=sheet(tab), idx2=headerIndex(tab), data2=sh2.getDataRange().getValues();
-  if (idx2[docIdCol]==null){ sh2.getRange(1,sh2.getLastColumn()+1).setValue(docIdCol); idx2=headerIndex(tab); }
-  if (idx2[docCntCol]==null){ sh2.getRange(1,sh2.getLastColumn()+1).setValue(docCntCol); idx2=headerIndex(tab); }
-  if (idx2[docSumCol]==null){ sh2.getRange(1,sh2.getLastColumn()+1).setValue(docSumCol); idx2=headerIndex(tab); }
-  data2=sh2.getDataRange().getValues();
-  for (var di=1;di<data2.length;di++){
-    if (String(data2[di][idx2['Student ID']])===String(p.studentId)&&String(data2[di][idx2['Topic ID']])===String(p.topicId)){
-      sh2.getRange(di+1,idx2[docIdCol]+1).setValue(newDocId);
-      sh2.getRange(di+1,idx2[docCntCol]+1).setValue(currentCnt);
-      if (summaryAdded) sh2.getRange(di+1,idx2[docSumCol]+1).setValue('1');
-    }
-  }
+  saveMeta(newDocId, currentCnt, summaryAdded);
 
   try {
     var file2=DriveApp.getFileById(newDocId);
@@ -1837,8 +1854,12 @@ function exportFeedbackDoc(p) {
 
 // ── Export results sheet ───────────────────────────────────────
 function exportResultsSheet(p) {
-  var res    = getResults({ mode:p.mode, class:p.class });
-  var groups = res.data || [];
+  var res = getResults({ mode:p.mode, class:p.class });
+  return writeResultsSheet_(res.data || [], p);
+}
+
+// Writes teacher.getResults-shaped groups into a new Google Sheet (also used by Firebase.gs).
+function writeResultsSheet_(groups, p) {
   if (!groups.length) return { success:false, error:'No results to export.' };
 
   var modeLabel = p.mode==='homework'?'Homework':(p.mode==='inclass'?'In-class Practice':'Free Writing');
