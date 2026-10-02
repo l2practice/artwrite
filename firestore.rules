@@ -1,0 +1,74 @@
+rules_version = '2';
+// ArticuWrite — paste into Firebase console → Firestore Database → Rules → Publish.
+//
+// Accounts are created only by Apps Script (Firebase.gs, admin). A teacher
+// account carries the custom claim role == 'teacher'. Every class-scoped
+// document carries teacherUid, so a teacher sees only their own classes —
+// several teachers can share the app without seeing each other's students.
+// Apps Script works as the project owner and is not bound by these rules.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn()  { return request.auth != null; }
+    function isTeacher() { return signedIn() && request.auth.token.role == 'teacher'; }
+    function isMe(uid)   { return signedIn() && request.auth.uid == uid; }
+    function owns(data)  { return isTeacher() && data.teacherUid == request.auth.uid; }
+    function profile()   { return get(/databases/$(db)/documents/users/$(request.auth.uid)).data; }
+    function unchanged(f) {
+      return request.resource.data.get(f, null) == resource.data.get(f, null);
+    }
+
+    // Profiles. Students are created/edited by Apps Script; a teacher may
+    // only archive / unarchive a student of their own class.
+    match /users/{uid} {
+      allow read: if isMe(uid) || (signedIn() && owns(resource.data));
+      allow update: if owns(resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archived']);
+      allow create, delete: if false;
+    }
+    // sha256(email) → Student ID, for signing in with an email. Readable one
+    // at a time (you must already know the email); never listable.
+    match /loginIndex/{h} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // Class names / AI switch are read by students too (not sensitive).
+    match /classes/{id} {
+      allow read: if signedIn();
+      allow create: if isTeacher() && request.resource.data.teacherUid == request.auth.uid;
+      allow update: if owns(resource.data) && unchanged('teacherUid');
+      allow delete: if false;
+    }
+    match /assignments/{id} {
+      allow read: if signedIn();
+      allow create: if isTeacher() && request.resource.data.teacherUid == request.auth.uid
+                    && get(/databases/$(db)/documents/classes/$(request.resource.data.classId)).data.teacherUid == request.auth.uid;
+      allow update: if owns(resource.data) && unchanged('teacherUid') && unchanged('classId');
+      allow delete: if false;
+    }
+
+    // One document per student: the light line of every attempt + teacher
+    // scores. The student adds attempts; class, teacher and teacher scores
+    // are not theirs to change.
+    match /progress/{uid} {
+      allow read: if isMe(uid) || owns(resource.data);
+      allow create: if isMe(uid)
+                    && request.resource.data.classId == profile().classId
+                    && request.resource.data.teacherUid == profile().teacherUid
+                    && request.resource.data.tscore.size() == 0;
+      allow update: if (isMe(uid)
+                        && request.resource.data.classId == profile().classId
+                        && unchanged('teacherUid') && unchanged('tscore') && unchanged('docs'))
+                    || (owns(resource.data) && unchanged('teacherUid') && unchanged('classId'));
+      allow delete: if false;
+    }
+    // Essay + AI feedback of one attempt. Written once by its owner.
+    match /essays/{id} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || owns(resource.data);
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.teacherUid == profile().teacherUid;
+      allow delete: if owns(resource.data);
+      allow update: if false;
+    }
+  }
+}

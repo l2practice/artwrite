@@ -125,10 +125,6 @@
   .aw-score-input{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .aw-score-input label{width:40px;font-weight:600;font-size:.85rem}
   .aw-score-input input{width:60px;padding:6px 8px;border:1.5px solid var(--aw-border);border-radius:6px;text-align:center}
-  .aw-sel-pop{position:fixed;z-index:600;background:var(--aw-primary-dk);border-radius:8px;padding:4px;display:none;gap:2px;box-shadow:var(--aw-shadow-lg)}
-  .aw-sel-pop.show{display:flex}
-  .aw-sel-pop button{background:none;border:none;color:#fff;padding:6px 10px;font-size:.8rem;cursor:pointer;border-radius:5px;font-family:var(--aw-font-body)}
-  .aw-sel-pop button:hover{background:rgba(255,255,255,.15)}
   /* recent activity */
   .aw-two-col{display:grid;grid-template-columns:1fr 300px;gap:18px}
   @media(max-width:900px){.aw-two-col{grid-template-columns:1fr}}
@@ -255,14 +251,14 @@
       <div class="aw-modal-doc-scroll">
       <!-- annotation toolbar — sticky inside scroll zone -->
       <div id="annToolbar" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;user-select:none">
-        <button class="aw-tbtn" id="annBold" title="Bold"><b>B</b></button>
-        <button class="aw-tbtn" id="annItalic" title="Italic"><i>I</i></button>
-        <button class="aw-tbtn" id="annUnder" title="Underline"><u>U</u></button>
-        <button class="aw-tbtn" id="annStrike" title="Strikethrough">S̶</button>
+        <button class="aw-tbtn" id="annBold" title="Bold (⌘/Ctrl+B)"><b>B</b></button>
+        <button class="aw-tbtn" id="annItalic" title="Italic (⌘/Ctrl+I)"><i>I</i></button>
+        <button class="aw-tbtn" id="annUnder" title="Underline (⌘/Ctrl+U)"><u>U</u></button>
+        <button class="aw-tbtn" id="annStrike" title="Strikethrough — suggest delete (⌘/Ctrl+Shift+X)">S̶</button>
         <span class="ann-sep"></span>
         <!-- Text Color -->
         <div style="position:relative">
-          <button class="aw-tbtn" id="annTextColorBtn" title="Text color">
+          <button class="aw-tbtn" id="annTextColorBtn" title="Text color (⌘/Ctrl+Shift+C)">
             <b>A</b><span id="annTextColorBar" style="width:12px;height:3px;border-radius:1px;background:#E8360C"></span>
           </button>
           <div class="ann-color-pop" id="textColorPop">
@@ -285,7 +281,7 @@
         </div>
         <!-- Highlight Color -->
         <div style="position:relative">
-          <button class="aw-tbtn" id="annHlColorBtn" title="Highlight color">
+          <button class="aw-tbtn" id="annHlColorBtn" title="Highlight (⌘/Ctrl+Shift+H)">
             🖍<span id="annHlColorBar" style="width:12px;height:3px;border-radius:1px;background:#FFF1A8"></span>
           </button>
           <div class="ann-color-pop" id="hlColorPop">
@@ -304,16 +300,24 @@
             <input type="color" value="#FFF1A8" id="annHlColorCustom" title="Custom" style="width:22px;height:22px;padding:0;border:none;border-radius:4px;cursor:pointer">
           </div>
         </div>
-        <button class="aw-tbtn" id="annComment" title="Comment">💬</button>
+        <button class="aw-tbtn" id="annComment" title="Comment (⌘/Ctrl+Alt+M)">💬</button>
         <span class="ann-sep"></span>
-        <button class="aw-tbtn" id="annFontDown" title="Smaller text">A−</button>
-        <button class="aw-tbtn" id="annFontUp" title="Larger text">A+</button>
-        <button class="aw-tbtn" id="annClear" title="Clear formatting">✕ Clear</button>
+        <button class="aw-tbtn" id="annFontDown" title="Smaller text (⌘/Ctrl+Shift+,)">A−</button>
+        <button class="aw-tbtn" id="annFontUp" title="Larger text (⌘/Ctrl+Shift+.)">A+</button>
+        <button class="aw-tbtn" id="annClear" title="Clear formatting (⌘/Ctrl+\)">✕ Clear</button>
         <span class="ann-sep"></span>
         <button class="aw-tbtn" id="annZoomOut" title="Zoom out">−</button>
         <span id="annZoomLbl" style="font-size:.75rem;color:var(--aw-ink-3);min-width:36px;text-align:center">100%</span>
         <button class="aw-tbtn" id="annZoomIn" title="Zoom in">+</button>
         <button class="aw-tbtn" id="annZoomReset" title="Reset zoom">↺</button>
+        <span class="aw-tbtn" style="cursor:help" title="Phím tắt (bôi chọn chữ trước; ⌘ trên Mac, Ctrl trên Windows):
+⌘/Ctrl+B · I · U — Bold · Italic · Underline
+⌘/Ctrl+Shift+X — Strikethrough (đề xuất xoá)
+⌘/Ctrl+Shift+C — Tô màu chữ (màu đang chọn)
+⌘/Ctrl+Shift+H — Highlight (màu đang chọn)
+⌘/Ctrl+Alt+M — Comment
+⌘/Ctrl+Shift+. / , — Chữ to hơn / nhỏ hơn
+⌘/Ctrl+\ — Xoá định dạng">⌨</span>
       </div>
       <div class="aw-doc-text" id="mText" contenteditable="false"></div>
       <div id="mTextUpdateBanner" style="display:none;margin-top:8px;padding:8px 12px;
@@ -355,13 +359,6 @@
 
 <div class="aw-essay-bg" id="essayModal"><div class="aw-essay-modal" id="essayModalBody"></div></div>
 
-<div class="aw-sel-pop" id="selPop">
-  <button id="popStrike">S̶ Strike</button>
-  <button id="popTextColor">A Color</button>
-  <button id="popHl">🖍 Highlight</button>
-  <button id="popComment">💬 Comment</button>
-  <button id="popDismiss" title="Đóng" style="margin-left:4px;opacity:.5;font-size:.8rem">✕</button>
-</div>
 
 <!-- Inline comment popup (replaces prompt()) -->
 <div class="ann-comment-pop" id="annCommentPop">
@@ -1282,7 +1279,6 @@ function statRow(l,v){return '<div class="aw-stat-row"><span>'+l+'</span><b>'+v+
 ─────────────────────────────────────────────────────────────────*/
 var currentAnnot={ studentId:null, topicId:null, mode:null, suggestions:[] };
 var mText=document.getElementById('mText');
-var selPop=document.getElementById('selPop');
 var savedRange=null;
 
 /* Read-only review of the feedback the teacher already pushed to a student.
@@ -1645,7 +1641,7 @@ function openAnnotation(s){
       textColorPop.classList.remove('show');
     if(!e.target.closest('#hlColorPop') && !e.target.closest('#annHlColorBtn'))
       hlColorPop.classList.remove('show');
-    if(!e.target.closest('#annCommentPop') && !e.target.closest('#annComment') && !e.target.closest('#popComment'))
+    if(!e.target.closest('#annCommentPop') && !e.target.closest('#annComment'))
       document.getElementById('annCommentPop').classList.remove('show');
   });
 
@@ -1679,8 +1675,7 @@ function openAnnotation(s){
     }
     recordSuggestion(orig, note, 'comment');
     _commentPop.classList.remove('show');
-    selPop.classList.remove('show');
-  }
+    }
 
   document.getElementById('annComment').onclick = function(){
     openCommentPop(this);
@@ -1693,6 +1688,24 @@ function openAnnotation(s){
     if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); commitComment(); }
     if(e.key==='Escape') _commentPop.classList.remove('show');
   });
+
+  // ── Keyboard shortcuts (listener below) act through these ────────
+  function keepSel(){
+    var sel = window.getSelection();
+    if(sel && sel.rangeCount && sel.toString().trim()) savedRange = sel.getRangeAt(0).cloneRange();
+  }
+  window._annKeys = {
+    bold:      function(){ document.execCommand('bold'); },
+    italic:    function(){ document.execCommand('italic'); },
+    underline: function(){ document.execCommand('underline'); },
+    strike:    function(){ keepSel(); document.getElementById('annStrike').onclick(); },
+    textColor: function(){ keepSel(); applyTextColor(_activeTextColor); },
+    highlight: function(){ keepSel(); applyHighlightColor(_activeHlColor); },
+    comment:   function(){ openCommentPop(document.getElementById('annComment')); },
+    fontUp:    function(){ annChangeFont(1); },
+    fontDown:  function(){ annChangeFont(-1); },
+    clear:     annClearFormat
+  };
 
   // ── Font size ────────────────────────────────────────────────────
   document.getElementById('annFontUp').onclick   = function(){ annChangeFont(1); };
@@ -1762,13 +1775,6 @@ function annClearFormat(){
   r.insertNode(document.createRange().createContextualFragment(plain));
   AW.toast('Formatting cleared','ok',1000);
 }
-function triggerAnnotation(type){
-  var sel=window.getSelection();
-  if(sel&&sel.rangeCount&&sel.toString().trim()) savedRange=sel.getRangeAt(0).cloneRange();
-  if(type==='strike') document.getElementById('popStrike').onclick();
-  else if(type==='highlight') applyHighlightColor(_activeHlColor||'#FFF1A8');
-  else if(type==='comment') openCommentPop(document.getElementById('annComment'));
-}
 // Push to Student — saves the marked-up snapshot to the Annotations tab.
 // write.html polls write.getAnnotation and shows it to the student read-only.
 document.getElementById('pushFb').onclick=function(){
@@ -1787,30 +1793,14 @@ document.getElementById('pushFb').onclick=function(){
 document.getElementById('mClose').onclick=function(){
   document.getElementById('modalBg').classList.remove('show');
   liveSelected=null;
-  selPop.classList.remove('show');
   _annotLastSnapshot=''; _annotModalDirty=false;
 };
 
-// show popup on selection within the doc
-mText.addEventListener('mouseup',function(e){
+// remember the selection: toolbar pickers and shortcuts act on it
+mText.addEventListener('mouseup',function(){
   var sel=window.getSelection();
-  var txt=sel.toString().trim();
-  if(txt && sel.rangeCount){
-    savedRange=sel.getRangeAt(0).cloneRange();
-    selPop.style.left=Math.max(8,e.clientX-40)+'px';
-    selPop.style.top=Math.max(8,e.clientY-48)+'px';
-    selPop.classList.add('show');
-  } else {
-    selPop.classList.remove('show');
-  }
+  if(sel.rangeCount && sel.toString().trim()) savedRange=sel.getRangeAt(0).cloneRange();
 });
-document.addEventListener('mousedown',function(e){
-  if(!selPop.contains(e.target) && e.target!==mText && !mText.contains(e.target)) selPop.classList.remove('show');
-});
-document.getElementById('popDismiss').onclick = function(e){
-  e.stopPropagation();
-  selPop.classList.remove('show');
-};
 
 function restoreSelection(){
   if(!savedRange) return null;
@@ -1833,30 +1823,28 @@ function wrapSelection(cls, insertAfterText){
     ins.className='aw-sug-ins'; ins.textContent=' '+insertAfterText;
     span.parentNode.insertBefore(ins, span.nextSibling);
   }
-  selPop.classList.remove('show');
   return original;
 }
 
-// Strikethrough only (delete mark)
-document.getElementById('popStrike').onclick=function(){
-  var orig=wrapSelection('aw-sug-del',''); if(orig)recordSuggestion(orig,'','strike');
+/*── Annotation shortcuts (⌘ on Mac, Ctrl on Windows). Registered once; the
+    open annotation provides the handlers through window._annKeys. Uses
+    e.code so Shift / keyboard layout never changes which key matches. ──*/
+var ANN_KEYS = {
+  'KeyB': 'bold', 'KeyI': 'italic', 'KeyU': 'underline',
+  'Shift+KeyX': 'strike', 'Shift+KeyC': 'textColor', 'Shift+KeyH': 'highlight',
+  'Alt+KeyM': 'comment', 'Shift+Period': 'fontUp', 'Shift+Comma': 'fontDown', 'Backslash': 'clear'
 };
-// Text color from selPop (apply last used text color)
-document.getElementById('popTextColor').onclick=function(){
-  var sel=window.getSelection();
-  if(sel&&!sel.isCollapsed) document.execCommand('foreColor',false,_activeTextColor||'#E8360C');
-  selPop.classList.remove('show');
-};
-// Highlight from selPop (apply last used highlight color)
-document.getElementById('popHl').onclick=function(){
-  selPop.classList.remove('show');
-  applyHighlightColor(_activeHlColor||'#FFF1A8');
-};
-// Comment from selPop
-document.getElementById('popComment').onclick=function(){
-  selPop.classList.remove('show');
-  openCommentPop(document.getElementById('annComment'));
-};
+document.addEventListener('keydown', function(e){
+  if(!(e.metaKey || e.ctrlKey) || !window._annKeys) return;
+  if(!document.getElementById('modalBg').classList.contains('show')) return;
+  var sel = window.getSelection();
+  if(!sel || !sel.rangeCount || !mText.contains(sel.anchorNode)) return;
+  var name = ANN_KEYS[(e.shiftKey?'Shift+':'') + (e.altKey?'Alt+':'') + e.code];
+  if(!name) return;
+  e.preventDefault(); e.stopPropagation();
+  if(name !== 'comment' && sel.isCollapsed){ AW.toast('Select text first','err'); return; }
+  window._annKeys[name]();
+}, true);
 
 function recordSuggestion(orig,sug,type){
   currentAnnot.suggestions.push({original:orig,suggestion:sug,type:type});
@@ -2154,7 +2142,8 @@ function showResults(){
       '</select>'+
       '<button class="aw-btn aw-btn-ghost" id="fSortDir" style="padding:8px 12px;font-weight:700">↓</button>'+
       '<button class="aw-btn aw-btn-ghost" id="clearFilters" style="padding:8px 12px">Clear</button>'+
-      '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px">⤓ Export</button>'+
+      '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px" title="Xuất đúng những gì đang hiển thị: bài, khoảng ngày, loại Task, tìm kiếm">⤓ Export</button>'+
+      '<button class="aw-btn aw-btn-ghost" id="exportAllResults" style="padding:8px 14px" title="Xuất tất cả bài của lớp ở chế độ này, mọi thời gian">⤓ Export All</button>'+
       '<span id="resCount" style="font-size:.85rem;color:var(--aw-ink-3)"></span>';
   }
 
@@ -2177,13 +2166,20 @@ function showResults(){
         var ft=document.getElementById('fTaskType'); if(ft)ft.value='';
         renderResults();
       };}
-      if(exp){ exp.onclick=function(){
-        var btn=this; btn.disabled=true; var o=btn.textContent; btn.textContent='⏳';
-        AW.api('teacher.exportResults',{mode:_mode,class:curClass()}).then(function(res){
+      function runExport(btn, params){
+        btn.disabled=true; var o=btn.textContent; btn.textContent='⏳';
+        AW.api('teacher.exportResults',params).then(function(res){
           if(res&&res.success){ AW.toast('Sheet ready!','ok'); window.open(res.data.url,'_blank'); }
           else AW.toast((res&&res.error)||'Export failed','err',4000);
         }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+      }
+      // Export = exactly what is on screen (same filters the server loaded + the ones on top)
+      if(exp){ exp.onclick=function(){
+        runExport(this,{ mode:_mode, class:curClass(), topicId:_loadedTopicId||'', days:_loadedDays||0,
+                         taskType:ftt?ftt.value:'', q:srch?srch.value.trim():'' });
       };}
+      var expAll=document.getElementById('exportAllResults');
+      if(expAll){ expAll.onclick=function(){ runExport(this,{ mode:_mode, class:curClass(), all:true }); }; }
     },0);
   }
 

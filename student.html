@@ -615,6 +615,16 @@ function renderProgress(){
 window.reviewGroupWrite=function(gi,wi){
   var g=(window._myGroups||[])[gi]; if(!g)return;
   var w=(g.writes||[])[wi]; if(!w){AW.toast('You have not completed this attempt yet.','ok');return;}
+  // Firebase: essay + feedback are loaded only when an attempt is opened
+  if (w.essay === undefined && w.essayId && !g.cleared){
+    AW.toast('Đang tải bài viết…');
+    AW.api('write.getEssay',{id:w.essayId}).then(function(res){
+      if(!res||!res.success){ AW.toast((res&&res.error)||'Không tải được bài viết.','err'); return; }
+      w.essay=res.data.essay; w.feedback=res.data.feedback;
+      reviewGroupWrite(gi,wi);
+    });
+    return;
+  }
   // Clear Data: essay + feedback are in the Google Doc now
   if (g.cleared){
     if (g.docUrl) window.open(g.docUrl,'_blank');

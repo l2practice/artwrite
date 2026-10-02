@@ -141,7 +141,7 @@ document.getElementById('form').onsubmit = function(e){
   isSubmitting = true;
   showLoading('Đang đăng nhập…');
 
-  AW.api('auth.studentLogin',{ studentId:id, password:pass })
+  AW.api('auth.studentLogin',{ studentId:id, password:pass, remember:document.getElementById('rememberMe').checked })
     .then(function(res){
       if (res && res.success){
         var remember = document.getElementById('rememberMe').checked;
@@ -174,7 +174,7 @@ document.getElementById('tSubmit').onclick = function(){
   isTeacherSubmitting = true;
   showLoading('Đang xác thực giáo viên…');
 
-  AW.api('auth.teacherLogin',{ email:email, password:pass })
+  AW.api('auth.teacherLogin',{ email:email, password:pass, remember:!!(document.getElementById('rememberMe')||{}).checked })
     .then(function(res){
       if (res && res.success){
         var rm = document.getElementById('rememberMe');
