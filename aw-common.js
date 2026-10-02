@@ -15,7 +15,7 @@
   var AW_FIREBASE = global.AW_FIREBASE || {
     // false = the app keeps using the Google Sheet. Set true only after the
     // migration (Firebase.gs, steps 0–5) has run.
-    enabled: false,
+    enabled: true,
     config: {
       apiKey: 'AIzaSyCj8WTr6eaqMGhqKltiZ9444LELV-7ZDIw',
       authDomain: 'articuwrite.firebaseapp.com',
