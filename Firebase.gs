@@ -924,20 +924,41 @@ function fbCdFinish(job) {
 }
 
 // ── Step 6 — Boards and Ask-teacher questions → Realtime Database ──
+// Written in small pieces (one board, or 50 questions, per request) so a
+// big board never makes one huge request; every step is logged, and a
+// piece that fails is reported by name instead of stopping everything.
+// Safe to run again: the same board / question lands on the same key.
 function fbStep6_BoardsQueries() {
-  var nb = 0, skipped = 0, patch = {};
-  readAll(T.BOARDS).forEach(function(b) {
+  var nb = 0, nq = 0, skipped = 0, failed = [];
+  function send(label, patch) {
+    try { rtdb('patch', '', patch); return true; }
+    catch (e) { failed.push(label + ': ' + e.message); Logger.log('FAILED ' + label + ': ' + e.message); return false; }
+  }
+  var boards = readAll(T.BOARDS);
+  Logger.log('Boards in the Sheet: ' + boards.length);
+  boards.forEach(function(b) {
     var c = fbStr(b['Class']), key = fbRtdbKey(b['Board ID']);
     if (!c || !fbStr(b['Board ID'])) { skipped++; return; }
     var upd = new Date(fbIso(b['UpdatedAt'])).getTime() || Date.now();
+    var content = String(b['Content'] || '');
+    var patch = {};
     patch['boardMeta/' + c + '/' + key] = { title: fbStr(b['Title']) || 'Untitled Board', owner: fbStr(b['Owner']),
       createdAt: new Date(fbIso(b['CreatedAt'])).getTime() || upd, updatedAt: upd, archived: _semTrue(b['Archived']) };
-    patch['boardContent/' + c + '/' + key] = { content: String(b['Content'] || ''), updatedAt: upd };
-    nb++;
+    patch['boardContent/' + c + '/' + key] = { content: content, updatedAt: upd };
+    if (send('board ' + b['Board ID'] + ' (' + Math.round(content.length / 1000) + ' KB)', patch)) nb++;
   });
-  var cls = {}, nq = 0;
+  Logger.log('Boards copied: ' + nb);
+
+  var cls = {};
   readAll(T.STUDENTS).forEach(function(s) { var sid = fbStr(s['Student ID']); if (sid) cls[sid] = fbStr(s['Class']); });
-  readAll(T.QUERIES).forEach(function(r) {
+  var rows = readAll(T.QUERIES), batch = {}, inBatch = 0, first = 0;
+  Logger.log('Questions in the Sheet: ' + rows.length);
+  function flush(lastIdx) {
+    if (!inBatch) return;
+    if (send('questions ' + (first + 1) + '–' + (lastIdx + 1), batch)) nq += inBatch;
+    batch = {}; inBatch = 0; first = lastIdx + 1;
+  }
+  rows.forEach(function(r, i) {
     var sid = fbStr(r['Student ID']), c = fbStr(r['Class']) || cls[sid];
     if (!sid || !c || !fbStr(r['Query ID'])) { skipped++; return; }
     var uid = fbUidForStudent(sid), key = fbRtdbKey(r['Query ID']);
@@ -946,13 +967,15 @@ function fbStep6_BoardsQueries() {
       errorQuote: String(r['Error Quote'] || ''), question: String(r['Question'] || ''), answer: String(r['Teacher Answer'] || ''),
       status: fbStr(r['Status']) || 'open', shared: _semTrue(r['Shared']), phase: fbStr(r['Phase']) || 'review',
       createdAt: fbIso(r['CreatedAt']), answeredAt: fbIso(r['AnsweredAt']) };
-    patch['queries/' + c + '/' + uid + '/' + key] = q;
-    if (q.status === 'open') patch['queryOpen/' + c + '/' + key] = q;
-    if (q.shared) patch['sharedQueries/' + c + '/' + key] = q;
-    nq++;
+    batch['queries/' + c + '/' + uid + '/' + key] = q;
+    if (q.status === 'open') batch['queryOpen/' + c + '/' + key] = q;
+    if (q.shared) batch['sharedQueries/' + c + '/' + key] = q;
+    inBatch++;
+    if (inBatch >= 50) flush(i);
   });
-  if (Object.keys(patch).length) rtdb('patch', '', patch);
-  return fbLog('Boards: ' + nb + ', questions: ' + nq + ' (skipped without class: ' + skipped + ').');
+  flush(rows.length - 1);
+  return fbLog('Boards: ' + nb + ', questions: ' + nq + ' (skipped without class: ' + skipped + ')' +
+    (failed.length ? '\nNOT copied (' + failed.length + '):\n' + failed.join('\n') : '\nAll copied.'));
 }
 
 // ── Nightly backup: new submissions → a backup Google Sheet ───
