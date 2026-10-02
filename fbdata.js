@@ -678,11 +678,15 @@ async function clearLive(p) {
   return ok({ cleared: true });
 }
 async function getAlerts(p) {
-  const [sheet, live] = await Promise.all([legacy('teacher.getAlerts', p), getLive(p)]);
-  const d = (sheet && sheet.data) || {};
-  d.hands = (live.data || []).filter(r => r.raisedHand)
-    .map(r => ({ studentId: r.studentId, name: r.name, where: r.topic || '', updated: r.updated }));
-  return ok(d);
+  const [live, open] = await Promise.all([getLive(p), rtdb.ref('queryOpen/' + str(p.class)).once('value')]);
+  const o = open.val() || {};
+  return ok({
+    hands: (live.data || []).filter(r => r.raisedHand)
+      .map(r => ({ studentId: r.studentId, name: r.name, where: r.topic || '', updated: r.updated })),
+    questions: Object.keys(o).map(k => o[k]).sort(byNewest)
+      .map(q => ({ queryId: q.queryId, studentId: q.studentId, name: q.studentName, question: q.question,
+                   topic: q.topic, createdAt: q.createdAt }))
+  });
 }
 
 // Feedback pushed from the annotation modal: the student sees it at once.
@@ -762,6 +766,174 @@ async function watchMyAnnotations(topicId, cb) {
   return () => ref.off('value', h);
 }
 
+
+// ════════════════════════════════════════════
+// BOARDS (Realtime Database) — students see edits the moment they are saved
+//   boardMeta/{classId}/{key}     title, owner, createdAt, updatedAt, archived
+//   boardContent/{classId}/{key}  content (HTML), updatedAt
+// boardId given to the pages = classId~key (no lookup needed to find it).
+// ════════════════════════════════════════════
+const TS = () => firebase.database.ServerValue.TIMESTAMP;
+const isoOf = v => (v ? new Date(Number(v)).toISOString() : '');
+function splitId(id, parts) {
+  const a = String(id || '').split('~');
+  return a.length === parts && a.every(Boolean) ? a : null;
+}
+async function boardClass(u, p) { return u.role === 'student' ? u.classId : str(p.class); }
+const classNameOf = classId => memo('cname|' + classId, 300000, async () => {
+  const d = await fs.doc('classes/' + classId).get();
+  return d.exists ? (d.data().className || classId) : classId;
+});
+async function boardCreate(p) {
+  const t = await teacher();
+  const classId = str(p.class);
+  if (!(await myClasses(t)).some(c => c.classId === classId)) return fail('Lớp không thuộc tài khoản của bạn.');
+  const key = 'B' + Date.now().toString(36) + genId(4);
+  const title = str(p.title) || 'Untitled Board';
+  await rtdb.ref().update({
+    ['boardMeta/' + classId + '/' + key]: { title, owner: p.owner || '', createdAt: TS(), updatedAt: TS(), archived: false },
+    ['boardContent/' + classId + '/' + key]: { content: '', updatedAt: TS() }
+  });
+  return ok({ boardId: classId + '~' + key, title });
+}
+async function boardList(p) {
+  const u = await me();
+  const classId = await boardClass(u, p);
+  if (!classId) return ok([]);
+  const [snap, className] = await Promise.all([rtdb.ref('boardMeta/' + classId).once('value'), classNameOf(classId)]);
+  const val = snap.val() || {};
+  return ok(Object.keys(val).filter(k => !val[k].archived).map(k => ({
+    boardId: classId + '~' + k, class: classId, className, title: val[k].title, owner: val[k].owner || '',
+    updatedAt: isoOf(val[k].updatedAt)
+  })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))));
+}
+async function boardGet(p) {
+  await me();
+  const id = splitId(p.boardId, 2);
+  if (!id) return fail('Board không tồn tại.');
+  const [m, c] = await Promise.all([rtdb.ref('boardMeta/' + id[0] + '/' + id[1]).once('value'),
+                                    rtdb.ref('boardContent/' + id[0] + '/' + id[1]).once('value')]);
+  if (!m.exists() || m.val().archived) return fail('Board không tồn tại.');
+  return ok({ boardId: p.boardId, class: id[0], title: m.val().title, content: (c.val() || {}).content || '',
+              owner: m.val().owner || '', updatedAt: isoOf(m.val().updatedAt) });
+}
+async function boardMeta(p) {
+  await me();
+  const id = splitId(p.boardId, 2);
+  if (!id) return fail('Board không tồn tại.');
+  const m = await rtdb.ref('boardMeta/' + id[0] + '/' + id[1] + '/updatedAt').once('value');
+  return ok({ boardId: p.boardId, updatedAt: isoOf(m.val()) });
+}
+async function boardSave(p) {
+  await teacher();
+  const id = splitId(p.boardId, 2);
+  if (!id) return fail('Missing boardId.');
+  const content = String(p.content || '');
+  if (content.length > 1000000) return fail('CONTENT_TOO_LARGE', { detail: 'Nội dung board quá lớn (' +
+    Math.round(content.length / 1000) + 'KB). Hãy xóa bớt ảnh hoặc dùng ảnh nhỏ hơn.' });
+  const patch = { ['boardContent/' + id[0] + '/' + id[1]]: { content, updatedAt: TS() },
+                  ['boardMeta/' + id[0] + '/' + id[1] + '/updatedAt']: TS() };
+  if (p.title != null) patch['boardMeta/' + id[0] + '/' + id[1] + '/title'] = String(p.title);
+  await rtdb.ref().update(patch);
+  return ok({ boardId: p.boardId });
+}
+async function boardDelete(p) {             // soft delete, like the Sheet version
+  await teacher();
+  const id = splitId(p.boardId, 2);
+  if (!id) return fail('Board không tồn tại.');
+  await rtdb.ref('boardMeta/' + id[0] + '/' + id[1]).update({ archived: true, updatedAt: TS() });
+  return ok();
+}
+async function watchBoard(boardId, cb) {
+  await me();
+  const id = splitId(boardId, 2);
+  if (!id) return () => {};
+  const ref = rtdb.ref('boardContent/' + id[0] + '/' + id[1]);
+  const h = snap => { const v = snap.val() || {}; cb({ content: v.content || '', updatedAt: isoOf(v.updatedAt) }); };
+  ref.on('value', h, () => {});
+  return () => ref.off('value', h);
+}
+
+// ════════════════════════════════════════════
+// ASK TEACHER (Realtime Database)
+//   queries/{classId}/{uid}/{key}   every question (the student reads their own)
+//   queryOpen/{classId}/{key}       unanswered ones only — what alerts read
+//   sharedQueries/{classId}/{key}   answers the teacher shared with the class
+// queryId given to the pages = classId~uid~key.
+// ════════════════════════════════════════════
+function queryOut(q) {
+  return { queryId: q.queryId, class: q.class, studentId: q.studentId, studentName: q.studentName, mode: q.mode || '',
+           topic: q.topic || '', topicId: q.topicId || '', attempt: q.attempt || '', errorQuote: q.errorQuote || '',
+           question: q.question || '', answer: q.answer || '', status: q.status || 'open', shared: !!q.shared,
+           phase: q.phase || 'review', createdAt: q.createdAt || '', answeredAt: q.answeredAt || '' };
+}
+const byNewest = (a, b) => String(b.createdAt).localeCompare(String(a.createdAt));
+function flatQueries(val) {           // queries/{classId} → [query]
+  const out = [];
+  Object.keys(val || {}).forEach(u => Object.keys(val[u] || {}).forEach(k => out.push(queryOut(val[u][k]))));
+  return out;
+}
+async function queryCreate(p) {
+  const u = await me();
+  if (u.role !== 'student') return fail('Chỉ sinh viên mới gửi câu hỏi được.');
+  if (!str(p.question)) return fail('Nhập câu hỏi.');
+  const key = 'Q' + Date.now().toString(36) + genId(4), qid = u.classId + '~' + u.uid + '~' + key;
+  const q = { queryId: qid, uid: u.uid, class: u.classId, studentId: u.studentId, studentName: u.name || '',
+              mode: p.mode || '', topic: String(p.topic || '').slice(0, 300), topicId: str(p.topicId),
+              attempt: p.attempt || '', errorQuote: String(p.errorQuote || '').slice(0, 2000),
+              question: String(p.question).slice(0, 4000), answer: '', status: 'open', shared: false,
+              phase: p.phase || 'review', createdAt: nowIso(), answeredAt: '' };
+  await rtdb.ref().update({ ['queries/' + u.classId + '/' + u.uid + '/' + key]: q,
+                            ['queryOpen/' + u.classId + '/' + key]: q });
+  gas('fb.notifyQuery', { queryId: qid }).catch(() => {});        // email the teacher; never blocks
+  return ok({ queryId: qid });
+}
+async function queryListForStudent() {
+  const u = await me();
+  const [mine, shared] = await Promise.all([rtdb.ref('queries/' + u.classId + '/' + u.uid).once('value'),
+                                            rtdb.ref('sharedQueries/' + u.classId).once('value')]);
+  const m = mine.val() || {}, sh = shared.val() || {};
+  const rows = Object.keys(m).map(k => queryOut(m[k]));
+  Object.keys(sh).forEach(k => { if (!m[k]) rows.push(queryOut(sh[k])); });
+  return ok(rows.sort(byNewest));
+}
+async function queryListForTeacher(p) {
+  await teacher();
+  const snap = await rtdb.ref('queries/' + str(p.class)).once('value');
+  return ok(flatQueries(snap.val()).sort(byNewest));
+}
+async function queryListLive(p) {          // the Live panel shows unanswered live questions
+  await teacher();
+  const snap = await rtdb.ref('queryOpen/' + str(p.class)).once('value');
+  const v = snap.val() || {};
+  return ok(Object.keys(v).map(k => queryOut(v[k])).filter(q => q.phase === 'live').sort(byNewest));
+}
+async function queryAnswer(p) {
+  await teacher();
+  const id = splitId(p.queryId, 3);
+  if (!id) return fail('Query not found.');
+  const path = 'queries/' + id[0] + '/' + id[1] + '/' + id[2];
+  const cur = (await rtdb.ref(path).once('value')).val();
+  if (!cur) return fail('Query not found.');
+  const patch = { answer: p.dismissed ? '[dismissed]' : String(p.answer || ''), status: 'answered', answeredAt: nowIso() };
+  const up = { ['queryOpen/' + id[0] + '/' + id[2]]: null };
+  Object.keys(patch).forEach(f => { up[path + '/' + f] = patch[f]; if (cur.shared) up['sharedQueries/' + id[0] + '/' + id[2] + '/' + f] = patch[f]; });
+  await rtdb.ref().update(up);
+  return Object.assign(ok(), { dismissed: !!p.dismissed });
+}
+async function queryShare(p) {
+  await teacher();
+  const id = splitId(p.queryId, 3);
+  if (!id) return fail('Query not found.');
+  const path = 'queries/' + id[0] + '/' + id[1] + '/' + id[2];
+  const cur = (await rtdb.ref(path).once('value')).val();
+  if (!cur) return fail('Query not found.');
+  const on = p.shared !== false;
+  await rtdb.ref().update({ [path + '/shared']: on,
+                            ['sharedQueries/' + id[0] + '/' + id[2]]: on ? Object.assign({}, cur, { shared: true }) : null });
+  return ok();
+}
+
 // ════════════════════════════════════════════
 // Apps Script
 // ════════════════════════════════════════════
@@ -786,6 +958,11 @@ function legacy(action, payload) { return window.AW._legacyApi(action, payload);
 
 const GAS_FB = {
   'auth.forgotPassword':  p => gas('fb.forgotPassword', p, true),
+  // reports / backups / Docs need Google services: Apps Script, Firebase edition
+  'class.endSemester':    p => gas('fb.endSemester', p).then(r => { forget(); return r; }),
+  'class.restore':        p => gas('fb.restore', p).then(r => { forget(); return r; }),
+  'assign.clearData':     p => gas('fb.clearData', p).then(r => { forget('assign|'); return r; }),
+  'admin.resetTab':       p => gas('fb.resetData', p).then(r => { forget(); return r; }),
   'student.edit':         p => gas('fb.studentEdit', p).then(r => { forget('students'); forget('progress|'); return r; }),
   'write.exportDoc':      p => gas('fb.exportDoc', p),
   'teacher.exportResults':p => gas('fb.exportResults', p)
@@ -793,8 +970,8 @@ const GAS_FB = {
 
 // Waiting for their Firestore version (End Course / Clear Data / reset read
 // the submissions, which no longer live in the Sheet).
-const LATER = ['class.endSemester', 'class.restore', 'assign.clearData', 'admin.resetTab',
-               'write.getHistory', 'write.getAttempt', 'write.getSubmissions', 'write.backfillFeedback'];
+// Old actions no page calls any more.
+const LATER = ['write.getHistory', 'write.getAttempt', 'write.getSubmissions', 'write.backfillFeedback'];
 
 const ACTIONS = {
   'auth.studentLogin': studentLogin, 'auth.teacherLogin': teacherLogin,
@@ -812,7 +989,11 @@ const ACTIONS = {
   'teacher.deleteAssignment': deleteAssignment,
   'write.heartbeat': heartbeat, 'write.raiseHand': raiseHand, 'write.getDraftSnapshot': getDraftSnapshot,
   'write.getAnnotation': getAnnotationForStudent, 'teacher.getAnnotation': getAnnotation,
-  'teacher.getLive': getLive, 'teacher.clearLive': clearLive, 'teacher.getAlerts': getAlerts
+  'teacher.getLive': getLive, 'teacher.clearLive': clearLive, 'teacher.getAlerts': getAlerts,
+  'board.create': boardCreate, 'board.list': boardList, 'board.get': boardGet, 'board.meta': boardMeta,
+  'board.save': boardSave, 'board.delete': boardDelete,
+  'query.create': queryCreate, 'query.listForStudent': queryListForStudent, 'query.listForTeacher': queryListForTeacher,
+  'query.listLive': queryListLive, 'query.answer': queryAnswer, 'query.share': queryShare
 };
 
 async function call(action, payload) {
@@ -821,8 +1002,7 @@ async function call(action, payload) {
   try {
     if (ACTIONS[action]) return await ACTIONS[action](payload);
     if (GAS_FB[action]) return await GAS_FB[action](payload);
-    if (LATER.indexOf(action) >= 0)
-      return fail('Chức năng này đang được chuyển sang Firebase và sẽ hoạt động lại ở bản cập nhật tới.');
+    if (LATER.indexOf(action) >= 0) return fail('Chức năng này không còn dùng.');
     return await legacy(action, payload);
   } catch (e) {
     const code = (e && e.code) || '';
@@ -840,7 +1020,7 @@ const safeWatch = fn => (...a) => fn(...a).catch(e => { console.warn('[fbdata] w
 window.FB = {
   call, authReady, signOut,
   watchLive: safeWatch(watchLive), watchLiveText: safeWatch(watchLiveText),
-  watchMyAnnotations: safeWatch(watchMyAnnotations),
+  watchMyAnnotations: safeWatch(watchMyAnnotations), watchBoard: safeWatch(watchBoard),
   isSignedIn: async () => { await authReady(); return !!auth.currentUser; },
   _helpers: { authPw, loginEmailFor, safeKey, forget }
 };
