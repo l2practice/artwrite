@@ -11,16 +11,19 @@
 
   /*── FIREBASE ─────────────────────────────────────
     Paste the Web app config from Firebase console → Project settings →
-    Your apps. Leave apiKey empty to keep using the Google Sheet backend
-    (switch on only after the migration in Firebase.gs has run).        */
+    Your apps. The switch is `enabled` below.                           */
   var AW_FIREBASE = global.AW_FIREBASE || {
+    // false = the app keeps using the Google Sheet. Set true only after the
+    // migration (Firebase.gs, steps 0–5) has run.
+    enabled: false,
     config: {
-      apiKey: '',
-      authDomain: '',
-      projectId: '',
-      storageBucket: '',
-      messagingSenderId: '',
-      appId: ''
+      apiKey: 'AIzaSyCj8WTr6eaqMGhqKltiZ9444LELV-7ZDIw',
+      authDomain: 'articuwrite.firebaseapp.com',
+      databaseURL: 'https://articuwrite-default-rtdb.asia-southeast1.firebasedatabase.app',
+      projectId: 'articuwrite',
+      storageBucket: 'articuwrite.firebasestorage.app',
+      messagingSenderId: '708165704313',
+      appId: '1:708165704313:web:0afc74ef0e73c52ff412a8'
     },
     studentDomain: 'students.articuwrite.app'   // must match FB.STUDENT_DOMAIN in Firebase.gs
   };
@@ -28,7 +31,7 @@
 
   var AW = {
     GAS: GAS,
-    firebaseOn: !!(AW_FIREBASE.config && AW_FIREBASE.config.apiKey),
+    firebaseOn: !!(AW_FIREBASE.enabled && AW_FIREBASE.config && AW_FIREBASE.config.apiKey),
     // where to send unauthenticated users
     LOGIN_PAGE: 'login.html',
     STUDENT_HOME: 'student.html',
@@ -76,7 +79,8 @@
     if (!_fbLoad) {
       _fbLoad = loadScript(FB_SDK + 'firebase-app-compat.js')
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
-                                                loadScript(FB_SDK + 'firebase-firestore-compat.js')]); })
+                                                loadScript(FB_SDK + 'firebase-firestore-compat.js'),
+                                                loadScript(FB_SDK + 'firebase-database-compat.js')]); })
         .then(function () { return loadScript('fbdata.js?v=1'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error

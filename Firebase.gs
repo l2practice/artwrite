@@ -19,8 +19,10 @@
 
 var FB = {
   // Firebase console → Project settings → General
-  PROJECT_ID: 'YOUR-FIREBASE-PROJECT-ID',
-  API_KEY:    'YOUR-WEB-API-KEY',
+  PROJECT_ID: 'articuwrite',
+  API_KEY:    'AIzaSyCj8WTr6eaqMGhqKltiZ9444LELV-7ZDIw',
+  // Realtime Database (Live): Firebase console → Realtime Database → the URL at the top
+  RTDB_URL:   'https://articuwrite-default-rtdb.asia-southeast1.firebasedatabase.app',
   // Must match AW_FIREBASE.studentDomain in aw-common.js
   STUDENT_DOMAIN: 'students.articuwrite.app',
   // Classes in the Sheet without a teacher email go to this teacher
@@ -149,13 +151,29 @@ function fbIso(v) { return v instanceof Date ? v.toISOString() : fbStr(v); }
 function fbAuthCreate(uid, email, password) {
   return gapi('post', itk('/accounts'), { localId: uid, email: email, password: fbAuthPw(password), emailVerified: false });
 }
+// claims end up in the sign-in token: role ('teacher'|'student') for the
+// Firestore rules, cls (a student's class) for the Live rules.
 function fbAuthUpdate(uid, fields) {
   var body = { localId: uid };
   if (fields.email) body.email = fields.email;
   if (fields.password) body.password = fbAuthPw(fields.password);
   if (fields.role) body.customAttributes = JSON.stringify({ role: fields.role });
+  if (fields.claims) body.customAttributes = JSON.stringify(fields.claims);
   return gapi('post', itk('/accounts:update'), body);
 }
+function fbStudentClaims(uid, classId) { return fbAuthUpdate(uid, { claims: { role: 'student', cls: classId } }); }
+
+// ── Realtime Database (REST, as the script owner) ──
+function rtdbUrl(path) { return FB.RTDB_URL.replace(/\/$/, '') + '/' + path + '.json'; }
+function rtdb(method, path, payload) {
+  var opt = { method: method, muteHttpExceptions: true, contentType: 'application/json',
+              headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } };
+  if (payload !== undefined) opt.payload = JSON.stringify(payload);
+  var r = UrlFetchApp.fetch(rtdbUrl(path), opt), code = r.getResponseCode(), text = r.getContentText();
+  if (code >= 300) { var err = new Error('Realtime Database ' + code + ': ' + text); err.code = code; throw err; }
+  return text ? JSON.parse(text) : null;
+}
+function fbRtdbKey(v) { return String(v == null ? '' : v).trim().replace(/[.#$\[\]\/]/g, '_') || '_'; }
 function fbAuthLookupEmail(email) {
   try { return (gapi('post', itk('/accounts:lookup'), { email: [email] }).users || [])[0] || null; }
   catch (e) { return null; }
@@ -211,6 +229,7 @@ function fbStudentSignup(p) {
       return { success:false, error:'Student ID "' + sid + '" đã được đăng ký.', field:'studentId' };
     throw e;
   }
+  fbStudentClaims(uid, classId);
   fsCommit([
     wSet('users/' + uid, { role:'student', studentId:sid, name:fbStr(p.name), classId:classId, teacherUid:cls.teacherUid || '',
       birthdate:fbStr(p.birthdate), phone:phone, email:email, archived:false, createdAt:new Date().toISOString() }),
@@ -283,6 +302,7 @@ function fbStudentEdit(p, caller) {
     var cls = fsGet('classes/' + fbStr(p.class));
     if (!cls || cls.teacherUid !== caller.uid) return { success:false, error:'Lớp mới không thuộc tài khoản của bạn.' };
     patch.classId = cls.classId; progPatch.classId = cls.classId;
+    fbStudentClaims(uid, cls.classId);   // Live follows the new class at the next sign-in
   }
   var writes = [];
   if (Object.keys(patch).length) writes.push(wMerge('users/' + uid, patch));
@@ -387,6 +407,8 @@ function fbTestConnection() {
   try { fsQuery('classes', [], 1); r.push('Firestore (admin)   OK'); } catch (e) { r.push('Firestore (admin)   FAILED: ' + e.message); }
   try { gapi('post', itk('/accounts:lookup'), { email: ['nobody@' + FB.STUDENT_DOMAIN] }); r.push('Firebase Auth admin OK'); }
   catch (e) { r.push('Firebase Auth admin FAILED: ' + e.message); }
+  try { rtdb('get', 'classOwner', undefined); r.push('Realtime Database   OK'); }
+  catch (e) { r.push('Realtime Database   FAILED: ' + e.message + '  (check FB.RTDB_URL)'); }
   try { ss().getName(); r.push('Google Sheet        OK'); } catch (e) { r.push('Google Sheet        FAILED: ' + e.message); }
   try { MailApp.getRemainingDailyQuota(); r.push('Mail                OK'); } catch (e) { r.push('Mail                FAILED: ' + e.message); }
   return fbLog(r.join('\n'));
@@ -465,6 +487,7 @@ function fbStep2_ClassesAssignments() {
     na++;
   });
   fsCommit(w);
+  if (Object.keys(owner).length) rtdb('patch', 'classOwner', owner);   // who may watch each class Live
   return fbLog('Classes: ' + Object.keys(owner).length + ' (' + orphan + ' without teacher email → ' + tm.def + '), assignments: ' + na);
 }
 
@@ -476,7 +499,8 @@ function fbStep3_Students() {
     var sid = fbStr(rows[i]['Student ID']);
     if (!sid) { skipped++; continue; }
     try { fbAuthCreate(fbUidForStudent(sid), fbLoginEmailFor(sid), String(rows[i]['Password'] == null ? sid : rows[i]['Password'])); made++; }
-    catch (e) { if (/EXISTS|DUPLICATE/.test(e.message)) skipped++; else Logger.log('Account ' + sid + ': ' + e.message); }
+    catch (e) { if (/EXISTS|DUPLICATE/.test(e.message)) skipped++; else { Logger.log('Account ' + sid + ': ' + e.message); continue; } }
+    fbStudentClaims(fbUidForStudent(sid), fbStr(rows[i]['Class']));
   }
   fbCursor('stu', 0);
   var owner = {};
@@ -552,5 +576,25 @@ function fbStep4_Submissions() {
   Object.keys(progress).forEach(function(uid) { fsCommit([wSet('progress/' + uid, progress[uid])]); });
   fbCursor('ess', 0);
   return fbLog('Essays: ' + essays.length + ', students with progress: ' + Object.keys(progress).length +
-    ', rows of unknown students skipped: ' + unknown + '. Migration complete.');
+    ', rows of unknown students skipped: ' + unknown + '. Next: fbStep5_Annotations.');
+}
+
+/*  Step 5 — feedback already pushed from Live Observation (Annotations tab)
+    → Realtime Database, so students and teachers keep seeing it.          */
+function fbStep5_Annotations() {
+  var cls = {}, n = 0, skipped = 0, data = {};
+  readAll(T.STUDENTS).forEach(function(s) { var sid = fbStr(s['Student ID']); if (sid) cls[sid] = fbStr(s['Class']); });
+  readAll(T.ANNOT).forEach(function(r) {
+    var sid = fbStr(r['Student ID']), c = cls[sid];
+    if (!c || !fbStr(r['Topic ID'])) { skipped++; return; }
+    var ts = fbIso(r['Timestamp']), path = c + '/' + fbUidForStudent(sid) + '/' + fbRtdbKey(r['Topic ID']);
+    var key = 'a' + (new Date(ts).getTime() || 0) + '_' + r._row;
+    (data[path] = data[path] || {})[key] = { timestamp: ts, teacher: fbStr(r['Teacher']), topicId: fbStr(r['Topic ID']),
+      mode: fbStr(r['Mode']), annotatedHtml: String(r['Annotated HTML'] || '').slice(0, 45000),
+      suggestions: String(r['Suggestions'] || '[]'), tr: fbStr(r['TR']), cc: fbStr(r['CC']), lr: fbStr(r['LR']),
+      gra: fbStr(r['GRA']), note: fbStr(r['Note']) };
+    n++;
+  });
+  Object.keys(data).forEach(function(path) { rtdb('patch', 'annotations/' + path, data[path]); });
+  return fbLog('Live feedback copied: ' + n + ' (rows of unknown students skipped: ' + skipped + '). Migration complete.');
 }

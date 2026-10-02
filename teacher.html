@@ -1128,6 +1128,14 @@ function showLive(){
     document.getElementById('viewGrid').onclick=function(){setView('grid');};
     document.getElementById('viewList').onclick=function(){setView('list');};
     setView('list');  // default list view for live (easier to scan word count)
+    if (AW.firebaseOn) {
+      // Firebase: the class is pushed to us the moment a student types —
+      // only the question list is still fetched on a timer.
+      startLiveWatch();
+      pollLiveQuestions();
+      livePoll = setInterval(pollLiveQuestions, 10000);
+      return;
+    }
     pollLive();
     livePoll = setInterval(pollLive, 10000);
     // Pause live poll when teacher switches tabs; resume immediately on return
@@ -1142,7 +1150,43 @@ function showLive(){
     document.addEventListener('visibilitychange', _onLiveVisibility);
   });
 }
-function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
+function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} stopLiveWatch(); }
+
+/*── Live on Firebase: listeners instead of polling ──────────────
+   watchLive    → every student's status / words / hand, pushed on change
+   watchLiveText→ the essay of the student whose annotation modal is open  */
+var _liveUnsub=null, _liveTextUnsub=null, _liveText={};
+function startLiveWatch(){
+  stopLiveWatch();
+  var cls=curClass();
+  AW.firebaseReady().then(function(FB){
+    return FB.watchLive(cls, function(rows){
+      if(!rows || cls!==curClass()) return;
+      liveData = rows.filter(function(s){ return s.mode==='inclass'; });
+      liveData.forEach(function(x){ var t=_liveText[x.uid]; if(t){ x.snapshot=t.snapshot; x.originalEssay=t.originalEssay; } });
+      renderLive();
+    });
+  }).then(function(unsub){ _liveUnsub=unsub; });
+}
+function stopLiveWatch(){
+  if(_liveUnsub){ _liveUnsub(); _liveUnsub=null; }
+  stopLiveTextWatch();
+}
+function stopLiveTextWatch(){ if(_liveTextUnsub){ _liveTextUnsub(); _liveTextUnsub=null; } }
+// Open a student's essay: fetch their text, then keep it in sync while open.
+function openLiveStudent(s){
+  if(!AW.firebaseOn || !s.uid){ openAnnotation(s); return; }
+  stopLiveTextWatch();
+  var opened=false;
+  AW.firebaseReady().then(function(FB){
+    return FB.watchLiveText(curClass(), s.uid, function(t){
+      _liveText[s.uid]=t;
+      liveData.forEach(function(x){ if(x.uid===s.uid){ x.snapshot=t.snapshot; x.originalEssay=t.originalEssay; } });
+      if(!opened){ opened=true; s.snapshot=t.snapshot; s.originalEssay=t.originalEssay; openAnnotation(s); }
+      else syncAnnotModal();
+    });
+  }).then(function(unsub){ _liveTextUnsub=unsub; });
+}
 function pollLive(){
   AW.api('teacher.getLive',{class:curClass()}).then(function(res){
     var all = (res&&res.data)||[];
@@ -1234,7 +1278,7 @@ function renderLive(){
     c.onclick=function(){
       liveSelected=c.dataset.sid;
       var s=filtered.filter(function(x){return String(x.studentId)===String(liveSelected);})[0];
-      if(s) openAnnotation(s);
+      if(s) openLiveStudent(s);
     };
   });
   // ── Sync open annotation modal if student data just refreshed ──
@@ -1793,6 +1837,7 @@ document.getElementById('pushFb').onclick=function(){
 document.getElementById('mClose').onclick=function(){
   document.getElementById('modalBg').classList.remove('show');
   liveSelected=null;
+  stopLiveTextWatch();
   _annotLastSnapshot=''; _annotModalDirty=false;
 };
 
