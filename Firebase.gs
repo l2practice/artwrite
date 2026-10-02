@@ -39,10 +39,15 @@ function fbRoute(action, p, idToken) {
   var caller = fbVerifyIdToken(idToken);
   if (!caller) return { success:false, error:'SESSION_EXPIRED' };
   if (action === 'fb.exportDoc')      return fbExportDoc(p, caller);
+  if (action === 'fb.notifyQuery')    return fbNotifyQuery(p, caller);
 
   if (!caller.isTeacher) return { success:false, error:'Unknown action: ' + action };
   if (action === 'fb.exportResults')  return fbExportResults(p, caller);
   if (action === 'fb.studentEdit')    return fbStudentEdit(p, caller);
+  if (action === 'fb.endSemester')    return fbEndSemester(p, caller);
+  if (action === 'fb.restore')        return fbRestore(p, caller);
+  if (action === 'fb.clearData')      return fbClearData(p, caller);
+  if (action === 'fb.resetData')      return fbResetData(p, caller);
   return { success:false, error:'Unknown action: ' + action };
 }
 
@@ -596,5 +601,428 @@ function fbStep5_Annotations() {
     n++;
   });
   Object.keys(data).forEach(function(path) { rtdb('patch', 'annotations/' + path, data[path]); });
-  return fbLog('Live feedback copied: ' + n + ' (rows of unknown students skipped: ' + skipped + '). Migration complete.');
+  return fbLog('Live feedback copied: ' + n + ' (rows of unknown students skipped: ' + skipped + '). Next: fbStep6_BoardsQueries.');
+}
+
+// ════════════════════════════════════════════════════════════
+// FIREBASE EDITION OF: End Course · Reactivate · Clear Data · Reset ·
+// question emails · nightly backup. Reports reuse the Sheet edition's
+// builders (Semester.gs / ClearData.gs) fed with rows shaped like the old
+// tabs, so they look exactly as before.
+// ════════════════════════════════════════════════════════════
+function wDeleteFields(path, fieldPaths) { return { update: { name: fsName(path), fields: {} }, updateMask: { fieldPaths: fieldPaths } }; }
+
+// Destructive actions re-check the teacher's password (same as the Sheet edition).
+function fbCheckPassword(caller, password) {
+  if (!password || !caller.email) return false;
+  var r = UrlFetchApp.fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + FB.API_KEY,
+    { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      payload: JSON.stringify({ email: caller.email, password: fbAuthPw(password), returnSecureToken: false }) });
+  return r.getResponseCode() === 200 && JSON.parse(r.getContentText()).localId === caller.uid;
+}
+function fbOwnedClass(classId, caller) {
+  var c = fsGet('classes/' + fbStr(classId));
+  return c && c.teacherUid === caller.uid ? c : null;
+}
+function fbClassSheetShape(c) { return { 'Class ID': c.classId, 'Class Name': c.className, 'Academic Year': c.year, 'Semester': c.semester }; }
+function fbAssignSheetShape(a) {
+  return { 'Topic ID': a.topicId, 'Mode': a.mode, 'Class': a.classId, 'Topic': a.topic, 'Prompt': a.prompt,
+           'Task Type': a.taskType, 'Required Attempts': a.requiredAttempts, 'Deadline': a.deadline,
+           'CreatedAt': a.createdAt, 'Min Words': a.minWords, 'Active': a.active !== false };
+}
+
+/*  Everything of one class: Firestore (students, attempts, essays, tasks) and
+    the Realtime Database (Live feedback, questions). Rows come out shaped
+    like the old Sheet tabs.                                                 */
+function fbClassData(classId, teacherUid) {
+  var students = fsQuery('users', [['teacherUid', 'EQUAL', teacherUid], ['classId', 'EQUAL', classId]])
+                   .filter(function(u) { return u.role === 'student'; });
+  var progs = fsQuery('progress', [['teacherUid', 'EQUAL', teacherUid], ['classId', 'EQUAL', classId]]);
+  var items = [];
+  progs.forEach(function(pr) { fbItems(pr).forEach(function(it) { items.push({ prog: pr, it: it }); }); });
+  var essays = {};
+  fsBatchGet(items.map(function(x) { return 'essays/' + x.it.id; })).forEach(function(e) { essays[e._id] = e; });
+  // teacher score of a task sits on its newest attempt (as in the Sheet)
+  var newest = {};
+  items.forEach(function(x) {
+    var k = x.prog._id + '|' + x.it.mode + '|' + x.it.topicId;
+    if (!newest[k] || x.it.timestamp > newest[k].timestamp) newest[k] = x.it;
+  });
+  var tabOf = { free: T.FREE, homework: T.HOMEWORK, inclass: T.INCLASS }, snap = {};
+  snap[T.FREE] = []; snap[T.HOMEWORK] = []; snap[T.INCLASS] = [];
+  var rows = items.map(function(x) {
+    var it = x.it, pr = x.prog, e = essays[it.id] || {}, key = it.mode + '|' + it.topicId;
+    var ts = newest[pr._id + '|' + key] === it ? (pr.tscore || {})[key] : null;
+    var r = { 'Mode': it.mode, 'Timestamp': it.timestamp, 'Student ID': pr.studentId, 'Name': pr.name, 'Class': it.classId || classId,
+      'Topic': it.topic, 'Topic ID': it.topicId, 'Task Type': it.taskType, 'Attempt': it.attempt,
+      'Start time': it.startTime, 'Finish time': it.finishTime, 'Duration': it.duration,
+      'TR': it.tr, 'CC': it.cc, 'LR': it.lr, 'GRA': it.gra, 'AI Grading': it.aiGrading, 'Teacher Grading': it.teacherGrading,
+      'Teacher Score': ts ? JSON.stringify(ts) : '', 'Essay': e.essay || '', 'Feedback': e.feedback || '',
+      'Google Doc': it.docUrl || ((pr.docs || {})[key] || {}).url || '' };
+    if (tabOf[it.mode]) snap[tabOf[it.mode]].push(r);
+    return r;
+  });
+  var ann = rtdb('get', 'annotations/' + classId) || {}, annRows = [];
+  var nameOf = {}; students.forEach(function(s) { nameOf[s._id] = s; });
+  Object.keys(ann).forEach(function(uid) { Object.keys(ann[uid] || {}).forEach(function(tk) {
+    Object.keys(ann[uid][tk] || {}).forEach(function(k) {
+      var a = ann[uid][tk][k], s = nameOf[uid] || {};
+      annRows.push({ 'Timestamp': a.timestamp, 'Student ID': s.studentId || uid, 'Name': s.name || '', 'Topic ID': a.topicId,
+        'Mode': a.mode, 'Teacher': a.teacher, 'Note': a.note, 'Annotated HTML': a.annotatedHtml, 'Suggestions': a.suggestions });
+    });
+  }); });
+  var qs = rtdb('get', 'queries/' + classId) || {}, qRows = [];
+  Object.keys(qs).forEach(function(uid) { Object.keys(qs[uid] || {}).forEach(function(k) {
+    var q = qs[uid][k];
+    qRows.push({ 'CreatedAt': q.createdAt, 'Student ID': q.studentId, 'Name': q.studentName, 'Topic': q.topic,
+      'Question': q.question, 'Error Quote': q.errorQuote, 'Answer': q.answer, 'Status': q.status,
+      'Shared': q.shared ? 'yes' : '', 'AnsweredAt': q.answeredAt });
+  }); });
+  var assigns = fsQuery('assignments', [['classId', 'EQUAL', classId]]);
+  return { students: students, progs: progs, items: items, rows: rows, snap: snap, annRows: annRows, qRows: qRows, assigns: assigns };
+}
+
+var FB_RAW_HEADS = {
+  'Submissions': ['Mode', 'Timestamp', 'Student ID', 'Name', 'Class', 'Topic', 'Topic ID', 'Task Type', 'Attempt',
+                  'Start time', 'Finish time', 'Duration', 'TR', 'CC', 'LR', 'GRA', 'AI Grading', 'Teacher Grading',
+                  'Teacher Score', 'Essay', 'Feedback', 'Google Doc'],
+  'Live feedback': ['Timestamp', 'Student ID', 'Name', 'Topic ID', 'Mode', 'Teacher', 'Note', 'Annotated HTML', 'Suggestions'],
+  'Questions': ['CreatedAt', 'Student ID', 'Name', 'Topic', 'Question', 'Error Quote', 'Answer', 'Status', 'Shared', 'AnsweredAt']
+};
+// Copy rows into a 🗄 tab and check the count. Throws on a mismatch, so
+// nothing is deleted unless its copy is complete.
+function fbRawTab(book, label, objs) {
+  if (!objs.length) return 0;
+  var head = FB_RAW_HEADS[label];
+  var data = objs.map(function(o) { return head.map(function(h) {
+    var v = o[h]; v = v == null ? '' : v;
+    return typeof v === 'string' && v.length > 49000 ? v.slice(0, 49000) : v;
+  }); });
+  var sh = book.insertSheet('🗄 ' + label, book.getNumSheets());
+  var sid = head.indexOf('Student ID');
+  if (sid > -1) sh.getRange(1, sid + 1, data.length + 1, 1).setNumberFormat('@');
+  sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground(SEM_BLUE).setFontColor('#FFFFFF');
+  sh.getRange(2, 1, data.length, head.length).setValues(data);
+  sh.setFrozenRows(1);
+  SpreadsheetApp.flush();
+  if (sh.getLastRow() - 1 !== data.length)
+    throw new Error('Bản sao "' + label + '" không khớp số dòng (' + (sh.getLastRow() - 1) + '/' + data.length + '), chưa xoá gì.');
+  return data.length;
+}
+// Delete exactly what was copied: those attempts (not attempts saved after
+// the read), their essays, and the class's Live / question data.
+function fbPurgeClass(classId, d) {
+  var w = [];
+  d.items.forEach(function(x) { w.push(wDelete('essays/' + x.it.id)); });
+  d.progs.forEach(function(pr) {
+    var paths = fbItems(pr).map(function(it) { return 'items.' + fp(it.id); });
+    if (paths.length) w.push(wDeleteFields('progress/' + pr._id, paths.concat(['tscore', 'docs'])));
+  });
+  fsCommit(w);
+  ['live/', 'liveText/', 'annotations/', 'queries/', 'queryOpen/', 'sharedQueries/'].forEach(function(p) { rtdb('delete', p + classId); });
+  return { 'Submissions': d.items.length, 'Live feedback': d.annRows.length, 'Questions': d.qRows.length };
+}
+
+function fbSemRun(cls, caller, clear) {
+  var d = fbClassData(cls.classId, caller.uid);
+  var scope = { students: d.students.map(function(s) {
+    return { 'Student ID': s.studentId, 'Name': s.name, 'Class': s.classId, 'Archived': !!s.archived }; }) };
+  var stats = _semStats(scope, d.snap, d.assigns.map(fbAssignSheetShape));
+  var me = fsGet('users/' + caller.uid) || {};
+  var g = { email: caller.email, teacherName: me.name || '', cls: fbClassSheetShape(cls), classId: cls.classId };
+  var book = _semReport(g, stats), url = book.getUrl();
+  _semShare(book, caller.email);
+  var counts = {}, removed = 0;
+  try {
+    fbRawTab(book, 'Submissions', d.rows);
+    fbRawTab(book, 'Live feedback', d.annRows);
+    fbRawTab(book, 'Questions', d.qRows);
+    if (clear) { counts = fbPurgeClass(cls.classId, d); Object.keys(counts).forEach(function(k) { removed += counts[k]; }); }
+  } catch (err) {
+    return { ok: false, error: 'Dừng giữa chừng: ' + err.message + ' Báo cáo đã tạo.', data: { url: url } };
+  }
+  return { ok: true, url: url, stats: stats, counts: counts, removed: removed, g: g };
+}
+
+function fbEndSemester(p, caller) {
+  if (!fbCheckPassword(caller, p.password)) return { success: false, error: 'Mật khẩu không đúng.' };
+  var cls = fbOwnedClass(p.classId, caller);
+  if (!cls) return { success: false, error: 'Lớp này không thuộc tài khoản của bạn.' };
+  var clear = p.clear !== false, archive = clear && p.archive !== false;
+  var run = fbSemRun(cls, caller, clear);
+  if (!run.ok) return { success: false, error: run.error, data: run.data };
+  var patch = { lastReport: run.url };
+  if (archive) { patch.archived = true; patch.archivedAt = new Date().toISOString(); }
+  fsCommit([wMerge('classes/' + cls.classId, patch)]);
+  var emailed = _semMail(run.g, run, { cleared: clear, archived: archive });
+  return { success: true, data: { url: run.url, counts: run.counts, removed: run.removed,
+                                  cleared: clear, archived: archive, emailed: emailed } };
+}
+
+// Reactivate: students sign in again with a clean slate. A class archived
+// without End Course may still hold data: report + back up + clear it first.
+function fbRestore(p, caller) {
+  if (!fbCheckPassword(caller, p.password)) return { success: false, error: 'Mật khẩu không đúng.' };
+  var cls = fbOwnedClass(p.classId, caller);
+  if (!cls) return { success: false, error: 'Lớp này không thuộc tài khoản của bạn.' };
+  if (!cls.archived) return { success: false, error: 'Lớp này đang hoạt động.' };
+  var left = fsQuery('progress', [['teacherUid', 'EQUAL', caller.uid], ['classId', 'EQUAL', cls.classId]])
+    .reduce(function(n, pr) { return n + fbItems(pr).length; }, 0);
+  var run = null;
+  if (left) {
+    run = fbSemRun(cls, caller, true);
+    if (!run.ok) return { success: false, error: run.error, data: run.data };
+    _semMail(run.g, run, { cleared: true, archived: false, restored: true });
+  }
+  var patch = { archived: false, archivedAt: '' };
+  if (run) patch.lastReport = run.url;
+  fsCommit([wMerge('classes/' + cls.classId, patch)]);
+  var active = fsQuery('users', [['teacherUid', 'EQUAL', caller.uid], ['classId', 'EQUAL', cls.classId]])
+    .filter(function(u) { return u.role === 'student' && !u.archived; }).length;
+  return { success: true, data: { classId: cls.classId, students: active, leftoverCleared: left, url: run ? run.url : '' } };
+}
+
+// Reset (Settings ▸ Reset Toàn Bộ Dữ Liệu): every class of this teacher.
+// Attempts, essays, Live feedback and questions are copied into one backup
+// Sheet first; accounts, classes and assignments stay.
+function fbResetData(p, caller) {
+  var classes = fsQuery('classes', [['teacherUid', 'EQUAL', caller.uid]]);
+  var book = SpreadsheetApp.create('ArticuWrite_ResetBackup_' + _semDate(Date.now(), 'yyyy-MM-dd_HHmm'));
+  try { DriveApp.getFileById(book.getId()).moveTo(DriveApp.getFolderById(FEEDBACK_FOLDER_ID)); } catch (e) {}
+  var all = { rows: [], annRows: [], qRows: [] }, data = {};
+  classes.forEach(function(c) {
+    var d = fbClassData(c.classId, caller.uid); data[c.classId] = d;
+    all.rows = all.rows.concat(d.rows); all.annRows = all.annRows.concat(d.annRows); all.qRows = all.qRows.concat(d.qRows);
+  });
+  var results = [];
+  try {
+    fbRawTab(book, 'Submissions', all.rows); fbRawTab(book, 'Live feedback', all.annRows); fbRawTab(book, 'Questions', all.qRows);
+    var first = book.getSheets()[0];
+    if (book.getSheets().length > 1) book.deleteSheet(first); else first.getRange(1, 1).setValue('Không có dữ liệu để sao lưu.');
+    classes.forEach(function(c) { var n = fbPurgeClass(c.classId, data[c.classId]); results.push(c.classId + ' reset OK (' + n['Submissions'] + ' bài)'); });
+  } catch (err) { return { success: false, error: err.message + ' Bản sao: ' + book.getUrl() }; }
+  _semShare(book, caller.email);
+  return { success: true, data: results, backupUrl: book.getUrl() };
+}
+
+// A student sent a question: email the class's teacher.
+function fbNotifyQuery(p, caller) {
+  var id = String(p.queryId || '').split('~');
+  if (id.length !== 3 || id[1] !== caller.uid) return { success: false, error: 'Query not found.' };
+  var q = rtdb('get', 'queries/' + id[0] + '/' + id[1] + '/' + id[2]);
+  var cls = fsGet('classes/' + id[0]);
+  if (!q || !cls || !cls.teacherEmail) return { success: false, error: 'Query not found.' };
+  var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+  MailApp.sendEmail({ to: cls.teacherEmail, name: 'ArticuWrite',
+    subject: '📚 ArticuWrite — Câu hỏi mới từ ' + (q.studentName || q.studentId || 'Sinh viên'),
+    body: 'Xin chào Thầy/Cô,\n\nCó một câu hỏi mới từ sinh viên:\n\n────────────────────────────\n' +
+      '👤 Sinh viên : ' + (q.studentName || '') + ' (' + (q.studentId || '') + ')\n' +
+      '🏫 Lớp       : ' + (cls.className || id[0]) + '\n' +
+      '📝 Bài       : ' + (q.topic || '') + (q.attempt ? ' · Attempt ' + q.attempt : '') + '\n' +
+      '🕐 Thời gian : ' + now + '\n────────────────────────────\n\n' +
+      '💬 Câu hỏi:\n' + (q.question || '') + '\n\n' + (q.errorQuote ? '📌 Trích dẫn:\n"' + q.errorQuote + '"\n\n' : '') +
+      'Truy cập ArticuWrite: https://l2practice.github.io/artwrite/teacher.html#queries\n\n— ArticuWrite (tự động)' });
+  return { success: true };
+}
+
+// ── Clear Data (per assignment), Firebase edition ─────────────
+// Same promise as before: each student's essays + feedback go into their
+// Google Doc (verified), then the essays leave the database; scores stay
+// and Results opens the Doc. Runs in the background, emails when done.
+var FBCD_QUEUE = 'AW_FBCD_QUEUE', FBCD_RUN = 'AW_FBCD_RUNNING';
+function fbClearData(p, caller) {
+  var topicId = fbStr(p.topicId);
+  var a = fsGet('assignments/' + topicId);
+  if (!a) return { success: false, error: 'Không tìm thấy bài tập.' };
+  if (a.teacherUid !== caller.uid) return { success: false, error: 'Bài tập này không thuộc lớp của bạn.' };
+  if (a.mode !== 'homework' && a.mode !== 'inclass') return { success: false, error: 'Clear Data chỉ áp dụng cho Homework / In-class.' };
+  if (a.dataStatus === 'clearing') return { success: true, data: { status: 'clearing', already: true } };
+  var n = fsQuery('progress', [['teacherUid', 'EQUAL', caller.uid], ['classId', 'EQUAL', a.classId]]).filter(function(pr) {
+    return fbItems(pr).some(function(it) { return it.mode === a.mode && it.topicId === topicId; }); }).length;
+  fsCommit([wMerge('assignments/' + topicId, { dataStatus: 'clearing' })]);
+  var q = fbCdQueue().filter(function(j) { return j.topicId !== topicId; });
+  q.push({ topicId: topicId, mode: a.mode, classId: a.classId, email: caller.email, teacherUid: caller.uid, fails: {} });
+  fbCdSave(q);
+  fbCdSchedule(1);
+  return { success: true, data: { status: 'clearing', students: n } };
+}
+function fbCdQueue() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(FBCD_QUEUE) || '[]'); } catch (e) { return []; } }
+function fbCdSave(q) { PropertiesService.getScriptProperties().setProperty(FBCD_QUEUE, JSON.stringify(q)); }
+function fbCdSchedule(minutes) {
+  ScriptApp.getProjectTriggers().forEach(function(t) { if (t.getHandlerFunction() === 'fbClearDataWorker') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('fbClearDataWorker').timeBased().after(minutes * 60 * 1000).create();
+}
+function fbCdPending(job) {   // [{prog, items}] still holding essays for this task
+  return fsQuery('progress', [['teacherUid', 'EQUAL', job.teacherUid], ['classId', 'EQUAL', job.classId]]).map(function(pr) {
+    return { prog: pr, items: fbItems(pr).filter(function(it) { return it.mode === job.mode && it.topicId === job.topicId; }) };
+  }).filter(function(x) { return x.items.length && x.items.some(function(it) { return !it.cleared; }) &&
+                                 (job.fails[x.prog.studentId] || 0) < CD_MAX_FAILS; });
+}
+function fbClearDataWorker() {
+  var t0 = Date.now(), props = PropertiesService.getScriptProperties();
+  var running = parseInt(props.getProperty(FBCD_RUN) || '0', 10);
+  if (running && t0 - running < 6.5 * 60000) { fbCdSchedule(5); return; }
+  props.setProperty(FBCD_RUN, String(t0));
+  try {
+    while (true) {
+      var q = fbCdQueue();
+      if (!q.length) return;
+      var job = q[0], left = fbCdPending(job);
+      for (var i = 0; i < left.length; i++) {
+        if (Date.now() - t0 > CD_BUDGET_MS - 40000) { fbCdSave([job].concat(q.slice(1))); fbCdSchedule(1); return; }
+        if (!fbCdOne(job, left[i])) job.fails[left[i].prog.studentId] = (job.fails[left[i].prog.studentId] || 0) + 1;
+      }
+      if (fbCdPending(job).length) { fbCdSave([job].concat(q.slice(1))); fbCdSchedule(1); return; }
+      if (Date.now() - t0 > CD_BUDGET_MS - CD_FINISH_MS) { fbCdSave([job].concat(q.slice(1))); fbCdSchedule(1); return; }
+      fbCdFinish(job);
+      fbCdSave(fbCdQueue().filter(function(j) { return j.topicId !== job.topicId; }));
+    }
+  } finally { props.deleteProperty(FBCD_RUN); }
+}
+function fbCdOne(job, x) {
+  var res;
+  try { res = fbExportDoc({ studentId: x.prog.studentId, topicId: job.topicId, mode: job.mode }, { uid: job.teacherUid, isTeacher: true }); }
+  catch (e) { res = null; }
+  if (!res || !res.success || !res.data || !res.data.url) return false;
+  var pr = fsGet('progress/' + x.prog._id), key = job.mode + '|' + job.topicId;
+  var meta = (pr.docs || {})[key] || {};
+  var its = fbItems(pr).filter(function(it) { return it.mode === job.mode && it.topicId === job.topicId; });
+  if (!meta.id || (meta.attempts || 0) < its.length) return false;          // the Doc must hold every attempt
+  try { DriveApp.getFileById(meta.id); } catch (e) { return false; }
+  var w = [], fields = { items: {} }, mask = [];
+  its.forEach(function(it) {
+    fields.items[it.id] = { cleared: true, docUrl: res.data.url };
+    mask.push('items.' + fp(it.id) + '.cleared', 'items.' + fp(it.id) + '.docUrl');
+    w.push(wDelete('essays/' + it.id));
+  });
+  w.unshift(wMerge('progress/' + pr._id, fields, mask));
+  fsCommit(w);
+  return true;
+}
+function fbCdFinish(job) {
+  var a = fsGet('assignments/' + job.topicId) || {}, cls = fsGet('classes/' + job.classId) || {};
+  var me = fsGet('users/' + job.teacherUid) || {};
+  var students = fsQuery('users', [['teacherUid', 'EQUAL', job.teacherUid], ['classId', 'EQUAL', job.classId]])
+    .filter(function(u) { return u.role === 'student'; })
+    .map(function(u) { return { 'Student ID': u.studentId, 'Name': u.name, 'Class': u.classId, 'Archived': !!u.archived }; });
+  var subRows = [];
+  fsQuery('progress', [['teacherUid', 'EQUAL', job.teacherUid], ['classId', 'EQUAL', job.classId]]).forEach(function(pr) {
+    var key = job.mode + '|' + job.topicId, its = fbItems(pr).filter(function(it) { return it.mode === job.mode && it.topicId === job.topicId; });
+    its.sort(fbByTime).forEach(function(it, i) {
+      subRows.push({ 'Topic ID': job.topicId, 'Student ID': pr.studentId, 'Name': pr.name, 'Timestamp': it.timestamp,
+        'AI Grading': it.aiGrading, 'Teacher Grading': it.teacherGrading, 'Duration': it.duration,
+        'Teacher Score': i === its.length - 1 && (pr.tscore || {})[key] ? JSON.stringify(pr.tscore[key]) : '',
+        'Data Cleared': it.cleared ? '1' : '', 'Feedback Doc URL': it.docUrl || '' });
+    });
+  });
+  var sum = _cdSummarize(job, fbAssignSheetShape(a), fbClassSheetShape(cls), students, subRows);
+  var teacher = { Name: me.name || '' };
+  var book = _cdReport(sum.info, sum.list, teacher, job), url = book.getUrl();
+  _semShare(book, job.email);
+  fsCommit([wMerge('assignments/' + job.topicId, { dataStatus: 'cleared', dataReport: url })]);
+  _cdMail(sum.info, sum.list, teacher, job, url);
+}
+
+// ── Step 6 — Boards and Ask-teacher questions → Realtime Database ──
+// Written in small pieces (one board, or 50 questions, per request) so a
+// big board never makes one huge request; every step is logged, and a
+// piece that fails is reported by name instead of stopping everything.
+// Safe to run again: the same board / question lands on the same key.
+function fbStep6_BoardsQueries() {
+  var nb = 0, nq = 0, skipped = 0, failed = [];
+  function send(label, patch) {
+    try { rtdb('patch', '', patch); return true; }
+    catch (e) { failed.push(label + ': ' + e.message); Logger.log('FAILED ' + label + ': ' + e.message); return false; }
+  }
+  var boards = readAll(T.BOARDS);
+  Logger.log('Boards in the Sheet: ' + boards.length);
+  boards.forEach(function(b) {
+    var c = fbStr(b['Class']), key = fbRtdbKey(b['Board ID']);
+    if (!c || !fbStr(b['Board ID'])) { skipped++; return; }
+    var upd = new Date(fbIso(b['UpdatedAt'])).getTime() || Date.now();
+    var content = String(b['Content'] || '');
+    var patch = {};
+    patch['boardMeta/' + c + '/' + key] = { title: fbStr(b['Title']) || 'Untitled Board', owner: fbStr(b['Owner']),
+      createdAt: new Date(fbIso(b['CreatedAt'])).getTime() || upd, updatedAt: upd, archived: _semTrue(b['Archived']) };
+    patch['boardContent/' + c + '/' + key] = { content: content, updatedAt: upd };
+    if (send('board ' + b['Board ID'] + ' (' + Math.round(content.length / 1000) + ' KB)', patch)) nb++;
+  });
+  Logger.log('Boards copied: ' + nb);
+
+  var cls = {};
+  readAll(T.STUDENTS).forEach(function(s) { var sid = fbStr(s['Student ID']); if (sid) cls[sid] = fbStr(s['Class']); });
+  var rows = readAll(T.QUERIES), batch = {}, inBatch = 0, first = 0;
+  Logger.log('Questions in the Sheet: ' + rows.length);
+  function flush(lastIdx) {
+    if (!inBatch) return;
+    if (send('questions ' + (first + 1) + '–' + (lastIdx + 1), batch)) nq += inBatch;
+    batch = {}; inBatch = 0; first = lastIdx + 1;
+  }
+  rows.forEach(function(r, i) {
+    var sid = fbStr(r['Student ID']), c = fbStr(r['Class']) || cls[sid];
+    if (!sid || !c || !fbStr(r['Query ID'])) { skipped++; return; }
+    var uid = fbUidForStudent(sid), key = fbRtdbKey(r['Query ID']);
+    var q = { queryId: c + '~' + uid + '~' + key, uid: uid, class: c, studentId: sid, studentName: fbStr(r['Student Name']),
+      mode: fbStr(r['Mode']), topic: fbStr(r['Topic']), topicId: fbStr(r['Topic ID']), attempt: fbStr(r['Attempt']),
+      errorQuote: String(r['Error Quote'] || ''), question: String(r['Question'] || ''), answer: String(r['Teacher Answer'] || ''),
+      status: fbStr(r['Status']) || 'open', shared: _semTrue(r['Shared']), phase: fbStr(r['Phase']) || 'review',
+      createdAt: fbIso(r['CreatedAt']), answeredAt: fbIso(r['AnsweredAt']) };
+    batch['queries/' + c + '/' + uid + '/' + key] = q;
+    if (q.status === 'open') batch['queryOpen/' + c + '/' + key] = q;
+    if (q.shared) batch['sharedQueries/' + c + '/' + key] = q;
+    inBatch++;
+    if (inBatch >= 50) flush(i);
+  });
+  flush(rows.length - 1);
+  return fbLog('Boards: ' + nb + ', questions: ' + nq + ' (skipped without class: ' + skipped + ')' +
+    (failed.length ? '\nNOT copied (' + failed.length + '):\n' + failed.join('\n') : '\nAll copied.'));
+}
+
+// ── Nightly backup: new submissions → a backup Google Sheet ───
+// The app never reads this file, so its size never slows anything down.
+// One file per year in the Drive folder of the old Sheet. Install once:
+// run fbInstallNightlyBackup from the editor.
+function fbInstallNightlyBackup() {
+  ScriptApp.getProjectTriggers().forEach(function(t) { if (t.getHandlerFunction() === 'fbNightlyBackup') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('fbNightlyBackup').timeBased().atHour(2).everyDays(1).inTimezone('Asia/Ho_Chi_Minh').create();
+  return fbLog('Nightly backup scheduled at ~02:00. Running one now…\n' + fbNightlyBackup());
+}
+function fbBackupBook_() {
+  var P = PropertiesService.getScriptProperties(), year = _semDate(Date.now(), 'yyyy'), key = 'fb_backup_book_' + year;
+  var id = P.getProperty(key);
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  var book = SpreadsheetApp.create('ArticuWrite Backup ' + year);
+  try {
+    var parent = DriveApp.getFileById(SHEET_ID).getParents();
+    if (parent.hasNext()) DriveApp.getFileById(book.getId()).moveTo(parent.next());
+  } catch (e) {}
+  var sh = book.getSheets()[0]; sh.setName('Submissions');
+  sh.getRange(1, 1, 1, FB_RAW_HEADS['Submissions'].length).setValues([FB_RAW_HEADS['Submissions']]).setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.getRange(1, 3, sh.getMaxRows(), 1).setNumberFormat('@');
+  P.setProperty(key, book.getId());
+  return book;
+}
+function fbNightlyBackup() {
+  var P = PropertiesService.getScriptProperties(), since = P.getProperty('fb_backup_since') || '1970-01-01T00:00:00.000Z';
+  var essays = fsQuery('essays', [['timestamp', 'GREATER_THAN', since]]);
+  if (!essays.length) return fbLog('Backup: nothing new since ' + since);
+  essays.sort(function(a, b) { return a.timestamp < b.timestamp ? -1 : 1; });
+  var progs = {};
+  fsBatchGet(Object.keys(essays.reduce(function(m, e) { m['progress/' + e.uid] = 1; return m; }, {})))
+    .forEach(function(pr) { progs[pr._id] = pr; });
+  var head = FB_RAW_HEADS['Submissions'];
+  var rows = essays.map(function(e) {
+    var pr = progs[e.uid] || {}, it = (pr.items || {})[e._id] || {};
+    var o = { 'Mode': e.mode, 'Timestamp': e.timestamp, 'Student ID': e.studentId, 'Name': pr.name, 'Class': e.classId,
+      'Topic': it.topic, 'Topic ID': e.topicId, 'Task Type': it.taskType, 'Attempt': it.attempt, 'Start time': it.startTime,
+      'Finish time': it.finishTime, 'Duration': it.duration, 'TR': it.tr, 'CC': it.cc, 'LR': it.lr, 'GRA': it.gra,
+      'AI Grading': it.aiGrading, 'Teacher Grading': it.teacherGrading, 'Teacher Score': '', 'Essay': e.essay, 'Feedback': e.feedback,
+      'Google Doc': it.docUrl || '' };
+    return head.map(function(h) { var v = o[h] == null ? '' : o[h]; return typeof v === 'string' && v.length > 49000 ? v.slice(0, 49000) : v; });
+  });
+  var sh = fbBackupBook_().getSheetByName('Submissions');
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, head.length).setValues(rows);
+  P.setProperty('fb_backup_since', essays[essays.length - 1].timestamp);
+  return fbLog('Backup: ' + rows.length + ' new submissions copied (up to ' + essays[essays.length - 1].timestamp + ').');
 }

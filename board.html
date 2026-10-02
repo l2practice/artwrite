@@ -202,8 +202,22 @@ function openBoard(id){
   Uses meta-first pattern: poll board.meta (lightweight — only boardId + updatedAt)
   every 15s. Only fetch the full board.get when updatedAt has changed.
   Pauses when the tab is hidden to reduce Apps Script quota usage.              */
+var _boardUnsub=null;
 function startStudentPoll(){
   stopPoll();
+  if (AW.firebaseOn) {
+    // Firebase: the board is pushed the moment the teacher saves it
+    var id=curBoard.boardId;
+    AW.firebaseReady().then(function(FB){
+      return FB.watchBoard(id, function(b){
+        if(!curBoard || curBoard.boardId!==id || b.updatedAt===curBoard.updatedAt) return;
+        curBoard.content=b.content; curBoard.updatedAt=b.updatedAt;
+        var canvas=document.getElementById('canvas');
+        if(canvas){ canvas.innerHTML=renderForStudent(curBoard.content||''); applyZoom(); }
+      });
+    }).then(function(unsub){ _boardUnsub=unsub; });
+    return;
+  }
   pollTimer = setInterval(refreshBoardMeta, 15000);
   document.addEventListener('visibilitychange', _onBoardVisibility);
 }
@@ -238,6 +252,7 @@ function refreshBoard(){
 }
 function stopPoll(){
   if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+  if(_boardUnsub){ _boardUnsub(); _boardUnsub=null; }
   document.removeEventListener('visibilitychange', _onBoardVisibility);
 }
 

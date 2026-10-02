@@ -196,15 +196,26 @@ function _cdFinish(job) {
   var classId = String(a['Class'] || '').trim();
   var cls = readAll(T.CLASSES).filter(function(c){ return String(c['Class ID']).trim() === classId; })[0] || {};
   var teacher = readAll(T.TEACHERS).filter(function(t){ return _semLow(t['Email']) === job.email; })[0] || {};
-  var req = parseInt(a['Required Attempts'], 10) || 3;
+  var sum = _cdSummarize(job, a, cls, readAll(T.STUDENTS), readAll(tab));
+  var book = _cdReport(sum.info, sum.list, teacher, job);
+  _semShare(book, job.email);
+  var url = book.getUrl();
+  _cdSetAssign(job.topicId, { 'Data Status':'cleared', 'Data Cleared At':nowIso(), 'Data Report':url });
+  _cdMail(sum.info, sum.list, teacher, job, url);
+}
 
+/*  Numbers for the report. Rows are keyed like the Sheet tabs; the Firebase
+    edition (Firebase.gs) builds the same shapes from Firestore.            */
+function _cdSummarize(job, a, cls, studentRows, subRows) {
+  var classId = String(a['Class'] || '').trim();
+  var req = parseInt(a['Required Attempts'], 10) || 3;
   var S = {};
-  readAll(T.STUDENTS).forEach(function(s){
+  studentRows.forEach(function(s){
     if (String(s['Class']).trim() !== classId || _semTrue(s['Archived'])) return;
     var sid = String(s['Student ID']).trim();
     S[sid] = { sid:sid, name:s['Name'] || '', rows:[] };
   });
-  readAll(tab).forEach(function(r){
+  subRows.forEach(function(r){
     if (String(r['Topic ID']).trim() !== job.topicId) return;
     var sid = String(r['Student ID'] || '').trim();
     if (!sid) return;
@@ -250,12 +261,7 @@ function _cdFinish(job) {
     avgGain:_semMean(done.map(function(s){ return s.gain; }).filter(function(v){ return v !== null; })),
     notCleared:done.filter(function(s){ return !s.cleared; })
   };
-
-  var book = _cdReport(info, list, teacher, job);
-  _semShare(book, job.email);
-  var url = book.getUrl();
-  _cdSetAssign(job.topicId, { 'Data Status':'cleared', 'Data Cleared At':nowIso(), 'Data Report':url });
-  _cdMail(info, list, teacher, job, url);
+  return { info: info, list: list };
 }
 
 function _cdReport(info, list, teacher, job) {
