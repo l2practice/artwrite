@@ -348,10 +348,14 @@ function fbExportResults(p, caller) {
   var progs = fsQuery('progress', [['teacherUid', 'EQUAL', caller.uid], ['classId', 'EQUAL', classId]]);
   var cls = fsGet('classes/' + classId), prompts = {};
   fsQuery('assignments', [['classId', 'EQUAL', classId]]).forEach(function(a) { prompts[a.topicId] = a; });
+  var topicId = p.all ? '' : fbStr(p.topicId);
+  var cutoff = (!p.all && Number(p.days) > 0) ? Date.now() - Number(p.days) * 86400000 : 0;
   var groups = {};
   progs.forEach(function(prog) {
     fbItems(prog).forEach(function(r) {
       if (r.mode !== mode || !r.topicId) return;
+      if (topicId && fbStr(r.topicId) !== topicId) return;
+      if (cutoff && new Date(r.timestamp).getTime() < cutoff) return;
       var k = prog.studentId + '||' + r.topicId, a = prompts[r.topicId] || {};
       if (!groups[k]) groups[k] = { studentId: prog.studentId, name: prog.name, class: classId,
         className: (cls && cls.className) || classId, topic: r.topic, topicId: r.topicId,
@@ -362,7 +366,7 @@ function fbExportResults(p, caller) {
     });
   });
   var list = Object.keys(groups).map(function(k) { groups[k].writes.sort(fbByTime); return groups[k]; });
-  return writeResultsSheet_(list, p);
+  return writeResultsSheet_(filterExportGroups_(list, p), p);
 }
 
 // ════════════════════════════════════════════════════════════

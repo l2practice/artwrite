@@ -1854,8 +1854,21 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
 
 // ── Export results sheet ───────────────────────────────────────
 function exportResultsSheet(p) {
-  var res = getResults({ mode:p.mode, class:p.class });
-  return writeResultsSheet_(res.data || [], p);
+  var res = getResults({ mode:p.mode, class:p.class,
+                         topicId: p.all ? '' : (p.topicId || ''), days: p.all ? 0 : (p.days || 0) });
+  return writeResultsSheet_(filterExportGroups_(res.data || [], p), p);
+}
+
+// The on-screen filters of the Results tab (task type, name / Student ID search).
+// "Export All" (p.all) ignores every filter.
+function filterExportGroups_(groups, p) {
+  if (p.all) return groups;
+  var q = String(p.q || '').trim().toLowerCase();
+  return groups.filter(function(g) {
+    if (p.taskType && (g.taskType || 'task2') !== p.taskType) return false;
+    if (q && (String(g.name || '') + ' ' + String(g.studentId || '')).toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
 }
 
 // Writes teacher.getResults-shaped groups into a new Google Sheet (also used by Firebase.gs).
@@ -1864,7 +1877,11 @@ function writeResultsSheet_(groups, p) {
 
   var modeLabel = p.mode==='homework'?'Homework':(p.mode==='inclass'?'In-class Practice':'Free Writing');
   var dateStr   = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HHmm');
-  var fileName  = 'ArticuWrite_Results_'+modeLabel.replace(/\s+/g,'-')+'_'+dateStr;
+  // name the file after the assignment when only one is exported
+  var topicNames = {}; groups.forEach(function(g){ topicNames[g.topic || ''] = 1; });
+  var tk = Object.keys(topicNames);
+  var scope = p.all ? '_All' : (tk.length === 1 && tk[0] ? '_' + tk[0].replace(/[\\/:*?"<>|]/g,'').slice(0,40) : '');
+  var fileName  = 'ArticuWrite_Results_'+modeLabel.replace(/\s+/g,'-')+scope+'_'+dateStr;
 
   var ssNew = SpreadsheetApp.create(fileName);
   var sh    = ssNew.getSheets()[0];
