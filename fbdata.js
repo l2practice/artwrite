@@ -36,13 +36,16 @@
 const CFG = window.AW_FIREBASE || {};
 const STUDENT_DOMAIN = CFG.studentDomain || 'students.articuwrite.app';
 
-let fs = null, auth = null, FV = null, FP = null, _authReady = null;
+let fs = null, auth = null, FV = null, FP = null, rtdb = null, _authReady = null;
 function init() {
   if (fs) return;
   firebase.initializeApp(window.__FB_CONFIG || CFG.config);
   fs = firebase.firestore();
   auth = firebase.auth();
-  if (window.__FB_EMU) { auth.useEmulator('http://127.0.0.1:9099'); fs.useEmulator('127.0.0.1', 8080); } // tests only
+  rtdb = firebase.database();
+  if (window.__FB_EMU) {   // tests only
+    auth.useEmulator('http://127.0.0.1:9099'); fs.useEmulator('127.0.0.1', 8080); rtdb.useEmulator('127.0.0.1', 9000);
+  }
   FV = firebase.firestore.FieldValue;
   FP = firebase.firestore.FieldPath;
   _authReady = new Promise(res => { const off = auth.onAuthStateChanged(u => { off(); res(u); }); });
@@ -223,6 +226,7 @@ async function classCreate(p) {
     classId: id, className: str(p.className), year: str(p.year), semester: str(p.semester),
     teacherUid: t.uid, teacherEmail: t.email || '', aiEnabled: true, archived: false, createdAt: nowIso()
   });
+  await rtdb.ref('classOwner/' + id).set(t.uid);   // lets this teacher watch the class Live
   forget('classes');
   return ok({ classId: id, className: p.className, year: p.year, semester: p.semester });
 }
@@ -566,20 +570,6 @@ async function saveManualScore(p) {
   return ok();
 }
 
-// Annotation itself still lives in the Google Sheet (Live phase); the grade
-// it carries belongs on the submission, which is in Firestore now.
-async function saveAnnotation(p) {
-  const res = await legacy('teacher.saveAnnotation', Object.assign({}, p, { teacherGrading: null }));
-  if (res && res.success && p.teacherGrading != null && p.mode) {
-    const t = await teacher();
-    const sp = await studentProgress(t, p.studentId);
-    const rows = sp ? itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byTime) : [];
-    if (rows.length) await sp.ref.update(new FP('items', rows[rows.length - 1].id, 'teacherGrading'), p.teacherGrading);
-    forget('progress|');
-  }
-  return res;
-}
-
 async function getOverview(p) {
   const t = await teacher();
   const classId = str(p.class);
@@ -592,6 +582,184 @@ async function getOverview(p) {
     icAssignments: active.filter(a => a.mode === 'inclass').length,
     avgScore: '—', totalEssays: '—', feedbackPending: '—'
   });
+}
+
+
+// ════════════════════════════════════════════
+// LIVE (Realtime Database) — pushed to the teacher the moment it changes
+//   live/{classId}/{uid}        status, word count, hand, topic  (small, often)
+//   liveText/{classId}/{uid}    the essay text being written      (read when opened)
+//   annotations/{classId}/{uid}/{topicKey}/{pushKey}  teacher feedback pushes
+//   classOwner/{classId}        teacherUid — who may watch / annotate the class
+// Status shown: 'Submitted' stays; otherwise a closed tab (online=false) or
+// no heartbeat for 45 s shows as 'Offline'. Rows older than 8 h are hidden.
+// ════════════════════════════════════════════
+const LIVE_STALE_MS = 45000, LIVE_WINDOW_MS = 8 * 3600000;
+const rkey = v => str(v).replace(/[.#$\[\]\/]/g, '_') || '_';
+let _offset = 0, _offsetWatch = false;
+function serverNow() {
+  if (!_offsetWatch) { _offsetWatch = true; rtdb.ref('.info/serverTimeOffset').on('value', s => { _offset = s.val() || 0; }); }
+  return Date.now() + _offset;
+}
+function liveRow(uid, n, now) {
+  let status = n.status || 'Writing';
+  const age = now - (Number(n.updated) || 0);
+  if (status !== 'Submitted' && (n.online === false || age > LIVE_STALE_MS)) status = 'Offline';
+  return { uid, studentId: n.studentId, name: n.name, class: n.classId, topicId: n.topicId || '', topic: n.topic || '',
+           mode: n.mode || '', status, wordCount: n.wordCount || 0, raisedHand: !!n.raisedHand,
+           hasFeedback: !!n.hasFeedback, updated: n.updated ? new Date(Number(n.updated)).toISOString() : '' };
+}
+function liveRows(val) {
+  const now = serverNow();
+  return Object.keys(val || {}).map(uid => ({ uid, n: val[uid] || {} }))
+    .filter(x => now - (Number(x.n.updated) || 0) <= LIVE_WINDOW_MS)
+    .map(x => liveRow(x.uid, x.n, now));
+}
+
+// Student side. Called by the pages every few seconds (and on every pause in
+// typing): the small node is rewritten, the text only when it changed.
+let _lastText = null, _lastTextTopic = null, _disconnectSet = false;
+async function heartbeat(p) {
+  const u = await me();
+  if (u.role !== 'student') return ok();
+  const base = 'live/' + u.classId + '/' + u.uid;
+  const node = { studentId: u.studentId, name: u.name || '', classId: u.classId, topicId: str(p.topicId), topic: p.topic || '',
+                 mode: p.mode || '', status: p.status || 'Writing', wordCount: Number(p.wordCount) || 0, online: true,
+                 updated: firebase.database.ServerValue.TIMESTAMP };
+  if (p.raiseHand != null) node.raisedHand = !!p.raiseHand;
+  if (!_disconnectSet) { _disconnectSet = true; rtdb.ref(base).onDisconnect().update({ online: false }); }
+  await rtdb.ref(base).update(node);
+  const text = String(p.snapshot || '').slice(0, 8000);
+  if (text !== _lastText || str(p.topicId) !== _lastTextTopic) {
+    const tref = rtdb.ref('liveText/' + u.classId + '/' + u.uid);
+    const cur = (await tref.once('value')).val() || {};
+    const sameTopic = cur.topicId === str(p.topicId);
+    await tref.set({ topicId: str(p.topicId), snapshot: text,
+                     original: sameTopic && cur.original != null ? cur.original : text,   // first text of this task
+                     updated: firebase.database.ServerValue.TIMESTAMP });
+    _lastText = text; _lastTextTopic = str(p.topicId);
+  }
+  return ok();
+}
+async function liveTarget(p) {          // whose live node: the caller, or (teacher) a student of theirs
+  const u = await me();
+  if (u.role === 'student') return { classId: u.classId, uid: u.uid, me: u };
+  const s = await studentByIdForTeacher(u, p.studentId);
+  return s ? { classId: s.classId, uid: s._id, me: u } : null;
+}
+async function raiseHand(p) {
+  const t = await liveTarget(p);
+  if (!t) return fail('Missing studentId.');
+  const patch = { raisedHand: !!p.raised };
+  if (t.me.role === 'student') Object.assign(patch, { studentId: t.me.studentId, name: t.me.name || '', classId: t.classId,
+    online: true, updated: firebase.database.ServerValue.TIMESTAMP }, p.where ? { topic: p.where } : {}, p.mode ? { mode: p.mode } : {});
+  await rtdb.ref('live/' + t.classId + '/' + t.uid).update(patch);
+  return ok();
+}
+async function getDraftSnapshot(p) {
+  const u = await me();
+  const [n, txt] = await Promise.all([rtdb.ref('live/' + u.classId + '/' + u.uid).once('value'),
+                                      rtdb.ref('liveText/' + u.classId + '/' + u.uid).once('value')]);
+  const t = txt.val();
+  if (!t || t.topicId !== str(p.topicId) || !t.snapshot || (n.val() || {}).status === 'Submitted') return ok(null);
+  return ok({ snapshot: t.snapshot, wordCount: (n.val() || {}).wordCount || 0 });
+}
+
+// Teacher side
+async function getLive(p) {                 // one-shot (alerts, older callers)
+  await teacher();
+  const snap = await rtdb.ref('live/' + str(p.class)).once('value');
+  return ok(liveRows(snap.val()));
+}
+async function clearLive(p) {
+  await teacher();
+  const c = str(p.class);
+  await Promise.all([rtdb.ref('live/' + c).remove(), rtdb.ref('liveText/' + c).remove()]);
+  return ok({ cleared: true });
+}
+async function getAlerts(p) {
+  const [sheet, live] = await Promise.all([legacy('teacher.getAlerts', p), getLive(p)]);
+  const d = (sheet && sheet.data) || {};
+  d.hands = (live.data || []).filter(r => r.raisedHand)
+    .map(r => ({ studentId: r.studentId, name: r.name, where: r.topic || '', updated: r.updated }));
+  return ok(d);
+}
+
+// Feedback pushed from the annotation modal: the student sees it at once.
+async function saveAnnotation(p) {
+  const t = await teacher();
+  const s = await studentByIdForTeacher(t, p.studentId);
+  if (!s) return fail('Student not found.');
+  const now = nowIso();
+  if (p.annotatedHtml != null || p.note) {
+    await rtdb.ref('annotations/' + s.classId + '/' + s._id + '/' + rkey(p.topicId) + '/a' + Date.now()).set({
+      timestamp: now, teacher: p.teacher || '', topicId: str(p.topicId), mode: p.mode || '',
+      annotatedHtml: String(p.annotatedHtml || '').slice(0, 45000),
+      suggestions: JSON.stringify(p.suggestions || []),
+      tr: p.tr || '', cc: p.cc || '', lr: p.lr || '', gra: p.gra || '', note: p.note || ''
+    });
+    rtdb.ref('live/' + s.classId + '/' + s._id + '/hasFeedback').set(true).catch(() => {});
+  }
+  // the grade it carries belongs on the submission (Firestore)
+  if (p.teacherGrading != null && p.teacherGrading !== '' && p.mode) {
+    const sp = await studentProgress(t, p.studentId);
+    const rows = sp ? itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byTime) : [];
+    if (rows.length) await sp.ref.update(new FP('items', rows[rows.length - 1].id, 'teacherGrading'), p.teacherGrading);
+    forget('progress|');
+  }
+  return ok();
+}
+function annotationsOut(val, forStudent) {
+  const rows = Object.keys(val || {}).map(k => val[k]).filter(r => !forStudent || str(r.annotatedHtml))
+    .sort((a, b) => ms(b.timestamp) - ms(a.timestamp));
+  if (!rows.length) return null;
+  const history = rows.map((r, i) => {
+    let sug = []; try { sug = JSON.parse(r.suggestions || '[]'); } catch (e) {}
+    return { index: rows.length - i, timestamp: r.timestamp, teacher: r.teacher || '', annotatedHtml: r.annotatedHtml || '',
+             suggestions: sug, tr: r.tr || '', cc: r.cc || '', lr: r.lr || '', gra: r.gra || '', note: r.note || '' };
+  });
+  const latest = history[0];
+  return { history, pushCount: history.length, latestAt: latest.timestamp,
+           tr: latest.tr, cc: latest.cc, lr: latest.lr, gra: latest.gra };
+}
+// Teacher: history of pushes to one student. Student (write.html): their own.
+async function getAnnotation(p) {
+  const t = await liveTarget(p);
+  if (!t) return ok(null);
+  const snap = await rtdb.ref('annotations/' + t.classId + '/' + t.uid + '/' + rkey(p.topicId)).once('value');
+  return ok(annotationsOut(snap.val(), t.me.role === 'student'));
+}
+async function getAnnotationForStudent(p) {
+  const r = await getAnnotation(p);
+  const h = r.data && r.data.history && r.data.history[0];
+  return ok(h ? { timestamp: h.timestamp, teacher: h.teacher, annotatedHtml: h.annotatedHtml } : null);
+}
+
+// ── listeners (pages call these directly; each returns an unsubscribe) ──
+async function watchLive(classId, cb) {
+  await teacher();
+  const ref = rtdb.ref('live/' + str(classId));
+  let last = null;
+  const h = snap => { last = snap.val(); cb(liveRows(last)); };
+  ref.on('value', h, () => cb(null));
+  // re-evaluate every 10 s: a closed tab / dead connection turns 'Offline'
+  // even though nothing new arrives
+  const tick = setInterval(() => { if (last !== null) cb(liveRows(last)); }, 10000);
+  return () => { clearInterval(tick); ref.off('value', h); };
+}
+async function watchLiveText(classId, uid, cb) {
+  await teacher();
+  const ref = rtdb.ref('liveText/' + str(classId) + '/' + str(uid));
+  const h = snap => { const v = snap.val() || {}; cb({ snapshot: v.snapshot || '', originalEssay: v.original || '', topicId: v.topicId || '' }); };
+  ref.on('value', h, () => {});
+  return () => ref.off('value', h);
+}
+async function watchMyAnnotations(topicId, cb) {
+  const u = await me();
+  const ref = rtdb.ref('annotations/' + u.classId + '/' + u.uid + '/' + rkey(topicId));
+  const h = snap => cb(ok(annotationsOut(snap.val(), true)));
+  ref.on('value', h, () => {});
+  return () => ref.off('value', h);
 }
 
 // ════════════════════════════════════════════
@@ -641,7 +809,10 @@ const ACTIONS = {
   'teacher.deleteAttempt': deleteAttempt, 'teacher.saveManualScore': saveManualScore,
   'teacher.saveAnnotation': saveAnnotation, 'teacher.getOverview': getOverview,
   'teacher.createAssignment': createAssignment, 'teacher.updateAssignment': updateAssignment,
-  'teacher.deleteAssignment': deleteAssignment
+  'teacher.deleteAssignment': deleteAssignment,
+  'write.heartbeat': heartbeat, 'write.raiseHand': raiseHand, 'write.getDraftSnapshot': getDraftSnapshot,
+  'write.getAnnotation': getAnnotationForStudent, 'teacher.getAnnotation': getAnnotation,
+  'teacher.getLive': getLive, 'teacher.clearLive': clearLive, 'teacher.getAlerts': getAlerts
 };
 
 async function call(action, payload) {
@@ -655,16 +826,21 @@ async function call(action, payload) {
     return await legacy(action, payload);
   } catch (e) {
     const code = (e && e.code) || '';
-    if (e && (e.message === 'SESSION_EXPIRED' || /unauthenticated/.test(code))) return fail('SESSION_EXPIRED');
-    if (/permission-denied/.test(code)) return fail(auth && auth.currentUser ? 'Bạn không có quyền truy cập dữ liệu này.' : 'SESSION_EXPIRED');
-    if (/unavailable|deadline-exceeded/.test(code)) return fail('Không kết nối được máy chủ — kiểm tra mạng và thử lại.');
+    if (e && (e.message === 'SESSION_EXPIRED' || /unauthenticated/i.test(code))) return fail('SESSION_EXPIRED');
+    if (/permission[-_]denied/i.test(code) || /permission_denied/i.test((e && e.message) || '')) return fail(auth && auth.currentUser ? 'Bạn không có quyền truy cập dữ liệu này.' : 'SESSION_EXPIRED');
+    if (/unavailable|deadline-exceeded/i.test(code)) return fail('Không kết nối được máy chủ — kiểm tra mạng và thử lại.');
     console.error('[fbdata] ' + action, e);
     return fail((e && e.message) || String(e));
   }
 }
 
+// Listener errors (signed out, no access) must not throw into the page.
+const safeWatch = fn => (...a) => fn(...a).catch(e => { console.warn('[fbdata] watch', e); return () => {}; });
+
 window.FB = {
   call, authReady, signOut,
+  watchLive: safeWatch(watchLive), watchLiveText: safeWatch(watchLiveText),
+  watchMyAnnotations: safeWatch(watchMyAnnotations),
   isSignedIn: async () => { await authReady(); return !!auth.currentUser; },
   _helpers: { authPw, loginEmailFor, safeKey, forget }
 };

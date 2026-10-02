@@ -674,10 +674,13 @@ window.openBoardView=function(){
 };
 // send every 10s while on page; mark idle after 45s no typing
 setInterval(function(){ sendHeartbeat(lastStatus); }, 10000);
+var _hbSoon=null;
 editor.addEventListener('input', function(){
   lastStatus='Writing';
   clearTimeout(idleTimer);
   idleTimer=setTimeout(function(){ lastStatus='Idle'; }, 45000);
+  // Firebase: the teacher sees the text ~1.5 s after the student pauses typing
+  if (AW.firebaseOn) { clearTimeout(_hbSoon); _hbSoon=setTimeout(function(){ sendHeartbeat(lastStatus); }, 1500); }
 });
 sendHeartbeat('Writing'); // initial ping
 
@@ -1855,10 +1858,13 @@ if (MODE === 'inclass' || MODE === 'homework') {
       document.getElementById('tfbBg').classList.add('show');
     };
     function poll(){
-      AW.api('teacher.getAnnotation',{studentId:sess.studentId, topicId:TOPIC_ID}).then(function(res){
-        if(!res||!res.success||!res.data||!res.data.history) return;
-        var history = res.data.history; // array, newest first
-        if(!history.length) return;
+      AW.api('teacher.getAnnotation',{studentId:sess.studentId, topicId:TOPIC_ID}).then(handle);
+    }
+    function handle(res){
+        if(!res||!res.success) return;
+        var history = (res.data && res.data.history) || []; // newest first
+        // nothing pushed yet: still "primed", so the very first push alerts too
+        if(!history.length){ primed = true; return; }
         var newCount = history.length;
         window._tfbHistory = history;
         ensureUi();
@@ -1873,10 +1879,10 @@ if (MODE === 'inclass' || MODE === 'homework') {
         }
         lastPushCount = newCount;
         primed = true;
-      });
     }
-    setInterval(poll, 10000);
-    setTimeout(poll, 2000);
+    // Firebase: feedback arrives the moment the teacher pushes it
+    if (AW.firebaseOn) AW.firebaseReady().then(function(FB){ FB.watchMyAnnotations(TOPIC_ID, handle); });
+    else { setInterval(poll, 10000); setTimeout(poll, 2000); }
   })();
 }
 
