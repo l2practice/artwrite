@@ -4,37 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- App icon: SVG data URI — no file, no extra request, no 404 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<meta name="theme-color" content="#0A6EBD">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#5661E0">
 <title>Board · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
-  .aw-board-toolbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:8px 10px;margin-bottom:14px;box-shadow:var(--aw-shadow-sm);position:sticky;top:12px;z-index:50}
-  .aw-tbtn{min-width:34px;height:34px;border:none;background:none;border-radius:7px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:inline-grid;place-items:center;font-size:.9rem;padding:0 8px}
+  .aw-board-toolbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;background:var(--aw-surface);border:none;border-radius:20px;padding:8px 10px;margin-bottom:14px;box-shadow:var(--aw-shadow);position:sticky;top:12px;z-index:50}
+  .aw-tbtn{min-width:38px;height:38px;border:none;background:none;border-radius:12px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:inline-grid;place-items:center;font-size:.9rem;padding:0 8px}
   .aw-tbtn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
   .aw-tbtn.on{background:var(--aw-primary);color:#fff}
   .aw-tsep{width:1px;height:22px;background:var(--aw-border);margin:0 4px}
   .aw-tcolor{width:26px;height:26px;border:none;border-radius:6px;cursor:pointer;padding:0;background:none}
   .aw-tcolor-sw{width:22px;height:22px;border-radius:4px;border:2px solid rgba(0,0,0,.15);cursor:pointer;display:inline-block;vertical-align:middle;padding:0;margin:0 1px;transition:transform .12s,border-color .12s;flex-shrink:0}
   .aw-tcolor-sw:hover{transform:scale(1.25);border-color:rgba(0,0,0,.5)}
-  .aw-canvas-wrap{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);box-shadow:var(--aw-shadow);overflow:auto;padding:0}
+  .aw-canvas-wrap{background:var(--aw-surface);border:none;border-radius:var(--aw-r-lg);box-shadow:var(--aw-shadow);overflow:auto;padding:0}
   .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s,font-size .15s;overflow-wrap:break-word}
   .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
-  .aw-canvas img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;cursor:pointer}
+  .aw-canvas img{max-width:100%;height:auto;border-radius:14px;margin:6px 0;cursor:pointer}
   .aw-canvas img.selected{outline:2px solid var(--aw-primary);outline-offset:2px}
-  .aw-img-controls{position:fixed;z-index:60;display:none;gap:3px;background:#10222E;border-radius:10px;padding:5px 6px;box-shadow:0 4px 20px rgba(0,0,0,.4);flex-wrap:wrap;max-width:340px;align-items:center}
+  .aw-img-controls{position:fixed;z-index:60;display:none;gap:3px;background:#1E2142;border-radius:14px;padding:5px 6px;box-shadow:0 4px 20px rgba(0,0,0,.4);flex-wrap:wrap;max-width:340px;align-items:center}
   /*── student help tools (raise hand / ask teacher) ──*/
-  .bd-hand{position:fixed;bottom:78px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3);font-family:var(--aw-font-body)}
+  .bd-hand{position:fixed;bottom:84px;right:24px;z-index:400;background:#fff;color:var(--aw-accent);border:2px solid var(--aw-accent);border-radius:999px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:var(--aw-shadow);font-family:var(--aw-font-body)}
   .bd-hand:hover{transform:translateY(-2px)}
-  .bd-hand.on{background:#E0A32E;color:#fff}
-  .bd-ask{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(46,147,103,.4);font-family:var(--aw-font-body)}
+  .bd-hand.on{background:var(--aw-accent);color:#fff}
+  .bd-ask{position:fixed;bottom:24px;right:24px;z-index:400;background:var(--aw-primary-dk);color:#fff;border:none;border-radius:999px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:var(--aw-shadow-lg);font-family:var(--aw-font-body)}
   .bd-ask:hover{transform:translateY(-2px)}
-  .bd-askpanel{position:fixed;bottom:24px;right:24px;z-index:401;width:360px;max-width:calc(100vw - 32px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden}
+  .bd-askpanel{position:fixed;bottom:24px;right:24px;z-index:401;width:360px;max-width:calc(100vw - 32px);background:#fff;border-radius:24px;box-shadow:var(--aw-shadow-lg);display:none;flex-direction:column;overflow:hidden}
   .bd-askpanel.show{display:flex}
-  .bd-askhead{background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
-  .bd-asknote{background:#EAF2FB;color:#0A4A7A;font-size:.78rem;padding:9px 14px;line-height:1.4;border-bottom:1px solid #B8D4F0}
-  .bd-askpanel textarea{border:1px solid var(--aw-border);border-radius:8px;padding:10px;margin:12px 14px 8px;font-size:.88rem;font-family:var(--aw-font-body);resize:vertical;min-height:80px;outline:none}
+  .bd-askhead{background:var(--aw-primary-dk);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .bd-asknote{background:var(--aw-surface-2);color:#1E2142;font-size:.78rem;padding:9px 14px;line-height:1.4;border-bottom:none}
+  .bd-askpanel textarea{border:1.5px solid transparent;background:var(--aw-surface-2);border-radius:16px;padding:10px;margin:12px 14px 8px;font-size:.88rem;font-family:var(--aw-font-body);resize:vertical;min-height:80px;outline:none}
   .bd-askpanel textarea:focus{border-color:var(--aw-primary)}
   .bd-askpanel > .aw-btn{margin:0 14px 14px;width:calc(100% - 28px)}
   .aw-img-controls button{background:none;border:none;color:#fff;padding:5px 8px;font-size:.78rem;cursor:pointer;border-radius:5px}
@@ -44,8 +44,8 @@
   .aw-board-title-in{font-family:var(--aw-font-display);font-size:1.3rem;font-weight:600;border:none;background:none;color:var(--aw-ink);outline:none;flex:1;min-width:180px}
   .aw-board-title-in:focus{border-bottom:2px solid var(--aw-primary)}
   .aw-save-dot{font-size:.8rem;color:var(--aw-ink-3)}
-  .aw-board-card{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:20px;cursor:pointer;transition:transform .14s,box-shadow .16s,border-color .16s;box-shadow:var(--aw-shadow-sm)}
-  .aw-board-card:hover{transform:translateY(-3px);box-shadow:var(--aw-shadow-lg);border-color:var(--aw-primary)}
+  .aw-board-card{background:var(--aw-surface);border:none;border-radius:20px;padding:20px;cursor:pointer;transition:transform .14s,box-shadow .16s;box-shadow:var(--aw-shadow)}
+  .aw-board-card:hover{transform:translateY(-3px);box-shadow:var(--aw-shadow-lg)}
   .aw-board-card h3{margin:0 0 8px;font-family:var(--aw-font-display);font-size:1.05rem}
   .aw-board-card .meta{font-size:.8rem;color:var(--aw-ink-3)}
   .aw-zoom-ind{font-size:.82rem;color:var(--aw-ink-2);min-width:44px;text-align:center}
@@ -55,14 +55,14 @@
 <div id="app"></div>
 
 <div class="aw-img-controls" id="imgCtrl">
-  <button id="imgSmaller">▼ Nhỏ</button>
-  <button id="imgLarger">▲ Lớn</button>
+  <button id="imgSmaller">Smaller</button>
+  <button id="imgLarger">Larger</button>
   <button id="imgHalf">½ 50%</button>
   <button id="imgFull">⇔ 100%</button>
   <span style="width:1px;background:#ddd;align-self:stretch;margin:4px 2px"></span>
   <button id="imgMatchPrev" title="Đồng bộ kích thước với ảnh liền trước">↕ Same size</button>
   <button id="imgSideBySide" title="Xếp tất cả ảnh trong board thành 2 cột ngang">⊞ Side-by-side</button>
-  <button id="imgStack" title="Trở về bố cục dọc">☰ Dọc</button>
+  <button id="imgStack" title="Back to vertical layout">Stack</button>
   <span style="width:1px;background:#ddd;align-self:stretch;margin:4px 2px"></span>
   <button id="imgRemove" style="color:#B42318">✕</button>
 </div>
@@ -77,7 +77,7 @@
 <script src="aw-common.js"></script>
 <script>
 if (typeof AW === 'undefined') {
-  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#1E2142"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
   throw new Error('aw-common.js not loaded');
 }
 
@@ -88,18 +88,18 @@ var isTeacher = sess.role === 'teacher';
 var nav = isTeacher ? [
   { id:'overview', label:'Class Overview', icon:'overview', href:'teacher.html' },
   { id:'live',     label:'Live Observation', icon:'live', href:'teacher.html#live' },
-  { id:'assign',   label:'Assignments', icon:'modes', href:'teacher.html#assignments' },
-  { id:'results',  label:'Results', icon:'results', href:'teacher.html#results' },
-  { id:'queries',  label:'Feedback Queries', icon:'results', href:'teacher.html#queries' },
-  { id:'board',    label:'Interactive Board', icon:'modes', active:true },
+  { id:'assign',   label:'Assignments', icon:'tasks', href:'teacher.html#assignments' },
+  { id:'results',  label:'Results', icon:'progress', href:'teacher.html#results' },
+  { id:'queries',  label:'Feedback Queries', icon:'chat', href:'teacher.html#queries' },
+  { id:'board',    label:'Interactive Board', icon:'board', active:true },
   { id:'library',  label:'Library', icon:'library', href:'library.html' },
   { id:'settings', label:'Settings', icon:'settings', href:'teacher.html#settings' },
 ] : [
   { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
-  { id:'board',   label:'Interactive Board', icon:'modes', active:true },
+  { id:'board',   label:'Interactive Board', icon:'board', active:true },
   { id:'library', label:'Library', icon:'library', href:'library.html' },
   { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
-  { id:'qa',      label:'Q&A with Teacher', icon:'results', href:'student.html#qa' },
+  { id:'qa',      label:'Q&A with Teacher', icon:'chat', href:'student.html#qa' },
   { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
 ];
 
@@ -266,7 +266,7 @@ function renderBoard(){
         ? '<input class="aw-board-title-in" id="boardTitle" value="'+AW.esc(curBoard.title)+'">'
         : '<span class="aw-board-title-in" style="flex:1">'+AW.esc(curBoard.title)+'</span>') +
       (isTeacher
-        ? '<span class="aw-save-dot" id="saveDot">✓ Đã lưu</span>' +
+        ? '<span class="aw-save-dot" id="saveDot">✓ Saved</span>' +
           '<button class="aw-btn aw-btn-primary" id="saveBtn" style="padding:8px 18px;font-weight:700" onclick="saveNow()">💾 Save</button>'
         : '<span class="aw-save-dot">View only</span>') +
       '<button class="aw-btn aw-btn-accent" style="padding:8px 16px" onclick="exportPDF()">Export PDF</button>' +
@@ -657,8 +657,8 @@ function showImgBBSetup(callback){
     '</p>'+
     '<div style="display:flex;gap:8px">'+
       '<input id="imgbbKeyIn" placeholder="Paste API key…" style="flex:1;padding:8px 12px;border:1px solid var(--aw-border);border-radius:8px;font-size:.88rem;outline:none">'+
-      '<button id="imgbbSave" style="padding:8px 14px;background:var(--aw-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem">Lưu</button>'+
-      '<button id="imgbbSkip" style="padding:8px 14px;background:none;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;font-size:.82rem;color:var(--aw-ink-3)">Bỏ qua</button>'+
+      '<button id="imgbbSave" style="padding:8px 14px;background:var(--aw-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem">Save</button>'+
+      '<button id="imgbbSkip" style="padding:8px 14px;background:none;border:1px solid var(--aw-border);border-radius:8px;cursor:pointer;font-size:.82rem;color:var(--aw-ink-3)">Skip</button>'+
     '</div>';
   document.body.appendChild(div);
   document.getElementById('imgbbKeyIn').focus();
@@ -822,7 +822,7 @@ function scheduleSave(){
   // Show unsaved indicator immediately so teacher knows there are pending changes
   var dot = document.getElementById('saveDot');
   var btn = document.getElementById('saveBtn');
-  if(dot) dot.textContent = '● Chưa lưu';
+  if(dot) dot.textContent = '● Not saved';
   if(dot) dot.style.color = '#E8730C';
   if(btn) { btn.textContent = '💾 Save'; btn.style.background = ''; }
   clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500);
@@ -833,30 +833,30 @@ function saveNow(){
   var title = document.getElementById('boardTitle'); title = title ? title.value : curBoard.title;
   var dot = document.getElementById('saveDot');
   var btn = document.getElementById('saveBtn');
-  if(dot) dot.textContent = '⏳ Đang lưu…';
+  if(dot) dot.textContent = 'Saving…';
   if(dot) dot.style.color = 'var(--aw-ink-3)';
-  if(btn) { btn.disabled = true; btn.textContent = '⏳ Đang lưu…'; }
+  if(btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   curBoard.content = canvas.innerHTML; curBoard.title = title;
   AW.api('board.save',{boardId:curBoard.boardId, title:title, content:canvas.innerHTML}).then(function(res){
     var dot2 = document.getElementById('saveDot');
     var btn2 = document.getElementById('saveBtn');
     if(res && res.success){
-      if(dot2){ dot2.textContent='✓ Đã lưu'; dot2.style.color='#1A9E5C'; }
+      if(dot2){ dot2.textContent='✓ Saved'; dot2.style.color='#16825B'; }
       if(btn2){ btn2.disabled=false; btn2.textContent='💾 Save'; btn2.style.background=''; }
     } else if(res && res.error==='CONTENT_TOO_LARGE') {
-      if(dot2){ dot2.textContent='✗ Board quá nặng'; dot2.style.color='var(--aw-danger)'; }
-      if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; btn2.style.background='var(--aw-danger)'; }
+      if(dot2){ dot2.textContent='✗ Board too large'; dot2.style.color='var(--aw-danger)'; }
+      if(btn2){ btn2.disabled=false; btn2.textContent='Retry save'; btn2.style.background='var(--aw-danger)'; }
       AW.toast('⚠️ ' + (res.detail || 'Nội dung board quá lớn — hãy xóa bớt ảnh.'), 'err', 8000);
     } else {
-      if(dot2){ dot2.textContent='✗ Lưu thất bại'; dot2.style.color='var(--aw-danger)'; }
-      if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; btn2.style.background='var(--aw-danger)'; }
+      if(dot2){ dot2.textContent='✗ Save failed'; dot2.style.color='var(--aw-danger)'; }
+      if(btn2){ btn2.disabled=false; btn2.textContent='Retry save'; btn2.style.background='var(--aw-danger)'; }
       AW.toast('Lưu thất bại — kiểm tra kết nối mạng.','err');
     }
   }).catch(function(){
     var dot2 = document.getElementById('saveDot');
     var btn2 = document.getElementById('saveBtn');
-    if(dot2){ dot2.textContent='✗ Lỗi kết nối'; dot2.style.color='var(--aw-danger)'; }
-    if(btn2){ btn2.disabled=false; btn2.textContent='💾 Thử lại'; }
+    if(dot2){ dot2.textContent='✗ Connection error'; dot2.style.color='var(--aw-danger)'; }
+    if(btn2){ btn2.disabled=false; btn2.textContent='Retry save'; }
     AW.toast('Không kết nối được máy chủ.','err');
   });
 }
@@ -904,7 +904,7 @@ window.exportPDF=function(){
   var canvas=document.getElementById('canvas');
   var w=window.open('','_blank');
   w.document.write('<html><head><title>'+AW.esc(curBoard.title)+'</title>'+
-    '<style>body{font-family:Inter,system-ui,sans-serif;padding:40px;line-height:1.7;color:#10222E}'+
+    '<style>body{font-family:Inter,system-ui,sans-serif;padding:40px;line-height:1.7;color:#1E2142}'+
     'img{max-width:100%;border-radius:8px}h1{font-family:Georgia,serif}</style></head><body>'+
     '<h1>'+AW.esc(curBoard.title)+'</h1>'+canvas.innerHTML+'</body></html>');
   w.document.close();

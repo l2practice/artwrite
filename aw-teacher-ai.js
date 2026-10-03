@@ -187,10 +187,10 @@
     s = s.replace(/^#{1,3}\s+(.+)$/gm, '<div style="font-weight:700;margin:6px 0 2px">$1</div>');
     // Bullet points
     s = s.replace(/^[\s]*[-*+]\s+(.+)$/gm,
-      '<div style="display:flex;gap:6px;margin:2px 0"><span style="color:#0A6EBD;flex-shrink:0">•</span><span>$1</span></div>');
+      '<div style="display:flex;gap:6px;margin:2px 0"><span style="color:#5661E0;flex-shrink:0">•</span><span>$1</span></div>');
     // Numbered list
     s = s.replace(/^[\s]*(\d+)\.\s+(.+)$/gm,
-      '<div style="display:flex;gap:6px;margin:2px 0"><span style="color:#0A6EBD;flex-shrink:0;min-width:1.2em">$1.</span><span>$2</span></div>');
+      '<div style="display:flex;gap:6px;margin:2px 0"><span style="color:#5661E0;flex-shrink:0;min-width:1.2em">$1.</span><span>$2</span></div>');
     // Paragraphs
     s = s.replace(/\n{2,}/g, '<br>');
     s = s.replace(/\n/g, '<br>');
@@ -226,35 +226,35 @@
     var s = document.createElement('style');
     s.id = 'awTaiStyle';
     s.textContent = [
-      '.aw-tai-fab{position:fixed;bottom:24px;right:24px;z-index:850;background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:13px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4);font-family:var(--aw-font-body);transition:transform .15s}',
+      '.aw-tai-fab{position:fixed;bottom:24px;right:24px;z-index:850;background:var(--aw-primary-dk);color:#fff;border:none;border-radius:999px;padding:13px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:var(--aw-shadow-lg);font-family:var(--aw-font-body);transition:transform .15s}',
       '.aw-tai-fab:hover{transform:translateY(-2px)}',
       '.aw-tai-panel{position:fixed;bottom:24px;right:24px;z-index:851;width:420px;max-width:calc(100vw - 32px);height:600px;max-height:calc(100vh - 48px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.32);display:none;flex-direction:column;overflow:hidden;font-family:var(--aw-font-body)}',
       '.aw-tai-panel.show{display:flex}',
-      '.aw-tai-head{background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-shrink:0}',
+      '.aw-tai-head{background:var(--aw-primary-dk);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-shrink:0}',
       '.aw-tai-head b{font-family:var(--aw-font-display)}',
-      '.aw-tai-models{display:flex;gap:5px;flex-wrap:wrap;padding:9px 14px;border-bottom:1px solid var(--aw-border-2,#e5e9ee);background:var(--aw-surface-2,#f8f9fb);flex-shrink:0}',
+      '.aw-tai-models{display:flex;gap:5px;flex-wrap:wrap;padding:9px 14px;border-bottom:1px solid var(--aw-border-2,#E9EBFB);background:var(--aw-surface-2,#f8f9fb);flex-shrink:0}',
       '.aw-tai-chip{border:1px solid var(--aw-border,#dde2e8);background:#fff;border-radius:16px;padding:4px 12px;font-size:.76rem;font-weight:600;cursor:pointer;color:var(--aw-ink-2,#445);display:flex;align-items:center;gap:5px;transition:opacity .15s}',
       '.aw-tai-chip.on{color:#fff;border-color:transparent}',
       '.aw-tai-chip.off{opacity:.4}',
       '.aw-tai-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}',
       '.aw-tai-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--aw-bg,#f4f6f8)}',
       '.aw-tai-msg{max-width:90%;padding:10px 13px;border-radius:14px;font-size:.87rem;line-height:1.6;word-break:break-word}',
-      '.aw-tai-msg.user{align-self:flex-end;background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border-bottom-right-radius:4px;white-space:pre-wrap}',
-      '.aw-tai-msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--aw-border-2,#e5e9ee);border-bottom-left-radius:4px;min-width:60px}',
+      '.aw-tai-msg.user{align-self:flex-end;background:var(--aw-primary);color:#fff;border-bottom-right-radius:4px;white-space:pre-wrap}',
+      '.aw-tai-msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--aw-border-2,#E9EBFB);border-bottom-left-radius:4px;min-width:60px}',
       '.aw-tai-who{font-size:.67rem;font-weight:700;margin-bottom:4px;opacity:.65;text-transform:uppercase;letter-spacing:.04em}',
       '.aw-tai-body{line-height:1.6}',
       /* streaming cursor */
       '@keyframes aw-blink{0%,100%{opacity:1}50%{opacity:0}}',
-      '.aw-tai-cursor{display:inline-block;width:2px;height:1em;background:#0A6EBD;vertical-align:text-bottom;margin-left:2px;border-radius:1px;animation:aw-blink .7s infinite}',
-      '.aw-tai-input{display:flex;gap:6px;padding:10px;border-top:1px solid var(--aw-border-2,#e5e9ee);background:#fff;flex-shrink:0}',
+      '.aw-tai-cursor{display:inline-block;width:2px;height:1em;background:#5661E0;vertical-align:text-bottom;margin-left:2px;border-radius:1px;animation:aw-blink .7s infinite}',
+      '.aw-tai-input{display:flex;gap:6px;padding:10px;border-top:1px solid var(--aw-border-2,#E9EBFB);background:#fff;flex-shrink:0}',
       '.aw-tai-input textarea{flex:1;border:1px solid var(--aw-border,#dde2e8);border-radius:12px;padding:9px 12px;font-size:.88rem;font-family:var(--aw-font-body);resize:none;max-height:120px;outline:none;line-height:1.4}',
-      '.aw-tai-input textarea:focus{border-color:#0A6EBD}',
-      '.aw-tai-send{background:#0A6EBD;color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:600;cursor:pointer;font-size:.9rem;transition:opacity .15s}',
+      '.aw-tai-input textarea:focus{border-color:#5661E0}',
+      '.aw-tai-send{background:#5661E0;color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:600;cursor:pointer;font-size:.9rem;transition:opacity .15s}',
       '.aw-tai-send:disabled{opacity:.45;cursor:not-allowed}',
       '.aw-tai-keys{padding:14px;font-size:.85rem;overflow-y:auto;flex:1}',
       '.aw-tai-keys input{width:100%;border:1px solid var(--aw-border,#dde2e8);border-radius:8px;padding:8px 10px;font-size:.85rem;box-sizing:border-box;margin:6px 0 4px}',
-      '.aw-tai-keyrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--aw-border-2,#e5e9ee)}',
-      '.aw-tai-ctx{font-size:.72rem;color:var(--aw-ink-3,#889);padding:5px 14px;background:#EAF2FB;border-bottom:1px solid #D3E4F7;display:flex;align-items:center;gap:6px;flex-shrink:0}',
+      '.aw-tai-keyrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--aw-border-2,#E9EBFB)}',
+      '.aw-tai-ctx{font-size:.72rem;color:var(--aw-ink-3,#889);padding:5px 14px;background:#EEF0FD;border-bottom:1px solid #D3E4F7;display:flex;align-items:center;gap:6px;flex-shrink:0}',
       '.aw-tai-ctx input{margin:0}',
       '.aw-tai-icon-btn{background:none;border:none;color:#fff;cursor:pointer;font-size:1.05rem;line-height:1;padding:2px 6px;border-radius:6px;opacity:.85}',
       '.aw-tai-icon-btn:hover{opacity:1;background:rgba(255,255,255,.2)}',
@@ -267,7 +267,7 @@
   function build() {
     injectStyles();
     var fab = document.createElement('button');
-    fab.className = 'aw-tai-fab'; fab.id = 'awTaiFab'; fab.textContent = '🤖 Ask AI';
+    fab.className = 'aw-tai-fab'; fab.id = 'awTaiFab'; fab.textContent = 'Ask AI';
     fab.onclick = function () { panel.classList.add('show'); fab.style.display = 'none'; render(); if (inputEl) inputEl.focus(); };
     document.body.appendChild(fab);
 
@@ -293,7 +293,7 @@
       '<div class="aw-tai-keys" id="awTaiKeys" style="display:none"></div>' +
       '<div class="aw-tai-input" id="awTaiInputBar">' +
         '<textarea id="awTaiInput" rows="1" placeholder="Hỏi AI bất cứ điều gì…"></textarea>' +
-        '<button class="aw-tai-send" id="awTaiSend">Gửi</button>' +
+        '<button class="aw-tai-send" id="awTaiSend">Send</button>' +
       '</div>';
 
     msgsEl  = document.getElementById('awTaiMsgs');
@@ -356,13 +356,13 @@
     document.getElementById('awTaiKeys').innerHTML =
       '<p style="margin:0 0 10px;color:var(--aw-ink-2,#445);font-size:.83rem">Dán API key. App tự nhận diện theo prefix. Key lưu trên máy, không gửi lên server.</p>' +
       '<input id="awTaiNewKey" type="password" placeholder="sk-… / AIza… / gsk_… / xai-… / sk-ant-…">' +
-      '<button class="aw-btn aw-btn-primary" id="awTaiAddKey" style="padding:7px 16px;margin-top:6px;width:100%">Thêm key</button>' +
+      '<button class="aw-btn aw-btn-primary" id="awTaiAddKey" style="padding:7px 16px;margin-top:6px;width:100%">Add key</button>' +
       '<div style="margin-top:12px">' +
         ORDER.map(function (id) {
           var p = PROVIDERS[id], has = !!keys[id];
           return '<div class="aw-tai-keyrow"><span class="aw-tai-dot" style="background:' + (has ? p.color : '#ccc') + '"></span>' +
             '<b style="flex:1;font-size:.85rem">' + p.label + '</b>' +
-            (has ? '<span style="color:#1A9E5C;font-size:.8rem">✓ đã lưu</span> <button class="aw-tai-delkey" data-p="' + id + '" style="background:none;border:none;color:#D93025;cursor:pointer;padding:2px 4px">🗑</button>'
+            (has ? '<span style="color:#16825B;font-size:.8rem">✓ đã lưu</span> <button class="aw-tai-delkey" data-p="' + id + '" style="background:none;border:none;color:#D93025;cursor:pointer;padding:2px 4px">🗑</button>'
                  : '<span style="color:#aaa;font-size:.79rem">chưa có</span>') + '</div>';
         }).join('') +
       '</div>' +

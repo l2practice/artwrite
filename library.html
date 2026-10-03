@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- App icon: SVG data URI — no file, no extra request, no 404 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<meta name="theme-color" content="#0A6EBD">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#5661E0">
 <title>Library · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
@@ -14,7 +14,7 @@
   .aw-modal-bg.show{display:flex}
   .aw-modal2{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:720px;max-height:88vh;overflow-y:auto;box-shadow:var(--aw-shadow-lg);padding:28px}
   .aw-modal2 h2{font-family:var(--aw-font-display);margin:0 0 4px;font-size:1.3rem}
-  .aw-outline-para{background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:16px 18px;margin-top:14px}
+  .aw-outline-para{background:var(--aw-surface-2);border:none;border-radius:18px;padding:16px 18px;margin-top:14px}
   .aw-outline-para h4{margin:0 0 10px;color:var(--aw-primary);font-size:.95rem}
   .aw-mp{border-left:3px solid var(--aw-primary);padding-left:12px;margin-bottom:12px}
   .aw-mp-row{font-size:.88rem;line-height:1.5;margin-bottom:3px}
@@ -29,7 +29,7 @@
   .aw-lock-badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:var(--aw-r-pill)}
   .aw-lock-open{background:#E4F5EA;color:#1E7E42}
   .aw-lock-closed{background:#F0F1F3;color:#6B7683}
-  .ac-box{background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:14px 16px;margin:14px 0}
+  .ac-box{background:var(--aw-surface-2);border:none;border-radius:18px;padding:14px 16px;margin:14px 0}
   .ac-chip{border:1px solid var(--aw-border);border-radius:var(--aw-r-pill);padding:5px 12px;font-size:.78rem;font-weight:600;cursor:pointer;margin:0 4px 4px 0;background:#fff;transition:all .15s}
   .ac-chip.ac-open{background:#E4F5EA;color:#1E7E42;border-color:#9FD9B4}
   .ac-chip.ac-locked{background:#FDEAEA;color:#C0392B;border-color:#F0B0AB}
@@ -44,7 +44,7 @@
 <script src="aw-common.js"></script>
 <script>
 if (typeof AW === 'undefined') {
-  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i c&aacute;c file HTML tr&ecirc;n GitHub. H&atilde;y upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#1E2142"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i c&aacute;c file HTML tr&ecirc;n GitHub. H&atilde;y upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
   throw new Error('aw-common.js not loaded');
 }
 
@@ -55,13 +55,13 @@ var isTeacher = sess.role === 'teacher';
 var nav = isTeacher ? [
   { id:'overview', label:'Class Overview', icon:'overview', href:'teacher.html' },
   { id:'live',     label:'Live Observation', icon:'live', href:'teacher.html#live' },
-  { id:'assignments', label:'Assignments', icon:'modes', href:'teacher.html#assignments' },
-  { id:'results',  label:'Results', icon:'results', href:'teacher.html#results' },
-  { id:'board',    label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'assignments', label:'Assignments', icon:'tasks', href:'teacher.html#assignments' },
+  { id:'results',  label:'Results', icon:'progress', href:'teacher.html#results' },
+  { id:'board',    label:'Interactive Board', icon:'board', href:'board.html' },
   { id:'library',  label:'Library', icon:'library', active:true },
 ] : [
   { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
-  { id:'board',   label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'board',   label:'Interactive Board', icon:'board', href:'board.html' },
   { id:'library', label:'Library', icon:'library', active:true },
   { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
 ];
@@ -72,7 +72,7 @@ var content = AW.renderShell({
 });
 
 content.innerHTML =
-  (isTeacher ? '<div style="display:flex;align-items:center;gap:14px;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:12px 18px;margin-bottom:16px;box-shadow:var(--aw-shadow-sm)">'+
+  (isTeacher ? '<div style="display:flex;align-items:center;gap:14px;background:var(--aw-surface);border:none;border-radius:20px;box-shadow:var(--aw-shadow);padding:12px 18px;margin-bottom:16px;box-shadow:var(--aw-shadow-sm)">'+
     '<span style="font-weight:600;font-size:.9rem">Master outline control:</span>'+
     '<button class="aw-btn aw-btn-ghost" id="lockAllBtn" style="padding:7px 14px">🔒 Lock all</button>'+
     '<button class="aw-btn aw-btn-accent" id="openAllBtn" style="padding:7px 14px">🔓 Open all</button>'+

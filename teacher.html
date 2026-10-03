@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- App icon: SVG data URI — no file, no extra request, no 404 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<meta name="theme-color" content="#0A6EBD">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#5661E0">
 <title>Teacher · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
   /* live observation grid */
   .aw-live-wrap{display:grid;grid-template-columns:1fr 250px;gap:18px}
   @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
-  .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
   @keyframes awSlideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
-  .aw-recreate-bg{position:fixed;inset:0;background:rgba(15,23,32,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
-  .aw-recreate-box{background:#fff;border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:awPop .16s ease}
+  .aw-recreate-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
+  .aw-recreate-box{background:#fff;border-radius:24px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:awPop .16s ease}
   @keyframes awPop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
   .aw-recreate-head{background:#FEF2F2;color:#B42318;font-weight:800;font-size:1.05rem;padding:16px 20px;border-bottom:1px solid #FADCD9}
   .aw-recreate-body{padding:18px 20px}
@@ -30,57 +30,62 @@
   .res-new{display:inline-block;background:var(--aw-writing);color:#fff;font-size:.6rem;font-weight:700;
     text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
   .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
-  .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
-    border-radius:18px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
-  .aw-ai-toggle.on{border-color:#2E9367;background:#EAF7F0;color:#1E7E42}
+  .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:none;background:#FFF1C7;color:#7A5A00;min-height:40px;
+    border-radius:999px;padding:6px 16px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
+  .aw-ai-toggle.on{background:#DDF3EA;color:#1D6B4F}
   .aw-ai-toggle .aw-ai-dot{width:8px;height:8px;border-radius:50%;background:#E0A32E}
-  .aw-ai-toggle.on .aw-ai-dot{background:#2E9367}
+  .aw-ai-toggle.on .aw-ai-dot{background:#16825B}
   .aw-ai-toggle .aw-ai-sub{font-weight:500;opacity:.8;font-size:.72rem;padding-left:6px;border-left:1px solid currentColor}
   .aw-ai-toggle:hover{filter:brightness(.97)}
   .aw-notifs{position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:340px}
-  .aw-notif{background:var(--aw-primary-dk,#0A4A7A);color:#fff;border-radius:12px;padding:13px 14px;box-shadow:0 10px 30px rgba(0,0,0,.28);display:flex;gap:10px;align-items:flex-start;font-size:.88rem;line-height:1.4;cursor:pointer;animation:awNotifIn .25s ease}
-  .aw-notif.hand{background:linear-gradient(135deg,#E0A32E,#C8891A)}
+  .aw-notif{background:var(--aw-primary-dk,#1E2142);color:#fff;border-radius:18px;padding:14px 16px;box-shadow:var(--aw-shadow-lg);display:flex;gap:10px;align-items:flex-start;font-size:.88rem;line-height:1.4;cursor:pointer;animation:awNotifIn .25s ease}
+  .aw-notif.hand{background:var(--aw-accent)}
   .aw-notif.out{opacity:0;transform:translateX(20px);transition:opacity .3s,transform .3s}
   .aw-notif-x{background:none;border:none;color:rgba(255,255,255,.75);font-size:1.1rem;cursor:pointer;line-height:1;padding:0 0 0 4px;flex:0 0 auto}
   .aw-notif-x:hover{color:#fff}
   @keyframes awNotifIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
-  .aw-nav-badge{margin-left:auto;background:#E5484D;color:#fff;font-size:.68rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+  .aw-nav-badge{position:absolute;top:4px;right:14px;background:#E5484D;color:#fff;font-size:.68rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
   .aw-live-list{display:flex;flex-direction:column;gap:6px}
-  .aw-live-row{display:flex;align-items:center;gap:12px;padding:9px 14px;border:1px solid var(--aw-border-2);border-radius:10px;cursor:pointer;background:var(--aw-surface)}
+  .aw-live-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border:2px solid transparent;border-radius:18px;cursor:pointer;background:var(--aw-surface);box-shadow:var(--aw-shadow-sm)}
   .aw-live-row:hover{background:var(--aw-surface-2)}
-  .aw-live-row.sel{border-color:var(--aw-primary);box-shadow:0 0 0 2px var(--aw-primary-lt)}
+  .aw-live-row.sel{background:var(--aw-primary);box-shadow:var(--aw-shadow)}
+  .aw-live-row.sel>div,.aw-live-row.sel>div *{color:#fff!important}
+  .aw-live-row.sel .aw-live-av{background:rgba(255,255,255,.22)}
   .aw-live-av.sm{width:32px;height:32px;font-size:.8rem}
-  .aw-lower-hand{background:#FFF8EC;border:1px solid #E0A32E;color:#B8860B;border-radius:16px;padding:4px 11px;font-size:.74rem;font-weight:600;cursor:pointer;white-space:nowrap}
-  .aw-lower-hand:hover{background:#E0A32E;color:#fff}
+  @media(max-width:640px){.aw-live-row{flex-wrap:wrap;row-gap:6px}.aw-live-row>div:nth-child(2){min-width:0;flex-basis:55%!important}}
+  .aw-lower-hand{background:var(--aw-accent-lt);border:none;color:var(--aw-accent);border-radius:999px;padding:7px 13px;font-size:.74rem;font-weight:600;cursor:pointer;white-space:nowrap}
+  .aw-lower-hand:hover{background:var(--aw-accent);color:#fff}
   .aw-live-cell .aw-lower-hand{margin-top:8px;width:100%}
-  .aw-live-cell.hand,.aw-live-row.hand{border-color:#E0A32E;background:#FFFCF5}
-  .aw-live-cell{background:var(--aw-surface);border:1.5px solid var(--aw-border-2);border-radius:var(--aw-r);padding:12px 10px;text-align:center;cursor:pointer;transition:transform .12s,border-color .14s,box-shadow .14s}
-  .aw-live-cell:hover{transform:translateY(-2px);border-color:var(--aw-primary);box-shadow:var(--aw-shadow)}
-  .aw-live-cell.sel{border-color:var(--aw-primary);box-shadow:var(--aw-ring)}
-  .aw-live-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.85rem;margin:0 auto 8px}
-  .aw-live-name{font-size:.8rem;font-weight:600;color:var(--aw-ink);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .aw-live-cell.hand,.aw-live-row.hand{border-color:var(--aw-accent)}
+  .aw-live-cell{background:var(--aw-surface);border:2px solid transparent;border-radius:20px;padding:16px 12px;text-align:center;cursor:pointer;box-shadow:var(--aw-shadow);transition:transform .12s,box-shadow .14s,background .14s}
+  .aw-live-cell:hover{transform:translateY(-2px);box-shadow:var(--aw-shadow-lg)}
+  .aw-live-cell.sel{background:var(--aw-primary)}
+  .aw-live-cell.sel .aw-live-name,.aw-live-cell.sel .aw-live-status{color:#fff}
+  .aw-live-cell.sel .aw-live-av{background:rgba(255,255,255,.22);color:#fff}
+  .aw-live-av{width:44px;height:44px;border-radius:50%;background:var(--aw-primary-lt);color:#3B44B8;display:grid;place-items:center;font-weight:700;font-size:.85rem;margin:0 auto 8px}
+  .aw-live-name{font-size:.86rem;font-weight:600;color:var(--aw-ink);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .aw-live-status{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;color:var(--aw-ink-2)}
-  .aw-live-fb{font-size:.72rem;font-weight:600;border:1px solid var(--aw-writing);background:var(--aw-writing);color:#fff;
-    border-radius:8px;padding:3px 10px;cursor:pointer;margin:6px 0;transition:filter .14s}
+  .aw-live-fb{font-size:.74rem;font-weight:600;border:none;background:#DDF3EA;color:#1D6B4F;
+    border-radius:999px;padding:7px 12px;cursor:pointer;margin:6px 0;transition:filter .14s}
   .aw-live-fb:hover{filter:brightness(1.08)}
   .aw-live-cell .aw-live-fb{width:100%}
-  .aw-fbrev-bg{position:fixed;inset:0;background:rgba(15,23,32,.55);z-index:1900;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-fbrev-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:1900;display:none;align-items:center;justify-content:center;padding:20px}
   .aw-fbrev-bg.show{display:flex}
-  .aw-fbrev-box{background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .aw-fbrev-box{background:#fff;border-radius:24px;max-width:620px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
   .aw-fbrev-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--aw-border-2)}
   .aw-fbrev-head h2{margin:0;font-family:var(--aw-font-display);font-size:1.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .aw-fbrev-body{padding:16px 20px;overflow-y:auto}
-  .aw-fbrev-content{font-size:.9rem;line-height:1.7;background:var(--aw-surface-2);padding:12px;border-radius:8px}
-  .aw-live-side{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:16px;box-shadow:var(--aw-shadow-sm);align-self:start}
+  .aw-fbrev-content{font-family:var(--aw-font-essay);font-size:1rem;line-height:1.75;background:var(--aw-surface-2);padding:16px;border-radius:16px}
+  .aw-live-side{background:var(--aw-surface);border:none;border-radius:var(--aw-r-lg);padding:20px;box-shadow:var(--aw-shadow);align-self:start}
   .aw-live-side h4{margin:0 0 12px;font-size:.95rem}
   .aw-stat-row{display:flex;justify-content:space-between;font-size:.86rem;padding:6px 0;color:var(--aw-ink-2)}
   .aw-stat-row b{color:var(--aw-ink)}
   /* annotation modal */
-  .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-modal-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
   .aw-modal-bg.show{display:flex}
   /* Toolbar buttons — uniform 30×30, no inline overrides needed */
-  .aw-tbtn{height:30px;min-width:30px;padding:0 8px;border:1.5px solid var(--aw-border-2);border-radius:6px;background:var(--aw-surface);cursor:pointer;color:var(--aw-ink-2);font-weight:700;font-size:.82rem;font-family:var(--aw-font-body);display:inline-flex;align-items:center;justify-content:center;gap:3px;box-sizing:border-box;line-height:1;white-space:nowrap;vertical-align:middle}
-  .aw-tbtn:hover{background:var(--aw-primary-lt);border-color:var(--aw-primary);color:var(--aw-primary)}
+  .aw-tbtn{height:36px;min-width:36px;padding:0 10px;border:none;border-radius:10px;background:var(--aw-surface);cursor:pointer;color:var(--aw-ink-2);font-weight:700;font-size:.82rem;font-family:var(--aw-font-body);display:inline-flex;align-items:center;justify-content:center;gap:3px;box-sizing:border-box;line-height:1;white-space:nowrap;vertical-align:middle}
+  .aw-tbtn:hover{background:var(--aw-primary-lt);color:var(--aw-primary-hv)}
   .aw-tbtn.on{background:var(--aw-primary);color:#fff;border-color:var(--aw-primary)}
   .ann-sep{width:1px;background:var(--aw-border-2);align-self:stretch;margin:2px 2px;display:inline-block}
   /* PERMANENT FIX 3: resizable annotation modal */
@@ -96,112 +101,113 @@
   /* scrollable middle zone */
   .aw-modal-doc-scroll{flex:1;overflow-y:auto;padding:0 24px;min-height:0}
   /* PERMANENT FIX 1: sticky toolbar inside scroll zone */
-  #annToolbar{position:sticky!important;top:0!important;z-index:9!important;background:var(--aw-surface-2)!important;margin:8px 0!important;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  #annToolbar{position:sticky!important;top:0!important;z-index:9!important;background:var(--aw-surface-2)!important;margin:8px 0!important;border-radius:14px;border:none!important}
   /* PERMANENT FIX 2: sticky footer */
   .aw-modal-doc-footer{padding:8px 24px 14px;position:sticky;bottom:0;background:var(--aw-surface);border-top:1px solid var(--aw-border-2);flex-shrink:0;z-index:8}
-  .aw-doc-text{font-size:1rem;line-height:1.9;color:var(--aw-ink);white-space:pre-wrap;user-select:text;outline:none;min-height:200px;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:16px;margin:8px 0}
+  .aw-doc-text{font-family:var(--aw-font-essay);font-size:1.06rem;line-height:1.85;color:var(--aw-ink);white-space:pre-wrap;user-select:text;outline:none;min-height:200px;border:1.5px solid var(--aw-border-2);border-radius:18px;padding:18px 20px;margin:8px 0}
   .aw-doc-text:focus{border-color:var(--aw-primary)}
   .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
-  .aw-sug-ins{color:var(--aw-writing);font-weight:600}
-  .aw-hl{background:#FFF1A8;border-radius:2px;padding:0 1px}
+  .aw-sug-ins{color:var(--aw-accent);font-weight:600}
+  .aw-hl{background:#FFE9A8;border-radius:2px;padding:0 1px}
   .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help;position:relative}
   /* Color picker dropdown */
-  .ann-color-pop{position:absolute;z-index:700;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:8px;padding:8px;box-shadow:var(--aw-shadow-lg);display:none;flex-wrap:wrap;gap:4px;width:168px}
+  .ann-color-pop{position:absolute;z-index:700;background:var(--aw-surface);border:none;box-shadow:var(--aw-shadow);border-radius:8px;padding:8px;box-shadow:var(--aw-shadow-lg);display:none;flex-wrap:wrap;gap:4px;width:168px}
   .ann-color-pop.show{display:flex}
   .ann-color-swatch{width:22px;height:22px;border-radius:4px;border:1.5px solid transparent;cursor:pointer;transition:transform .1s}
   .ann-color-swatch:hover{transform:scale(1.2);border-color:var(--aw-ink)}
   .ann-color-sep{width:100%;height:1px;background:var(--aw-border-2);margin:2px 0}
   /* Inline comment popup */
-  .ann-comment-pop{position:fixed;z-index:800;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:10px 12px;box-shadow:var(--aw-shadow-lg);display:none;flex-direction:column;gap:8px;min-width:260px;max-width:320px}
+  .ann-comment-pop{position:fixed;z-index:800;background:var(--aw-surface);border:none;border-radius:20px;box-shadow:var(--aw-shadow);padding:10px 12px;box-shadow:var(--aw-shadow-lg);display:none;flex-direction:column;gap:8px;min-width:260px;max-width:320px}
   .ann-comment-pop.show{display:flex}
   .ann-comment-pop textarea{border:1px solid var(--aw-border);border-radius:6px;padding:7px 9px;font-family:var(--aw-font-body);font-size:.85rem;resize:none;outline:none;width:100%;box-sizing:border-box}
   .ann-comment-pop textarea:focus{border-color:var(--aw-primary)}
   .aw-modal-side{background:var(--aw-surface-2);padding:20px;border-left:1px solid var(--aw-border-2);overflow-y:auto;max-height:90vh}
   .aw-modal-side h4{margin:0 0 12px;font-size:.95rem}
   .aw-suggest-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
-  .aw-suggest{background:#FFF;border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px;font-size:.82rem}
+  .aw-suggest{background:#FFF;border:none;border-radius:14px;padding:10px 12px;font-size:.82rem;box-shadow:var(--aw-shadow-sm)}
   .aw-suggest .orig{color:var(--aw-danger);text-decoration:line-through}
-  .aw-suggest .sug{color:var(--aw-writing);font-weight:600}
+  .aw-suggest .sug{color:var(--aw-accent);font-weight:600}
   .aw-score-input{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .aw-score-input label{width:40px;font-weight:600;font-size:.85rem}
-  .aw-score-input input{width:60px;padding:6px 8px;border:1.5px solid var(--aw-border);border-radius:6px;text-align:center}
+  .aw-score-input label{width:64px;font-weight:600;font-size:.85rem}
+  .aw-score-input input{width:64px;min-height:40px;padding:6px 8px;border:1.5px solid transparent;border-radius:12px;background:#fff;text-align:center;font-weight:600}
   /* recent activity */
   .aw-two-col{display:grid;grid-template-columns:1fr 300px;gap:18px}
   @media(max-width:900px){.aw-two-col{grid-template-columns:1fr}}
-  .aw-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:20px;box-shadow:var(--aw-shadow-sm)}
-  .aw-tabs{display:flex;gap:4px;border-bottom:2px solid var(--aw-border-2);margin-bottom:18px}
-  .aw-tab{padding:10px 18px;border:none;background:none;font-family:var(--aw-font-body);font-weight:600;font-size:.92rem;color:var(--aw-ink-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
-  .aw-tab.active{color:var(--aw-primary);border-bottom-color:var(--aw-primary)}
+  .aw-panel{background:var(--aw-surface);border:none;border-radius:var(--aw-r-lg);padding:22px;box-shadow:var(--aw-shadow)}
+  .aw-tabs{display:flex;flex-wrap:wrap;width:fit-content;max-width:100%;gap:4px;padding:5px;background:var(--aw-surface);border-radius:999px;box-shadow:var(--aw-shadow-sm);margin-bottom:18px}
+  .aw-tab{min-height:40px;padding:9px 18px;border:none;background:none;border-radius:999px;font-family:var(--aw-font-body);font-weight:600;font-size:.9rem;color:var(--aw-ink-3);cursor:pointer}
+  .aw-tab:hover{color:var(--aw-ink);background:var(--aw-surface-2)}
+  .aw-tab.active,.aw-tab.active:hover{color:#fff;background:var(--aw-primary-dk)}
   /* assignment modal */
   .aw-amodal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:var(--aw-shadow-lg);padding:30px}
   .aw-amodal h2{font-family:var(--aw-font-display);margin:0 0 4px;font-size:1.4rem}
-  .aw-editor-mini-tb{display:flex;gap:2px;padding:6px 8px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r-sm) var(--aw-r-sm) 0 0;background:var(--aw-surface-2)}
+  .aw-editor-mini-tb{display:flex;gap:2px;padding:6px 8px;border:1.5px solid var(--aw-border-2);border-bottom:none;border-radius:14px 14px 0 0;background:var(--aw-surface-2)}
   .aw-editor-mini-tb button{width:30px;height:30px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700}
   .aw-editor-mini-tb button:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
-  .aw-prompt-edit{min-height:120px;border:1px solid var(--aw-border);border-radius:0 0 var(--aw-r-sm) var(--aw-r-sm);padding:12px 14px;font-family:var(--aw-font-body);font-size:.95rem;line-height:1.6;outline:none;overflow-y:auto}
+  .aw-prompt-edit{min-height:120px;border:1.5px solid var(--aw-border-2);border-radius:0 0 14px 14px;padding:12px 14px;font-family:var(--aw-font-body);font-size:.95rem;line-height:1.6;outline:none;overflow-y:auto}
   .aw-prompt-edit:focus{border-color:var(--aw-primary)}
   /* wide results table */
-  .aw-res-wrap{border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(10,58,93,.08);border:1px solid var(--aw-border-2)}
+  .aw-res-wrap{border-radius:var(--aw-r-lg);overflow:hidden;box-shadow:var(--aw-shadow);border:none;background:#fff}
   .aw-res-table{width:100%;border-collapse:collapse;font-size:.85rem;white-space:nowrap}
-  .aw-res-table th,.aw-res-table td{border:1px solid #EEF2F6;padding:9px 11px;text-align:center}
-  .aw-res-table thead tr:first-child th{background:linear-gradient(135deg,#0A6EBD,#1A5F9E);color:#fff;font-family:var(--aw-font-display);font-size:.82rem;padding:12px 11px}
-  .aw-res-table thead tr:nth-child(2) th{font-size:.7rem;font-weight:700;letter-spacing:.02em}
+  .aw-res-table th,.aw-res-table td{border:1px solid #EEF0FB;padding:10px 12px;text-align:center}
+  .aw-res-table thead tr:first-child th{background:var(--aw-primary-dk);color:#fff;border-color:#2C3060;font-family:var(--aw-font-display);font-size:.82rem;padding:12px 11px}
+  .aw-res-table thead tr:nth-child(2) th{font-size:.72rem;font-weight:600;color:var(--aw-ink-2)}
   /* colored column groups */
-  .grp-1{background:#EAF2FB}   /* First - blue */
-  .grp-2{background:#EEEBFA}   /* Second - purple */
-  .grp-3{background:#E9F5EE}   /* Third - green */
-  .grp-best{background:#FEF6E3} /* Best - amber */
-  .hd-1{background:#3E7CC4 !important} .hd-2{background:#6B5FC4 !important}
-  .hd-3{background:#3EA96B !important} .hd-best{background:#E0A32E !important}
+  .grp-1{background:#F4F5FE}   /* First - periwinkle */
+  .grp-2{background:#F6F3FE}   /* Second - violet */
+  .grp-3{background:#F0F8F4}   /* Third - green */
+  .grp-best{background:#FFF5EC} /* Best - teacher pen */
+  .hd-1{background:#5661E0 !important} .hd-2{background:#7562D8 !important}
+  .hd-3{background:#16825B !important} .hd-best{background:#B4530F !important}
   .aw-res-table td.sticky,.aw-res-table th.sticky{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
-  .aw-res-table thead th.sticky{background:linear-gradient(135deg,#0A6EBD,#1A5F9E)}
+  .aw-res-table thead th.sticky{background:var(--aw-primary-dk)}
   .aw-res-table tbody tr:hover td{filter:brightness(.98)}
-  .ms-in{width:100%;padding:3px 2px;border:1px solid var(--aw-border);border-radius:4px;text-align:center;font-size:.72rem}
+  .ms-in{width:100%;min-height:30px;padding:3px 2px;border:1.5px solid transparent;border-radius:8px;background:#fff;text-align:center;font-size:.76rem}
   .ms-in:focus{border-color:var(--aw-primary);outline:none}
-  .ms-note{padding:3px 6px;border:1px solid var(--aw-border);border-radius:4px;font-size:.72rem}
+  .ms-note{min-height:30px;padding:3px 8px;border:1.5px solid transparent;border-radius:8px;background:#fff;font-size:.76rem}
   .ms-note:focus{border-color:var(--aw-primary);outline:none}
-  .aw-view-hd{background:#EA4B5E;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;letter-spacing:.02em}
-  .aw-view-hd:hover{background:#d13a4c}
+  .aw-view-hd{background:var(--aw-primary);color:#fff;border:none;border-radius:999px;padding:5px 12px;font-size:.7rem;font-weight:700;cursor:pointer;letter-spacing:.02em}
+  .aw-view-hd:hover{background:var(--aw-primary-hv)}
   .aw-res-table td{position:relative}
   .aw-res-table td:hover{z-index:200}
-  .aw-res-overall{font-weight:800;cursor:pointer;position:relative;display:inline-block;padding:6px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:1rem}
+  .aw-res-overall{font-weight:700;cursor:pointer;position:relative;display:inline-block;padding:6px 14px;border-radius:12px;background:#fff;box-shadow:var(--aw-shadow-sm);font-size:1rem;font-variant-numeric:tabular-nums}
   .aw-res-overall small{display:block;font-size:.6rem;color:var(--aw-ink-3);font-weight:600}
-  .aw-res-overall:hover{box-shadow:0 2px 10px rgba(10,110,189,.3)}
+  .aw-res-overall:hover{box-shadow:var(--aw-ring)}
   .aw-res-overall:hover .aw-res-pop{display:block}
   .aw-res-pop{display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--aw-primary-dk);color:#fff;padding:8px 12px;border-radius:8px;font-size:.72rem;font-weight:500;white-space:nowrap;z-index:500;box-shadow:var(--aw-shadow-lg);pointer-events:none}
   .aw-res-pop:after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:var(--aw-primary-dk)}
-  .aw-view-btn{background:var(--aw-primary-lt);color:var(--aw-primary);border:none;border-radius:8px;padding:5px 10px;font-size:.75rem;font-weight:600;cursor:pointer}
+  .aw-view-btn{background:var(--aw-primary-lt);color:var(--aw-primary-hv);border:none;border-radius:999px;padding:7px 13px;font-size:.75rem;font-weight:600;cursor:pointer}
   .aw-view-btn:hover{background:var(--aw-primary);color:#fff}
-  .aw-essay-bg{position:fixed;inset:0;background:rgba(16,34,46,.55);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
+  .aw-essay-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
   .aw-essay-bg.show{display:flex}
-  .aw-essay-modal{background:#fff;border-radius:16px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:26px}
+  .aw-essay-modal{background:#fff;border-radius:24px;width:100%;max-width:760px;box-shadow:var(--aw-shadow-lg);padding:28px}
   .aw-essay-modal .rv-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
-  .aw-essay-modal .rv-block h4{color:var(--aw-primary);margin:0 0 6px;font-size:.85rem;text-transform:uppercase}
+  .aw-essay-modal .rv-block h4{color:var(--aw-primary-hv);margin:0 0 6px;font-size:.9rem}
   .aw-essay-modal .rv-block p{margin:0 0 6px;line-height:1.55;font-size:.9rem;color:var(--aw-ink-2)}
 
   /* ── Task Type Selector ── */
   .aw-task-selector{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
-  .aw-task-card{border:2px solid var(--aw-border);border-radius:var(--aw-r);padding:14px 16px;cursor:pointer;transition:all .18s;background:var(--aw-surface);user-select:none}
+  .aw-task-card{border:2px solid transparent;border-radius:18px;padding:14px 16px;cursor:pointer;transition:all .18s;background:var(--aw-surface-2);user-select:none}
   .aw-task-card:hover{border-color:var(--aw-primary);background:var(--aw-primary-lt)}
-  .aw-task-card.active{border-color:var(--aw-primary);background:var(--aw-primary-lt);box-shadow:0 0 0 3px rgba(10,110,189,.15)}
-  .aw-task-card.active.t1{border-color:#1A9E5C;background:#EAF7F0;box-shadow:0 0 0 3px rgba(26,158,92,.15)}
+  .aw-task-card.active{border-color:var(--aw-primary);background:var(--aw-primary-lt)}
+  .aw-task-card.active.t1{border-color:#16825B;background:#E6F5EE}
   .aw-task-card .tc-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--aw-font-display);font-weight:800;font-size:1.1rem;margin-bottom:6px}
   .aw-task-card .tc-badge .tc-num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:.85rem;color:#fff}
   .t2 .tc-num{background:var(--aw-primary)}
-  .t1 .tc-num{background:#1A9E5C}
+  .t1 .tc-num{background:#16825B}
   .aw-task-card .tc-title{font-weight:700;font-size:.88rem;color:var(--aw-ink);margin-bottom:3px}
   .aw-task-card .tc-desc{font-size:.76rem;color:var(--aw-ink-3);line-height:1.4}
   .aw-task-card.active .tc-desc{color:var(--aw-ink-2)}
   .aw-task-card .tc-criteria{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
   .aw-task-card .tc-crit{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid currentColor}
   .t2.active .tc-crit{background:rgba(10,110,189,.1);color:var(--aw-primary)}
-  .t1.active .tc-crit{background:rgba(26,158,92,.1);color:#1A9E5C}
+  .t1.active .tc-crit{background:rgba(26,158,92,.1);color:#16825B}
   .aw-task-card:not(.active) .tc-crit{background:#f0f2f4;color:var(--aw-ink-3)}
   /* ── Chart Upload (Task 1) ── */
   .aw-chart-field{display:none}
   .aw-chart-field.show{display:block}
   .aw-chart-drop{border:2px dashed var(--aw-border);border-radius:var(--aw-r);padding:22px;text-align:center;cursor:pointer;transition:all .18s;background:var(--aw-surface-2);color:var(--aw-ink-3);font-size:.88rem}
-  .aw-chart-drop:hover,.aw-chart-drop.drag-over{border-color:#1A9E5C;background:#EAF7F0;color:#1A9E5C}
+  .aw-chart-drop:hover,.aw-chart-drop.drag-over{border-color:#16825B;background:#EAF7F0;color:#16825B}
   .aw-chart-drop .cd-icon{font-size:1.8rem;display:block;margin-bottom:6px}
   .aw-chart-preview-wrap{position:relative;margin-top:10px;display:none}
   .aw-chart-preview-wrap.show{display:block}
@@ -213,12 +219,12 @@
   /* ── Chart type chips ── */
   .aw-chart-type-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .aw-ct-chip{padding:4px 12px;border:1.5px solid var(--aw-border);border-radius:var(--aw-r-pill);font-size:.76rem;font-weight:600;cursor:pointer;background:#fff;color:var(--aw-ink-2);transition:all .15s}
-  .aw-ct-chip.active{background:#EAF7F0;border-color:#1A9E5C;color:#1A9E5C}
+  .aw-ct-chip.active{background:#EAF7F0;border-color:#16825B;color:#16825B}
   .aw-ct-chip:hover:not(.active){border-color:var(--aw-primary);color:var(--aw-primary)}
   /* ── Assignment detail modal (click row → banner) ── */
-  .aw-assign-detail-bg{position:fixed;inset:0;background:rgba(16,34,46,.55);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+  .aw-assign-detail-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
   .aw-assign-detail-bg.show{display:flex}
-  .aw-assign-detail{background:var(--aw-surface);border-radius:var(--aw-r-lg);max-width:680px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+  .aw-assign-detail{background:var(--aw-surface);border-radius:var(--aw-r-lg);max-width:680px;width:100%;box-shadow:var(--aw-shadow-lg);overflow:hidden}
   .aw-assign-detail-head{padding:18px 22px 14px;border-bottom:1px solid var(--aw-border-2);display:flex;align-items:flex-start;gap:10px}
   .aw-assign-detail-head h2{margin:0;font-size:1.15rem;flex:1;font-family:var(--aw-font-display)}
   .aw-assign-detail-body{padding:18px 22px}
@@ -226,13 +232,13 @@
   .aw-assign-detail-chart img{max-width:100%;max-height:360px;object-fit:contain;display:block;margin:0 auto;padding:8px}
   .aw-assign-detail-actions{display:flex;gap:8px;padding:14px 22px;border-top:1px solid var(--aw-border-2);background:var(--aw-surface-2)}
   .aw-assign-edit-form{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
-  .aw-task-badge{display:inline-block;font-size:.65rem;font-weight:800;padding:2px 7px;border-radius:10px;letter-spacing:.03em;vertical-align:middle;margin-left:5px}
-  .aw-task-badge.t1{background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0}
-  .aw-task-badge.t2{background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8}
+  .aw-task-badge{display:inline-block;font-size:.66rem;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:.03em;vertical-align:middle;margin-left:5px}
+  .aw-task-badge.t1{background:#DDF3EA;color:#1D6B4F;border:none}
+  .aw-task-badge.t2{background:var(--aw-primary-lt);color:#3B44B8;border:none}
   .aw-amodal{max-width:680px!important}
   /* Chart hover in assignment table (teacher) */
   .aw-t1-chart-hover{position:relative;display:inline-block;cursor:pointer;margin-left:4px;font-size:.8rem;vertical-align:middle}
-  .aw-t1-chart-pop{display:none;position:absolute;top:22px;left:0;z-index:300;width:340px;max-width:70vw;border-radius:10px;border:2px solid #1A9E5C;box-shadow:0 8px 32px rgba(0,0,0,.25);background:#fff;object-fit:contain}
+  .aw-t1-chart-pop{display:none;position:absolute;top:22px;left:0;z-index:300;width:340px;max-width:70vw;border-radius:10px;border:2px solid #16825B;box-shadow:0 8px 32px rgba(0,0,0,.25);background:#fff;object-fit:contain}
   .aw-t1-chart-hover:hover .aw-t1-chart-pop{display:block}
 </style>
 </head>
@@ -265,8 +271,8 @@
             <div style="font-size:.7rem;color:var(--aw-ink-3);width:100%;margin-bottom:2px">Text color</div>
             <span class="ann-color-swatch" style="background:#1a1a1a" data-tc="#1a1a1a" title="Black"></span>
             <span class="ann-color-swatch" style="background:#E8360C" data-tc="#E8360C" title="Red"></span>
-            <span class="ann-color-swatch" style="background:#0A6EBD" data-tc="#0A6EBD" title="Blue"></span>
-            <span class="ann-color-swatch" style="background:#1A9E5C" data-tc="#1A9E5C" title="Green"></span>
+            <span class="ann-color-swatch" style="background:#5661E0" data-tc="#5661E0" title="Blue"></span>
+            <span class="ann-color-swatch" style="background:#16825B" data-tc="#16825B" title="Green"></span>
             <span class="ann-color-swatch" style="background:#D97706" data-tc="#D97706" title="Orange"></span>
             <span class="ann-color-swatch" style="background:#7C3AED" data-tc="#7C3AED" title="Purple"></span>
             <span class="ann-color-swatch" style="background:#6B7280" data-tc="#6B7280" title="Gray"></span>
@@ -333,7 +339,7 @@
           <span id="mTextSyncBadge" style="font-size:.72rem;color:var(--aw-ink-3)"></span>
           <div style="display:flex;align-items:center;gap:8px">
             <button id="openDocFromLiveBtn" style="display:none;font-size:.74rem;padding:3px 10px;background:#1A7A3C;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap">📄 Open Docs</button>
-            <span style="font-size:.72rem;color:var(--aw-ink-3)">↻ Auto-updating every 10s</span>
+            <span id="annLiveNote" style="font-size:.72rem;color:var(--aw-ink-3)">Updates as the student types</span>
           </div>
         </div>
         <p style="font-size:.78rem;color:var(--aw-ink-3);margin:3px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done.</p>
@@ -341,8 +347,8 @@
     </div>
     <div class="aw-modal-side">
       <h4>Teacher Suggestions</h4>
-        <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 6px">Red strike = error · Green = suggested fix</p>
-        <button class="aw-btn aw-btn-ghost aw-btn-block" id="viewSentFb" style="margin-bottom:10px;font-size:.8rem;padding:6px 10px">📋 Xem feedback đã gửi</button>
+        <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 6px">Red strike = error, orange = your fix</p>
+        <button class="aw-btn aw-btn-ghost aw-btn-block" id="viewSentFb" style="margin-bottom:10px;font-size:.8rem;padding:6px 10px">View sent feedback</button>
         <div class="aw-suggest-list" id="suggestList"></div>
         <h4 style="margin-top:12px">Scoring (IELTS)</h4>
         <div class="aw-score-input"><label>TR</label><input type="number" id="sTR" min="0" max="9" step="0.5"></div>
@@ -391,7 +397,7 @@
       <div id="adChartWrap" class="aw-assign-detail-chart" style="display:none">
         <img id="adChartImg" src="" alt="Chart">
         <p style="font-size:.72rem;color:var(--aw-ink-3);margin:0 0 6px">
-          Hình không hiện? <a id="adChartLink" href="#" target="_blank" style="color:var(--aw-primary)">Mở trên Drive</a>
+          Hình không hiện? <a id="adChartLink" href="#" target="_blank" style="color:var(--aw-primary)">Open in Drive</a>
         </p>
       </div>
       <!-- Edit form (hidden by default) -->
@@ -509,8 +515,8 @@
       <div class="aw-chart-preview-wrap" id="chartPreviewWrap">
         <img id="chartPreviewImg" src="" alt="Chart preview">
         <div class="aw-chart-preview-actions">
-          <button class="cp-replace" id="chartReplaceBtn">🔄 Thay ảnh</button>
-          <button class="cp-remove" id="chartRemoveBtn">✕ Xoá ảnh</button>
+          <button class="cp-replace" id="chartReplaceBtn">Replace image</button>
+          <button class="cp-remove" id="chartRemoveBtn">✕ Remove image</button>
         </div>
         <p style="margin:5px 0 0;font-size:.73rem;color:var(--aw-ink-3)">Ảnh lưu Google Drive · Học sinh có thể thu/phóng khi làm bài.</p>
       </div>
@@ -542,9 +548,9 @@
     <div class="aw-field">
       <label class="aw-label">Loại bài viết <span style="font-weight:400;color:var(--aw-ink-3)">— AI chấm theo tiêu chí phù hợp</span></label>
       <select class="aw-select" id="aWritingType" style="max-width:360px">
-        <option value="full_essay">📄 Full essay — bài luận đầy đủ (4 đoạn trở lên)</option>
-        <option value="paragraph">✏️ Paragraph practice — chỉ viết 1 đoạn thân bài</option>
-        <option value="sentences">🔤 Sentence practice — luyện viết câu đơn lẻ</option>
+        <option value="full_essay">Full essay (4+ paragraphs)</option>
+        <option value="paragraph">Paragraph practice (one body paragraph)</option>
+        <option value="sentences">Sentence practice (single sentences)</option>
       </select>
       <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">💡 <b>Paragraph:</b> TR &amp; CC tối đa Band 5. <b>Sentences:</b> TR &amp; CC tối đa Band 4.</p>
     </div>
@@ -597,7 +603,7 @@ function isGeminiKeyFormat(k) {
 </script>
 <script>
 if (typeof AW === 'undefined') {
-  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#1E2142"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
   throw new Error('aw-common.js not loaded');
 }
 
@@ -614,10 +620,10 @@ function curClassObj(){ return myClasses.filter(function(c){return c.classId===c
 var nav = [
   { id:'overview',   label:'Class Overview', icon:'overview', active:true },
   { id:'live',       label:'Live Observation', icon:'live' },
-  { id:'assignments',label:'Assignments', icon:'modes' },
-  { id:'results',    label:'Results', icon:'results' },
-  { id:'queries',    label:'Feedback Queries', icon:'results' },
-  { id:'board',      label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'assignments',label:'Assignments', icon:'tasks' },
+  { id:'results',    label:'Results', icon:'progress' },
+  { id:'queries',    label:'Feedback Queries', icon:'chat' },
+  { id:'board',      label:'Interactive Board', icon:'board', href:'board.html' },
   { id:'library',    label:'Library', icon:'library', href:'library.html' },
   { id:'settings',   label:'Settings', icon:'settings' },
 ];
@@ -642,15 +648,15 @@ function injectClassBar(){
   var old=document.getElementById('classBar'); if(old)old.remove();
   var bar=document.createElement('div');
   bar.id='classBar';
-  bar.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 30px;background:var(--aw-surface);border-bottom:1px solid var(--aw-border-2);flex-wrap:wrap';
+  bar.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 10px 10px 22px;margin:0 8px;background:var(--aw-surface);border-radius:28px;box-shadow:var(--aw-shadow-sm);flex-wrap:wrap';
   var opts=myClasses.map(function(c){
     return '<option value="'+AW.esc(c.classId)+'"'+(c.classId===curClass()?' selected':'')+'>'+AW.esc(c.className)+' ('+AW.esc(c.classId)+')</option>';
   }).join('');
   bar.innerHTML=
     '<span style="font-weight:600;font-size:.85rem;color:var(--aw-ink-2)">Class:</span>'+
-    '<select class="aw-select" id="classSel"'+(myClasses.length?'':' disabled')+'>'+
+    '<select class="aw-select" style="background-color:var(--aw-surface-2);box-shadow:none" id="classSel"'+(myClasses.length?'':' disabled')+'>'+
       (myClasses.length?opts:'<option>No classes yet</option>')+'</select>'+
-    (curClassObj()?'<span class="aw-tag aw-tag-type">'+AW.esc(curClassObj().year||'')+(curClassObj().semester?' · HK'+AW.esc(curClassObj().semester):'')+'</span>':'')+
+    (curClassObj()?'<span class="aw-tag aw-tag-type">'+AW.esc(curClassObj().year||'')+(curClassObj().semester?' · Sem '+AW.esc(curClassObj().semester):'')+'</span>':'')+
     aiToggleHtml()+
     '<button class="aw-btn aw-btn-primary" style="margin-left:auto;padding:8px 16px" id="newClassBtn">+ Create New Class</button>';
   var main=document.querySelector('.aw-main');
@@ -675,8 +681,8 @@ function aiToggleHtml(){
   var on = classAiEnabled();
   return '<button class="aw-ai-toggle'+(on?' on':'')+'" id="aiToggleBtn" '+
     'title="'+(on?'Lớp thực nghiệm — sinh viên có AI chấm và AI Tutor':'Lớp đối chứng — sinh viên KHÔNG có AI')+'">'+
-    '<span class="aw-ai-dot"></span>'+(on?'AI: Bật':'AI: Tắt')+
-    '<span class="aw-ai-sub">'+(on?'Thực nghiệm':'Đối chứng')+'</span></button>';
+    '<span class="aw-ai-dot"></span>'+(on?'AI: On':'AI: Off')+
+    '<span class="aw-ai-sub">'+(on?'Experimental':'Control')+'</span></button>';
 }
 function wireAiToggle(){
   var b=document.getElementById('aiToggleBtn'); if(!b) return;
@@ -809,8 +815,8 @@ function loadRoster(){
 /* Compact CEFR vocabulary profile for the teacher essay modal.
    Same difficulty ramp as the student view: green (easy) → red (hardest). */
 var AW_CEFR_BANDS = [
-  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',         color:'#2E9367' },
-  { key:'B1',   label:'B1',    sub:'Trung cấp',      color:'#0A6EBD' },
+  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',         color:'#16825B' },
+  { key:'B1',   label:'B1',    sub:'Trung cấp',      color:'#5661E0' },
   { key:'B2',   label:'B2',    sub:'Trên trung cấp', color:'#E0A32E' },
   { key:'C1',   label:'C1',    sub:'Nâng cao',       color:'#E8730C' },
   { key:'C2',   label:'C2',    sub:'Thành thạo',     color:'#D93025' }
@@ -854,7 +860,7 @@ function renderTeacherVocabWords(p){
     {key:'C2',label:'C2',color:'#D93025'},
     {key:'C1',label:'C1',color:'#E8730C'},
     {key:'B2',label:'B2',color:'#E0A32E'},
-    {key:'B1',label:'B1',color:'#0A6EBD'}
+    {key:'B1',label:'B1',color:'#5661E0'}
   ];
   var blocks=bands.map(function(b){
     var words=p.wordsByLevel[b.key]||[];
@@ -971,18 +977,18 @@ function showLive(){
     content.innerHTML=
       '<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
         // Task filter only (class is already selected in the header bar)
-        '<span style="font-size:.78rem;font-weight:600;color:var(--aw-ink-3);white-space:nowrap">Bài:</span>'+
+        '<span style="font-size:.78rem;font-weight:600;color:var(--aw-ink-3);white-space:nowrap">Task:</span>'+
         '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
         '<select class="aw-select" id="liveSortSel" style="padding:6px 10px;font-size:.82rem">'+
-          '<option value="status">Sort: Trạng thái</option>'+
+          '<option value="status">Sort: Status</option>'+
           '<option value="studentId">Sort: Student ID</option>'+
-          '<option value="words">Sort: Số từ</option>'+
+          '<option value="words">Sort: Words</option>'+
         '</select>'+
         '<div style="display:flex;gap:2px;background:var(--aw-surface-2);border-radius:8px;padding:3px">'+
           '<button class="aw-btn" id="viewGrid" style="padding:5px 12px;font-size:.8rem">▦ Grid</button>'+
           '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
         '</div>'+
-        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 6s · Click a student to view &amp; annotate</span>'+
+        '<span style="font-size:.82rem;color:var(--aw-ink-3)">'+(AW.firebaseOn?'Live':'Refreshes every 10 s')+'. Click a student to view and mark up.</span>'+
         '<button id="clearLiveBtn" class="aw-btn aw-btn-ghost" style="margin-left:auto;padding:5px 12px;font-size:.78rem;color:var(--aw-danger);border-color:var(--aw-danger)" title="Xoá toàn bộ data cũ trong LiveSessions tab">🗑 Clear session</button>'+
       '</div>'+
       '<div class="aw-live-wrap">' +
@@ -1005,7 +1011,7 @@ function showLive(){
               '</div>' +
               '<div style="display:flex;gap:6px">' +
                 '<input type="number" id="awTimerDur" class="aw-input" placeholder="Số phút (VD: 45)" min="1" max="180" style="flex:1;padding:5px 8px;font-size:.82rem">' +
-                '<button id="awTimerBegin" class="aw-btn aw-btn-primary" style="padding:5px 10px;font-size:.78rem">Bắt đầu</button>' +
+                '<button id="awTimerBegin" class="aw-btn aw-btn-primary" style="padding:5px 10px;font-size:.78rem">Start</button>' +
               '</div>' +
             '</div>' +
             '<div id="awTimerDisplay" style="display:none;text-align:center">' +
@@ -1250,7 +1256,7 @@ function renderLive(){
       : '';
     // Only students who have actually been pushed feedback get the review button.
     var fbBtn = s.hasFeedback
-      ? '<button class="aw-live-fb" data-fb="'+AW.esc(s.studentId)+'" title="Xem lại nhận xét bạn đã gửi cho sinh viên này">💬 Xem nhận xét</button>'
+      ? '<button class="aw-live-fb" data-fb="'+AW.esc(s.studentId)+'" title="Review the feedback you sent this student">View feedback</button>'
       : '';
     if(liveView==='list'){
       return '<div class="aw-live-row'+(liveSelected===s.studentId?' sel':'')+(s.raisedHand?' hand':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
@@ -1341,7 +1347,7 @@ function openFeedbackReview(s){
   document.getElementById('fbReviewBox').innerHTML=
     '<div class="aw-fbrev-head">'+
       '<h2>💬 '+AW.esc(s.name||s.studentId)+'</h2>'+
-      '<button class="aw-btn" style="background:#E5484D;color:#fff;padding:6px 16px" onclick="document.getElementById(\'fbReviewBg\').classList.remove(\'show\')">✕ Đóng</button>'+
+      '<button class="aw-btn" style="background:#E5484D;color:#fff;padding:6px 16px" onclick="document.getElementById(\'fbReviewBg\').classList.remove(\'show\')">Close</button>'+
     '</div>'+
     '<div class="aw-fbrev-body" id="fbReviewBody"><p style="color:var(--aw-ink-3)">Đang tải…</p></div>';
   bg.classList.add('show');
@@ -1429,7 +1435,7 @@ document.getElementById('viewSentFb').onclick = function(){
           (item.suggestions && item.suggestions.length
             ? '<div style="font-size:.8rem;color:var(--aw-ink-2)"><b>Gợi ý đã gửi:</b> '+
                 item.suggestions.map(function(sg){
-                  return '<span style="background:#EBF4FF;border-radius:6px;padding:2px 8px;margin:2px;display:inline-block">'+
+                  return '<span style="background:#EEF0FD;border-radius:6px;padding:2px 8px;margin:2px;display:inline-block">'+
                     AW.esc(sg.original||sg.type||'')+'</span>';
                 }).join('')+'</div>'
             : '')+
@@ -1541,8 +1547,8 @@ function openAnnotation(s){
       btn._annotHistory = d.history;
       var when=''; try{if(d.latestAt)when=AW.fmtDate(d.latestAt);}catch(e){}
       var label = d.pushCount===1
-        ? '📋 Xem nhận xét cũ (1 lần — '+when+')'
-        : '📋 Xem nhận xét cũ ('+d.pushCount+' lần, mới nhất: '+when+')';
+        ? 'Sent feedback (1, '+when+')'
+        : 'Sent feedback ('+d.pushCount+', latest '+when+')';
       btn.innerHTML=label;
       btn.style.background='var(--aw-primary-lt)';
       btn.style.color='var(--aw-primary)';
@@ -1555,7 +1561,7 @@ function openAnnotation(s){
     }
   }).catch(function(){
     var btn=document.getElementById('viewSentFb');
-    if(btn) btn.innerHTML='📋 Xem nhận xét cũ';
+    if(btn) btn.innerHTML='Sent feedback';
   });
   // Overall fills itself in from the 4 criteria (IELTS rounding)
   wireAutoOverall(
@@ -2037,7 +2043,7 @@ function showResults(){
         '<select class="aw-select" id="trSetSel" style="flex:1;min-width:240px;max-width:440px">'+
           '<option value="">⌛ Loading topics…</option>'+
         '</select>'+
-        '<button class="aw-btn aw-btn-primary" id="loadTrResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
+        '<button class="aw-btn aw-btn-primary" id="loadTrResBtn" style="padding:9px 22px;font-weight:700">Load results</button>'+
       '</div>';
     AW.api('translate.list', { classId: curClass() }).then(function(res){
       var sets = (res&&res.data)||[];
@@ -2066,7 +2072,7 @@ function showResults(){
       var stArr = d.students;
       box.innerHTML =
         '<div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 16px;'+
-          'background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);margin-bottom:16px">'+
+          'background:var(--aw-surface-2);border:none;border-radius:18px;margin-bottom:16px">'+
           '<div><div style="font-size:1.4rem;font-weight:700">'+d.studentCount+'</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Students</div></div>'+
           '<div><div style="font-size:1.4rem;font-weight:700">'+d.runsCount+'</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Complete runs</div></div>'+
           '<div><div style="font-size:1.4rem;font-weight:700;color:var(--aw-writing)">'+d.avgScore+'%</div><div style="font-size:.72rem;color:var(--aw-ink-3);text-transform:uppercase">Avg score</div></div>'+
@@ -2124,7 +2130,7 @@ function showResults(){
             '<option value="14">last 14 days</option>'+
             '<option value="0">All results</option>'+
           '</select>'+
-          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
+          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">Load results</button>'+
           '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">Free Writing — No topic to choose</span>'+
         '</div>'+
         '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
@@ -2144,7 +2150,7 @@ function showResults(){
             '<option value="14">last 14 days</option>'+
             '<option value="0">All results</option>'+
           '</select>'+
-          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">🔍 Load Results</button>'+
+          '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">Load results</button>'+
         '</div>'+
         '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
           secFiltersHtml()+
@@ -2176,19 +2182,19 @@ function showResults(){
   }
 
   function secFiltersHtml(){
-    return '<div class="aw-search" style="flex:1;min-width:180px">'+AW.icon('search')+'<input id="resSearch" placeholder="Tên / Student ID…"></div>'+
+    return '<div class="aw-search" style="flex:1;min-width:180px">'+AW.icon('search')+'<input id="resSearch" placeholder="Name or student ID"></div>'+
       '<select class="aw-select" id="fTaskType"><option value="">All task types</option><option value="task1">Task 1</option><option value="task2">Task 2</option></select>'+
       '<select class="aw-select" id="fSort">'+
-        '<option value="latest">Sort: Ngày nộp</option>'+
-        '<option value="name">Sort: Tên</option>'+
+        '<option value="latest">Sort: Submitted</option>'+
+        '<option value="name">Sort: Name</option>'+
         '<option value="studentId">Sort: Student ID</option>'+
         '<option value="bestResult">Sort: Best band</option>'+
-        '<option value="attemptCount">Sort: Số lần</option>'+
+        '<option value="attemptCount">Sort: Attempts</option>'+
       '</select>'+
       '<button class="aw-btn aw-btn-ghost" id="fSortDir" style="padding:8px 12px;font-weight:700">↓</button>'+
       '<button class="aw-btn aw-btn-ghost" id="clearFilters" style="padding:8px 12px">Clear</button>'+
-      '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px" title="Xuất đúng những gì đang hiển thị: bài, khoảng ngày, loại Task, tìm kiếm">⤓ Export</button>'+
-      '<button class="aw-btn aw-btn-ghost" id="exportAllResults" style="padding:8px 14px" title="Xuất tất cả bài của lớp ở chế độ này, mọi thời gian">⤓ Export All</button>'+
+      '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px" title="Export exactly what is shown: task, date range, task type, search">Export</button>'+
+      '<button class="aw-btn aw-btn-ghost" id="exportAllResults" style="padding:8px 14px" title="Export every result of this class in this mode, all dates">Export all</button>'+
       '<span id="resCount" style="font-size:.85rem;color:var(--aw-ink-3)"></span>';
   }
 
@@ -2248,7 +2254,7 @@ function loadResults(mode, topicId, days){
   if(days && days > 0) params.days = days;         // server-side date range filter
 
   AW.api('teacher.getResults', params).then(function(res){
-    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load Results'; }
+    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='Load results'; }
     resultsData = (res&&res.data)||[];
     var secBar = document.getElementById('resSecBar');
     if(secBar) secBar.style.display='flex';
@@ -2258,7 +2264,7 @@ function loadResults(mode, topicId, days){
     }
     renderResults();
   }).catch(function(e){
-    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='🔍 Load Results'; }
+    if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='Load results'; }
     box.innerHTML='<div class="aw-empty" style="color:var(--aw-danger)">⚠ Lỗi: '+(e.message||'')+'</div>';
     AW.toast('Lỗi tải kết quả','err');
   });
@@ -2321,16 +2327,21 @@ function renderResults(){
     return '<th rowspan="2" class="res-sortable'+(on?' on':'')+(extraCls?' '+extraCls:'')+'" data-sortkey="'+key+'" '+
            'title="Bấm để sắp xếp theo '+label+'">'+label+'<span class="res-caret">'+caret+'</span></th>';
   }
+  // One task picked (in-class / homework): class, title and prompt are the same
+  // on every row, so they move to a card above the table instead of three
+  // repeated columns.
+  var oneTopic = rows.every(function(r){ return String(r.topicId)===String(rows[0].topicId) && String(r.class)===String(rows[0].class); });
   var top='<tr>'+
     sortableTh('Student ID','studentId','sticky')+
     sortableTh('Name','name')+
+    (oneTopic ? '' :
     sortableTh('Class','class')+
     sortableTh('Title','topic')+
-    '<th rowspan="2">Prompt (đề bài)</th>';
+    '<th rowspan="2">Prompt</th>');
   writeLabels.forEach(function(l){
     top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>';
   });
-  top+='<th rowspan="2" class="hd-best">Attempts & Score</th><th rowspan="2" style="background:#2E9367 !important">💬 Note for Student</th></tr><tr>';
+  top+='<th rowspan="2" class="hd-best">Attempts & Score</th><th rowspan="2" style="background:#16825B !important">💬 Note for Student</th></tr><tr>';
   writeLabels.forEach(function(l){ top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Result</th>'; });
   top+='</tr>';
 
@@ -2364,8 +2375,8 @@ function renderResults(){
       (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
     '</div>';
     var taskBadge = (g.taskType==='task1')
-      ? '<span class="aw-task-badge t1" style="display:inline-block;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#1A9E5C;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
-      : '<span class="aw-task-badge t2" style="display:inline-block;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #A8CCE8;margin-left:5px;vertical-align:middle">T2</span>';
+      ? '<span class="aw-task-badge t1" style="display:inline-block;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#16825B;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
+      : '<span class="aw-task-badge t2" style="display:inline-block;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #C5CAF7;margin-left:5px;vertical-align:middle">T2</span>';
     var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:110px;max-width:140px"><b>'+AW.esc(g.topic||'')+'</b>'+taskBadge+'</td>';
     var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
     var promptCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>';
@@ -2376,8 +2387,8 @@ function renderResults(){
     var _last=groupLastTs(g);
     var newBadge=(_last && (Date.now()-_last) < 86400000 && isResultUnseen(gkey,_last))
       ? ' <span class="res-new" title="Nộp trong 24 giờ qua — chưa xem">new</span>' : '';
-    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+'</td>'+
-      '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell;
+    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td style="text-align:left;font-weight:600">'+AW.esc(g.name||'')+newBadge+'</td>'+
+      (oneTopic ? '' : '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell);
     picks.forEach(function(p,pi){
       // map pick index to actual write index (best uses bestI)
       var realIdx = (pi<3) ? pi : bestI;
@@ -2394,7 +2405,16 @@ function renderResults(){
     return '<tr data-key="'+AW.esc(gkey)+'" data-besti="'+bestI+'">'+tds+'</tr>';
   }).join('');
 
-  box.innerHTML='<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 10px">💡 Click any <b>Result</b> score to view that attempt\'s full essay and feedback.</p>'+
+  var g0=rows[0], p0=g0.prompt ? (AW.stripHtml?AW.stripHtml(g0.prompt):g0.prompt.replace(/<[^>]*>/g,' ')) : '';
+  var taskCard = oneTopic
+    ? '<div class="aw-panel" style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin-bottom:14px;padding:16px 22px">'+
+        '<b style="font-size:1.02rem">'+AW.esc(g0.topic||'')+'</b>'+
+        '<span class="aw-task-badge '+(g0.taskType==='task1'?'t1':'t2')+'" style="margin:0">'+(g0.taskType==='task1'?'Task 1':'Task 2')+'</span>'+
+        '<span style="font-size:.85rem;color:var(--aw-ink-3)">'+AW.esc(g0.className||g0.class||'')+'</span>'+
+        (p0?'<p style="flex:1 1 100%;margin:4px 0 0;font-size:.88rem;line-height:1.55;color:var(--aw-ink-2)">'+AW.esc(p0)+'</p>':'')+
+      '</div>'
+    : '';
+  box.innerHTML=taskCard+'<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 10px">Click a <b>Result</b> score to open that attempt\'s essay and feedback.</p>'+
     '<div class="aw-res-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
   // click a column header to sort by it
   AW.els('.res-sortable').forEach(function(th){
@@ -2462,7 +2482,7 @@ window.viewEssays=function(gkey, writeIdx){
     if(tr.dataset.key===gkey){ var b=tr.querySelector('.res-new'); if(b) b.remove(); }
   });
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
-    return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
+    return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E9EBFB;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#5661E0,#7C84EE);border-radius:4px"></div></div></div>';}
   var header='<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:nowrap">'+
     '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem;flex:1 1 auto;min-width:0;'+
       'overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+AW.esc((g.name||g.studentId)+' — '+(g.topic||''))+'">'+
@@ -2485,11 +2505,11 @@ window.viewEssays=function(gkey, writeIdx){
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'+
           '<h4 style="margin:0">Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+
           '<button class="aw-btn aw-btn-ghost" onclick="deleteAttempt('+i+')" title="Xoá lượt này để sinh viên làm lại" '+
-            'style="padding:4px 12px;font-size:.78rem;color:#D93025;border-color:#F3C2BD">🗑 Xoá bài</button>'+
+            'style="padding:4px 12px;font-size:.78rem;color:#D93025;border-color:#F3C2BD">Delete attempt</button>'+
         '</div>'+
         (x.timestamp?'<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 '+AW.fmtDate(x.timestamp)+'</div>':'')+
         '<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
-          '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
+          '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#5661E0,#7C84EE);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
           '<div style="flex:1">'+crit(c1label,x.tr)+crit('Coherence & Cohesion',x.cc)+crit('Lexical Resource',x.lr)+crit('Grammar',x.gra)+'</div>'+
         '</div>'+
         '<div id="detail_'+i+'" style="color:var(--aw-ink-3);font-size:.85rem">'+
@@ -2516,7 +2536,7 @@ window.viewEssays=function(gkey, writeIdx){
         if (d.essay) {
           var _wc=AW.wordCount(d.essay), _isFree=(g.mode==='free');
           var _minW=(!_isFree&&g.minWords&&g.minWords>0)?g.minWords:(g.taskType==='task1'?150:250);
-          var _col=_wc>=_minW?'#1A9E5C':_wc>=Math.floor(_minW*0.8)?'#B8860B':'#D93025';
+          var _col=_wc>=_minW?'#16825B':_wc>=Math.floor(_minW*0.8)?'#B8860B':'#D93025';
           var _bg=_wc>=_minW?'#EAF6EF':_wc>=Math.floor(_minW*0.8)?'#FFF8EC':'#FFF0F0';
           out+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
             '<span style="font-size:.8rem;font-weight:700;color:'+_col+';background:'+_bg+';border:1px solid '+_col+';border-radius:20px;padding:3px 12px">'+_wc+' words</span>'+
@@ -2574,7 +2594,7 @@ window.closeEssayModal=function(){document.getElementById('essayModal').classLis
 window.printTeacherFeedback=function(){
   var el=document.getElementById('teacherReviewContent'); if(!el)return;
   var w=window.open('','_blank');
-  w.document.write('<html><head><title>ArticuWrite Feedback</title><style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#10222E}h4{color:#0A6EBD;margin:16px 0 6px;font-size:.9rem}.rv-block{margin-top:14px;padding-top:14px;border-top:1px solid #E5E9EE}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#0A6EBD">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString()+'</p></body></html>');
+  w.document.write('<html><head><title>ArticuWrite Feedback</title><style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h4{color:#5661E0;margin:16px 0 6px;font-size:.9rem}.rv-block{margin-top:14px;padding-top:14px;border-top:1px solid #E9EBFB}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#5661E0">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString()+'</p></body></html>');
   w.document.close(); setTimeout(function(){w.print();},400);
 };
 window.exportTeacherDoc=function(gkey, regenerate){
@@ -2598,8 +2618,8 @@ function showRecreateWarning(gkey){
         '<p style="color:var(--aw-ink-3);font-size:.86rem">Nếu bạn chỉ muốn xem file hoặc thêm bài nộp mới, hãy dùng nút <b>📄 Open Doc</b> — nút đó giữ nguyên comment của bạn.</p>'+
       '</div>'+
       '<div class="aw-recreate-foot">'+
-        '<button class="aw-btn aw-btn-ghost" id="recCancel">Huỷ</button>'+
-        '<button class="aw-btn" id="recGo" style="background:#D93025;color:#fff">Tôi hiểu, vẫn tạo lại</button>'+
+        '<button class="aw-btn aw-btn-ghost" id="recCancel">Cancel</button>'+
+        '<button class="aw-btn" id="recGo" style="background:#D93025;color:#fff">I understand, re-create</button>'+
       '</div>'+
     '</div>';
   document.body.appendChild(bg);
@@ -2667,7 +2687,7 @@ function loadAssignmentList(mode){
         var taskBadge = a.taskType==='task1'
           ? '<span class="aw-task-badge t1">Task 1</span>'
           : '<span class="aw-task-badge t2">Task 2</span>';
-        var chartIcon = (a.taskType==='task1' && a.chartImageId) ? ' <span style="color:#1A9E5C;font-size:.85rem" title="Has chart image">📊</span>' : '';
+        var chartIcon = (a.taskType==='task1' && a.chartImageId) ? ' <span style="color:#16825B;font-size:.85rem" title="Has chart image">📊</span>' : '';
         return '<tr class="aw-assign-row" style="cursor:pointer'+(a.dataStatus?';opacity:.72':'')+'" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
           '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartIcon+dataStatusBadge(a.dataStatus)+'</td>'+
           '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
@@ -3042,7 +3062,7 @@ function notify(html, kind, onClick){
     document.body.appendChild(stack);
   }
   var card=document.createElement('div');
-  card.style.cssText='background:#fff;border-left:5px solid '+(kind==='hand'?'#E0A32E':'#2E9367')+
+  card.style.cssText='background:#fff;border-left:5px solid '+(kind==='hand'?'#E0A32E':'#16825B')+
     ';border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.22);padding:13px 16px;font-size:.88rem;'+
     'cursor:pointer;animation:awSlideIn .25s ease;display:flex;align-items:flex-start;gap:10px';
   card.innerHTML='<div style="flex:1">'+html+'</div><button class="aw-notif-x" style="background:none;border:none;color:#9AA6B2;cursor:pointer;font-size:1.1rem;line-height:1;padding:0">×</button>';
@@ -3284,7 +3304,7 @@ function showSettings(){
     '<div class="aw-card" style="padding:24px;max-width:600px;border:1.5px solid #FADCD9">'+
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'+
         '<div style="width:38px;height:38px;border-radius:50%;background:#FEF2F2;display:grid;place-items:center;flex:0 0 auto;font-size:1.2rem">⚠️</div>'+
-        '<div><h3 style="margin:0;color:#B42318">Reset Toàn Bộ Dữ Liệu</h3>'+
+        '<div><h3 style="margin:0;color:#B42318">Reset all data</h3>'+
           '<p style="margin:3px 0 0;font-size:.82rem;color:var(--aw-ink-3)">Dùng trước khi chạy nghiên cứu chính thức để xoá dữ liệu thử nghiệm.</p></div>'+
       '</div>'+
       '<div style="background:#FEF2F2;border:1px solid #FADCD9;border-radius:10px;padding:12px 14px;font-size:.85rem;color:#7A271A;line-height:1.6;margin-bottom:14px">'+
@@ -3297,7 +3317,7 @@ function showSettings(){
         '<b>Được GIỮ LẠI:</b> Danh sách sinh viên, giáo viên, lớp học, thư viện câu hỏi.<br>'+
         'Dữ liệu bị xoá được sao lưu vào một Google Sheet trước (không mất hẳn, có thể khôi phục thủ công).'+
       '</div>'+
-      '<button class="aw-btn" id="resetDataBtn" style="background:#B42318;color:#fff;padding:10px 20px;font-weight:700">🗑 Reset toàn bộ dữ liệu...</button>'+
+      '<button class="aw-btn" id="resetDataBtn" style="background:#B42318;color:#fff;padding:10px 20px;font-weight:700">Reset all data…</button>'+
     '</div>';
 
   /* ── Gemini key wiring ── */
@@ -3394,7 +3414,7 @@ function showResetModal(){
       '<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">'+
         '<div style="background:#B42318;color:#fff;padding:16px 20px;font-weight:800;font-size:1.05rem">⚠️ Bước 1 / 3 — Xác nhận hành động</div>'+
         '<div style="padding:20px 22px">'+
-          '<p style="margin:0 0 12px;font-size:.95rem;font-weight:600;color:#10222E">Bạn sắp xoá toàn bộ dữ liệu bài làm của tất cả sinh viên.</p>'+
+          '<p style="margin:0 0 12px;font-size:.95rem;font-weight:600;color:#1E2142">Bạn sắp xoá toàn bộ dữ liệu bài làm của tất cả sinh viên.</p>'+
           '<p style="margin:0 0 16px;font-size:.87rem;color:var(--aw-ink-2);line-height:1.6">'+
             'Đây là thao tác <b>không thể hoàn tác</b> qua giao diện. '+
             'Dữ liệu được <b>sao lưu vào Google Sheet</b> trước khi xoá — '+
@@ -3403,7 +3423,7 @@ function showResetModal(){
           '</p>'+
           '<div style="display:flex;gap:10px;justify-content:flex-end">'+
             '<button id="r1Cancel" class="aw-btn aw-btn-ghost">Cancel</button>'+
-            '<button id="r1Next" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700">Tôi hiểu — Tiếp tục →</button>'+
+            '<button id="r1Next" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700">I understand, continue</button>'+
           '</div>'+
         '</div>'+
       '</div>';
@@ -3457,9 +3477,9 @@ function showResetModal(){
             'style="font-family:monospace;font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin:10px 0 6px">'+
           '<p id="r3Err" style="margin:4px 0 14px;font-size:.8rem;color:#B42318;display:none">Cụm từ không đúng. Gõ chính xác: RESET (viết hoa).</p>'+
           '<div style="display:flex;gap:10px;justify-content:flex-end">'+
-            '<button id="r3Cancel" class="aw-btn aw-btn-ghost">Huỷ — Không reset</button>'+
+            '<button id="r3Cancel" class="aw-btn aw-btn-ghost">Cancel, keep data</button>'+
             '<button id="r3Back" class="aw-btn aw-btn-ghost">← Back</button>'+
-            '<button id="r3Go" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700" disabled>🗑 Xoá dữ liệu ngay</button>'+
+            '<button id="r3Go" class="aw-btn" style="background:#B42318;color:#fff;font-weight:700" disabled>Delete data now</button>'+
           '</div>'+
         '</div>'+
       '</div>';
@@ -3570,7 +3590,7 @@ window.openEndSemester=function(classId){
     setTimeout(function(){ document.getElementById('esPass').focus(); },50);
   }
   function run(clear, archive, pass){
-    m.show('⏳ Processing…', '#0A6EBD',
+    m.show('⏳ Processing…', '#5661E0',
       '<div style="text-align:center;padding:12px 0"><span class="aw-spin aw-spin-dark"></span>'+
       '<p style="margin:12px 0 0">Đang tạo báo cáo'+(clear?', sao lưu và dọn dữ liệu':'')+'…</p></div>');
     AW.api('class.endSemester',{classId:c.classId, teacherEmail:sess.email, password:pass, clear:clear, archive:archive})
@@ -3626,7 +3646,7 @@ function loadArchivedClasses(){
 }
 
 window.openRestoreClass=function(classId, className){
-  var m=semModal(), BLUE='#0A6EBD';
+  var m=semModal(), BLUE='#5661E0';
   m.show('♻️ Reactivate class '+AW.esc(className), BLUE,
     '<p style="margin:0 0 12px">Sinh viên lớp <b>'+AW.esc(className)+'</b> ('+AW.esc(classId)+') sẽ đăng nhập lại được bằng tài khoản cũ, <b>không còn điểm hay bài làm cũ</b>. '+
     'Nếu lớp còn dữ liệu sót lại (lưu trữ theo cách cũ), hệ thống sẽ sao lưu vào báo cáo, gửi email, rồi xoá trước khi kích hoạt.</p>'+
@@ -3889,7 +3909,7 @@ function openTrModal(){
   var rb=document.getElementById('trRegenBtn'); if(rb) rb.style.display='none';
   // Class dropdown
   var sel=document.getElementById('tr-class');
-  sel.innerHTML='<option value="">— Chọn lớp —</option>'+
+  sel.innerHTML='<option value="">— Select class —</option>'+
     (myClasses||[]).map(function(c){ return '<option value="'+AW.esc(c.classId)+'">'+AW.esc(c.className)+'</option>'; }).join('');
   // Auto-select current class
   if(curClass()) sel.value=curClass();
@@ -3919,7 +3939,7 @@ function trGenItems(){
         '<div style="display:flex;gap:8px;align-items:center">'+
           '<input type="password" id="trInlineKey" class="aw-input" placeholder="AIza… hoặc AQ… (Gemini API key)" '+
             'style="flex:1;font-size:.85rem" autocomplete="off">'+
-          '<button class="aw-btn aw-btn-primary" id="trKeyOk" style="padding:9px 16px;font-size:.85rem;white-space:nowrap">Lưu &amp; Sinh câu</button>'+
+          '<button class="aw-btn aw-btn-primary" id="trKeyOk" style="padding:9px 16px;font-size:.85rem;white-space:nowrap">Save &amp; generate</button>'+
         '</div>'+
         '<p style="font-size:.74rem;color:#7A5000;margin:6px 0 0">Lấy key miễn phí tại <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--aw-primary)">aistudio.google.com/apikey</a> · Key được lưu trong trình duyệt, không gửi lên server.</p>'+
       '</div>';
@@ -4077,7 +4097,7 @@ startAlerts();
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         <div class="aw-field" style="flex:1;min-width:150px">
           <label class="aw-label">Lớp *</label>
-          <select class="aw-input" id="tr-class"><option value="">— Chọn lớp —</option></select>
+          <select class="aw-input" id="tr-class"><option value="">— Select class —</option></select>
         </div>
         <div class="aw-field" style="flex:2;min-width:200px">
           <label class="aw-label">Tiêu đề *</label>
@@ -4097,8 +4117,8 @@ startAlerts();
         <div class="aw-field" style="flex:0 0 170px">
           <label class="aw-label">Thứ tự câu</label>
           <select class="aw-input" id="tr-shuffle">
-            <option value="random">🔀 Random (mỗi SV khác nhau)</option>
-            <option value="ordered">📋 Ordered (tất cả cùng thứ tự)</option>
+            <option value="random">Random (different per student)</option>
+            <option value="ordered">Ordered (same order for everyone)</option>
           </select>
         </div>
         <div class="aw-field" style="flex:1;min-width:200px">
@@ -4114,7 +4134,7 @@ startAlerts();
           <input class="aw-input" id="tr-deadline" type="datetime-local" step="60">
         </div>
       </div>
-      <div style="background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:14px 16px" id="trGenBox">
+      <div style="background:var(--aw-surface-2);border:none;border-radius:18px;padding:14px 16px" id="trGenBox">
         <div style="font-size:.85rem;font-weight:600;margin-bottom:8px">✨ Generate sentences with AI
           <span style="font-weight:400;font-size:.78rem;color:var(--aw-ink-3)">(teacher's Gemini key)</span>
         </div>
@@ -4137,7 +4157,7 @@ startAlerts();
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--aw-border-2)">
-      <button class="aw-btn aw-btn-ghost" onclick="closeTrModal()">Huỷ</button>
+      <button class="aw-btn aw-btn-ghost" onclick="closeTrModal()">Cancel</button>
       <button class="aw-btn aw-btn-primary" id="trSaveBtn" disabled onclick="saveTrSet()" style="padding:10px 22px">💾 Save &amp; Launch</button>
     </div>
   </div>

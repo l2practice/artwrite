@@ -329,7 +329,7 @@
               'Gemini đã hết lượt miễn phí. Bài làm của bạn sẽ được chấm bằng <b>Groq AI</b> — '+
               'chất lượng tương đương, hoàn toàn miễn phí.'+
             '</p>'+
-            '<p style="margin:0 0 14px;font-size:.83rem;color:#5B6B7A;line-height:1.5">'+
+            '<p style="margin:0 0 14px;font-size:.83rem;color:#4B5075;line-height:1.5">'+
               'Lấy Groq API key miễn phí (30 giây): '+
               '<a href="https://console.groq.com/keys" target="_blank" '+
                 'style="color:#E8730C;font-weight:700">console.groq.com/keys</a>'+
@@ -343,18 +343,18 @@
                 'style="position:absolute;right:10px;top:50%;transform:translateY(-50%);'+
                 'background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:.78rem">show</button>'+
             '</div>'+
-            '<label style="display:flex;align-items:center;gap:7px;font-size:.8rem;color:#5B6B7A;margin-bottom:16px;cursor:pointer">'+
+            '<label style="display:flex;align-items:center;gap:7px;font-size:.8rem;color:#4B5075;margin-bottom:16px;cursor:pointer">'+
               '<input type="checkbox" id="aw-groq-save" checked style="width:15px;height:15px">'+
               'Lưu key vào thiết bị này (không cần nhập lại lần sau)'+
             '</label>'+
             '<div style="display:flex;gap:8px">'+
               '<button id="aw-groq-cancel" '+
                 'style="flex:1;padding:11px;border:1px solid #CBD5E0;border-radius:10px;'+
-                'background:#fff;cursor:pointer;font-size:.88rem;color:#5B6B7A">Huỷ</button>'+
+                'background:#fff;cursor:pointer;font-size:.88rem;color:#4B5075">Cancel</button>'+
               '<button id="aw-groq-submit" '+
                 'style="flex:2;padding:11px;border:none;border-radius:10px;'+
                 'background:#E8730C;color:#fff;cursor:pointer;font-size:.92rem;font-weight:700">'+
-                '⚡ Chấm bài bằng Groq →</button>'+
+                'Grade with Groq</button>'+
             '</div>'+
           '</div>'+
         '</div>';

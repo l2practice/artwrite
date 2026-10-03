@@ -21,7 +21,7 @@
         <div class="aw-field" style="flex:1;min-width:150px">
           <label class="aw-label">Lớp <span style="color:var(--aw-danger)">*</span></label>
           <select class="aw-input" id="tr-class">
-            <option value="">— Chọn lớp —</option>
+            <option value="">— Select class —</option>
           </select>
         </div>
         <div class="aw-field" style="flex:1;min-width:200px">
@@ -49,7 +49,7 @@ function openTrModal(){
   // Populate class dropdown from state.classes
   var sel = document.getElementById('tr-class');
   if (sel) {
-    sel.innerHTML = '<option value="">— Chọn lớp —</option>'+
+    sel.innerHTML = '<option value="">— Select class —</option>'+
       (state.classes||[]).map(function(c){
         return '<option value="'+AW.esc(c.classId)+'">'+AW.esc(c.className)+'</option>';
       }).join('');
@@ -252,7 +252,7 @@ function renderTranslate(){
   loadClasses(function(){
     // Build class filter toolbar
     var clsHtml = '<select class="vm-select" id="trClsFilter" style="min-width:160px">'+
-      '<option value="">Tất cả lớp</option>'+
+      '<option value="">All classes</option>'+
       (state.classes||[]).map(function(cl){
         return '<option value="'+AW.esc(cl.classId)+'">'+AW.esc(cl.className)+'</option>';
       }).join('')+
@@ -282,7 +282,7 @@ function renderTranslate(){
                 '<button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.76rem" data-tr-stats="'+AW.esc(s.setId)+'">Stats</button>'+
                 ' <button class="aw-btn" style="padding:4px 10px;font-size:.76rem;color:'+(active?'var(--aw-danger)':'var(--aw-writing)')+'" '+
                   'data-tr-toggle="'+AW.esc(s.setId)+'" data-tr-active="'+(active?'1':'0')+'">'+
-                  (active?'Đóng':'Mở lại')+'</button>'+
+                  (active?'Close':'Reopen')+'</button>'+
               '</td>'+
             '</tr>';
           }).join('')
@@ -291,7 +291,7 @@ function renderTranslate(){
         c.innerHTML =
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'+
             clsHtml+
-            '<button class="aw-btn aw-btn-primary" onclick="openTrModal()">+ Tạo bài dịch</button>'+
+            '<button class="aw-btn aw-btn-primary" onclick="openTrModal()">+ New translation set</button>'+
             '<span style="font-size:.78rem;color:var(--aw-ink-3)">'+sets.length+' bài</span>'+
           '</div>'+
           '<div style="overflow-x:auto;border:1px solid var(--aw-border-2);border-radius:var(--aw-r)">'+

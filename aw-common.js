@@ -300,6 +300,13 @@
     bell:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
     logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>',
     menu:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>',
+    tasks:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/></svg>',
+    chat:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+    board:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20l4-4 4 4"/></svg>',
+    translate:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h8M8 3v2M6 5c0 4 3 7 6 8M10 5c0 4-3 7-6 8M13 21l4-9 4 9M14.5 18h5"/></svg>',
+    pen:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>',
+    clock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>',
+    home:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>',
   };
   AW.icon = function (name) { return IC[name] || ''; };
@@ -364,8 +371,8 @@
           overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
             '<div style="font-size:2rem;margin-bottom:10px">⏰</div>' +
             '<h2 style="margin:0 0 8px;font-size:1.1rem">Phiên làm việc đã hết hạn</h2>' +
-            '<p style="color:#5B6B7A;font-size:.9rem;margin:0 0 18px">Bạn không hoạt động trong 45 phút. Vui lòng đăng nhập lại.</p>' +
-            '<a href="' + AW.LOGIN_PAGE + '" style="display:inline-block;background:#0A6EBD;color:#fff;padding:10px 24px;border-radius:24px;text-decoration:none;font-weight:700">Đăng nhập lại</a>' +
+            '<p style="color:#4B5075;font-size:.9rem;margin:0 0 18px">Bạn không hoạt động trong 45 phút. Vui lòng đăng nhập lại.</p>' +
+            '<a href="' + AW.LOGIN_PAGE + '" style="display:inline-block;background:#5661E0;color:#fff;padding:10px 24px;border-radius:24px;text-decoration:none;font-weight:700">Sign in again</a>' +
           '</div>';
           document.body.appendChild(overlay);
           setTimeout(function(){ location.href = AW.LOGIN_PAGE; }, 3000);
@@ -380,7 +387,7 @@
             'background:#B42318;color:#fff;padding:12px 20px;border-radius:12px;z-index:9998;' +
             'font-size:.88rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);' +
             'display:flex;align-items:center;gap:12px;max-width:360px;text-align:left';
-          warn.innerHTML = '⏰ Còn <b>' + mins + ' phút</b> trước khi tự động đăng xuất. <button onclick="this.parentNode.remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;padding:4px 10px;cursor:pointer;font-size:.8rem">Huỷ</button>';
+          warn.innerHTML = '⏰ Còn <b>' + mins + ' phút</b> trước khi tự động đăng xuất. <button onclick="this.parentNode.remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;padding:4px 10px;cursor:pointer;font-size:.8rem">Dismiss</button>';
           document.body.appendChild(warn);
         }
       } catch(e) {}
