@@ -81,7 +81,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=1'); })
+        .then(function () { return loadScript('fbdata.js?v=2'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
@@ -300,9 +300,41 @@
     bell:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
     logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>',
     menu:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>',
+    tasks:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/></svg>',
+    chat:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+    board:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20l4-4 4 4"/></svg>',
+    translate:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h8M8 3v2M6 5c0 4 3 7 6 8M10 5c0 4-3 7-6 8M13 21l4-9 4 9M14.5 18h5"/></svg>',
+    pen:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>',
+    clock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>',
+    home:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>',
   };
   AW.icon = function (name) { return IC[name] || ''; };
+
+  /*── One sidebar for every page ─────────────────────
+     AW.navFor(role, active, home): the same short rail everywhere. On its own
+     home page (teacher.html / student.html) a section is switched in place
+     (data-nav); from any other page it is a link back to that section.   */
+  var NAV = {
+    teacher: { home: 'teacher.html', items: [
+      ['overview', 'Overview', 'overview'], ['live', 'Live', 'live'], ['assignments', 'Tasks', 'tasks'],
+      ['results', 'Results', 'progress'], ['queries', 'Questions', 'chat'],
+      ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
+      ['settings', 'Settings', 'settings'] ] },
+    student: { home: 'student.html', items: [
+      ['modes', 'Practice', 'modes'], ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
+      ['progress', 'Progress', 'progress'], ['translate', 'Translate', 'translate'], ['qa', 'Q&A', 'chat'],
+      ['settings', 'Settings', 'settings'] ] }
+  };
+  AW.navFor = function (role, active, onHome) {
+    var n = NAV[role === 'teacher' ? 'teacher' : 'student'];
+    return n.items.map(function (it) {
+      var o = { id: it[0], label: it[1], icon: it[2], active: it[0] === active };
+      if (it[3]) o.href = it[3];
+      else if (!onHome) o.href = n.home + (it[0] === n.items[0][0] ? '' : '#' + it[0]);
+      return o;
+    });
+  };
 
   /*── SHELL renderer (sidebar + topbar) ────────────*/
   AW.renderShell = function (opts) {
@@ -322,8 +354,9 @@
       '<div class="aw-shell">' +
         '<aside class="aw-side" id="awSide">' +
           AW.brandLockup() + navHtml +
-          '<div style="margin-top:auto">' +
-            '<button class="aw-nav" id="awLogout">' + AW.icon('logout') + '<span>Sign out</span></button>' +
+          '<div class="aw-side-foot">' +
+            '<div class="aw-avatar" title="' + AW.esc(name) + ' · ' + roleLabel + '">' + initials + '</div>' +
+            '<button class="aw-nav" id="awLogout" title="Sign out">' + AW.icon('logout') + '<span>Sign out</span></button>' +
           '</div>' +
         '</aside>' +
         '<div class="aw-main">' +
@@ -331,12 +364,7 @@
             '<button class="aw-menu-btn" id="awMenuBtn">' + AW.icon('menu') + '</button>' +
             '<div><div class="aw-eyebrow">' + (opts.eyebrow || '') + '</div>' +
             '<h1 class="aw-page-title" id="awPageTitle">' + (opts.title || '') + '</h1></div>' +
-            '<div class="aw-topbar-right">' +
-              '<span style="color:var(--aw-ink-3)">' + AW.icon('bell') + '</span>' +
-              '<div class="aw-user"><div class="aw-avatar">' + initials + '</div>' +
-              '<div><div class="aw-user-name">' + AW.esc(name) + '</div>' +
-              '<div class="aw-user-role">' + roleLabel + '</div></div></div>' +
-            '</div>' +
+            '<div class="aw-topbar-right" id="awTopRight"></div>' +
           '</header>' +
           '<main class="aw-content" id="awContent"></main>' +
         '</div>' +
@@ -364,8 +392,8 @@
           overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
             '<div style="font-size:2rem;margin-bottom:10px">⏰</div>' +
             '<h2 style="margin:0 0 8px;font-size:1.1rem">Phiên làm việc đã hết hạn</h2>' +
-            '<p style="color:#5B6B7A;font-size:.9rem;margin:0 0 18px">Bạn không hoạt động trong 45 phút. Vui lòng đăng nhập lại.</p>' +
-            '<a href="' + AW.LOGIN_PAGE + '" style="display:inline-block;background:#0A6EBD;color:#fff;padding:10px 24px;border-radius:24px;text-decoration:none;font-weight:700">Đăng nhập lại</a>' +
+            '<p style="color:#4B5075;font-size:.9rem;margin:0 0 18px">Bạn không hoạt động trong 45 phút. Vui lòng đăng nhập lại.</p>' +
+            '<a href="' + AW.LOGIN_PAGE + '" style="display:inline-block;background:#5661E0;color:#fff;padding:10px 24px;border-radius:24px;text-decoration:none;font-weight:700">Sign in again</a>' +
           '</div>';
           document.body.appendChild(overlay);
           setTimeout(function(){ location.href = AW.LOGIN_PAGE; }, 3000);
@@ -380,7 +408,7 @@
             'background:#B42318;color:#fff;padding:12px 20px;border-radius:12px;z-index:9998;' +
             'font-size:.88rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);' +
             'display:flex;align-items:center;gap:12px;max-width:360px;text-align:left';
-          warn.innerHTML = '⏰ Còn <b>' + mins + ' phút</b> trước khi tự động đăng xuất. <button onclick="this.parentNode.remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;padding:4px 10px;cursor:pointer;font-size:.8rem">Huỷ</button>';
+          warn.innerHTML = '⏰ Còn <b>' + mins + ' phút</b> trước khi tự động đăng xuất. <button onclick="this.parentNode.remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;padding:4px 10px;cursor:pointer;font-size:.8rem">Dismiss</button>';
           document.body.appendChild(warn);
         }
       } catch(e) {}
@@ -450,16 +478,69 @@
     Rotates at 3 AM (server-side day index) OR after every 5 logins.
     Renders into the element with id given (default 'todaysWord').
   */
+  /* The word comes from the Vocabulary tab of the Sheet (Apps Script). The
+     last answer is kept on the device and shown at once; if Apps Script is
+     slow, fails or the tab is empty, a built-in list takes over, so the
+     card never disappears. Same day rule as the server: changes at 3 AM. */
+  var TW_KEY = 'aw_todays_word';
+  var TW_FALLBACK = [
+    ['substantial','səbˈstænʃl','B2','đáng kể, lớn','considerable, significant','There was a substantial increase in online shopping.'],
+    ['decline','dɪˈklaɪn','B2','giảm, sụt giảm','decrease, fall, drop','The number of visitors declined sharply after 2010.'],
+    ['fluctuate','ˈflʌktʃueɪt','C1','dao động, lên xuống thất thường','vary, rise and fall','Oil prices fluctuated throughout the decade.'],
+    ['proportion','prəˈpɔːʃn','B2','tỉ lệ, phần','share, percentage, ratio','A larger proportion of women chose education.'],
+    ['approximately','əˈprɒksɪmətli','B2','xấp xỉ, khoảng','roughly, around, about','Approximately half of the respondents agreed.'],
+    ['detrimental','ˌdetrɪˈmentl','C1','có hại','harmful, damaging','Lack of sleep is detrimental to health.'],
+    ['beneficial','ˌbenɪˈfɪʃl','B2','có lợi','advantageous, helpful','Regular exercise is beneficial for students.'],
+    ['inevitable','ɪnˈevɪtəbl','B2','tất yếu, không tránh khỏi','unavoidable, certain','Some job losses are inevitable as technology advances.'],
+    ['ubiquitous','juːˈbɪkwɪtəs','C1','có mặt khắp nơi','widespread, pervasive','Smartphones have become ubiquitous in modern life.'],
+    ['stringent','ˈstrɪndʒənt','C1','nghiêm ngặt','strict, rigorous','Governments should impose stringent rules on pollution.'],
+    ['alleviate','əˈliːvieɪt','C1','làm giảm nhẹ','ease, relieve, reduce','Building more housing could alleviate the problem.'],
+    ['exacerbate','ɪɡˈzæsəbeɪt','C1','làm trầm trọng thêm','worsen, aggravate','Heavy traffic exacerbates air pollution in cities.'],
+    ['predominantly','prɪˈdɒmɪnəntli','C1','chủ yếu','mainly, mostly, largely','The workforce is predominantly young.'],
+    ['considerable','kənˈsɪdərəbl','B2','đáng kể','substantial, significant','The project requires considerable investment.'],
+    ['phenomenon','fəˈnɒmɪnən','B2','hiện tượng','occurrence, trend','Remote work is a relatively new phenomenon.'],
+    ['sustainable','səˈsteɪnəbl','B2','bền vững','viable, long-lasting','Cities need more sustainable forms of transport.'],
+    ['accessible','əkˈsesəbl','B2','dễ tiếp cận','available, reachable','Online courses make education more accessible.'],
+    ['diminish','dɪˈmɪnɪʃ','C1','giảm bớt, thu nhỏ','reduce, lessen','The importance of printed books has diminished.'],
+    ['surge','sɜːdʒ','C1','tăng vọt','soar, rocket, jump','There was a surge in demand during the holidays.'],
+    ['plummet','ˈplʌmɪt','C1','giảm mạnh, lao dốc','plunge, drop sharply','Sales plummeted in the final quarter.'],
+    ['comparable','ˈkɒmpərəbl','B2','tương đương','similar, equivalent','The figures for the two cities were comparable.'],
+    ['subsequently','ˈsʌbsɪkwəntli','B2','sau đó','later, afterwards','The rate peaked in 2015 and subsequently fell.'],
+    ['crucial','ˈkruːʃl','B2','then chốt, rất quan trọng','vital, essential','Teachers play a crucial role in shaping attitudes.'],
+    ['controversial','ˌkɒntrəˈvɜːʃl','B2','gây tranh cãi','debatable, contentious','Animal testing remains a controversial issue.'],
+    ['incentive','ɪnˈsentɪv','B2','động lực, khuyến khích','motivation, reward','Tax cuts give companies an incentive to invest.'],
+    ['mitigate','ˈmɪtɪɡeɪt','C1','giảm thiểu','lessen, reduce, ease','Planting trees can mitigate the effects of heat.'],
+    ['disparity','dɪˈspærəti','C1','sự chênh lệch','gap, difference, inequality','There is a wide disparity between urban and rural incomes.'],
+    ['steadily','ˈstedɪli','B2','đều đặn, từ từ','gradually, consistently','The population grew steadily over the period.'],
+    ['outweigh','ˌaʊtˈweɪ','C1','vượt trội hơn','exceed, override','The benefits clearly outweigh the drawbacks.'],
+    ['compelling','kəmˈpelɪŋ','C1','thuyết phục','convincing, persuasive','There is compelling evidence that diet affects mood.']
+  ];
+  function twDayIndex() { return Math.floor((Date.now() - 3 * 3600000) / 86400000); }
+  function twPack(r) { return { word: r[0], ipa: r[1], band: r[2], meaningVi: r[3], synonyms: r[4].split(/,\s*/), examples: [r[5]] }; }
+  function twFallback() {
+    var n = TW_FALLBACK.length, i = ((twDayIndex() % n) + n) % n;
+    return { current: twPack(TW_FALLBACK[i]), previous: twPack(TW_FALLBACK[(i - 1 + n) % n]) };
+  }
   AW.renderTodaysWord = function (mountId) {
     var mount = document.getElementById(mountId || 'todaysWord');
     if (!mount) return;
-    // Don't force an index — let the server pick by epochDay (UTC+7 after 3am)
-    // so every student sees the same word each calendar day.
-    // Only pass index when the teacher/student explicitly requests a different word
-    // (e.g. a "Next word" button passes { force: true, index: N }).
+    var day = twDayIndex(), cached = null;
+    try { cached = JSON.parse(localStorage.getItem(TW_KEY) || 'null'); } catch (e) {}
+    var shown = false;
+    function show(d) { if (d && d.current && d.current.word) { draw(d); shown = true; } }
+    if (cached && cached.day === day) show(cached.data);
+    // Server picks the word by day so every student sees the same one.
     AW.api('vocab.today', {}).then(function (res) {
-      if (!res || !res.success || !res.data) { mount.innerHTML = ''; return; }
-      var d = res.data, c = d.current, prev = d.previous;
+      var d = res && res.success && res.data;
+      if (d && d.current && d.current.word) {
+        try { localStorage.setItem(TW_KEY, JSON.stringify({ day: day, data: d })); } catch (e) {}
+        show(d);
+      } else if (!shown) show(twFallback());
+    }).catch(function () { if (!shown) show(twFallback()); });
+    // Apps Script can take a while to wake up: don't leave the card empty
+    setTimeout(function () { if (!shown) show(twFallback()); }, 6000);
+    function draw(d) {
+      var c = d.current, prev = d.previous;
       mount.innerHTML =
         '<div class="aw-tw">' +
           '<div class="aw-tw-glow"></div>' +
@@ -486,7 +567,7 @@
             '</div>' +
           '</div>' +
         '</div>';
-    });
+    }
   };
   // call once per session to increment login count (used by rotation)
   AW.bumpLoginCount = function () {

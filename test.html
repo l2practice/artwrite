@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- App icon: SVG data URI — no file, no extra request, no 404 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<meta name="theme-color" content="#0A6EBD">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#5661E0">
 <title>Grading Reliability Test · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
@@ -14,7 +14,7 @@
   .wrap{max-width:1150px;margin:0 auto;padding:28px 22px 60px}
   h1{font-family:var(--aw-font-display);font-size:1.7rem;margin:0 0 4px;color:var(--aw-primary)}
   .sub{color:var(--aw-ink-2);margin:0 0 22px;font-size:.92rem;line-height:1.6}
-  .card{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:20px 22px;margin-bottom:16px;box-shadow:var(--aw-shadow-sm)}
+  .card{background:var(--aw-surface);border:none;border-radius:20px;box-shadow:var(--aw-shadow);padding:20px 22px;margin-bottom:16px;box-shadow:var(--aw-shadow-sm)}
   .card h3{margin:0 0 10px;font-size:1rem;font-family:var(--aw-font-display)}
   label{display:block;font-size:.82rem;font-weight:600;color:var(--aw-ink-2);margin-bottom:5px}
   input,textarea,select{width:100%;border:1px solid var(--aw-border);border-radius:8px;padding:9px 11px;
@@ -33,12 +33,12 @@
   td.name{text-align:left;font-weight:600;max-width:210px;word-break:break-word}
   tr.sd td{background:#FFFDF5;font-weight:600}
   .ok{color:var(--aw-writing)} .warn{color:#B8860B} .bad{color:var(--aw-danger)}
-  .log{font-family:ui-monospace,monospace;font-size:.76rem;background:#10222E;color:#B8E6C0;
+  .log{font-family:ui-monospace,monospace;font-size:.76rem;background:#1E2142;color:#B8E6C0;
     border-radius:8px;padding:12px;max-height:190px;overflow-y:auto;white-space:pre-wrap;margin-top:12px}
   .note{background:#FFF8EC;border:1px solid #F0D9A0;border-radius:10px;padding:12px 14px;font-size:.83rem;
     color:#6B5417;line-height:1.55;margin-bottom:16px}
   .bar{height:7px;background:var(--aw-surface-2);border-radius:4px;overflow:hidden;margin-top:10px}
-  .bar div{height:100%;width:0;background:linear-gradient(90deg,#0A6EBD,#0A93BD);transition:width .3s}
+  .bar div{height:100%;width:0;background:linear-gradient(90deg,#5661E0,#7C84EE);transition:width .3s}
 </style>
 </head>
 <body>
@@ -83,14 +83,14 @@
   <div class="card">
     <h3>2. Bài viết mẫu</h3>
     <div id="essays"></div>
-    <button class="aw-btn aw-btn-ghost" id="addEssay" style="padding:7px 16px">+ Thêm bài</button>
+    <button class="aw-btn aw-btn-ghost" id="addEssay" style="padding:7px 16px">+ Add essay</button>
   </div>
 
   <div class="card">
     <h3>3. Chạy</h3>
-    <button class="aw-btn aw-btn-primary" id="run" style="padding:11px 26px">▶ Bắt đầu chấm lặp</button>
-    <button class="aw-btn aw-btn-ghost" id="stop" style="padding:11px 20px;display:none">■ Dừng</button>
-    <button class="aw-btn aw-btn-accent" id="csv" style="padding:11px 20px;display:none">⤓ Tải CSV</button>
+    <button class="aw-btn aw-btn-primary" id="run" style="padding:11px 26px">▶ Start repeated grading</button>
+    <button class="aw-btn aw-btn-ghost" id="stop" style="padding:11px 20px;display:none">■ Stop</button>
+    <button class="aw-btn aw-btn-accent" id="csv" style="padding:11px 20px;display:none">Download CSV</button>
     <div class="bar"><div id="bar"></div></div>
     <div class="log" id="log">Sẵn sàng.</div>
   </div>
@@ -127,7 +127,7 @@ function addEssay(name, text){
   d.className = 'essay';
   d.innerHTML =
     '<div class="essay-head"><b>Bài ' + i + '</b>' +
-      '<button class="del">Xoá</button></div>' +
+      '<button class="del">Delete</button></div>' +
     '<input class="e-name" placeholder="Tên/mã bài (VD: SV01 - band 6 mẫu)" value="' + (name||'') + '" style="margin-bottom:8px">' +
     '<textarea class="e-text" rows="5" placeholder="Dán toàn bộ bài viết của sinh viên vào đây…">' + (text||'') + '</textarea>';
   d.querySelector('.del').onclick = function(){ d.remove(); renumber(); };

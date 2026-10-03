@@ -96,7 +96,7 @@ function renderTrIntro(status){
   var isClosed = (status || _trSet.sessionStatus) === 'closed';
 
   c.innerHTML =
-    '<button class="aw-btn aw-btn-ghost" id="trBack" style="margin-bottom:14px;padding:6px 14px">← Danh sách</button>'+
+    '<button class="aw-btn aw-btn-ghost" id="trBack" style="margin-bottom:14px;padding:6px 14px">← All sets</button>'+
     '<div style="max-width:520px;margin:0 auto;background:var(--aw-surface);border:1px solid var(--aw-border-2);'+
       'border-radius:var(--aw-r);padding:26px 28px">'+
       '<h3 style="font-family:var(--aw-font-display);font-size:1.1rem;margin:0 0 10px">🔄 '+AW.esc(_trSet.title)+'</h3>'+
@@ -121,10 +121,10 @@ function renderTrIntro(status){
       '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
         (!isClosed ?
           '<button class="aw-btn aw-btn-primary" id="trStartRun" style="padding:11px 28px">'+
-            (cleared>=total ? 'Làm lại từ đầu' : 'Bắt đầu lượt '+(_trProgress.nextRunIndex||1))+
+            (cleared>=total ? 'Start over' : 'Start round '+(_trProgress.nextRunIndex||1))+
           '</button>' : '')+
         (_trProgress.runs>0 ?
-          '<button class="aw-btn aw-btn-ghost" id="trViewHistory" style="padding:11px 18px">Xem lịch sử</button>' : '')+
+          '<button class="aw-btn aw-btn-ghost" id="trViewHistory" style="padding:11px 18px">View history</button>' : '')+
       '</div>'+
     '</div>';
 
@@ -174,7 +174,7 @@ function renderTrQuestion(){
   var dirColor = q.direction==='en2vi' ? 'var(--aw-primary)' : '#8B5CF6';
 
   c.innerHTML =
-    '<button class="aw-btn aw-btn-ghost" id="trQBack" style="margin-bottom:10px;padding:6px 14px">← Danh sách</button>'+
+    '<button class="aw-btn aw-btn-ghost" id="trQBack" style="margin-bottom:10px;padding:6px 14px">← All sets</button>'+
     '<div style="max-width:600px;margin:0 auto">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
         '<div style="display:flex;align-items:center;gap:8px">'+
@@ -185,7 +185,7 @@ function renderTrQuestion(){
         '</div>'+
         '<span style="font-size:.78rem;color:var(--aw-ink-3)">Lượt '+(_trProgress.nextRunIndex||1)+'</span>'+
       '</div>'+
-      '<div style="background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);'+
+      '<div style="background:var(--aw-surface-2);border:none;border-radius:18px;'+
         'padding:18px 20px;font-size:1.12rem;line-height:1.6;margin-bottom:12px">'+
         AW.esc(q.source)+
       '</div>'+
@@ -194,16 +194,16 @@ function renderTrQuestion(){
         'placeholder="Nhập bản dịch của bạn…" style="resize:vertical;font-size:.95rem;line-height:1.6;width:100%;box-sizing:border-box"></textarea>'+
       '<div id="trGradeStatus" style="font-size:.8rem;color:var(--aw-ink-3);min-height:16px;margin-top:6px"></div>'+
       '<div style="display:flex;gap:10px;margin-top:12px">'+
-        '<button class="aw-btn aw-btn-primary" id="trSubmitBtn" style="flex:1;padding:12px">Nộp câu này</button>'+
+        '<button class="aw-btn aw-btn-primary" id="trSubmitBtn" style="flex:1;padding:12px">Submit sentence</button>'+
       '</div>'+
       '<div id="trFeedbackWrap" style="display:none;margin-top:16px;padding:16px 18px;'+
         'background:var(--aw-surface-2);border-radius:var(--aw-r);border:1px solid var(--aw-border-2)">'+
         '<div id="trFeedbackContent"></div>'+
         '<div id="trChestBtn" style="margin-top:10px;display:none">'+
-          '<button class="aw-btn aw-btn-ghost" id="addChestBtn" style="padding:7px 14px;font-size:.82rem">💎 Lưu vào rương</button>'+
+          '<button class="aw-btn aw-btn-ghost" id="addChestBtn" style="padding:7px 14px;font-size:.82rem">Save to chest</button>'+
         '</div>'+
         '<div style="margin-top:12px">'+
-          '<button class="aw-btn aw-btn-primary" id="trNextBtn" style="width:100%;padding:11px">Câu tiếp →</button>'+
+          '<button class="aw-btn aw-btn-primary" id="trNextBtn" style="width:100%;padding:11px">Next sentence</button>'+
         '</div>'+
       '</div>'+
     '</div>';
@@ -330,13 +330,13 @@ function showTrFeedback(item, answer, result){
     document.getElementById('addChestBtn').onclick = function(){
       AW.toast('💎 Đã lưu vào rương!','ok');
       _trBatch[_trBatchIdx]._savedToChest = true;
-      this.disabled = true; this.textContent = '✓ Đã lưu';
+      this.disabled = true; this.textContent = '✓ Saved';
     };
   }
 
   var nextBtn = document.getElementById('trNextBtn');
   if(!passed){
-    nextBtn.textContent = '🔄 Dịch lại câu này';
+    nextBtn.textContent = 'Translate again';
     nextBtn.style.background = 'var(--aw-danger)';
     nextBtn.onclick = function(){
       _trBatchResults = _trBatchResults.filter(function(r){ return r.itemId !== item.id; });
@@ -348,7 +348,7 @@ function showTrFeedback(item, answer, result){
       document.getElementById('trGradeStatus').textContent = '';
     };
   } else {
-    nextBtn.textContent = 'Câu tiếp →';
+    nextBtn.textContent = 'Next sentence';
     nextBtn.style.background = '';
     nextBtn.onclick = function(){
       _trBatchIdx++;
@@ -404,7 +404,7 @@ function renderTrRunResult(){
 
   c.innerHTML =
     '<div style="max-width:520px;margin:16px auto;text-align:center;background:var(--aw-surface);'+
-      'border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:28px 24px">'+
+      'border:none;border-radius:18px;padding:28px 24px">'+
       '<div style="font-size:2.8rem;font-weight:800;color:'+scCol+'">'+runScore+'%</div>'+
       '<div style="font-size:.95rem;font-weight:700;margin:6px 0 16px;color:'+scCol+'">'+
         (passed ? '✅ Đạt lượt này!' : '❌ Chưa đạt — thử lại nhé')+
@@ -420,10 +420,10 @@ function renderTrRunResult(){
         '<p style="font-size:.86rem;color:var(--aw-ink-3);margin-bottom:16px">Cần ≥ '+(_trSet.passScore||85)+'% để mở lượt tiếp.</p>' : '')+
       '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'+
         (passed&&cleared<total30 ?
-          '<button class="aw-btn aw-btn-primary" id="trContinue" style="padding:11px 24px">Làm tiếp 7 câu →</button>' : '')+
+          '<button class="aw-btn aw-btn-primary" id="trContinue" style="padding:11px 24px">Do 7 more</button>' : '')+
         (!passed ?
-          '<button class="aw-btn aw-btn-primary" id="trRetry" style="padding:11px 22px">Làm lại lượt này</button>' : '')+
-        '<button class="aw-btn aw-btn-ghost" id="trBackList" style="padding:11px 18px">← Danh sách</button>'+
+          '<button class="aw-btn aw-btn-primary" id="trRetry" style="padding:11px 22px">Redo this round</button>' : '')+
+        '<button class="aw-btn aw-btn-ghost" id="trBackList" style="padding:11px 18px">← All sets</button>'+
       '</div>'+
     '</div>';
 
@@ -450,8 +450,8 @@ function renderTrHistory(){
     var total   = (_trSet.items||[]).length;
     var pct     = total ? Math.round(cleared/total*100) : 0;
     c.innerHTML =
-      '<button class="aw-btn aw-btn-ghost" id="trHistBack" style="margin-bottom:14px;padding:6px 14px">← Giới thiệu</button>'+
-      '<div style="max-width:520px;margin:0 auto;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:22px 24px">'+
+      '<button class="aw-btn aw-btn-ghost" id="trHistBack" style="margin-bottom:14px;padding:6px 14px">← Overview</button>'+
+      '<div style="max-width:520px;margin:0 auto;background:var(--aw-surface);border:none;border-radius:20px;box-shadow:var(--aw-shadow);padding:22px 24px">'+
         '<h4 style="font-family:var(--aw-font-display);margin:0 0 14px">📊 Kết quả của bạn</h4>'+
         '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px">'+
           '<div style="text-align:center"><b style="font-size:1.3rem">'+p.runs+'</b><br><span style="font-size:.72rem;color:var(--aw-ink-3)">Lượt làm</span></div>'+

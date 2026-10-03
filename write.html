@@ -4,51 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- App icon: SVG data URI — no file, no extra request, no 404 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%230A6EBD'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%230A6EBD'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<meta name="theme-color" content="#0A6EBD">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#5661E0">
 <title>Write · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
   /* ── Resizable split pane (write page) ── */
-  .aw-write-grid{display:flex;align-items:stretch;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);overflow:hidden;box-shadow:var(--aw-shadow)}
+  .aw-write-grid{display:flex;align-items:stretch;border:none;border-radius:var(--aw-r-lg);overflow:hidden;box-shadow:var(--aw-shadow);background:var(--aw-surface)}
   .aw-write-pane-left{flex:0 0 50%;min-width:280px;max-width:80%;overflow:hidden}
   .aw-write-pane-right{flex:1 1 0;min-width:180px;overflow:hidden}
-  .aw-write-divider{width:6px;background:var(--aw-border-2);cursor:col-resize;flex:0 0 6px;position:relative;transition:background .15s;user-select:none}
+  .aw-write-divider{width:6px;background:var(--aw-bg);cursor:col-resize;flex:0 0 6px;position:relative;transition:background .15s;user-select:none}
   .aw-write-divider:hover,.aw-write-divider.dragging{background:var(--aw-primary)}
   .aw-write-divider::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:32px;border-radius:2px;background:rgba(255,255,255,.6)}
   @media(max-width:960px){.aw-write-grid{flex-direction:column}.aw-write-divider{display:none}.aw-write-pane-left,.aw-write-pane-right{flex:none;width:100%;max-width:100%}}
-  .aw-prompt-box{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:18px 20px;margin-bottom:16px}
-  .aw-prompt-box h4{margin:0 0 6px;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:var(--aw-primary);font-weight:700}
+  .aw-prompt-box{background:var(--aw-surface-2);border:none;border-radius:20px;padding:18px 22px;margin-bottom:16px}
+  .aw-prompt-box h4{margin:0 0 8px;font-size:.82rem;color:var(--aw-primary-hv);font-weight:700}
   .aw-prompt-text{color:var(--aw-ink);line-height:1.6;font-size:.95rem;white-space:pre-wrap}
-  .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r) var(--aw-r) 0 0;background:var(--aw-surface-2);flex-wrap:wrap}
-  .aw-tb-btn{width:32px;height:32px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
+  .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:none;border-radius:16px;background:var(--aw-surface-2);flex-wrap:wrap;margin-bottom:6px}
+  .aw-tb-btn{width:36px;height:36px;border:none;background:none;border-radius:10px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
   .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
   .aw-hl-btn{width:24px;height:24px;border:1.5px solid rgba(0,0,0,.12);border-radius:6px;cursor:pointer;margin:0 2px;padding:0;transition:transform .1s}
   .aw-hl-btn:hover{transform:scale(1.15)}
   .aw-hl-clear{background:#fff !important;color:var(--aw-ink-3);font-size:.7rem;display:grid;place-items:center}
-  .aw-grade-ov{position:fixed;inset:0;background:rgba(16,34,46,.55);backdrop-filter:blur(3px);z-index:700;display:none;align-items:center;justify-content:center}
+  .aw-grade-ov{position:fixed;inset:0;background:rgba(30,33,66,.45);backdrop-filter:blur(3px);z-index:700;display:none;align-items:center;justify-content:center}
   .aw-grade-ov.show{display:flex}
-  .aw-grade-card{background:#fff;border-radius:20px;padding:38px 44px;box-shadow:0 24px 70px rgba(0,0,0,.3);text-align:center;max-width:420px;width:90%}
+  .aw-grade-card{background:#fff;border-radius:28px;padding:38px 44px;box-shadow:var(--aw-shadow-lg);text-align:center;max-width:420px;width:90%}
   .aw-grade-card h3{font-family:var(--aw-font-display);font-size:1.15rem;margin:18px 0 16px;color:var(--aw-primary);min-height:1.4em;transition:opacity .2s}
   .aw-grade-spin{width:52px;height:52px;border:4px solid var(--aw-primary-lt);border-top-color:var(--aw-primary);border-radius:50%;margin:0 auto;animation:awspin .8s linear infinite}
   @keyframes awspin{to{transform:rotate(360deg)}}
   .aw-grade-bar{height:8px;background:var(--aw-surface-2);border-radius:5px;overflow:hidden;margin:6px 0}
-  .aw-grade-fill{height:100%;width:0;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:5px;transition:width .6s ease}
+  .aw-grade-fill{height:100%;width:0;background:linear-gradient(90deg,#5661E0,#7C84EE);border-radius:5px;transition:width .6s ease}
   .aw-grade-sub{font-size:.82rem;color:var(--aw-ink-3);margin:12px 0 0}
-  .aw-editor{min-height:calc(100vh - 300px);border:none;border-top:1px solid var(--aw-border);padding:20px 24px;font-family:var(--aw-font-body);font-size:1rem;line-height:1.8;color:var(--aw-ink);background:var(--aw-surface);outline:none;overflow-y:auto;resize:none;white-space:pre-wrap}
-  .aw-editor:focus{border-color:var(--aw-primary);box-shadow:inset 0 0 0 1px var(--aw-primary)}
+  .aw-editor{min-height:calc(100vh - 300px);border:none;border-radius:16px;padding:14px 26px 24px 64px;font-family:var(--aw-font-essay);font-size:1.12rem;line-height:34px;color:var(--aw-ink);outline:none;overflow-y:auto;resize:none;white-space:pre-wrap;
+    background-color:var(--aw-surface);
+    background-image:linear-gradient(90deg,transparent 44px,#F6C9C0 44px,#F6C9C0 46px,transparent 46px),
+                     repeating-linear-gradient(180deg,transparent 0,transparent 33px,#E7E9FB 33px,#E7E9FB 34px);
+    background-attachment:local;background-position:0 14px}
+  .aw-editor:focus{box-shadow:inset 0 0 0 2px var(--aw-primary-lt)}
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
-  .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:var(--aw-primary)}
-  .aw-side-panel{background:var(--aw-surface-2);border-left:1px solid var(--aw-border-2);padding:18px;height:calc(100vh - 140px);overflow-y:auto;position:sticky;top:0;display:flex;flex-direction:column}
+  .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:#fff;background:var(--aw-primary-dk);padding:6px 14px;border-radius:999px;font-variant-numeric:tabular-nums}
+  .aw-side-panel{background:var(--aw-surface);border-left:none;padding:18px;height:calc(100vh - 140px);overflow-y:auto;position:sticky;top:0;display:flex;flex-direction:column}
   .aw-side-panel h3{margin:0 0 10px;font-size:.95rem;font-weight:700;color:var(--aw-ink)}
 
   /* Notepad */
-  .aw-notepad-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--aw-ink-3);margin-bottom:6px}
+  .aw-notepad-label{font-size:.85rem;font-weight:700;color:var(--aw-ink);margin-bottom:6px}
   .aw-notepad-hint{font-size:.73rem;color:var(--aw-ink-3);margin-bottom:8px;line-height:1.4}
-  #draftNote{flex:1;width:100%;min-height:0;height:100%;border:1.5px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px 12px;font-family:var(--aw-font-body);font-size:.88rem;line-height:1.6;resize:none;outline:none;background:#fffdf5;color:var(--aw-ink);box-sizing:border-box}
-  #draftNote:focus{border-color:#E0A32E;background:#fffef8}
+  #draftNote{flex:1;width:100%;min-height:0;height:100%;border:1.5px solid transparent;border-radius:16px;padding:12px 14px;font-family:var(--aw-font-body);font-size:.9rem;line-height:1.6;resize:none;outline:none;background:var(--aw-surface-2);color:var(--aw-ink);box-sizing:border-box}
+  #draftNote:focus{border-color:var(--aw-primary);background:#fff}
   #draftNote::placeholder{color:var(--aw-ink-3)}
 
   /* CEFR vocab panel (post-submit) */
@@ -65,7 +69,7 @@
   .aw-vocab-word{font-size:.75rem;padding:2px 8px;border-radius:12px;font-weight:600}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .aw-band{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-  .aw-band-circ{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto}
+  .aw-band-circ{width:72px;height:72px;border-radius:50%;background:var(--aw-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto}
   .aw-band-num{font-size:1.7rem;font-weight:800;color:#fff;line-height:1;font-family:var(--aw-font-display)}
   .aw-band-lbl{font-size:.5rem;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:.1em}
   .aw-crit{margin-bottom:12px}
@@ -73,9 +77,9 @@
   .aw-crit-name{color:var(--aw-ink-2);font-weight:500}
   .aw-crit-val{font-weight:700;color:var(--aw-ink)}
   .aw-bar{height:7px;background:var(--aw-border-2);border-radius:4px;overflow:hidden}
-  .aw-bar-fill{height:100%;background:linear-gradient(90deg,var(--aw-primary),#0A93BD);border-radius:4px;width:0;transition:width .5s ease}
+  .aw-bar-fill{height:100%;background:var(--aw-primary);border-radius:4px;width:0;transition:width .5s ease}
   .aw-fb-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
-  .aw-fb-block h4{margin:0 0 8px;font-size:.82rem;color:var(--aw-primary);text-transform:uppercase;letter-spacing:.04em}
+  .aw-fb-block h4{margin:0 0 8px;font-size:.9rem;color:var(--aw-primary-hv)}
   .aw-voc-stack{display:flex;height:14px;border-radius:7px;overflow:hidden;margin-bottom:16px;background:var(--aw-surface-2)}
   .aw-voc-stack>div{transition:width .5s ease}
   .aw-voc-rows{margin-bottom:14px}
@@ -102,20 +106,20 @@
   .aw-fb-item{font-size:.86rem;line-height:1.5;color:var(--aw-ink-2);margin-bottom:8px;padding-left:10px;border-left:2px solid var(--aw-border)}
   .aw-fb-item b{color:var(--aw-ink)}
   .err-mark{color:var(--aw-danger);text-decoration:line-through}
-  .fix-mark{color:var(--aw-writing);font-weight:600}
+  .fix-mark{color:var(--aw-accent);font-weight:600}
   .aw-revs{display:flex;flex-direction:column;gap:8px}
-  .aw-rev{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px 12px;font-size:.84rem}
+  .aw-rev{background:var(--aw-surface-2);border:none;border-radius:14px;padding:10px 12px;font-size:.84rem}
   .aw-rev-top{display:flex;justify-content:space-between;font-weight:600;color:var(--aw-ink);margin-bottom:3px}
   .aw-rev-note{color:var(--aw-ink-3);font-size:.78rem}
-  .aw-keybar{display:flex;gap:8px;align-items:center;background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:10px 12px;margin-bottom:16px;font-size:.85rem;color:#7A5A0A}
-  .aw-keybar input{flex:1;border:1px solid #E8C566;border-radius:6px;padding:6px 10px;font-family:var(--aw-font-body)}
-  .aw-key-link{font-size:.78rem;color:#0A6EBD;text-decoration:none;font-weight:600;white-space:nowrap}
+  .aw-keybar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#FFF1C7;border:none;border-radius:20px;padding:10px 12px 10px 18px;margin-bottom:16px;font-size:.85rem;color:#7A5A00}
+  .aw-keybar input{flex:1;min-width:180px;min-height:40px;border:none;border-radius:999px;padding:6px 16px;font-family:var(--aw-font-body);background:#fff}
+  .aw-key-link{font-size:.78rem;color:#5661E0;text-decoration:none;font-weight:600;white-space:nowrap}
   .aw-key-link:hover{text-decoration:underline}
-  .aw-tutor-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4)}
+  .aw-tutor-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:var(--aw-primary-dk);color:#fff;border:none;border-radius:999px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:var(--aw-shadow-lg)}
   .aw-tutor-fab:hover{transform:translateY(-2px)}
   /* ── Unified FAB menu — replaces 3 separate floating buttons ── */
   .aw-fab-menu{position:fixed;bottom:24px;right:24px;z-index:400;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
-  .aw-fab-main{background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:13px 20px;font-weight:700;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4);display:flex;align-items:center;gap:8px;transition:transform .15s}
+  .aw-fab-main{background:var(--aw-primary-dk);color:#fff;border:none;border-radius:999px;padding:13px 22px;font-weight:700;font-size:.95rem;cursor:pointer;box-shadow:var(--aw-shadow-lg);display:flex;align-items:center;gap:8px;transition:transform .15s}
   .aw-fab-main:hover{transform:translateY(-2px)}
   .aw-fab-items{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
   .aw-fab-item{display:flex;align-items:center;gap:8px;opacity:0;transform:translateY(10px) scale(.95);pointer-events:none;transition:opacity .18s,transform .18s}
@@ -123,42 +127,42 @@
   .aw-fab-menu.open .aw-fab-item:nth-child(1){transition-delay:.05s}
   .aw-fab-menu.open .aw-fab-item:nth-child(2){transition-delay:.1s}
   .aw-fab-menu.open .aw-fab-item:nth-child(3){transition-delay:.15s}
-  .aw-fab-label{background:rgba(0,0,0,.65);color:#fff;font-size:.78rem;padding:4px 10px;border-radius:20px;white-space:nowrap;pointer-events:none}
-  .aw-fab-btn{border:none;border-radius:50%;width:46px;height:46px;cursor:pointer;font-size:1.3rem;box-shadow:0 4px 14px rgba(0,0,0,.25);flex-shrink:0;transition:transform .15s}
+  .aw-fab-label{background:var(--aw-primary-dk);color:#fff;font-size:.78rem;padding:4px 10px;border-radius:20px;white-space:nowrap;pointer-events:none}
+  .aw-fab-btn{border:none;border-radius:50%;width:48px;height:48px;cursor:pointer;font-size:1.3rem;box-shadow:var(--aw-shadow);flex-shrink:0;transition:transform .15s}
   .aw-fab-btn:hover{transform:scale(1.12)}
-  .aw-fab-btn.ask{background:linear-gradient(135deg,#2E9367,#1E7E42)}
-  .aw-fab-btn.hand{background:#fff;border:2px solid #E0A32E}
-  .aw-fab-btn.hand.raised{background:#E0A32E}
-  .aw-fab-btn.board{background:#fff;border:2px solid #5B3FD6}
-  .aw-board-ov{position:fixed;inset:0;background:rgba(16,34,46,.7);z-index:700;display:none;flex-direction:column}
+  .aw-fab-btn.ask{background:var(--aw-primary)}
+  .aw-fab-btn.hand{background:#fff;border:2px solid var(--aw-accent)}
+  .aw-fab-btn.hand.raised{background:var(--aw-accent)}
+  .aw-fab-btn.board{background:#fff;border:2px solid var(--aw-primary)}
+  .aw-board-ov{position:fixed;inset:0;background:rgba(30,33,66,.6);z-index:700;display:none;flex-direction:column}
   .aw-board-ov.show{display:flex}
   .aw-board-ov-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff}
   .aw-board-ov iframe{flex:1;border:none;width:100%;background:#fff}
   /* teacher's inline marks, mirrored from the teacher dashboard */
   .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
-  .aw-sug-ins{color:var(--aw-writing);font-weight:600}
-  .aw-hl{background:#FFF1A8;border-radius:2px;padding:0 1px}
+  .aw-sug-ins{color:var(--aw-accent);font-weight:600}
+  .aw-hl{background:#FFE9A8;border-radius:2px;padding:0 1px}
   .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help}
-  .aw-tfb-fab{position:fixed;bottom:186px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3);display:none}
+  .aw-tfb-fab{position:fixed;bottom:186px;right:24px;z-index:400;background:var(--aw-accent);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:var(--aw-shadow-lg);display:none}
   .aw-tfb-fab.show{display:block}
-  .aw-tfb-bg{position:fixed;inset:0;background:rgba(16,34,46,.6);z-index:800;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-tfb-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:800;display:none;align-items:center;justify-content:center;padding:20px}
   .aw-tfb-bg.show{display:flex}
-  .aw-tfb-modal{background:#fff;border-radius:18px;max-width:820px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 30px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
-  .aw-tfb-body{font-size:1rem;line-height:1.9;white-space:pre-wrap;border:1px solid var(--aw-border-2);border-radius:10px;padding:18px;margin-top:14px}
-  .aw-ask-head{background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
-  .aw-tutor-panel{position:fixed;bottom:24px;right:24px;z-index:401;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 48px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden}
+  .aw-tfb-modal{background:#fff;border-radius:24px;max-width:820px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 30px;box-shadow:var(--aw-shadow-lg)}
+  .aw-tfb-body{font-family:var(--aw-font-essay);font-size:1.05rem;line-height:1.85;white-space:pre-wrap;border:none;background:var(--aw-surface-2);border-radius:18px;padding:20px;margin-top:14px}
+  .aw-ask-head{background:var(--aw-primary);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .aw-tutor-panel{position:fixed;bottom:24px;right:24px;z-index:401;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 48px);background:#fff;border-radius:24px;box-shadow:var(--aw-shadow-lg);display:none;flex-direction:column;overflow:hidden}
   .aw-tutor-panel.show{display:flex}
-  .aw-tutor-head{background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .aw-tutor-head{background:var(--aw-primary-dk);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
   .aw-tutor-badge{display:inline-block;background:rgba(255,255,255,.2);font-size:.66rem;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle}
   .aw-tutor-warn{background:#FFF6E5;color:#7A5A0A;font-size:.76rem;padding:9px 14px;line-height:1.4;border-bottom:1px solid #F5D98A}
   .aw-tutor-keybar{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--aw-border-2)}
-  .aw-tutor-keybar input{flex:1;border:1px solid var(--aw-border);border-radius:6px;padding:6px 10px;font-size:.85rem}
+  .aw-tutor-keybar input{flex:1;border:none;background:var(--aw-surface-2);border-radius:999px;padding:6px 10px;font-size:.85rem}
   .aw-tutor-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
   .aw-tutor-msg{max-width:85%;padding:9px 13px;border-radius:14px;font-size:.88rem;line-height:1.45;white-space:pre-wrap}
   .aw-tutor-msg.bot{background:var(--aw-surface-2);color:var(--aw-ink);align-self:flex-start;border-bottom-left-radius:4px}
   .aw-tutor-msg.user{background:var(--aw-primary);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
   .aw-tutor-input{display:flex;gap:6px;padding:12px;border-top:1px solid var(--aw-border-2)}
-  .aw-tutor-input input{flex:1;border:1px solid var(--aw-border);border-radius:20px;padding:9px 14px;font-size:.88rem}
+  .aw-tutor-input input{flex:1;border:none;background:var(--aw-surface-2);border-radius:999px;padding:9px 14px;font-size:.88rem}
 </style>
 </head>
 <body>
@@ -179,7 +183,7 @@ if (window.AW && !AW.groqKey) {
 </script>
 <script>
 if (typeof AW === 'undefined') {
-  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#1E2142"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
   throw new Error('aw-common.js not loaded');
 }
 
@@ -205,15 +209,10 @@ if (MODE === 'homework' && !DURATION_MIN) DURATION_MIN = 60;
 
 var MODE_LABEL = { free:'Free Writing', homework:'Homework', inclass:'In-class Practice' }[MODE] || 'Free Writing';
 
-var nav = [
-  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
-  { id:'library', label:'Library', icon:'library', href:'library.html' },
-  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
-  { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
-];
+var nav = AW.navFor('student', 'modes');
 
 var content = AW.renderShell({
-  mount:'app', nav:nav, eyebrow:'Student Interface', title:MODE_LABEL
+  mount:'app', nav:nav, eyebrow:'', title:MODE_LABEL
 });
 
 var startTime = new Date();
@@ -266,7 +265,7 @@ content.innerHTML =
       (function(){
         var isFreeNoPrompt = (MODE==='free' && !qp.get('prompt'));
         if (isFreeNoPrompt) {
-          return '<div class="aw-prompt-box" style="border:1.5px dashed var(--aw-primary-lt)"><h4>✍️ Your prompt (đề bài)</h4>' +
+          return '<div class="aw-prompt-box" style="border:1.5px dashed var(--aw-primary-lt)"><h4>Your prompt</h4>' +
             '<textarea id="freePrompt" placeholder="Paste or type the IELTS Task 2 question you want to practice… The AI will grade your essay against this prompt." ' +
             'style="width:100%;min-height:70px;border:1px solid var(--aw-border);border-radius:8px;padding:10px;font-size:.92rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box"></textarea>' +
             '<p style="margin:8px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 No prompt? You can still write freely — the AI will assess general Task 2 quality.</p></div>';
@@ -274,7 +273,7 @@ content.innerHTML =
         var ttBadge = TASK_TYPE === 'task1'
           ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
           : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
-        return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt'+ttBadge+'</h4>' +
+        return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt '+ttBadge+'</h4>' +
           '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +
@@ -301,7 +300,7 @@ content.innerHTML =
       '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button class="aw-btn aw-btn-ghost" id="pauseBtn" style="flex:0 0 auto;padding:12px 18px" title="Save your draft and continue later">⏸ Pause &amp; Save</button>' +
-        '<button class="aw-btn aw-btn-primary" id="gradeBtn" style="flex:1">'+(AW_AI_ON?'Get AI Feedback':'Nộp bài')+'</button>' +
+        '<button class="aw-btn aw-btn-primary" id="gradeBtn" style="flex:1">'+(AW_AI_ON?'Get AI feedback':'Submit')+'</button>' +
       '</div>' +
     '</div>' +  /* end aw-write-pane-left */
     '<div class="aw-write-divider" id="writeDivider" title="Kéo để thay đổi kích thước"></div>' +
@@ -346,7 +345,7 @@ content.innerHTML =
         '<div><b>Ask your teacher</b><span class="aw-tutor-badge">'+(MODE==='inclass'?'Live — during class':'Homework')+'</span></div>' +
         '<button id="askClose" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">×</button>' +
       '</div>' +
-      '<div class="aw-tutor-warn" style="background:#EAF2FB;color:#0A4A7A;border-color:#B8D4F0">💡 Your teacher will see your question'+(MODE==='inclass'?' live in class':'')+' and answer it. You\'ll find the reply in <b>Q&A with Teacher</b>.</div>' +
+      '<div class="aw-tutor-warn" style="background:#EEF0FD;color:#1E2142;border-color:#B8D4F0">💡 Your teacher will see your question'+(MODE==='inclass'?' live in class':'')+' and answer it. You\'ll find the reply in <b>Q&A with Teacher</b>.</div>' +
       '<div class="aw-tutor-msgs" id="askMsgs"></div>' +
       '<div class="aw-tutor-input"><input id="askInput" placeholder="Type your question to the teacher…"><button class="aw-btn aw-btn-primary" id="askSend" style="padding:8px 14px">Send</button></div>' +
     '</div>');
@@ -542,7 +541,7 @@ function showTimeUpWarning() {
   banner.innerHTML =
     '<span>⏱ Hết giờ! Hãy bấm <b>Get AI Feedback</b> để nộp bài ngay.</span>'+
     '<button id="timeUpSubmitBtn" style="background:#fff;color:#B42318;border:none;border-radius:8px;'+
-    'padding:6px 16px;font-weight:700;cursor:pointer;font-size:.9rem">📤 Nộp bài ngay</button>';
+    'padding:6px 16px;font-weight:700;cursor:pointer;font-size:.9rem">Submit now</button>';
   document.body.prepend(banner);
 
   document.getElementById('timeUpSubmitBtn').onclick = function(){
@@ -565,7 +564,7 @@ function showTimeUpBanner(wordCount, result) {
   bannerEl.style.cssText =
     'position:fixed;bottom:0;left:0;right:0;z-index:1500;padding:18px 20px;'+
     'background:'+(isShort?'#FEF2F2':'#EAF6EF')+';'+
-    'border-top:3px solid '+(isShort?'#E8362A':'#1A9E5C')+';'+
+    'border-top:3px solid '+(isShort?'#E8362A':'#16825B')+';'+
     'box-shadow:0 -4px 24px rgba(0,0,0,.15);font-family:var(--aw-font-body)';
 
   var msg = '';
@@ -599,7 +598,7 @@ function showTimeUpBanner(wordCount, result) {
             '👉 <b>Gợi ý:</b> Hãy dùng <b>Free Writing</b> để viết lại bài này với đề tương tự — '+
             'không bị giới hạn thời gian, AI sẽ chấm đầy đủ để bạn thấy điểm thật của mình.'+
           '</p>'+
-          '<a href="student.html" style="display:inline-block;padding:8px 18px;background:#B42318;color:#fff;border-radius:20px;font-size:.85rem;font-weight:700;text-decoration:none">→ Về trang chính để Free Writing</a>'+
+          '<a href="student.html" style="display:inline-block;padding:8px 18px;background:#B42318;color:#fff;border-radius:20px;font-size:.85rem;font-weight:700;text-decoration:none">Go to Free Writing</a>'+
         '</div>'+
       '</div>';
   } else {
@@ -692,9 +691,9 @@ function submitWithoutAI(btn, text){
   if (writePhase !== 'editing') return;
   // confirm already shown by gradeBtnHandler; isGrading already true
   isGrading = true;
-  var orig = AW_AI_ON ? 'Get AI Feedback' : 'Nộp bài';
+  var orig = AW_AI_ON ? 'Get AI feedback' : 'Submit';
   btn.disabled=true;
-  btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
+  btn.innerHTML='<span class="aw-spin"></span> Submitting…';
   writePhase = 'grading';
 
   saveResultSafe({
@@ -798,11 +797,11 @@ function showSaveFailed(msg, retryFn){
     '<h3 style="margin:0 0 8px;font-size:1.08rem;color:#B45309">AI đã chấm xong nhưng CHƯA LƯU được bài</h3>'+
     '<p style="margin:0 0 6px;font-size:.87rem;color:#3D4D5A;line-height:1.55">Máy chủ đang quá tải. <b>Đừng tải lại trang.</b> Bấm nút dưới để lưu lại — bài chỉ được tính <b>1 lần</b> dù bấm nhiều lần.</p>'+
     '<p style="margin:0 0 16px;font-size:.76rem;color:#8A96A3">'+AW.esc(msg||'')+'</p>'+
-    '<button id="saveFailRetry" style="width:100%;padding:12px;background:#1A7A3C;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem">💾 Lưu lại ngay</button>'+
+    '<button id="saveFailRetry" style="width:100%;padding:12px;background:#1A7A3C;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem">Save again now</button>'+
   '</div>';
   document.body.appendChild(ov);
   document.getElementById('saveFailRetry').onclick = function(){
-    this.disabled = true; this.textContent = '⏳ Đang lưu…';
+    this.disabled = true; this.textContent = 'Saving…';
     ov.remove(); retryFn();
   };
 }
@@ -833,7 +832,7 @@ function resetForRetry(){
 
   var btn = document.getElementById('gradeBtn');
   if (btn) {
-    btn.textContent = AW_AI_ON ? 'Get AI Feedback' : 'Nộp bài';
+    btn.textContent = AW_AI_ON ? 'Get AI feedback' : 'Submit';
     btn.disabled = false;
     btn.onclick = gradeBtnHandler;
   }
@@ -849,7 +848,7 @@ function transitionToGraded(btn, usedAttempts, done){
 
   if (MODE === 'free') {
     btn.disabled = false;
-    btn.textContent = '↺ Re-try (viết lại)';
+    btn.textContent = '↺ Re-try';
     btn.onclick = function(){
       if (!confirm('Bắt đầu lượt mới?\nBài viết và feedback hiện tại sẽ bị xoá.\nBạn sẽ phải viết lại từ đầu.')) return;
       resetForRetry();
@@ -859,12 +858,12 @@ function transitionToGraded(btn, usedAttempts, done){
     if (window.clearDraft) window.clearDraft();
     if (done) {
       lockEditor('Bạn đã hoàn thành đủ 3 lần cho bài này.');
-      btn.disabled=true; btn.textContent='Đã hoàn thành 3/3';
+      btn.disabled=true; btn.textContent='Completed 3/3';
     } else {
       editor.setAttribute('contenteditable','false');
       editor.style.background='var(--aw-surface-2)';
       btn.disabled=true;
-      btn.textContent='Đã nộp lần '+usedAttempts+'/3 – Re-try trong My Progress';
+      btn.textContent='Submitted '+usedAttempts+'/3, re-try from My Progress';
       var ss=document.getElementById('submitStatus');
       if(ss) ss.style.display='';
     }
@@ -996,7 +995,7 @@ function gradeBtnHandler(){
         writePhase = 'graded'; isGrading = false;
         AW.toast(saveRes.error||'This task is locked.','err',4000);
         lockEditor(saveRes.error||'This task is locked.');
-        btn.disabled=true; btn.textContent='Đã khoá';
+        btn.disabled=true; btn.textContent='Locked';
         return;
       }
       if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
@@ -1015,7 +1014,7 @@ function gradeBtnHandler(){
       var exportTopicId = (saveRes && saveRes.data && saveRes.data.topicId) || TOPIC_ID;
       if (exportTopicId && sess.studentId) {
         var docBtnEl = document.getElementById('docExportBtn');
-        if (docBtnEl) { docBtnEl.disabled=true; docBtnEl.innerHTML='<span class="aw-spin"></span> Đang tạo Google Doc…'; }
+        if (docBtnEl) { docBtnEl.disabled=true; docBtnEl.innerHTML='<span class="aw-spin"></span> Creating Google Doc…'; }
         AW.api('write.exportDoc', { studentId:sess.studentId, topicId:exportTopicId, mode:MODE })
           .then(function(docRes){
             var wrap = document.getElementById('docBtnWrap');
@@ -1023,24 +1022,24 @@ function gradeBtnHandler(){
             if (docRes && docRes.success && docRes.data && docRes.data.url) {
               wrap.innerHTML='<a href="'+AW.esc(docRes.data.url)+'" target="_blank" rel="noopener" '+
                 'class="aw-btn aw-btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;font-size:.9rem;text-decoration:none">'+
-                '📄 Mở Feedback Google Doc →</a>'+
+                'Open feedback Google Doc</a>'+
                 '<p style="font-size:.73rem;color:var(--aw-ink-3);margin:5px 0 0;text-align:center">Nhận xét chi tiết Grammar · LR · CC · '+c1label+'</p>';
             } else {
-              wrap.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc (thử lại)</button>';
+              wrap.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">Create Google Doc (retry)</button>';
               AW.toast('Không tạo được Google Doc tự động — thử lại thủ công.','err',4000);
             }
           }).catch(function(){
             var wrap2=document.getElementById('docBtnWrap');
-            if(wrap2) wrap2.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc (thử lại)</button>';
+            if(wrap2) wrap2.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">Create Google Doc (retry)</button>';
           });
       } else {
         // No topicId available — show manual button
         var wrap3=document.getElementById('docBtnWrap');
-        if(wrap3) wrap3.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">📄 Tạo Google Doc</button>';
+        if(wrap3) wrap3.innerHTML='<button class="aw-btn aw-btn-ghost" style="width:100%" onclick="manualExportDoc()">Create Google Doc</button>';
       }
   }
   function persist(){
-    if (btn) btn.innerHTML = '<span class="aw-spin"></span> Đang lưu…';
+    if (btn) btn.innerHTML = '<span class="aw-spin"></span> Saving…';
     return saveResultSafe(_savePayload).then(function(saveRes){
       if (saveRes && (saveRes.success || saveRes.locked)) { hideGradingOverlay(); afterSaved(saveRes); }
       else showSaveFailed((saveRes && saveRes.error) || 'Không lưu được bài', persist);
@@ -1092,7 +1091,7 @@ function renderChartViewer(fileId){
   box.className = 'aw-chart-viewer';
   box.innerHTML =
     '<div class="aw-chart-viewer-head">'+
-      '<span style="font-size:.78rem;font-weight:700;text-transform:uppercase;color:#1A9E5C;letter-spacing:.04em">📊 Chart / Diagram</span>'+
+      '<span style="font-size:.78rem;font-weight:700;text-transform:uppercase;color:#16825B;letter-spacing:.04em">📊 Chart / Diagram</span>'+
       '<span style="font-size:.72rem;color:var(--aw-ink-3);font-weight:400;margin-left:6px">— refer to this while writing</span>'+
       '<div style="margin-left:auto;display:flex;align-items:center;gap:4px">'+
         '<button id="chartZoomOut" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">−</button>'+
@@ -1105,7 +1104,7 @@ function renderChartViewer(fileId){
       '<img id="chartImg" src="'+thumbUrl+'" alt="Chart" style="display:block;margin:0 auto;width:100%;max-width:640px;cursor:zoom-in">'+
     '</div>'+
     '<p style="margin:5px 0 0;font-size:.72rem;color:var(--aw-ink-3)">'+
-      'Hình không hiện? <a href="'+driveUrl+'" target="_blank" style="color:var(--aw-primary)">Mở trên Drive</a> và để tab đó khi viết bài.'+
+      'Hình không hiện? <a href="'+driveUrl+'" target="_blank" style="color:var(--aw-primary)">Open in Drive</a> và để tab đó khi viết bài.'+
     '</p>';
   // Insert before prompt box
   var promptBox = document.querySelector('.aw-prompt-box');
@@ -1154,7 +1153,7 @@ function friendlyGradeError(e) {
 
   // Student cancelled Groq popup
   if (r.indexOf('huỷ') !== -1 || r.indexOf('cancel') !== -1)
-    return { icon:'↩️', title:'Chưa nhập Groq key', msg:'Bài chưa được chấm. Bấm <b>Get AI Feedback</b> lại, nhập Groq API key để tiếp tục.', hint:'Lấy key miễn phí tại <a href="https://console.groq.com/keys" target="_blank" style="color:var(--aw-primary)">console.groq.com/keys</a>', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
+    return { icon:'↩️', title:'Chưa nhập Groq key', msg:'Bài chưa được chấm. Bấm <b>Get AI Feedback</b> lại, nhập Groq API key để tiếp tục.', hint:'Lấy key miễn phí tại <a href="https://console.groq.com/keys" target="_blank" style="color:var(--aw-primary)">console.groq.com/keys</a>', color:'#4B5075', bg:'#F0F2F5', retry:true };
 
   // Invalid / expired API key
   if (r.indexOf('api_key') !== -1 || r.indexOf('invalid key') !== -1 || r.indexOf('api key') !== -1 || r.indexOf('401') !== -1 || r.indexOf('403') !== -1)
@@ -1162,7 +1161,7 @@ function friendlyGradeError(e) {
 
   // Model deprecated / not found
   if (r.indexOf('no longer available') !== -1 || r.indexOf('deprecated') !== -1 || r.indexOf('not found') !== -1 || r.indexOf('404') !== -1)
-    return { icon:'🔄', title:'Phiên bản AI đã được cập nhật', msg:'Hệ thống đang chuyển sang phiên bản AI mới hơn. Vui lòng bấm lại để thử.', hint:'Nếu vẫn lỗi sau 2–3 lần thử, hãy báo giảng viên.', color:'#0A6EBD', bg:'#EBF4FF', retry:true };
+    return { icon:'🔄', title:'Phiên bản AI đã được cập nhật', msg:'Hệ thống đang chuyển sang phiên bản AI mới hơn. Vui lòng bấm lại để thử.', hint:'Nếu vẫn lỗi sau 2–3 lần thử, hãy báo giảng viên.', color:'#5661E0', bg:'#EEF0FD', retry:true };
 
   // Empty response
   if (r.indexOf('trống') !== -1 || r.indexOf('empty') !== -1 || r.indexOf('rỗng') !== -1)
@@ -1174,7 +1173,7 @@ function friendlyGradeError(e) {
 
   // Network / timeout
   if (r.indexOf('timeout') !== -1 || r.indexOf('network') !== -1 || r.indexOf('fetch') !== -1 || r.indexOf('failed to fetch') !== -1)
-    return { icon:'📶', title:'Mất kết nối mạng', msg:'Không thể kết nối đến máy chủ AI. Kiểm tra wifi/mạng rồi bấm lại.', hint:'', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
+    return { icon:'📶', title:'Mất kết nối mạng', msg:'Không thể kết nối đến máy chủ AI. Kiểm tra wifi/mạng rồi bấm lại.', hint:'', color:'#4B5075', bg:'#F0F2F5', retry:true };
 
   // Groq invalid key
   if (r.indexOf('groq key') !== -1 || r.indexOf('groq') !== -1 && (r.indexOf('không hợp lệ') !== -1 || r.indexOf('invalid') !== -1))
@@ -1193,7 +1192,7 @@ function friendlyGradeError(e) {
     return { icon:'🔑', title:'Cần Groq API key dự phòng', msg:'Gemini hết lượt và bạn chưa có Groq key dự phòng. Bấm lại để nhập key Groq miễn phí.', hint:'Lấy key tại: <a href="https://console.groq.com/keys" target="_blank" style="color:var(--aw-primary)">console.groq.com/keys</a>', color:'#B42318', bg:'#FEF2F2', retry:true };
 
   // Generic fallback — now with more context
-  return { icon:'⚠️', title:'AI chấm thất bại', msg:'Đã xảy ra lỗi tạm thời. Bấm <b>Thử lại ngay</b> — thường tự khắc phục.', hint:'Nếu lỗi tiếp tục sau 3 lần thử, hãy báo giảng viên biết.', color:'#5B6B7A', bg:'#F0F2F5', retry:true };
+  return { icon:'⚠️', title:'AI chấm thất bại', msg:'Đã xảy ra lỗi tạm thời. Bấm <b>Try again now</b> — thường tự khắc phục.', hint:'Nếu lỗi tiếp tục sau 3 lần thử, hãy báo giảng viên biết.', color:'#4B5075', bg:'#F0F2F5', retry:true };
 }
 
 /*── showGradeError ──*/
@@ -1228,15 +1227,15 @@ function showGradeError(e, gradeBtn, origBtnText) {
     '<div style="font-size:2.4rem;margin-bottom:10px">'+info.icon+'</div>'+
     '<h3 style="margin:0 0 8px;font-size:1.1rem;color:'+info.color+'">'+info.title+'</h3>'+
     '<p style="margin:0 0 6px;font-size:.88rem;color:#3D4D5A;line-height:1.55">'+info.msg+'</p>'+
-    (info.hint?'<p style="margin:0 0 18px;font-size:.78rem;color:#5B6B7A;line-height:1.4">'+info.hint+'</p>':'<div style="margin-bottom:18px"></div>')+
+    (info.hint?'<p style="margin:0 0 18px;font-size:.78rem;color:#4B5075;line-height:1.4">'+info.hint+'</p>':'<div style="margin-bottom:18px"></div>')+
     (info.retry
-      ? '<button id="gradeErrRetry" style="width:100%;padding:12px;background:'+info.color+';color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem;margin-bottom:10px">🔄 Thử lại ngay</button>'
+      ? '<button id="gradeErrRetry" style="width:100%;padding:12px;background:'+info.color+';color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem;margin-bottom:10px">Try again now</button>'
       : '')+
     (hasContent
-      ? '<button id="saveNoAIBtn" style="width:100%;padding:12px;background:#1A7A3C;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem;margin-bottom:8px">💾 Lưu bài ngay — GV sẽ chấm tay</button>'+
-        '<p style="font-size:.74rem;color:#5B6B7A;margin:0 0 14px;line-height:1.4">Bài của bạn ('+AW.wordCount(text)+' từ) sẽ lưu vào kết quả của GV.<br>Bạn có thể dùng <b>Free Writing</b> để nhận AI feedback sau.</p>'
+      ? '<button id="saveNoAIBtn" style="width:100%;padding:12px;background:#1A7A3C;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:.95rem;margin-bottom:8px">Save essay, teacher grades by hand</button>'+
+        '<p style="font-size:.74rem;color:#4B5075;margin:0 0 14px;line-height:1.4">Bài của bạn ('+AW.wordCount(text)+' từ) sẽ lưu vào kết quả của GV.<br>Bạn có thể dùng <b>Free Writing</b> để nhận AI feedback sau.</p>'
       : '<p style="font-size:.84rem;color:#B42318;margin:0 0 14px">⚠ Chưa có nội dung bài viết để lưu.</p>')+
-    '<button id="gradeErrClose" style="width:100%;padding:9px;background:none;color:#9CA3AF;border:1px solid #E5E7EB;border-radius:10px;cursor:pointer;font-size:.85rem">Bỏ qua — thử lại sau</button>';
+    '<button id="gradeErrClose" style="width:100%;padding:9px;background:none;color:#9CA3AF;border:1px solid #E5E7EB;border-radius:10px;cursor:pointer;font-size:.85rem">Skip, try later</button>';
 
   overlay.appendChild(card);
   document.body.appendChild(overlay);
@@ -1250,7 +1249,7 @@ function showGradeError(e, gradeBtn, origBtnText) {
 
   var saveBtn = document.getElementById('saveNoAIBtn');
   if (saveBtn && hasContent) saveBtn.onclick = function(){
-    saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu…';
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
     isGrading = true;   // block the main button while saving
     saveResultSafe({
       studentId:sess.studentId, name:sess.name, mode:MODE,
@@ -1266,7 +1265,7 @@ function showGradeError(e, gradeBtn, origBtnText) {
         if (window.clearDraft) window.clearDraft();
         sendHeartbeat('Submitted');
         var gb = document.getElementById('gradeBtn');
-        if (gb) { gb.disabled=true; gb.textContent='✓ Đã lưu'; }
+        if (gb) { gb.disabled=true; gb.textContent='✓ Saved'; }
         var ok = document.createElement('div');
         ok.style.cssText='position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(16,34,46,.65);padding:20px;font-family:var(--aw-font-body)';
         ok.innerHTML='<div style="background:#fff;border-radius:20px;padding:32px 24px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3);text-align:center">'+
@@ -1277,7 +1276,7 @@ function showGradeError(e, gradeBtn, origBtnText) {
         '</div>';
         document.body.appendChild(ok);
       } else {
-        saveBtn.disabled=false; saveBtn.textContent='💾 Lưu bài ngay — GV sẽ chấm tay';
+        saveBtn.disabled=false; saveBtn.textContent='Save essay, teacher grades by hand';
         AW.toast('Lỗi lưu bài, thử lại.','err');
       }
     });
@@ -1455,7 +1454,7 @@ function renderFeedback(r){
     '<div id="docBtnWrap" style="margin-bottom:14px">'+
       '<button id="docExportBtn" class="aw-btn aw-btn-primary" style="width:100%;padding:12px;font-size:.9rem">'+
         '<span id="docBtnSpinner" class="aw-spin" style="display:none"></span>'+
-        '📄 Đang tạo Google Doc…'+
+        '📄 Creating Google Doc…'+
       '</button>'+
     '</div>';
 
@@ -1491,8 +1490,8 @@ var lastVocabProfile = null;
 /* Difficulty ramp: green (easy) → blue → yellow → orange → red (hardest),
    so the colour alone tells the student how demanding the vocabulary is. */
 var CEFR_BANDS = [
-  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',          color:'#2E9367' },
-  { key:'B1',   label:'B1',    sub:'Trung cấp',       color:'#0A6EBD' },
+  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',          color:'#16825B' },
+  { key:'B1',   label:'B1',    sub:'Trung cấp',       color:'#5661E0' },
   { key:'B2',   label:'B2',    sub:'Trên trung cấp',  color:'#E0A32E' },
   { key:'C1',   label:'C1',    sub:'Nâng cao',        color:'#E8730C' },
   { key:'C2',   label:'C2',    sub:'Thành thạo',      color:'#D93025' }
@@ -1513,7 +1512,7 @@ function renderVocabWords(p){
     {key:'C2',label:'C2 · Thành thạo',color:'#D93025'},
     {key:'C1',label:'C1 · Nâng cao',color:'#E8730C'},
     {key:'B2',label:'B2 · Trên trung cấp',color:'#E0A32E'},
-    {key:'B1',label:'B1 · Trung cấp',color:'#0A6EBD'}
+    {key:'B1',label:'B1 · Trung cấp',color:'#5661E0'}
   ];
   var blocks=bands.map(function(b){
     var words=p.wordsByLevel[b.key]||[];
@@ -1543,7 +1542,7 @@ function manualExportDoc(){
     return;
   }
   var btn = event && event.target;
-  if (btn) { btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span> Đang tạo…'; }
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span> Creating…'; }
   AW.api('write.exportDoc',{ studentId:sess.studentId, topicId:TOPIC_ID, mode:MODE })
     .then(function(res){
       var wrap = document.getElementById('docBtnWrap');
@@ -1551,14 +1550,14 @@ function manualExportDoc(){
         if (wrap) wrap.innerHTML =
           '<a href="'+AW.esc(res.data.url)+'" target="_blank" rel="noopener" '+
           'class="aw-btn aw-btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;font-size:.9rem;text-decoration:none">'+
-          '📄 Mở Feedback Google Doc →</a>';
+          'Open feedback Google Doc</a>';
         window.open(res.data.url,'_blank');
       } else {
-        if (btn){btn.disabled=false;btn.textContent='📄 Tạo Google Doc (thử lại)';}
+        if (btn){btn.disabled=false;btn.textContent='Create Google Doc (retry)';}
         AW.toast((res&&res.error)||'Không tạo được Google Doc','err',4000);
       }
     }).catch(function(){
-      if(btn){btn.disabled=false;btn.textContent='📄 Tạo Google Doc (thử lại)';}
+      if(btn){btn.disabled=false;btn.textContent='Create Google Doc (retry)';}
       AW.toast('Lỗi kết nối','err');
     });
 }
@@ -1604,7 +1603,7 @@ function renderVocabStats(p){
     {key:'C2', label:'C2 · Thành thạo', color:'#D93025'},
     {key:'C1', label:'C1 · Nâng cao',   color:'#E8730C'},
     {key:'B2', label:'B2 · Trên TT',    color:'#E0A32E'},
-    {key:'B1', label:'B1 · Trung cấp',  color:'#0A6EBD'}
+    {key:'B1', label:'B1 · Trung cấp',  color:'#5661E0'}
   ];
   var wordHtml = wordBands.map(function(b){
     var words = (p.wordsByLevel && p.wordsByLevel[b.key]) || [];
@@ -1818,7 +1817,7 @@ if (MODE === 'inclass' || MODE === 'homework') {
       if(document.getElementById('tfbFab')) return;
       var fab=document.createElement('button');
       fab.id='tfbFab'; fab.className='aw-tfb-fab';
-      fab.textContent='\ud83d\udce9 Nhận xét của GV';
+      fab.textContent='Teacher feedback';
       fab.onclick=openTeacherFeedback;
       document.body.appendChild(fab);
       var bg=document.createElement('div');
@@ -1835,7 +1834,7 @@ if (MODE === 'inclass' || MODE === 'homework') {
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'+
           '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.15rem">\ud83d\udce9 Nhận xét của giáo viên ('+hist.length+' lần)</h2>'+
           '<button class="aw-btn" style="background:#E5484D;color:#fff;font-weight:600;padding:6px 18px" '+
-            'onclick="document.getElementById(\'tfbBg\').classList.remove(\'show\')">\u2715 Đóng</button>'+
+            'onclick="document.getElementById(\'tfbBg\').classList.remove(\'show\')">Close</button>'+
         '</div>'+
         '<p style="margin:0 0 12px;font-size:.78rem;color:var(--aw-ink-3)">'+
           '<span style="color:var(--aw-danger)">gạch đỏ = lỗi</span>, '+
@@ -1871,7 +1870,7 @@ if (MODE === 'inclass' || MODE === 'homework') {
         var fab = document.getElementById('tfbFab');
         if(fab){
           fab.classList.add('show');
-          fab.textContent = '\ud83d\udce9 Nhận xét GV' + (newCount>1?' ('+newCount+')':'');
+          fab.textContent = 'Teacher feedback' + (newCount>1?' ('+newCount+')':'');
         }
         if(primed && newCount > lastPushCount){
           AW.toast('Giáo viên vừa gửi nhận xét mới!','ok',5000);
@@ -1899,7 +1898,7 @@ AW.loadClassAI(sess.class, function(on){
     var tf = document.getElementById('tutorFab'); if (tf) tf.remove();
     var tp = document.getElementById('tutorPanel'); if (tp) tp.remove();
     var gb = document.getElementById('gradeBtn');
-    if (gb && !gb.disabled) gb.textContent = 'Nộp bài';
+    if (gb && !gb.disabled) gb.textContent = 'Submit';
     if (MODE === 'free') {
       lockEditor('Free Writing không khả dụng cho lớp của bạn.');
       AW.toast('Mục này không khả dụng cho lớp của bạn.','err',5000);

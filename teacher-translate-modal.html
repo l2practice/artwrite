@@ -219,7 +219,7 @@
         <div class="aw-field" style="flex:1;min-width:150px">
           <label class="aw-label">Lớp <span style="color:var(--aw-danger)">*</span></label>
           <select class="aw-input" id="tr-class">
-            <option value="">— Chọn lớp —</option>
+            <option value="">— Select class —</option>
           </select>
         </div>
         <div class="aw-field" style="flex:1;min-width:200px">
@@ -255,13 +255,13 @@
         </div>
       </div>
 
-      <div style="background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:14px 16px">
+      <div style="background:var(--aw-surface-2);border:none;border-radius:18px;padding:14px 16px">
         <div style="font-size:.85rem;font-weight:600;margin-bottom:8px">✨ Sinh 30 câu bằng AI
           <span style="font-size:.75rem;font-weight:400;color:var(--aw-ink-3)">(dùng Gemini key giáo viên)</span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="aw-btn aw-btn-primary" id="trGenBtn" onclick="trGenItems()" style="padding:8px 16px">✨ Sinh câu</button>
-          <button class="aw-btn aw-btn-ghost" id="trRegenBtn" style="display:none;padding:8px 16px" onclick="trGenItems()">↺ Thử lại</button>
+          <button class="aw-btn aw-btn-primary" id="trGenBtn" onclick="trGenItems()" style="padding:8px 16px">Generate sentences</button>
+          <button class="aw-btn aw-btn-ghost" id="trRegenBtn" style="display:none;padding:8px 16px" onclick="trGenItems()">↺ Try again</button>
         </div>
         <div id="trGenStatus" style="font-size:.8rem;color:var(--aw-ink-3);margin-top:8px;min-height:16px"></div>
       </div>
@@ -289,8 +289,8 @@
     </div>
 
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--aw-border-2)">
-      <button class="aw-btn aw-btn-ghost" onclick="closeTrModal()">Huỷ</button>
-      <button class="aw-btn aw-btn-primary" id="trSaveBtn" disabled onclick="saveTrSet()" style="padding:10px 22px">💾 Lưu &amp; Launch</button>
+      <button class="aw-btn aw-btn-ghost" onclick="closeTrModal()">Cancel</button>
+      <button class="aw-btn aw-btn-primary" id="trSaveBtn" disabled onclick="saveTrSet()" style="padding:10px 22px">Save &amp; launch</button>
     </div>
   </div>
 </div>
@@ -371,7 +371,7 @@ function navItems() {
     { id:'assign',    label:'Assignments',  icon:'assign'   },
     { id:'hwbook',    label:'HW Book',      icon:'hw'       },
     { id:'translate', label:'Dịch',         icon:'reading'  },
-    { id:'results',   label:'Results',      icon:'results'  },
+    { id:'results',   label:'Results',      icon:'progress'  },
     { id:'settings',  label:'Settings',     icon:'edit'     },
   ];
 }
@@ -1011,7 +1011,7 @@ function renderResults() {
     '<div class="vm-toolbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">'+
       // Class selector — required before loading
       '<select class="vm-select" id="rsCls" style="min-width:170px">'+
-        '<option value="">— Chọn lớp —</option>'+
+        '<option value="">— Select class —</option>'+
         state.classes.map(function(cl){
           return '<option value="'+VM.esc(cl.classId)+'">'+VM.esc(cl.className)+'</option>';
         }).join('')+
@@ -1098,11 +1098,11 @@ function renderResults() {
             return;
           }
           wrap.innerHTML =
-            '<div style="padding:16px;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);margin-bottom:12px">'+
+            '<div style="padding:16px;background:var(--aw-surface-2);border:none;border-radius:18px;margin-bottom:12px">'+
               '<label class="aw-label" style="margin-bottom:8px;display:block">Chọn bài Luyện Dịch</label>'+
               '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
                 '<select class="vm-select" id="rsTranslateSet" style="min-width:220px">'+
-                  '<option value="">— Chọn bài —</option>'+
+                  '<option value="">— Select set —</option>'+
                   sets.map(function(s){
                     return '<option value="'+AW.esc(s.setId)+'">'+AW.esc(s.title)+
                       ' ('+s.sessionStatus+')'+'</option>';
@@ -1293,7 +1293,7 @@ function renderResults() {
           '</div>'+
           '<button class="vm-btn vm-btn-sm" id="rMarkAbsent" '+
             'style="background:#F59E0B;color:#3A2600;border:none;border-radius:8px;padding:9px 16px;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap">'+
-            '⚠️ Đánh vắng & giao từ phạt'+
+            'Mark absent & assign penalty'+
           '</button>'+
         '</div>':'') +
       '<div style="overflow-x:auto">'+
@@ -1399,17 +1399,17 @@ function renderResults() {
         'SV nào chưa nộp sẽ bị ghi vắng và nhận toàn bộ từ sai của cả lớp.\n'+
         'Hành động này không thể hoàn tác.'
       )) return;
-      btn.disabled=true; btn.textContent='⏳ Đang xử lý…';
+      btn.disabled=true; btn.textContent='Working…';
       VM.api('result.absentPenalty',{
         assignmentId: aid, classId: a.classId, title: a.title||'', total:(a.vocab||[]).length
       }).then(function(res){
-        btn.disabled=false; btn.textContent='⚠️ Đánh vắng & giao từ phạt';
+        btn.disabled=false; btn.textContent='Mark absent & assign penalty';
         if(res&&res.success){
           var d=res.data||{};
           if(d.absentCount===0) VM.toast('Tất cả SV đã nộp bài — không có vắng.','warn',5000);
           else { VM.toast(d.absentCount+' SV vắng đã ghi nhận. '+d.allMissedCount+' từ phạt.','ok',5000); load(RS.page); }
         } else VM.toast('Lỗi: '+(res&&res.error),'err',5000);
-      }).catch(function(){ btn.disabled=false; btn.textContent='⚠️ Đánh vắng & giao từ phạt'; VM.toast('Lỗi kết nối.','err'); });
+      }).catch(function(){ btn.disabled=false; btn.textContent='Mark absent & assign penalty'; VM.toast('Lỗi kết nối.','err'); });
     };
   }
 
@@ -1668,7 +1668,7 @@ function openTrModal(){
   // Populate class dropdown from state.classes
   var sel = document.getElementById('tr-class');
   if (sel) {
-    sel.innerHTML = '<option value="">— Chọn lớp —</option>'+
+    sel.innerHTML = '<option value="">— Select class —</option>'+
       (state.classes||[]).map(function(c){
         return '<option value="'+AW.esc(c.classId)+'">'+AW.esc(c.className)+'</option>';
       }).join('');
@@ -1870,7 +1870,7 @@ function renderTranslate(){
   loadClasses(function(){
     // Build class filter toolbar
     var clsHtml = '<select class="vm-select" id="trClsFilter" style="min-width:160px">'+
-      '<option value="">Tất cả lớp</option>'+
+      '<option value="">All classes</option>'+
       (state.classes||[]).map(function(cl){
         return '<option value="'+AW.esc(cl.classId)+'">'+AW.esc(cl.className)+'</option>';
       }).join('')+
@@ -1900,7 +1900,7 @@ function renderTranslate(){
                 '<button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.76rem" data-tr-stats="'+AW.esc(s.setId)+'">Stats</button>'+
                 ' <button class="aw-btn" style="padding:4px 10px;font-size:.76rem;color:'+(active?'var(--aw-danger)':'var(--aw-writing)')+'" '+
                   'data-tr-toggle="'+AW.esc(s.setId)+'" data-tr-active="'+(active?'1':'0')+'">'+
-                  (active?'Đóng':'Mở lại')+'</button>'+
+                  (active?'Close':'Reopen')+'</button>'+
               '</td>'+
             '</tr>';
           }).join('')
@@ -1909,7 +1909,7 @@ function renderTranslate(){
         c.innerHTML =
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'+
             clsHtml+
-            '<button class="aw-btn aw-btn-primary" onclick="openTrModal()">+ Tạo bài dịch</button>'+
+            '<button class="aw-btn aw-btn-primary" onclick="openTrModal()">+ New translation set</button>'+
             '<span style="font-size:.78rem;color:var(--aw-ink-3)">'+sets.length+' bài</span>'+
           '</div>'+
           '<div style="overflow-x:auto;border:1px solid var(--aw-border-2);border-radius:var(--aw-r)">'+
