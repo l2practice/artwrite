@@ -131,15 +131,7 @@ if (!sess) throw 'redirect';
    Resolved before the first render so Free Writing never flashes unlocked. */
 var AW_AI_ON = true;
 
-var nav = [
-  { id:'modes',   label:'Practice', icon:'modes', active:true },
-  { id:'board',   label:'Board', icon:'board', href:'board.html' },
-  { id:'library', label:'Library', icon:'library', href:'library.html' },
-  { id:'progress',label:'Progress', icon:'progress' },
-  { id:'translate',label:'Translate', icon:'translate' },
-  { id:'qa',      label:'Q&A', icon:'chat' },
-  { id:'settings',label:'Settings', icon:'settings' },
-];
+var nav = AW.navFor('student', 'modes', true);
 
 var content = AW.renderShell({
   mount:'app', nav:nav, eyebrow:'', title:'Practice Modes',
@@ -550,80 +542,83 @@ function renderProgress(){
 
   if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No matching submissions.</p></div>';return;}
 
-  function scoreCell(w,gi,wi,cl){
-    cl=cl||'';
-    if(!w) return '<td class="'+cl+'">—</td><td class="'+cl+'">—</td><td class="'+cl+'">—</td><td class="'+cl+'">—</td>';
-    function tm(x){if(!x)return '—';var d=new Date(x);return isNaN(d)?x:(d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'));}
-    function du(s){if(!s)return '—';s=parseInt(s,10);if(isNaN(s))return '—';var m=Math.floor(s/60);return m+'m';}
-    var o=w.overall||w.teacher||'—';
-    var pop='TR '+(w.tr||'—')+' · CC '+(w.cc||'—')+' · LR '+(w.lr||'—')+' · GRA '+(w.gra||'—');
-    return '<td class="'+cl+'">'+tm(w.startTime)+'</td><td class="'+cl+'">'+tm(w.finishTime)+'</td><td class="'+cl+'">'+du(w.duration)+'</td>'+
-      '<td class="'+cl+'"><span class="p-score" data-gi="'+gi+'" data-wi="'+wi+'" title="Click to review">'+o+'<small>/9</small><span class="p-pop">'+pop+'</span></span></td>';
-  }
-  var writeLabels=[['First Write','pg-1'],['Second Write','pg-2'],['Third Write','pg-3'],['★ Best','pg-b']];
-  var top='<tr><th rowspan="2">Assigned / Deadline</th><th rowspan="2">Title</th><th rowspan="2">Prompt (đề bài)</th><th rowspan="2">Mode</th>';
-  writeLabels.forEach(function(l){top+='<th colspan="4" class="'+l[1]+'">'+l[0]+'</th>';});
-  top+='<th rowspan="2" class="pg-b">Attempt & Teacher Score</th><th rowspan="2"></th></tr><tr>';
-  writeLabels.forEach(function(l){top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Band</th>';});
-  top+='</tr>';
-
+  function dur(sec){ sec=parseInt(sec,10); if(isNaN(sec)||!sec) return ''; var m=Math.round(sec/60); return m>=60?(Math.floor(m/60)+'h '+(m%60)+'m'):(m+' min'); }
+  var st={done:0,bestSum:0,bestN:0,improved:0,scored:0};
   var body=rows.map(function(g){
-    var gi=(window._myGroups||[]).indexOf(g);
-    var w=g.writes||[];
+    var gi=(window._myGroups||[]).indexOf(g), w=g.writes||[], ts=g.teacherScore||{};
     var best=null,bestI=-1;
-    w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall))){best=x;bestI=xi;}});
-    var picks=[w[0],w[1],w[2],best];
-    var idxs=[0,1,2,bestI];
-    var groups=['pg-1','pg-2','pg-3','pg-b'];
-    var assigned=g.assignedDate?AW.fmtDate(g.assignedDate):'—';
-    var deadline=g.deadline?AW.fmtDate(g.deadline):'';
-    var dateCell='<div style="font-size:.78rem;line-height:1.5">'+
-      '<div style="color:var(--aw-writing);font-weight:700">'+assigned+'</div>'+
-      '<div style="font-size:.68rem;color:var(--aw-ink-3)">Assigned</div>'+
-      (deadline?'<div style="color:var(--aw-danger);margin-top:4px">'+deadline+'</div><div style="font-size:.68rem;color:var(--aw-ink-3)">Deadline</div>':'')+
-    '</div>';
-    var ts=g.teacherScore;
-    // teacher scoring cell — blank hint if not graded
-    var teacherCell;
-    if(ts && (ts.overall||ts.tr||ts.cc||ts.lr||ts.gra||ts.privateNote)){
-      teacherCell='<div style="font-size:.76rem;line-height:1.5;width:210px"><b>'+w.length+'/3</b> attempts'+
-        '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--aw-border-2)">'+
-        (ts.overall?'<div style="margin-bottom:2px"><b style="color:var(--aw-primary);font-size:.9rem">Teacher: '+ts.overall+'</b></div>':'')+
-        ((ts.tr||ts.cc||ts.lr||ts.gra)?'<div style="color:var(--aw-ink-2)">TR '+(ts.tr||'—')+' · CC '+(ts.cc||'—')+' · LR '+(ts.lr||'—')+' · GRA '+(ts.gra||'—')+'</div>':'')+
-        (ts.privateNote?'<div style="margin-top:5px;padding:6px;background:#EAF6EF;border-radius:6px;color:var(--aw-ink-2);white-space:normal;word-break:break-word"><b>💬 Teacher note:</b><br>'+AW.esc(ts.privateNote)+'</div>':'')+
-        '</div></div>';
-    } else {
-      teacherCell='<div style="font-size:.76rem;line-height:1.5;width:200px"><b>'+w.length+'/3</b> attempts'+
-        '<div style="margin-top:4px;color:var(--aw-ink-3);font-style:italic">Not graded by teacher yet</div></div>';
+    w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>best)){best=v;bestI=xi;}});
+    var vals=w.map(function(x){return parseFloat(x.overall);}).filter(function(v){return !isNaN(v);});
+    var change=vals.length>=2?vals[vals.length-1]-vals[0]:null;
+    if(w.length) st.done++;
+    if(best!==null){ st.bestSum+=best; st.bestN++; }
+    if(change>0) st.improved++;
+    if(ts.overall) st.scored++;
+    var slots=Math.max(g.mode==='free'?1:3, w.length), chips='';
+    for(var i=0;i<slots;i++){
+      var x=w[i];
+      if(!x){ chips+='<span class="res-try none"><b>–</b><span>Not yet</span></span>'; continue; }
+      var tip='Attempt '+(i+1)+' · TR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—');
+      chips+='<button type="button" class="res-try'+(i===bestI?' best':'')+'" data-gi="'+gi+'" data-wi="'+i+'" title="'+AW.esc(tip)+'">'+
+             '<b>'+AW.esc(String(x.overall||x.teacher||'—'))+'</b><span>'+(dur(x.duration)||'&nbsp;')+'</span></button>';
     }
-    var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
-    var tds='<td>'+dateCell+'</td>'+
-      '<td style="text-align:left;white-space:normal;word-break:break-word;min-width:150px;max-width:200px"><b>'+AW.esc(g.topic||'')+'</b></td>'+
-      '<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>'+
-      '<td><span class="aw-tag aw-tag-type" style="font-size:.7rem">'+AW.esc(modeLabel[g.mode]||g.mode)+'</span></td>';
-    picks.forEach(function(p,pi){ tds+=scoreCell(p,gi,idxs[pi],groups[pi]); });
-    tds+='<td class="pg-b">'+teacherCell+'</td>';
-    tds+=g.cleared ? '<td><span style="font-size:.75rem;color:#475467" title="Giáo viên đã lưu trữ bài này">🗄 Closed</span></td>' :
-      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">Re-try</button></td>';
-    return '<tr>'+tds+'</tr>';
+    var chg = change===null ? '<span class="res-chg" style="color:var(--aw-ink-3)">–</span>'
+      : '<span class="res-chg" style="color:'+(change>0?'#16825B':change<0?'#C2410C':'var(--aw-ink-2)')+'">'+(change>0?'▲ +':change<0?'▼ −':'')+Math.abs(change).toFixed(1)+'</span>';
+    var t1=g.taskType==='task1';
+    function sc(lbl,v,oa){ return '<span class="'+(oa?'oa':'')+(v?'':' none')+'"><small>'+lbl+'</small>'+(v?AW.esc(String(v)):'–')+'</span>'; }
+    var score='<div class="res-score-ro" title="'+(ts.overall?'Your teacher\'s score':'Not scored by your teacher yet')+'">'+
+      sc(t1?'TA':'TR',ts.tr)+sc('CC',ts.cc)+sc('LR',ts.lr)+sc('GR',ts.gra)+sc('All',ts.overall,true)+'</div>';
+    var when = g.latestTime ? AW.fmtDate(g.latestTime) : (g.assignedDate?AW.fmtDate(g.assignedDate):'');
+    var sub = (modeLabel[g.mode]||g.mode)+(when?' · '+when:'')+(g.deadline?' · due '+AW.fmtDate(g.deadline):'');
+    var action = g.cleared
+      ? '<span class="res-sub" title="Your teacher archived this task">Closed</span>'
+      : '<button type="button" class="res-ib" title="Write again" aria-label="Write again" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">'+RES_RETRY+'</button>';
+    return '<div class="res-row" data-gi="'+gi+'">'+
+      '<div class="res-who" style="min-width:0"><span style="min-width:0">'+
+        '<span class="res-nm" title="'+AW.esc(g.topic||'')+'">'+AW.esc(g.topic||'')+'<span class="res-tag'+(t1?' t1':'')+'">'+(t1?'T1':'T2')+'</span></span>'+
+        '<span class="res-sub">'+AW.esc(sub)+'</span></span></div>'+
+      '<div class="res-tries">'+chips+'</div>'+chg+score+
+      '<div class="res-acts">'+
+        (ts.privateNote?'<button type="button" class="res-ib has res-tn-btn" title="Teacher note" aria-label="Teacher note">'+AW.icon('chat')+'</button>':'')+
+        action+
+      '</div>'+
+      (ts.privateNote?'<div class="res-tnote"><b style="color:var(--aw-accent)">Your teacher</b><br>'+AW.esc(ts.privateNote)+'</div>':'')+
+    '</div>';
   }).join('');
-
-  box.innerHTML='<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 10px">💡 Click any <b>Band</b> score to review that attempt.</p>'+
-    '<div class="p-res-wrap" style="overflow-x:auto"><table class="p-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
-  AW.els('.p-score').forEach(function(c){
+  function tile(ic,bg,fg,label,val,hl){
+    return '<div class="res-tile'+(hl?' hl':'')+'"><span class="ic" style="background:'+bg+';color:'+fg+'">'+ic+'</span><span><span class="lb">'+label+'</span><span class="vl">'+val+'</span></span></div>';
+  }
+  box.innerHTML='<div class="res-tiles" style="margin-bottom:16px">'+
+      tile('✓','#DDF3EA','#1D6B4F','Tasks done',st.done)+
+      tile('B','#E3E6FD','#3B44B8','Average best band',st.bestN?(st.bestSum/st.bestN).toFixed(1):'–',true)+
+      tile('▲','#FFF1C7','#7A5A00','Improved',st.improved)+
+      tile('T','#FDE7D6','#9A3B0A','Scored by teacher',st.scored)+
+    '</div>'+
+    '<div class="res-list"><div class="res-grid stu">'+
+      '<div class="res-head"><span>Task</span><span>Attempts, best in color</span><span>Change</span>'+
+        '<span>Teacher score</span><span></span></div>'+
+      body+
+    '</div></div>'+
+    '<p style="font-size:.8rem;color:var(--aw-ink-3);margin:10px 4px 0">Click a score to see that attempt with its feedback. The boxes on the right are your teacher\'s score.</p>';
+  AW.els('.res-try[data-gi]').forEach(function(c){
     c.onclick=function(){ reviewGroupWrite(+c.dataset.gi,+c.dataset.wi); };
   });
+  AW.els('.res-tn-btn').forEach(function(b){ b.onclick=function(){ b.closest('.res-row').classList.toggle('open'); }; });
 }
+var RES_RETRY='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
 window.reviewGroupWrite=function(gi,wi){
+  // the attempt the student asked for last; a slower answer for an earlier
+  // click must not open on top of it
+  var want = window._reviewWant = gi+':'+wi;
   var g=(window._myGroups||[])[gi]; if(!g)return;
   var w=(g.writes||[])[wi]; if(!w){AW.toast('You have not completed this attempt yet.','ok');return;}
   // Firebase: essay + feedback are loaded only when an attempt is opened
   if (w.essay === undefined && w.essayId && !g.cleared){
-    AW.toast('Đang tải bài viết…');
+    AW.toast('Loading the essay…');
     AW.api('write.getEssay',{id:w.essayId}).then(function(res){
       if(!res||!res.success){ AW.toast((res&&res.error)||'Không tải được bài viết.','err'); return; }
       w.essay=res.data.essay; w.feedback=res.data.feedback;
-      reviewGroupWrite(gi,wi);
+      if (window._reviewWant === want) reviewGroupWrite(gi,wi);
     });
     return;
   }
@@ -830,7 +825,7 @@ window.openDiscuss=function(i){
     }).finally(function(){btn.disabled=false;btn.textContent='Send to teacher';});
   };
 };
-window.closeReview=function(){document.getElementById('reviewModal').classList.remove('show');};
+window.closeReview=function(){ window._reviewWant=null; document.getElementById('reviewModal').classList.remove('show');};
 window.exportGoogleDoc=function(i){
   var r=window._reviewRec||(window._myResults||[])[i]; if(!r)return;
   AW.toast('Đang mở file nhận xét…');

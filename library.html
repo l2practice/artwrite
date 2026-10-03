@@ -52,19 +52,7 @@ var sess = AW.session.require();
 if (!sess) throw 'redirect';
 var isTeacher = sess.role === 'teacher';
 
-var nav = isTeacher ? [
-  { id:'overview', label:'Overview', icon:'overview', href:'teacher.html' },
-  { id:'live',     label:'Live', icon:'live', href:'teacher.html#live' },
-  { id:'assignments', label:'Tasks', icon:'tasks', href:'teacher.html#assignments' },
-  { id:'results',  label:'Results', icon:'progress', href:'teacher.html#results' },
-  { id:'board',    label:'Board', icon:'board', href:'board.html' },
-  { id:'library',  label:'Library', icon:'library', active:true },
-] : [
-  { id:'modes',   label:'Practice', icon:'modes', href:'student.html' },
-  { id:'board',   label:'Board', icon:'board', href:'board.html' },
-  { id:'library', label:'Library', icon:'library', active:true },
-  { id:'progress',label:'Progress', icon:'progress', href:'student.html#progress' },
-];
+var nav = AW.navFor(isTeacher ? 'teacher' : 'student', 'library');
 
 var content = AW.renderShell({
   mount:'app', nav:nav,

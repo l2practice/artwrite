@@ -228,6 +228,7 @@
     s.textContent = [
       '.aw-tai-fab{position:fixed;bottom:24px;right:24px;z-index:850;background:var(--aw-primary-dk);color:#fff;border:none;border-radius:999px;padding:13px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:var(--aw-shadow-lg);font-family:var(--aw-font-body);transition:transform .15s}',
       '.aw-tai-fab:hover{transform:translateY(-2px)}',
+      '@media(max-width:760px){.aw-tai-fab{bottom:14px;right:14px;padding:10px 16px;font-size:.85rem}}',
       '.aw-tai-panel{position:fixed;bottom:24px;right:24px;z-index:851;width:420px;max-width:calc(100vw - 32px);height:600px;max-height:calc(100vh - 48px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.32);display:none;flex-direction:column;overflow:hidden;font-family:var(--aw-font-body)}',
       '.aw-tai-panel.show{display:flex}',
       '.aw-tai-head{background:var(--aw-primary-dk);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-shrink:0}',

@@ -209,12 +209,7 @@ if (MODE === 'homework' && !DURATION_MIN) DURATION_MIN = 60;
 
 var MODE_LABEL = { free:'Free Writing', homework:'Homework', inclass:'In-class Practice' }[MODE] || 'Free Writing';
 
-var nav = [
-  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
-  { id:'library', label:'Library', icon:'library', href:'library.html' },
-  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
-  { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
-];
+var nav = AW.navFor('student', 'modes');
 
 var content = AW.renderShell({
   mount:'app', nav:nav, eyebrow:'', title:MODE_LABEL

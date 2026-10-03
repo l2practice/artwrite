@@ -81,7 +81,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=1'); })
+        .then(function () { return loadScript('fbdata.js?v=2'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
@@ -311,6 +311,31 @@
   };
   AW.icon = function (name) { return IC[name] || ''; };
 
+  /*── One sidebar for every page ─────────────────────
+     AW.navFor(role, active, home): the same short rail everywhere. On its own
+     home page (teacher.html / student.html) a section is switched in place
+     (data-nav); from any other page it is a link back to that section.   */
+  var NAV = {
+    teacher: { home: 'teacher.html', items: [
+      ['overview', 'Overview', 'overview'], ['live', 'Live', 'live'], ['assignments', 'Tasks', 'tasks'],
+      ['results', 'Results', 'progress'], ['queries', 'Questions', 'chat'],
+      ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
+      ['settings', 'Settings', 'settings'] ] },
+    student: { home: 'student.html', items: [
+      ['modes', 'Practice', 'modes'], ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
+      ['progress', 'Progress', 'progress'], ['translate', 'Translate', 'translate'], ['qa', 'Q&A', 'chat'],
+      ['settings', 'Settings', 'settings'] ] }
+  };
+  AW.navFor = function (role, active, onHome) {
+    var n = NAV[role === 'teacher' ? 'teacher' : 'student'];
+    return n.items.map(function (it) {
+      var o = { id: it[0], label: it[1], icon: it[2], active: it[0] === active };
+      if (it[3]) o.href = it[3];
+      else if (!onHome) o.href = n.home + (it[0] === n.items[0][0] ? '' : '#' + it[0]);
+      return o;
+    });
+  };
+
   /*── SHELL renderer (sidebar + topbar) ────────────*/
   AW.renderShell = function (opts) {
     var s = AW.session.get() || {};
@@ -453,16 +478,69 @@
     Rotates at 3 AM (server-side day index) OR after every 5 logins.
     Renders into the element with id given (default 'todaysWord').
   */
+  /* The word comes from the Vocabulary tab of the Sheet (Apps Script). The
+     last answer is kept on the device and shown at once; if Apps Script is
+     slow, fails or the tab is empty, a built-in list takes over, so the
+     card never disappears. Same day rule as the server: changes at 3 AM. */
+  var TW_KEY = 'aw_todays_word';
+  var TW_FALLBACK = [
+    ['substantial','səbˈstænʃl','B2','đáng kể, lớn','considerable, significant','There was a substantial increase in online shopping.'],
+    ['decline','dɪˈklaɪn','B2','giảm, sụt giảm','decrease, fall, drop','The number of visitors declined sharply after 2010.'],
+    ['fluctuate','ˈflʌktʃueɪt','C1','dao động, lên xuống thất thường','vary, rise and fall','Oil prices fluctuated throughout the decade.'],
+    ['proportion','prəˈpɔːʃn','B2','tỉ lệ, phần','share, percentage, ratio','A larger proportion of women chose education.'],
+    ['approximately','əˈprɒksɪmətli','B2','xấp xỉ, khoảng','roughly, around, about','Approximately half of the respondents agreed.'],
+    ['detrimental','ˌdetrɪˈmentl','C1','có hại','harmful, damaging','Lack of sleep is detrimental to health.'],
+    ['beneficial','ˌbenɪˈfɪʃl','B2','có lợi','advantageous, helpful','Regular exercise is beneficial for students.'],
+    ['inevitable','ɪnˈevɪtəbl','B2','tất yếu, không tránh khỏi','unavoidable, certain','Some job losses are inevitable as technology advances.'],
+    ['ubiquitous','juːˈbɪkwɪtəs','C1','có mặt khắp nơi','widespread, pervasive','Smartphones have become ubiquitous in modern life.'],
+    ['stringent','ˈstrɪndʒənt','C1','nghiêm ngặt','strict, rigorous','Governments should impose stringent rules on pollution.'],
+    ['alleviate','əˈliːvieɪt','C1','làm giảm nhẹ','ease, relieve, reduce','Building more housing could alleviate the problem.'],
+    ['exacerbate','ɪɡˈzæsəbeɪt','C1','làm trầm trọng thêm','worsen, aggravate','Heavy traffic exacerbates air pollution in cities.'],
+    ['predominantly','prɪˈdɒmɪnəntli','C1','chủ yếu','mainly, mostly, largely','The workforce is predominantly young.'],
+    ['considerable','kənˈsɪdərəbl','B2','đáng kể','substantial, significant','The project requires considerable investment.'],
+    ['phenomenon','fəˈnɒmɪnən','B2','hiện tượng','occurrence, trend','Remote work is a relatively new phenomenon.'],
+    ['sustainable','səˈsteɪnəbl','B2','bền vững','viable, long-lasting','Cities need more sustainable forms of transport.'],
+    ['accessible','əkˈsesəbl','B2','dễ tiếp cận','available, reachable','Online courses make education more accessible.'],
+    ['diminish','dɪˈmɪnɪʃ','C1','giảm bớt, thu nhỏ','reduce, lessen','The importance of printed books has diminished.'],
+    ['surge','sɜːdʒ','C1','tăng vọt','soar, rocket, jump','There was a surge in demand during the holidays.'],
+    ['plummet','ˈplʌmɪt','C1','giảm mạnh, lao dốc','plunge, drop sharply','Sales plummeted in the final quarter.'],
+    ['comparable','ˈkɒmpərəbl','B2','tương đương','similar, equivalent','The figures for the two cities were comparable.'],
+    ['subsequently','ˈsʌbsɪkwəntli','B2','sau đó','later, afterwards','The rate peaked in 2015 and subsequently fell.'],
+    ['crucial','ˈkruːʃl','B2','then chốt, rất quan trọng','vital, essential','Teachers play a crucial role in shaping attitudes.'],
+    ['controversial','ˌkɒntrəˈvɜːʃl','B2','gây tranh cãi','debatable, contentious','Animal testing remains a controversial issue.'],
+    ['incentive','ɪnˈsentɪv','B2','động lực, khuyến khích','motivation, reward','Tax cuts give companies an incentive to invest.'],
+    ['mitigate','ˈmɪtɪɡeɪt','C1','giảm thiểu','lessen, reduce, ease','Planting trees can mitigate the effects of heat.'],
+    ['disparity','dɪˈspærəti','C1','sự chênh lệch','gap, difference, inequality','There is a wide disparity between urban and rural incomes.'],
+    ['steadily','ˈstedɪli','B2','đều đặn, từ từ','gradually, consistently','The population grew steadily over the period.'],
+    ['outweigh','ˌaʊtˈweɪ','C1','vượt trội hơn','exceed, override','The benefits clearly outweigh the drawbacks.'],
+    ['compelling','kəmˈpelɪŋ','C1','thuyết phục','convincing, persuasive','There is compelling evidence that diet affects mood.']
+  ];
+  function twDayIndex() { return Math.floor((Date.now() - 3 * 3600000) / 86400000); }
+  function twPack(r) { return { word: r[0], ipa: r[1], band: r[2], meaningVi: r[3], synonyms: r[4].split(/,\s*/), examples: [r[5]] }; }
+  function twFallback() {
+    var n = TW_FALLBACK.length, i = ((twDayIndex() % n) + n) % n;
+    return { current: twPack(TW_FALLBACK[i]), previous: twPack(TW_FALLBACK[(i - 1 + n) % n]) };
+  }
   AW.renderTodaysWord = function (mountId) {
     var mount = document.getElementById(mountId || 'todaysWord');
     if (!mount) return;
-    // Don't force an index — let the server pick by epochDay (UTC+7 after 3am)
-    // so every student sees the same word each calendar day.
-    // Only pass index when the teacher/student explicitly requests a different word
-    // (e.g. a "Next word" button passes { force: true, index: N }).
+    var day = twDayIndex(), cached = null;
+    try { cached = JSON.parse(localStorage.getItem(TW_KEY) || 'null'); } catch (e) {}
+    var shown = false;
+    function show(d) { if (d && d.current && d.current.word) { draw(d); shown = true; } }
+    if (cached && cached.day === day) show(cached.data);
+    // Server picks the word by day so every student sees the same one.
     AW.api('vocab.today', {}).then(function (res) {
-      if (!res || !res.success || !res.data) { mount.innerHTML = ''; return; }
-      var d = res.data, c = d.current, prev = d.previous;
+      var d = res && res.success && res.data;
+      if (d && d.current && d.current.word) {
+        try { localStorage.setItem(TW_KEY, JSON.stringify({ day: day, data: d })); } catch (e) {}
+        show(d);
+      } else if (!shown) show(twFallback());
+    }).catch(function () { if (!shown) show(twFallback()); });
+    // Apps Script can take a while to wake up: don't leave the card empty
+    setTimeout(function () { if (!shown) show(twFallback()); }, 6000);
+    function draw(d) {
+      var c = d.current, prev = d.previous;
       mount.innerHTML =
         '<div class="aw-tw">' +
           '<div class="aw-tw-glow"></div>' +
@@ -489,7 +567,7 @@
             '</div>' +
           '</div>' +
         '</div>';
-    });
+    }
   };
   // call once per session to increment login count (used by rotation)
   AW.bumpLoginCount = function () {

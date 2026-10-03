@@ -245,6 +245,115 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
 .aw-menu-btn{display:none;width:44px;height:44px;border-radius:50%;place-items:center;background:var(--aw-surface);border:none;cursor:pointer;color:var(--aw-ink);box-shadow:var(--aw-shadow-sm)}
 .aw-menu-btn svg{width:22px;height:22px}
 
+/*───────────────────────────────────────────────────
+  Results rows — shared by the teacher Results page and the student's
+  My Progress: attempt chips, change, teacher score.
+───────────────────────────────────────────────────*/
+.res-layout{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.res-main{flex:999 1 640px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.res-aside{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.res-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.res-tile{background:#fff;border-radius:20px;padding:16px 18px;box-shadow:var(--aw-shadow);display:flex;flex-direction:column;gap:12px}
+.res-tile .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700}
+.res-tile .lb{display:block;font-size:.8rem;color:var(--aw-ink-3)}
+.res-tile .vl{display:block;font-size:1.7rem;font-weight:700;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.res-tile .vl small{font-size:.55em;font-weight:600;color:var(--aw-ink-3)}
+.res-tile.hl{background:var(--aw-primary);color:#fff}
+.res-tile.hl .lb{color:rgba(255,255,255,.85)}
+.res-tile.hl .ic{background:rgba(255,255,255,.22)!important;color:#fff!important}
+.res-card{background:#fff;border-radius:24px;padding:20px 22px;box-shadow:var(--aw-shadow)}
+.res-card h3{margin:0;font-size:1.05rem;font-weight:700}
+.res-cap{margin:4px 0 14px;font-size:.8rem;color:var(--aw-ink-3)}
+.res-list{background:#fff;border-radius:24px;padding:12px;box-shadow:var(--aw-shadow);overflow-x:auto}
+.res-grid{min-width:900px;display:flex;flex-direction:column;gap:6px}
+.res-head,.res-row{display:grid;grid-template-columns:minmax(180px,1.2fr) 276px 64px 236px 90px;gap:14px;align-items:center}
+.res-grid.stu .res-head,.res-grid.stu .res-row{grid-template-columns:minmax(200px,1.3fr) 276px 64px 236px 92px}
+.res-head{padding:4px 12px;font-size:.75rem;color:var(--aw-ink-3);font-weight:500}
+.res-scores-hd{text-align:center}
+.res-row{padding:8px 12px;border-radius:18px;background:#F8F9FF;transition:background .12s,box-shadow .12s}
+.res-row:hover,.res-row.open{background:#fff;box-shadow:var(--aw-shadow)}
+.res-row.flash{box-shadow:0 0 0 3px var(--aw-primary)}
+.res-who{display:flex;align-items:center;gap:12px;min-width:0}
+.res-who>span:last-child{flex:1;min-width:0}
+.res-av{width:40px;height:40px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;font-size:.78rem;font-weight:700}
+.res-nm{display:block;font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-sub{display:block;font-size:.74rem;color:var(--aw-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-tries{display:flex;gap:8px;flex-wrap:wrap}
+.res-try{width:84px;height:52px;box-sizing:border-box;padding:5px 11px;border-radius:14px;border:none;background:#fff;color:var(--aw-ink);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;cursor:pointer;font-family:inherit;text-align:left;box-shadow:var(--aw-shadow-sm)}
+.res-try b{font-size:1.05rem;line-height:1.15;font-variant-numeric:tabular-nums}
+.res-try span{font-size:.68rem;opacity:.8;white-space:nowrap}
+.res-try:hover{box-shadow:var(--aw-ring)}
+.res-try.best{background:var(--aw-primary);color:#fff}
+.res-try.none{background:transparent;border:1.5px dashed #D3D7F5;color:var(--aw-ink-3);cursor:default;box-shadow:none}
+.res-chg{font-size:.86rem;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.res-scores{display:grid;grid-template-columns:repeat(5,44px);gap:4px}
+.res-scores .ms-in{width:44px;height:42px;min-height:42px;padding:0;border:none;border-radius:12px;background:#EEF0FD;font-size:.92rem;text-align:center;font-family:inherit;color:var(--aw-ink);transition:box-shadow .2s}
+.res-row:hover .res-scores .ms-in,.res-row.open .res-scores .ms-in{background:#F3F4FE}
+.res-scores .ms-in::placeholder{color:#B4B8D8;font-weight:500}
+.res-scores .ms-in.oa{background:var(--aw-primary-lt);font-weight:700}
+.res-scores .ms-in:focus{outline:none;box-shadow:var(--aw-ring);background:#fff}
+.res-scores .ms-in.saved{box-shadow:0 0 0 2px #16825B}
+.res-acts{display:flex;gap:6px;justify-content:flex-end}
+.res-ib{width:40px;height:40px;border:none;border-radius:50%;background:#fff;color:var(--aw-primary-hv);display:grid;place-items:center;cursor:pointer;position:relative;box-shadow:var(--aw-shadow-sm)}
+.res-ib:hover{background:var(--aw-primary-lt)}
+.res-ib svg{width:18px;height:18px}
+.res-ib.has::after{content:'';position:absolute;top:6px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--aw-accent)}
+.res-notes{grid-column:1/-1;display:none;grid-template-columns:1fr 1.4fr auto;gap:12px;align-items:start;padding:6px 0 4px}
+.res-row.open .res-notes{display:grid}
+.res-notes label{font-size:.75rem;color:var(--aw-ink-3);display:flex;flex-direction:column;gap:5px}
+.res-notes input,.res-notes textarea{border:none;border-radius:12px;background:var(--aw-surface-2);padding:10px 12px;font-family:inherit;font-size:.86rem;color:var(--aw-ink);min-height:42px}
+.res-notes textarea{resize:vertical;min-height:64px}
+.res-hist{display:flex;align-items:flex-end;justify-content:space-between;height:150px;border-bottom:1px solid var(--aw-border-2);padding:0 2px}
+.res-hist>div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.75rem;font-weight:600;width:28px}
+.res-hist i{display:block;width:24px;border-radius:8px 8px 4px 4px}
+.res-hist-x{display:flex;justify-content:space-between;padding:6px 2px 0;font-size:.72rem;color:var(--aw-ink-3)}
+.res-hist-x span{width:28px;text-align:center}
+.res-wait{display:flex;align-items:center;gap:12px;padding:9px 6px;border-radius:14px;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;color:inherit}
+.res-wait:hover{background:var(--aw-surface-2)}
+@media(max-width:700px){.res-notes{grid-template-columns:1fr}}
+/* student: teacher score shown read-only */
+.res-score-ro{display:grid;grid-template-columns:repeat(5,44px);gap:4px}
+.res-score-ro span{height:42px;border-radius:12px;background:var(--aw-surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:.92rem;font-variant-numeric:tabular-nums}
+.res-score-ro span small{font-size:.6rem;font-weight:500;color:var(--aw-ink-3);line-height:1}
+.res-score-ro span.oa{background:var(--aw-primary-lt)}
+.res-score-ro span.none{color:var(--aw-ink-3);font-weight:500}
+.res-tag{display:inline-block;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--aw-primary-lt);color:#3B44B8;vertical-align:middle;margin-left:4px}
+.res-tag.t1{background:#DDF3EA;color:#1D6B4F}
+.res-tnote{grid-column:1/-1;display:none;padding:10px 14px;border-radius:14px;background:var(--aw-accent-lt);font-size:.88rem;line-height:1.55}
+.res-row.open .res-tnote{display:block}
+/* phone: each row becomes a small card */
+@media(max-width:760px){
+  .res-list{padding:8px;overflow:visible}
+  .res-grid{min-width:0}
+  .res-head{display:none}
+  .res-row,.res-grid.stu .res-row{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"who who acts" "tries tries tries" "chg scores scores" "notes notes notes";gap:10px;padding:12px}
+  .res-who{grid-area:who}.res-acts{grid-area:acts}.res-tries{grid-area:tries}.res-chg{grid-area:chg}
+  .res-scores,.res-score-ro{grid-area:scores;justify-self:end}
+  .res-notes,.res-tnote{grid-area:notes}
+  .res-try{width:calc((100% - 16px)/3);min-width:72px}
+  .res-nm,.res-sub{white-space:normal}
+  .res-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .res-tile{padding:14px}
+  .res-tile .vl{font-size:1.4rem}
+}
+
+/* phone: wide tables scroll inside their card, tiles two per row, nothing
+   hides behind the floating buttons */
+.aw-task-badge{white-space:nowrap}
+@media(max-width:760px){
+  .aw-table-wrap{overflow-x:auto}
+  .aw-table{min-width:640px}
+  .aw-kpi-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .aw-kpi{padding:14px 16px}
+  .aw-kpi-value{font-size:1.5rem}
+  .aw-content{padding-bottom:96px}
+  .aw-roster-mail{display:none}
+  .aw-hide-sm{display:none}
+  #classBar{padding:10px 12px!important;margin:0!important;border-radius:24px!important}
+  #newClassBtn{margin-left:auto}
+  .aw-panel{padding:16px}
+}
+
 /*──────── Today's Word widget ────────*/
 .aw-tw{position:relative;background:linear-gradient(120deg,#4A54D1 0%,#5661E0 55%,#7C84EE 100%);border-radius:24px;padding:18px 22px;color:#fff;margin-bottom:20px;overflow:hidden;box-shadow:0 14px 36px rgba(86,97,224,.24);border:1px solid rgba(255,255,255,.12)}
 .aw-tw-glow{position:absolute;top:-40px;right:-25px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,255,255,.14) 0%,transparent 70%);pointer-events:none}

@@ -155,67 +155,6 @@
   .aw-editor-mini-tb button:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
   .aw-prompt-edit{min-height:120px;border:1.5px solid var(--aw-border-2);border-radius:0 0 14px 14px;padding:12px 14px;font-family:var(--aw-font-body);font-size:.95rem;line-height:1.6;outline:none;overflow-y:auto}
   .aw-prompt-edit:focus{border-color:var(--aw-primary)}
-  /* Results: one row per student — attempt chips, change, teacher score */
-  .res-layout{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
-  .res-main{flex:999 1 640px;min-width:0;display:flex;flex-direction:column;gap:16px}
-  .res-aside{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:16px}
-  .res-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
-  .res-tile{background:#fff;border-radius:20px;padding:16px 18px;box-shadow:var(--aw-shadow);display:flex;flex-direction:column;gap:12px}
-  .res-tile .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700}
-  .res-tile .lb{display:block;font-size:.8rem;color:var(--aw-ink-3)}
-  .res-tile .vl{display:block;font-size:1.7rem;font-weight:700;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
-  .res-tile .vl small{font-size:.55em;font-weight:600;color:var(--aw-ink-3)}
-  .res-tile.hl{background:var(--aw-primary);color:#fff}
-  .res-tile.hl .lb{color:rgba(255,255,255,.85)}
-  .res-tile.hl .ic{background:rgba(255,255,255,.22)!important;color:#fff!important}
-  .res-card{background:#fff;border-radius:24px;padding:20px 22px;box-shadow:var(--aw-shadow)}
-  .res-card h3{margin:0;font-size:1.05rem;font-weight:700}
-  .res-cap{margin:4px 0 14px;font-size:.8rem;color:var(--aw-ink-3)}
-  .res-list{background:#fff;border-radius:24px;padding:12px;box-shadow:var(--aw-shadow);overflow-x:auto}
-  .res-grid{min-width:900px;display:flex;flex-direction:column;gap:6px}
-  .res-head,.res-row{display:grid;grid-template-columns:minmax(180px,1.2fr) 276px 64px 236px 90px;gap:14px;align-items:center}
-  .res-head{padding:4px 12px;font-size:.75rem;color:var(--aw-ink-3);font-weight:500}
-  .res-scores-hd{text-align:center}
-  .res-row{padding:8px 12px;border-radius:18px;background:#F8F9FF;transition:background .12s,box-shadow .12s}
-  .res-row:hover,.res-row.open{background:#fff;box-shadow:var(--aw-shadow)}
-  .res-row.flash{box-shadow:0 0 0 3px var(--aw-primary)}
-  .res-who{display:flex;align-items:center;gap:12px;min-width:0}
-  .res-av{width:40px;height:40px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;font-size:.78rem;font-weight:700}
-  .res-nm{display:block;font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .res-sub{display:block;font-size:.74rem;color:var(--aw-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .res-tries{display:flex;gap:8px;flex-wrap:wrap}
-  .res-try{width:84px;height:52px;box-sizing:border-box;padding:5px 11px;border-radius:14px;border:none;background:#fff;color:var(--aw-ink);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;cursor:pointer;font-family:inherit;text-align:left;box-shadow:var(--aw-shadow-sm)}
-  .res-try b{font-size:1.05rem;line-height:1.15;font-variant-numeric:tabular-nums}
-  .res-try span{font-size:.68rem;opacity:.8;white-space:nowrap}
-  .res-try:hover{box-shadow:var(--aw-ring)}
-  .res-try.best{background:var(--aw-primary);color:#fff}
-  .res-try.none{background:transparent;border:1.5px dashed #D3D7F5;color:var(--aw-ink-3);cursor:default;box-shadow:none}
-  .res-chg{font-size:.86rem;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
-  .res-scores{display:grid;grid-template-columns:repeat(5,44px);gap:4px}
-  .res-scores .ms-in{width:44px;height:42px;min-height:42px;padding:0;border:none;border-radius:12px;background:#EEF0FD;font-size:.92rem;text-align:center;font-family:inherit;color:var(--aw-ink);transition:box-shadow .2s}
-  .res-row:hover .res-scores .ms-in,.res-row.open .res-scores .ms-in{background:#F3F4FE}
-  .res-scores .ms-in::placeholder{color:#B4B8D8;font-weight:500}
-  .res-scores .ms-in.oa{background:var(--aw-primary-lt);font-weight:700}
-  .res-scores .ms-in:focus{outline:none;box-shadow:var(--aw-ring);background:#fff}
-  .res-scores .ms-in.saved{box-shadow:0 0 0 2px #16825B}
-  .res-acts{display:flex;gap:6px;justify-content:flex-end}
-  .res-ib{width:40px;height:40px;border:none;border-radius:50%;background:#fff;color:var(--aw-primary-hv);display:grid;place-items:center;cursor:pointer;position:relative;box-shadow:var(--aw-shadow-sm)}
-  .res-ib:hover{background:var(--aw-primary-lt)}
-  .res-ib svg{width:18px;height:18px}
-  .res-ib.has::after{content:'';position:absolute;top:6px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--aw-accent)}
-  .res-notes{grid-column:1/-1;display:none;grid-template-columns:1fr 1.4fr auto;gap:12px;align-items:start;padding:6px 0 4px}
-  .res-row.open .res-notes{display:grid}
-  .res-notes label{font-size:.75rem;color:var(--aw-ink-3);display:flex;flex-direction:column;gap:5px}
-  .res-notes input,.res-notes textarea{border:none;border-radius:12px;background:var(--aw-surface-2);padding:10px 12px;font-family:inherit;font-size:.86rem;color:var(--aw-ink);min-height:42px}
-  .res-notes textarea{resize:vertical;min-height:64px}
-  .res-hist{display:flex;align-items:flex-end;justify-content:space-between;height:150px;border-bottom:1px solid var(--aw-border-2);padding:0 2px}
-  .res-hist>div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.75rem;font-weight:600;width:28px}
-  .res-hist i{display:block;width:24px;border-radius:8px 8px 4px 4px}
-  .res-hist-x{display:flex;justify-content:space-between;padding:6px 2px 0;font-size:.72rem;color:var(--aw-ink-3)}
-  .res-hist-x span{width:28px;text-align:center}
-  .res-wait{display:flex;align-items:center;gap:12px;padding:9px 6px;border-radius:14px;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;color:inherit}
-  .res-wait:hover{background:var(--aw-surface-2)}
-  @media(max-width:700px){.res-notes{grid-template-columns:1fr}}
   /* wide results table */
   .aw-res-wrap{border-radius:var(--aw-r-lg);overflow:hidden;box-shadow:var(--aw-shadow);border:none;background:#fff}
   .aw-res-table{width:100%;border-collapse:collapse;font-size:.85rem;white-space:nowrap}
@@ -691,16 +630,7 @@ function curClass(){ return localStorage.getItem(CLASS_KEY) || ''; }
 function setCurClass(id){ localStorage.setItem(CLASS_KEY, id); }
 function curClassObj(){ return myClasses.filter(function(c){return c.classId===curClass();})[0]||null; }
 
-var nav = [
-  { id:'overview',   label:'Overview', icon:'overview', active:true },
-  { id:'live',       label:'Live', icon:'live' },
-  { id:'assignments',label:'Tasks', icon:'tasks' },
-  { id:'results',    label:'Results', icon:'progress' },
-  { id:'queries',    label:'Questions', icon:'chat' },
-  { id:'board',      label:'Board', icon:'board', href:'board.html' },
-  { id:'library',    label:'Library', icon:'library', href:'library.html' },
-  { id:'settings',   label:'Settings', icon:'settings' },
-];
+var nav = AW.navFor('teacher', 'overview', true);
 
 var content = AW.renderShell({
   mount:'app', nav:nav, eyebrow:'', title:'Class Overview',
@@ -732,7 +662,7 @@ function injectClassBar(){
       (myClasses.length?opts:'<option>No classes yet</option>')+'</select>'+
     (curClassObj()?'<span class="aw-tag aw-tag-type">'+AW.esc(curClassObj().year||'')+(curClassObj().semester?' · Sem '+AW.esc(curClassObj().semester):'')+'</span>':'')+
     aiToggleHtml()+
-    '<button class="aw-btn aw-btn-primary" style="margin-left:auto;padding:8px 16px" id="newClassBtn">+ Create New Class</button>';
+    '<button class="aw-btn aw-btn-primary" style="margin-left:auto;padding:8px 16px" id="newClassBtn">+ <span class="aw-hide-sm">Create new </span>class</button>';
   var main=document.querySelector('.aw-main');
   var topbar=main.querySelector('.aw-topbar');
   topbar.insertAdjacentElement('afterend', bar);
@@ -874,9 +804,9 @@ function loadRoster(){
     if(cnt)cnt.textContent='('+rows.length+' students)';
     if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No students have joined this class yet. Share class code <b>'+AW.esc(curClass())+'</b> with students.</p>';return;}
     box.innerHTML=rows.map(function(s){
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
-        '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
-        '<span style="display:flex;gap:8px;align-items:center"><span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span>'+
+      return '<div class="aw-roster-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
+        '<span style="min-width:0"><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
+        '<span style="display:flex;gap:8px;align-items:center"><span class="aw-roster-mail" style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span>'+
         '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem" onclick="openEditStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\',\''+AW.esc(s.class||curClass())+'\',\''+AW.esc((s.birthdate||'').slice(0,10))+'\',\''+AW.esc(s.phone||'')+'\')">✏ Edit</button>'+
         '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem;color:var(--aw-danger)" onclick="archiveStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\')">Archive</button></span></div>';
     }).join('');
@@ -2456,7 +2386,9 @@ function renderResults(){
     if(best!==null){ stats.bestSum+=best; stats.bestN++; stats.bands.push(best); }
     if(change>0) stats.improved++;
     var docUrl = g.cleared && g.docUrl;
-    if(w.length && !ts.overall) stats.waiting.push({ g:g, key:gkey, last:groupLastTs(g), best:best });
+    // waiting = handed in but no AI band (control class, AI off or grading
+    // failed) and not scored by the teacher yet — only the teacher can score it
+    if(w.length && best===null && !ts.overall) stats.waiting.push({ g:g, key:gkey, last:groupLastTs(g), best:best });
 
     // attempt chips: at least three slots, the best one filled
     var slots=Math.max(3, w.length), chips='';
@@ -2533,14 +2465,14 @@ function renderResults(){
          '<div class="res-hist">'+bars+'</div><div class="res-hist-x">'+xs+'</div></div>';
   }
   stats.waiting.sort(function(a,b){ return b.last-a.last; });
-  var wait='<div class="res-card"><h3>Waiting for your score</h3><p class="res-cap">'+(stats.waiting.length?'Newest first':'Everyone is scored')+'</p>'+
+  var wait='<div class="res-card"><h3>Waiting for your score</h3><p class="res-cap">'+(stats.waiting.length?'No AI band yet, newest first':'Every submission has a band')+'</p>'+
     stats.waiting.slice(0,12).map(function(x){
       var nm=String(x.g.name||x.g.studentId), parts=nm.trim().split(/\s+/);
       var ini=(parts.length>1?parts[parts.length-2][0]+parts[parts.length-1][0]:nm.slice(0,2)).toUpperCase();
       var pal=RES_PASTELS[Math.abs(hashStr(String(x.g.studentId)))%RES_PASTELS.length];
       return '<button type="button" class="res-wait" data-goto="'+AW.esc(x.key)+'"><span class="res-av" style="width:36px;height:36px;background:'+pal[0]+';color:'+pal[1]+'">'+AW.esc(ini)+'</span>'+
         '<span style="flex:1;min-width:0"><span class="res-nm">'+AW.esc(nm)+'</span><span class="res-sub">'+(x.last?when(x.last):'')+'</span></span>'+
-        '<b style="font-variant-numeric:tabular-nums">'+(x.best!==null?x.best.toFixed(1):'–')+'</b></button>';
+        '<span class="res-sub" style="flex:0 0 auto">'+(x.g.writes||[]).length+' attempt'+((x.g.writes||[]).length>1?'s':'')+'</span></button>';
     }).join('')+'</div>';
 
   var taskCard = oneTopic
@@ -2674,10 +2606,12 @@ window.viewEssays=function(gkey, writeIdx){
   document.getElementById('essayModalBody').innerHTML = header + scoreOnlyBody;
   document.getElementById('essayModal').classList.add('show');
 
-  // Now fetch full essay+feedback lazily
+  // Now fetch full essay+feedback lazily. A late answer for a window the
+  // teacher already replaced must not write into the new one.
+  var rvTok = window._rvTok = (window._rvTok||0) + 1;
   AW.api('teacher.getAttemptDetail',{ studentId:g.studentId, topicId:g.topicId, mode:curMode })
     .then(function(res){
-      if (!res||!res.success) return;
+      if (!res||!res.success || rvTok !== window._rvTok) return;
       res.data.forEach(function(d, i){
         if (writeIdx!=null && writeIdx>=0 && i!==writeIdx) return;
         var el = document.getElementById('detail_'+i);

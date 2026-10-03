@@ -126,6 +126,10 @@ async function studentByIdForTeacher(t, studentId) {
 }
 function itemsOf(prog) { return Object.values((prog && prog.items) || {}); }
 function byTime(a, b) { return ms(a.timestamp) - ms(b.timestamp); }
+// Attempts of one task in their real order: the attempt number first, the
+// time only as a tie-break. Sorting by time alone shuffles attempts whose
+// timestamps are missing or equal (rows copied over from the Sheet).
+function byAttempt(a, b) { return ((Number(a.attempt) || 0) - (Number(b.attempt) || 0)) || byTime(a, b); }
 
 // ════════════════════════════════════════════
 // AUTH
@@ -430,7 +434,7 @@ async function getEssay(p) {
 
 function groupKey(r) { return r.mode + '||' + str(r.topicId); }
 function writeOut(r) {
-  return { timestamp: r.timestamp, startTime: r.startTime, finishTime: r.finishTime, duration: r.duration,
+  return { attempt: Number(r.attempt) || '', timestamp: r.timestamp, startTime: r.startTime, finishTime: r.finishTime, duration: r.duration,
            overall: r.aiGrading, teacher: r.teacherGrading, tr: r.tr || '', cc: r.cc || '', lr: r.lr || '', gra: r.gra || '' };
 }
 function bestOf(writes) {
@@ -464,7 +468,7 @@ async function getMyResults(p) {
     groups[k].writes.push(Object.assign(writeOut(r), { attempt: r.attempt, essayId: r.id }));
   });
   const out = Object.values(groups).map(g => {
-    g.writes.sort(byTime);
+    g.writes.sort(byAttempt);
     const best = bestOf(g.writes);
     g.bestResult = best !== null ? best : '';
     g.attemptCount = g.writes.length;
@@ -502,7 +506,7 @@ async function getResults(p) {
     });
   });
   return ok(Object.values(groups).map(g => {
-    g.writes.sort(byTime);
+    g.writes.sort(byAttempt);
     const best = bestOf(g.writes);
     g.bestResult = best !== null ? best : '';
     g.attemptCount = g.writes.length;
@@ -521,7 +525,7 @@ async function getAttemptDetail(p) {
   const t = await teacher();
   const sp = await studentProgress(t, p.studentId);
   if (!sp) return ok([]);
-  const rows = itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byTime);
+  const rows = itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byAttempt);
   const es = await Promise.all(rows.map(r => fs.doc('essays/' + r.id).get().catch(() => null)));
   return ok(rows.map((r, i) => {
     const e = es[i] && es[i].exists ? es[i].data() : {};
@@ -542,7 +546,7 @@ async function deleteAttempt(p) {
   const res = await fs.runTransaction(async tx => {
     const snap = await tx.get(ref);
     const same = itemsOf(snap.exists ? snap.data() : null)
-      .filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byTime);
+      .filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byAttempt);
     const hit = same.find(r => Math.abs(ms(r.timestamp) - target) < 1000 || String(r.timestamp) === String(p.timestamp));
     if (!hit) return fail('Không tìm thấy bài này (có thể đã bị xoá).');
     const args = [new FP('items', hit.id), FV.delete()];
@@ -559,7 +563,7 @@ async function saveManualScore(p) {
   if (['free', 'homework', 'inclass'].indexOf(p.mode) < 0) return fail('Invalid mode.');
   const t = await teacher();
   const sp = await studentProgress(t, p.studentId);
-  const rows = sp ? itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byTime) : [];
+  const rows = sp ? itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byAttempt) : [];
   if (!rows.length) return fail('Submission not found.');
   const score = { tr: p.tr || '', cc: p.cc || '', lr: p.lr || '', gra: p.gra || '', overall: p.overall || '',
                   note: p.note || '', privateNote: p.privateNote || '', gradedAt: nowIso() };
@@ -707,7 +711,7 @@ async function saveAnnotation(p) {
   // the grade it carries belongs on the submission (Firestore)
   if (p.teacherGrading != null && p.teacherGrading !== '' && p.mode) {
     const sp = await studentProgress(t, p.studentId);
-    const rows = sp ? itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byTime) : [];
+    const rows = sp ? itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byAttempt) : [];
     if (rows.length) await sp.ref.update(new FP('items', rows[rows.length - 1].id, 'teacherGrading'), p.teacherGrading);
     forget('progress|');
   }
