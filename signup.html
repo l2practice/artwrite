@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
 <meta name="theme-color" content="#5661E0">
-<title>Đăng ký · ArticuWrite</title>
+<title>Register · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
-  .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-modal-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
   .aw-modal-bg.show{display:flex}
   /* Loading overlay */
   .aw-loading-overlay{position:fixed;inset:0;background:rgba(16,34,46,.6);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px}
@@ -29,15 +29,28 @@
   <p id="loadingMsg">Đang xử lý…</p>
 </div>
 
-<div class="aw-auth-wrap">
-  <div class="aw-auth-card">
-    <div class="aw-auth-head">
-      <div style="display:flex;justify-content:center" id="brand"></div>
-      <h1 class="aw-auth-title">Đăng ký tài khoản</h1>
-      <p class="aw-auth-sub">Tạo tài khoản sinh viên và bắt đầu luyện viết.</p>
+<div class="aw-split">
+  <aside class="aw-hero" aria-label="ArticuWrite">
+    <div class="aw-hero-brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg></i><span>Articu<b>Write</b></span></div>
+    <div>
+      <span class="aw-hero-pill">IELTS Writing · AI feedback</span>
+      <h1>Write.<br>Revise.<br><em>Improve.</em></h1>
+      <p class="aw-hero-text">Write a Task 1 or Task 2 essay, get a band score with line-by-line feedback, then revise it up to three times. In class, your teacher reads along and marks it live.</p>
+      <div class="aw-hero-stats">
+        <div><b>3</b><span>Attempts</span></div>
+        <div><b>AI</b><span>Band &amp; feedback</span></div>
+        <div><b>Live</b><span>With your teacher</span></div>
+      </div>
     </div>
+  </aside>
 
-    <form id="form" autocomplete="on" novalidate>
+  <main class="aw-split-form">
+    <div class="aw-form-box">
+      <div id="brand" hidden></div>
+      <h2>Create your account</h2>
+      <p class="aw-form-sub">Join your class and start practising.</p>
+      <nav class="aw-seg" aria-label="Account"><a href="login.html">Sign in</a><a class="on" href="signup.html" aria-current="page">Register</a></nav>
+      <form id="form" autocomplete="on" novalidate>
 
       <!-- Full name -->
       <div class="aw-field">
@@ -99,22 +112,24 @@
         <span style="color:var(--aw-danger)">*</span> Tất cả trường đều bắt buộc.
       </p>
 
-      <button class="aw-btn aw-btn-primary aw-btn-block" id="submit" type="submit">
-        Create account
-      </button>
+      <button class="aw-btn aw-btn-dark aw-go" id="submit" type="submit">Create account<span class="aw-btn-go"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></span></button>
     </form>
 
-    <div style="border-top:1px solid var(--aw-border-2);margin:20px 0 16px"></div>
-    <button class="aw-btn aw-btn-ghost aw-btn-block" id="teacherReg">Teacher sign up</button>
-    <p class="aw-auth-alt" style="margin-top:16px">Đã có tài khoản? <a href="login.html">Sign in</a></p>
-  </div>
+      <div class="aw-or">OR</div>
+      <button type="button" class="aw-portal" id="teacherReg">
+        <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg></i>
+        <span><b>Teacher account</b><span>Register with your teacher email</span></span>
+        <svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </main>
 </div>
 
 <!-- Teacher signup modal -->
 <div class="aw-modal-bg" id="teacherModal">
   <div class="aw-auth-card" style="max-width:400px;margin:0">
     <div class="aw-auth-head">
-      <h1 class="aw-auth-title" style="font-size:1.4rem">Đăng ký Giáo viên</h1>
+      <h1 class="aw-auth-title" style="font-size:1.4rem">Teacher account</h1>
     </div>
     <div class="aw-field">
       <label class="aw-label">Họ và tên <span style="color:var(--aw-danger)">*</span></label>

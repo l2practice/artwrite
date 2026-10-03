@@ -103,6 +103,19 @@
         ".read": "auth != null && (root.child('classOwner').child($classId).val() == auth.uid || auth.token.cls == $classId)",
         ".write": "auth != null && root.child('classOwner').child($classId).val() == auth.uid"
       }
+    },
+    "extRequests": {
+      "$classId": {
+        ".read": "auth != null && root.child('classOwner').child($classId).val() == auth.uid",
+        ".write": "auth != null && root.child('classOwner').child($classId).val() == auth.uid",
+        "$key": {
+          ".read": "auth != null && auth.token.cls == $classId && (!data.exists() || data.child('uid').val() == auth.uid)",
+          ".write": "auth != null && auth.token.cls == $classId && newData.child('uid').val() == auth.uid && (!data.exists() || data.child('uid').val() == auth.uid) && newData.child('status').val() == 'pending'",
+          "reason": {
+            ".validate": "newData.isString() && newData.val().length <= 500"
+          }
+        }
+      }
     }
   }
 }

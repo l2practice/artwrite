@@ -233,6 +233,13 @@ if (TASK_TYPE === 'task1' && CHART_IMAGE_ID) {
 if (hasRealTopic) {
   AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
     if (res && res.success) {
+      // overdue homework opened from a link or a bookmark: closed, ask for time
+      if (MODE === 'homework' && res.data.isPastDeadline) {
+        if (editor) editor.setAttribute('contenteditable', 'false');
+        AW.showOverdue({ topicId: TOPIC_ID, topic: res.data.topic || TOPIC, myDeadline: res.data.deadline },
+                       { onClose: function(){ location.href = 'student.html'; } });
+        return;
+      }
       if (res.data.prompt && !qp.get('prompt')) {
         PROMPT = res.data.prompt;
         var pt = document.querySelector('.aw-prompt-text');

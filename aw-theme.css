@@ -358,6 +358,82 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
   .aw-panel{padding:16px}
 }
 
+/* overdue homework dialog */
+.aw-od-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:950;display:flex;align-items:center;justify-content:center;padding:16px}
+.aw-od{background:#fff;border-radius:28px;box-shadow:var(--aw-shadow-lg);width:100%;max-width:440px;padding:28px 28px 22px;text-align:left}
+.aw-od-ic{width:52px;height:52px;border-radius:50%;background:var(--aw-accent-lt);color:var(--aw-accent);display:grid;place-items:center;margin-bottom:14px}
+.aw-od-ic svg{width:26px;height:26px}
+.aw-od h2{margin:0 0 6px;font-size:1.3rem}
+.aw-od-sub{margin:0 0 16px;color:var(--aw-ink-2);font-size:.92rem;line-height:1.5}
+.aw-od-txt{margin:0 0 12px;font-size:.9rem;color:var(--aw-ink-2);line-height:1.5}
+.aw-od-note{margin:0 0 12px;padding:10px 14px;border-radius:14px;background:var(--aw-accent-lt);color:var(--aw-accent-dk);font-size:.88rem;line-height:1.5}
+.aw-od-note.ok{background:#DDF3EA;color:#1D6B4F}
+.aw-od-foot{display:flex;justify-content:flex-end;margin-top:14px}
+.aw-due{margin-top:8px;font-size:.78rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px}
+.aw-due.late{background:var(--aw-accent-lt);color:var(--aw-accent-dk)}
+.aw-due.ext{background:#DDF3EA;color:#1D6B4F}
+.aw-due.on{background:var(--aw-surface-2);color:var(--aw-ink-2)}
+
+/* teacher: deadline extensions in the assignment card */
+.aw-ext{margin:14px 0 6px;padding:14px 16px;border-radius:18px;background:var(--aw-surface-2)}
+.aw-ext-h{font-weight:700;font-size:.95rem;margin-bottom:8px}
+.aw-ext-sub{font-size:.75rem;color:var(--aw-ink-3);margin:12px 0 6px}
+.aw-ext-empty{margin:0;font-size:.85rem;color:var(--aw-ink-3)}
+.aw-ext-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:#fff;margin-bottom:6px}
+.aw-ext-row.req{box-shadow:0 0 0 2px var(--aw-accent) inset}
+.aw-ext-who{flex:1 1 180px;min-width:0;font-size:.88rem}
+.aw-ext-who span{color:var(--aw-ink-3);font-size:.78rem}
+.aw-ext-why{font-size:.8rem;color:var(--aw-ink-2);margin-top:3px}
+.aw-ext-row .aw-input{width:auto;min-height:40px;padding:6px 12px}
+.aw-ext-row .aw-btn{min-height:40px;padding:8px 14px;font-size:.84rem}
+.aw-ext-pick{flex:1 1 180px;min-height:40px;box-shadow:none;background-color:var(--aw-surface-2)}
+
+/* ── sign-in / sign-up: hero on the left, form on the right ── */
+.aw-split{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);background:#fff}
+.aw-hero{position:relative;overflow:hidden;background:linear-gradient(155deg,#FFFFFF 0%,#F3F4FE 38%,#E3E6FD 72%,#D3D8FB 100%);color:var(--aw-ink);padding:44px 56px 48px;display:flex;flex-direction:column;justify-content:space-between;gap:48px}
+.aw-hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(86,97,224,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(86,97,224,.08) 1px,transparent 1px);background-size:64px 64px;-webkit-mask-image:radial-gradient(ellipse at 35% 45%,#000 0%,transparent 75%);mask-image:radial-gradient(ellipse at 35% 45%,#000 0%,transparent 75%)}
+.aw-hero::after{content:'';position:absolute;width:760px;height:760px;right:-260px;bottom:-240px;background:radial-gradient(circle,rgba(86,97,224,.38) 0%,rgba(124,132,238,.16) 42%,transparent 70%)}
+.aw-hero>*{position:relative;z-index:1}
+.aw-hero-brand{display:flex;align-items:center;gap:12px;font-size:1.35rem;font-weight:700;letter-spacing:-.01em}
+.aw-hero-brand i{width:48px;height:48px;border-radius:14px;background:var(--aw-primary);display:grid;place-items:center;box-shadow:0 10px 30px rgba(86,97,224,.5)}
+.aw-hero-brand i svg{width:22px;height:22px}
+.aw-hero-brand b{color:var(--aw-primary);font-weight:700}
+.aw-hero-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:#fff;box-shadow:var(--aw-shadow-sm);font-size:.85rem;font-weight:600;color:var(--aw-ink-2)}
+.aw-hero-pill::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--aw-primary)}
+.aw-hero h1{font-size:clamp(3rem,6.2vw,5.6rem);line-height:.98;letter-spacing:-.045em;margin:22px 0 22px;font-weight:700}
+.aw-hero h1 em{font-style:normal;background:linear-gradient(90deg,#5661E0,#8B6CF0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.aw-hero-text{max-width:500px;font-size:1.02rem;line-height:1.65;color:var(--aw-ink-2);margin:0}
+.aw-hero-stats{display:flex;gap:40px;padding-top:24px;margin-top:32px;border-top:1px solid rgba(86,97,224,.18)}
+.aw-hero-stats b{display:block;font-size:1.9rem;font-weight:700;color:var(--aw-primary);line-height:1.1}
+.aw-hero-stats span{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--aw-ink-3)}
+.aw-split-form{display:flex;align-items:center;justify-content:center;padding:48px 24px;background:#fff}
+.aw-form-box{width:100%;max-width:440px}
+.aw-form-box h2{font-size:2.3rem;font-weight:700;letter-spacing:-.03em;margin:0 0 6px}
+.aw-form-box .aw-form-sub{margin:0 0 26px;color:var(--aw-ink-2)}
+.aw-seg{display:grid;grid-template-columns:1fr 1fr;padding:5px;border-radius:999px;background:var(--aw-surface-2);margin-bottom:24px}
+.aw-seg a{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;font-weight:600;font-size:.95rem;color:var(--aw-ink-2);text-decoration:none}
+.aw-seg a.on{background:var(--aw-primary);color:#fff;box-shadow:0 6px 18px rgba(86,97,224,.35)}
+.aw-form-box .aw-input{background:var(--aw-surface-2);min-height:50px}
+.aw-form-box .aw-input:focus{background:#fff}
+.aw-go{width:100%;min-height:54px;font-size:1.02rem}
+.aw-or{display:flex;align-items:center;gap:14px;margin:22px 0;color:var(--aw-ink-3);font-size:.78rem;font-weight:600;letter-spacing:.08em}
+.aw-or::before,.aw-or::after{content:'';flex:1;height:1px;background:var(--aw-border)}
+.aw-portal{display:flex;align-items:center;gap:14px;width:100%;padding:16px 18px;border-radius:20px;border:1.5px solid var(--aw-border-2);background:#fff;cursor:pointer;text-align:left;font-family:inherit;color:var(--aw-ink);transition:box-shadow .15s}
+.aw-portal:hover{box-shadow:var(--aw-shadow)}
+.aw-portal i{width:44px;height:44px;border-radius:14px;background:var(--aw-primary-lt);color:#3B44B8;display:grid;place-items:center;flex:0 0 auto}
+.aw-portal i svg{width:22px;height:22px}
+.aw-portal b{display:block;font-size:.98rem}
+.aw-portal span{font-size:.82rem;color:var(--aw-ink-3)}
+.aw-portal svg.go{width:20px;height:20px;margin-left:auto;color:var(--aw-ink-2)}
+@media(max-width:900px){
+  .aw-split{grid-template-columns:minmax(0,1fr)}
+  .aw-hero{padding:22px 20px 26px;gap:18px}
+  .aw-hero h1{font-size:2.6rem;margin:14px 0 0}
+  .aw-hero-text,.aw-hero-stats,.aw-hero-pill{display:none}
+  .aw-split-form{padding:28px 16px 40px;align-items:flex-start}
+  .aw-form-box h2{font-size:1.8rem}
+}
+
 /*──────── Today's Word widget ────────*/
 .aw-tw{position:relative;background:linear-gradient(120deg,#4A54D1 0%,#5661E0 55%,#7C84EE 100%);border-radius:24px;padding:18px 22px;color:#fff;margin-bottom:20px;overflow:hidden;box-shadow:0 14px 36px rgba(86,97,224,.24);border:1px solid rgba(255,255,255,.12)}
 .aw-tw-glow{position:absolute;top:-40px;right:-25px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,255,255,.14) 0%,transparent 70%);pointer-events:none}

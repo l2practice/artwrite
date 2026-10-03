@@ -81,7 +81,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=2'); })
+        .then(function () { return loadScript('fbdata.js?v=3'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
@@ -346,6 +346,53 @@
   };
   var _truncT = null;
   global.addEventListener('resize', function () { clearTimeout(_truncT); _truncT = setTimeout(function () { AW.markTruncated(); }, 150); });
+
+  /*── Overdue homework: the student can't open it, only ask for more time.
+     a = { topicId, topic, myDeadline|deadline }. opts.onClose runs on Close. */
+  AW.showOverdue = function (a, opts) {
+    opts = opts || {};
+    var old = document.getElementById('awOverdue'); if (old) old.remove();
+    var bg = document.createElement('div');
+    bg.id = 'awOverdue'; bg.className = 'aw-od-bg';
+    bg.innerHTML =
+      '<div class="aw-od" role="dialog" aria-modal="true" aria-labelledby="awOdT">' +
+        '<div class="aw-od-ic">' + AW.icon('clock') + '</div>' +
+        '<h2 id="awOdT">This homework is overdue</h2>' +
+        '<p class="aw-od-sub"><b>' + AW.esc(a.topic || '') + '</b><br>Deadline: ' + AW.esc(AW.fmtDate(a.myDeadline || a.deadline)) + '</p>' +
+        '<div id="awOdBody"><span class="aw-spin aw-spin-dark"></span></div>' +
+        '<div class="aw-od-foot"><button type="button" class="aw-btn aw-btn-ghost" id="awOdClose">Close</button></div>' +
+      '</div>';
+    document.body.appendChild(bg);
+    function close() { bg.remove(); if (opts.onClose) opts.onClose(); }
+    document.getElementById('awOdClose').onclick = close;
+    bg.onclick = function (e) { if (e.target === bg) close(); };
+    var body = document.getElementById('awOdBody');
+    function askForm(note) {
+      body.innerHTML = (note ? '<p class="aw-od-note">' + note + '</p>' : '') +
+        '<p class="aw-od-txt">Ask your teacher for more time. They get a message and can give you a new deadline.</p>' +
+        '<label class="aw-label" for="awOdReason">Reason (optional)</label>' +
+        '<textarea class="aw-input" id="awOdReason" rows="3" maxlength="500" placeholder="e.g. I was sick on Monday"></textarea>' +
+        '<button type="button" class="aw-btn aw-btn-dark aw-btn-block" id="awOdAsk" style="margin-top:12px">Ask for an extension</button>';
+      document.getElementById('awOdAsk').onclick = function () {
+        var b = this; b.disabled = true; b.textContent = 'Sending…';
+        AW.api('write.requestExtension', { topicId: a.topicId, reason: document.getElementById('awOdReason').value.trim() })
+          .then(function (res) {
+            if (res && res.success) waiting(new Date().toISOString());
+            else { b.disabled = false; b.textContent = 'Ask for an extension'; AW.toast((res && res.error) || 'Could not send the request', 'err'); }
+          });
+      };
+    }
+    function waiting(when) {
+      body.innerHTML = '<p class="aw-od-note ok">Request sent' + (when ? ' on ' + AW.esc(AW.fmtDate(when)) : '') +
+        '. Your teacher will see it; when they extend the deadline the task opens again.</p>';
+    }
+    AW.api('write.myExtensionRequest', { topicId: a.topicId }).then(function (res) {
+      var r = res && res.success && res.data;
+      if (r && r.status === 'pending') waiting(r.createdAt);
+      else if (r && r.status === 'declined') askForm('Your teacher declined the last request.');
+      else askForm('');
+    }).catch(function () { askForm(''); });
+  };
 
   /*── SHELL renderer (sidebar + topbar) ────────────*/
   AW.renderShell = function (opts) {

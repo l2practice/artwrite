@@ -445,10 +445,13 @@ function loadAssignments(mode){
       var taskBadge = isT1
         ? '<span class="aw-tag" style="background:#EAF7F0;color:#16825B;border:1px solid #9FDEC0;font-weight:700">Task 1</span>'
         : '<span class="aw-tag" style="background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #C5CAF7;font-weight:700">Task 2</span>';
-      var deadlineHtml = a.deadline
+      var due = a.myDeadline || a.deadline;
+      var deadlineHtml = due
         ? (a.isPastDeadline
-            ? '<div style="margin-top:6px;font-size:.76rem;background:#FFF2F2;border:1px solid #FFC7C7;border-radius:6px;padding:4px 8px;color:var(--aw-danger)">🔒 <b>Đã hết hạn</b> · Deadline: '+AW.fmtDate(a.deadline)+'</div>'
-            : '<div style="margin-top:6px;font-size:.76rem;color:var(--aw-danger)">⏰ Deadline: <b>'+AW.fmtDate(a.deadline)+'</b></div>')
+            ? '<div class="aw-due late">Overdue since '+AW.esc(AW.fmtDate(due))+' · click to ask for more time</div>'
+            : a.extended
+              ? '<div class="aw-due ext">Extended for you to '+AW.esc(AW.fmtDate(due))+'</div>'
+              : '<div class="aw-due on">Due '+AW.esc(AW.fmtDate(due))+'</div>')
         : '';
       // Chart thumbnail for Task 1 — shown on hover via CSS tooltip
       var chartThumb = (isT1 && a.chartImageId)
@@ -483,10 +486,7 @@ function loadAssignments(mode){
           return;
         }
         // Block past-deadline assignments
-        if (a.isPastDeadline) {
-          AW.toast('Bài tập này đã quá hạn nộp (deadline: '+AW.fmtDate(a.deadline)+'). Liên hệ giáo viên nếu cần nộp trễ.','err',5000);
-          return;
-        }
+        if (a.isPastDeadline) { AW.showOverdue(a); return; }
         var p=new URLSearchParams({
           mode:    a.mode,
           topic:   a.topic,
