@@ -40,6 +40,7 @@ function fbRoute(action, p, idToken) {
   if (!caller) return { success:false, error:'SESSION_EXPIRED' };
   if (action === 'fb.exportDoc')      return fbExportDoc(p, caller);
   if (action === 'fb.notifyQuery')    return fbNotifyQuery(p, caller);
+  if (action === 'fb.notifyExtension') return fbNotifyExtension(p, caller);
 
   if (!caller.isTeacher) return { success:false, error:'Unknown action: ' + action };
   if (action === 'fb.exportResults')  return fbExportResults(p, caller);
@@ -822,6 +823,28 @@ function fbNotifyQuery(p, caller) {
       '🕐 Thời gian : ' + now + '\n────────────────────────────\n\n' +
       '💬 Câu hỏi:\n' + (q.question || '') + '\n\n' + (q.errorQuote ? '📌 Trích dẫn:\n"' + q.errorQuote + '"\n\n' : '') +
       'Truy cập ArticuWrite: https://l2practice.github.io/artwrite/teacher.html#queries\n\n— ArticuWrite (tự động)' });
+  return { success: true };
+}
+
+// A student asked for more time on an overdue homework: email the teacher.
+function fbNotifyExtension(p, caller) {
+  var classId = fbStr(p.classId), key = fbStr(p.key);
+  if (!classId || !key || key.split('__').pop() !== caller.uid) return { success: false, error: 'Request not found.' };
+  var r = rtdb('get', 'extRequests/' + classId + '/' + key);
+  var cls = fsGet('classes/' + classId);
+  if (!r || !cls || !cls.teacherEmail) return { success: false, error: 'Request not found.' };
+  var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+  MailApp.sendEmail({ to: cls.teacherEmail, name: 'ArticuWrite',
+    subject: '⏰ ArticuWrite — ' + (r.name || r.studentId || 'Sinh viên') + ' xin gia hạn bài "' + (r.topic || '') + '"',
+    body: 'Xin chào Thầy/Cô,\n\nMột sinh viên xin gia hạn bài tập đã quá hạn:\n\n────────────────────────────\n' +
+      '👤 Sinh viên : ' + (r.name || '') + ' (' + (r.studentId || '') + ')\n' +
+      '🏫 Lớp       : ' + (cls.className || classId) + '\n' +
+      '📝 Bài       : ' + (r.topic || '') + '\n' +
+      '⏰ Hạn cũ    : ' + (r.deadline || '') + '\n' +
+      '🕐 Gửi lúc   : ' + now + '\n────────────────────────────\n' +
+      (r.reason ? '\n💬 Lý do:\n' + r.reason + '\n' : '') +
+      '\nGia hạn trong ArticuWrite: Tasks ▸ bấm vào bài ▸ Extensions.\n' +
+      'https://l2practice.github.io/artwrite/teacher.html#assignments\n\n— ArticuWrite (tự động)' });
   return { success: true };
 }
 

@@ -403,7 +403,7 @@
     <div class="aw-assign-detail-body">
       <!-- Prompt -->
       <div style="margin-bottom:10px">
-        <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;color:var(--aw-ink-3);letter-spacing:.05em;margin-bottom:5px">Prompt (đề bài)</div>
+        <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;color:var(--aw-ink-3);letter-spacing:.05em;margin-bottom:5px">Prompt</div>
         <div id="adPrompt" style="font-size:.92rem;color:var(--aw-ink);line-height:1.6;background:var(--aw-surface-2);padding:12px 14px;border-radius:var(--aw-r-sm);border:1px solid var(--aw-border-2)"></div>
       </div>
       <!-- Chart image (Task 1 only) -->
@@ -413,6 +413,8 @@
           Hình không hiện? <a id="adChartLink" href="#" target="_blank" style="color:var(--aw-primary)">Open in Drive</a>
         </p>
       </div>
+      <!-- Deadline extensions (homework) -->
+      <div id="adExtWrap"></div>
       <!-- Edit form (hidden by default) -->
       <div class="aw-assign-edit-form" id="adEditForm">
         <div class="aw-field"><label class="aw-label">Title</label><input class="aw-input" id="adEditTitle"></div>
@@ -2834,7 +2836,81 @@ function showAssignDetail(a){
   // Hide edit form
   document.getElementById('adEditForm').style.display = 'none';
   document.getElementById('adEditBtn').style.display = '';
+  renderExtensions(a);
   document.getElementById('assignDetailBg').classList.add('show');
+}
+
+/*── Deadline extensions (homework) ───────────────────────────────
+   Students who missed the deadline ask for more time from their page; the
+   request shows here (and as a notification). Granting writes a deadline
+   for that one student; nobody else's deadline changes.               */
+function extKeyOf(studentId){ return String(studentId||'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,120); }
+function extDefaultUntil(a){
+  var base = Math.max(Date.now(), a.deadline ? new Date(a.deadline).getTime() || 0 : 0);
+  var d = new Date(base + 3*86400000), off = d.getTimezoneOffset()*60000;
+  return new Date(d.getTime()-off).toISOString().slice(0,10);
+}
+function renderExtensions(a){
+  var wrap=document.getElementById('adExtWrap'); if(!wrap) return;
+  if(a.mode!=='homework' || !AW.firebaseOn){ wrap.innerHTML=''; return; }
+  wrap.innerHTML='<div class="aw-ext"><div class="aw-ext-h">Extensions</div><div id="adExtBody"><span class="aw-spin aw-spin-dark"></span></div></div>';
+  Promise.all([
+    AW.api('teacher.listExtensionRequests',{class:curClass(), topicId:a.topicId}),
+    AW.api('class.roster',{class:curClass()})
+  ]).then(function(r){
+    if(_curDetailAssign!==a) return;
+    var reqs=((r[0]&&r[0].data)||[]), roster=((r[1]&&r[1].data)||[]).filter(function(x){return !x.archived;});
+    var nameOf={}; roster.forEach(function(x){ nameOf[extKeyOf(x.studentId)]=x; });
+    var ext=a.extensions||{}, def=extDefaultUntil(a);
+    var pending=reqs.filter(function(q){ return q.status==='pending'; });
+    var html='';
+    html+= pending.length ? pending.map(function(q){
+      return '<div class="aw-ext-row req" data-sid="'+AW.esc(q.studentId)+'">'+
+        '<div class="aw-ext-who"><b>'+AW.esc(q.name||q.studentId)+'</b> <span>'+AW.esc(q.studentId)+' · asked '+AW.esc(AW.fmtDate(q.createdAt))+'</span>'+
+          (q.reason?'<div class="aw-ext-why">'+AW.esc(q.reason)+'</div>':'')+'</div>'+
+        '<input type="date" class="aw-input aw-ext-date" value="'+def+'" aria-label="New deadline for '+AW.esc(q.name||q.studentId)+'">'+
+        '<button type="button" class="aw-btn aw-btn-dark aw-ext-grant">Extend</button>'+
+        '<button type="button" class="aw-btn aw-btn-ghost aw-ext-decline">Decline</button></div>';
+    }).join('') : '<p class="aw-ext-empty">No requests waiting.</p>';
+    var given=Object.keys(ext);
+    if(given.length){
+      html+='<div class="aw-ext-sub">Given</div>'+given.map(function(k){
+        var st=nameOf[k]||{studentId:k,name:k};
+        return '<div class="aw-ext-row" data-sid="'+AW.esc(st.studentId)+'"><div class="aw-ext-who"><b>'+AW.esc(st.name||st.studentId)+'</b> <span>'+AW.esc(st.studentId)+'</span></div>'+
+          '<span class="aw-due ext" style="margin:0">until '+AW.esc(AW.fmtDate(ext[k]))+'</span>'+
+          '<button type="button" class="aw-btn aw-btn-ghost aw-ext-remove">Remove</button></div>';
+      }).join('');
+    }
+    html+='<div class="aw-ext-sub">Give a student more time</div>'+
+      '<div class="aw-ext-row add"><select class="aw-select aw-ext-pick" aria-label="Student"><option value="">Choose a student</option>'+
+        roster.map(function(x){ return '<option value="'+AW.esc(x.studentId)+'">'+AW.esc(x.name||x.studentId)+' ('+AW.esc(x.studentId)+')</option>'; }).join('')+
+      '</select><input type="date" class="aw-input aw-ext-date" value="'+def+'" aria-label="New deadline">'+
+      '<button type="button" class="aw-btn aw-btn-dark aw-ext-grant">Extend</button></div>';
+    document.getElementById('adExtBody').innerHTML=html;
+    function until(row){ var d=row.querySelector('.aw-ext-date').value; return d ? d+'T23:59:00' : ''; }
+    function run(btn, action, sid, extra, label){
+      if(!sid){ AW.toast('Choose a student first','err'); return; }
+      btn.disabled=true;
+      AW.api(action, Object.assign({ topicId:a.topicId, studentId:sid }, extra||{})).then(function(res){
+        if(res&&res.success){
+          if(action==='teacher.grantExtension') ext[extKeyOf(sid)]=extra.until;
+          if(action==='teacher.removeExtension') delete ext[extKeyOf(sid)];
+          a.extensions=ext; AW.toast(label,'ok'); renderExtensions(a); pollAlerts();
+        } else { btn.disabled=false; AW.toast((res&&res.error)||'Failed','err'); }
+      });
+    }
+    AW.els('#adExtBody .aw-ext-grant').forEach(function(b){
+      b.onclick=function(){ var row=b.closest('.aw-ext-row'), sid=row.dataset.sid||(row.querySelector('.aw-ext-pick')||{}).value;
+        var u=until(row); if(!u){ AW.toast('Choose the new deadline','err'); return; }
+        run(b,'teacher.grantExtension',sid,{until:u},'Deadline extended'); };
+    });
+    AW.els('#adExtBody .aw-ext-decline').forEach(function(b){
+      b.onclick=function(){ run(b,'teacher.declineExtension',b.closest('.aw-ext-row').dataset.sid,null,'Request declined'); };
+    });
+    AW.els('#adExtBody .aw-ext-remove').forEach(function(b){
+      b.onclick=function(){ run(b,'teacher.removeExtension',b.closest('.aw-ext-row').dataset.sid,null,'Extension removed'); };
+    });
+  });
 }
 
 // Close
@@ -3770,7 +3846,7 @@ window.archiveStudent=function(studentId,name){
 /*═══════════ global alerts: raised hands + new questions ═══════════
   Runs on every teacher view so a raised hand is never missed, and stays
   lightweight (no essay snapshots) to keep Apps Script quota happy. */
-var _seenHands={}, _seenQs={}, _alertFirstRun=true, _alertInterval=null;
+var _seenHands={}, _seenQs={}, _seenExt={}, _alertFirstRun=true, _alertInterval=null;
 function startAlerts(){
   pollAlerts();
   _alertInterval = setInterval(pollAlerts, 25000);
@@ -3807,6 +3883,14 @@ function pollAlerts(){
       }
       _seenQs[q.queryId]=1;
     });
+    (d.extensions||[]).forEach(function(x){
+      if(!_seenExt[x.key] && !_alertFirstRun){
+        awNotify('⏰ <b>'+AW.esc(x.name||x.studentId)+'</b> asks for more time'+
+          '<div style="font-size:.8rem;opacity:.9;margin-top:3px">'+AW.esc(x.topic||'')+'</div>', 'ext');
+      }
+      _seenExt[x.key]=1;
+    });
+    setNavBadge('assignments', (d.extensions||[]).length);
     // badge on the sidebar
     var openN=(d.questions||[]).length, handN=(d.hands||[]).length;
     setNavBadge('queries', openN);
@@ -3830,12 +3914,13 @@ function awNotify(html, kind){
     document.body.appendChild(wrap);
   }
   var n=document.createElement('div');
-  n.className='aw-notif'+(kind==='hand'?' hand':'');
+  n.className='aw-notif'+(kind==='hand'||kind==='ext'?' hand':'');
   n.innerHTML='<div>'+html+'</div><button class="aw-notif-x">×</button>';
   n.querySelector('.aw-notif-x').onclick=function(){ n.remove(); };
   n.onclick=function(e){
     if(e.target.classList.contains('aw-notif-x'))return;
     if(kind==='hand'){ showLive(); AW.setActiveNav('live'); }
+    else if(kind==='ext'){ location.hash='assignments'; showAssignments(); AW.setActiveNav('assignments'); }
     else { showQueries(); AW.setActiveNav('queries'); }
     n.remove();
   };

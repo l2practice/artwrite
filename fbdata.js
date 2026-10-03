@@ -297,13 +297,38 @@ async function archiveStudent(p) {
 // ════════════════════════════════════════════
 // ASSIGNMENTS
 // ════════════════════════════════════════════
-function assignOut(a) {
-  return {
+// Deadlines are 'YYYY-MM-DDTHH:MM:00' (local time); older ones are a bare
+// date, which means the end of that day.
+function deadlineMs(d) {
+  d = str(d);
+  if (!d) return 0;
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? ms(d + 'T23:59:59') : ms(d);
+}
+// A student's own deadline: the class deadline, or the extension the
+// teacher gave them (extensions: { studentKey: deadline }).
+function myDeadline(a, u) {
+  const ext = u && u.role === 'student' && a.extensions ? a.extensions[safeKey(u.studentId)] : '';
+  return ext || a.deadline || '';
+}
+function isPast(a, u) {
+  const d = myDeadline(a, u);
+  return a.mode === 'homework' && !!d && Date.now() > deadlineMs(d);
+}
+function assignOut(a, u) {
+  const out = {
     topicId: a.topicId || a._id, mode: a.mode, class: a.classId, topic: a.topic, prompt: a.prompt,
     taskType: a.taskType || 'task2', chartImageId: a.chartImageId || '', aiNotes: a.aiNotes || '',
     requiredAttempts: a.requiredAttempts, durationMin: a.durationMin, deadline: a.deadline,
     dataStatus: a.dataStatus || ''
   };
+  if (u && u.role === 'student') {
+    out.myDeadline = myDeadline(a, u);
+    out.extended = out.myDeadline !== (a.deadline || '');
+    out.isPastDeadline = isPast(a, u);
+  } else {
+    out.extensions = a.extensions || {};
+  }
+  return out;
 }
 async function getAssignments(p) {
   const u = await me();
@@ -315,17 +340,18 @@ async function getAssignments(p) {
   rows = rows.filter(a => a.active !== false &&
     (!p.mode || a.mode === p.mode) && (!p.taskType || (a.taskType || 'task2') === p.taskType))
     .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
-  return ok(rows.map(assignOut));
+  return ok(rows.map(a => assignOut(a, u)));
 }
 async function getPrompt(p) {
   if (!p.topicId) return fail('Missing topicId.');
-  await me();
+  const u = await me();
   const d = await fs.doc('assignments/' + str(p.topicId)).get();
   if (!d.exists) return ok({ prompt: '', topic: '', taskType: 'task2', chartImageId: '' });
   const a = d.data();
   return ok({ prompt: a.prompt || '', topic: a.topic || '', taskType: a.taskType || 'task2',
               chartImageId: a.chartImageId || '', minWords: a.minWords || 0,
-              writingType: a.writingType || 'full_essay', aiNotes: a.aiNotes || '', durationMin: a.durationMin || '' });
+              writingType: a.writingType || 'full_essay', aiNotes: a.aiNotes || '', durationMin: a.durationMin || '',
+              mode: a.mode || '', deadline: myDeadline(a, u), isPastDeadline: isPast(a, u), dataStatus: a.dataStatus || '' });
 }
 async function createAssignment(p) {
   const t = await teacher();
@@ -396,10 +422,13 @@ async function saveResult(p) {
       return fail('Bạn đã viết đủ 3 lần cho bài này.', { locked: true, attempt: prior });
     if (asg && asg.dataStatus)
       return fail('Bài này đã được giáo viên lưu trữ (Clear Data), không nộp thêm được.', { locked: true, attempt: prior });
-    if (asg && asg.deadline) {
-      const dl = ms(asg.deadline);
-      if (dl && Date.now() > dl + 86400000)
-        return fail('Đã quá hạn nộp bài (deadline: ' + asg.deadline + ').', { locked: true, attempt: prior });
+    // The page closes an overdue task; two hours of grace lets an essay that
+    // was started before the deadline (homework is capped at 60 min) be sent.
+    const dlStr = asg ? myDeadline(asg, u) : '';
+    if (asg && asg.mode === 'homework' && dlStr) {
+      const dl = deadlineMs(dlStr);
+      if (dl && Date.now() > dl + 2 * 3600000)
+        return fail('Đã quá hạn nộp bài (deadline: ' + dlStr + '). Hãy xin giáo viên gia hạn.', { locked: true, overdue: true, attempt: prior });
     }
     const attempt = prior + 1, ts = nowIso();
     const light = {
@@ -684,13 +713,70 @@ async function clearLive(p) {
 async function getAlerts(p) {
   const [live, open] = await Promise.all([getLive(p), rtdb.ref('queryOpen/' + str(p.class)).once('value')]);
   const o = open.val() || {};
+  const ext = await extRequestsOf(p.class, true).catch(() => []);
   return ok({
+    extensions: ext.map(r => ({ key: r.key, studentId: r.studentId, name: r.name, topicId: r.topicId, topic: r.topic, createdAt: r.createdAt })),
     hands: (live.data || []).filter(r => r.raisedHand)
       .map(r => ({ studentId: r.studentId, name: r.name, where: r.topic || '', updated: r.updated })),
     questions: Object.keys(o).map(k => o[k]).sort(byNewest)
       .map(q => ({ queryId: q.queryId, studentId: q.studentId, name: q.studentName, question: q.question,
                    topic: q.topic, createdAt: q.createdAt }))
   });
+}
+
+// ── Deadline extensions ─────────────────────────────────────────
+// extRequests/{classId}/{topicKey__uid}: one request per student per task.
+// The teacher grants by writing assignments/{id}.extensions.{studentKey}.
+const extKey = (topicId, uid) => rkey(topicId) + '__' + uid;
+async function requestExtension(p) {
+  const u = await me();
+  if (u.role !== 'student') return fail('Chỉ sinh viên mới gửi được yêu cầu này.');
+  const d = await fs.doc('assignments/' + str(p.topicId)).get();
+  if (!d.exists) return fail('Không tìm thấy bài tập.');
+  const a = d.data();
+  const key = extKey(p.topicId, u.uid);
+  await rtdb.ref('extRequests/' + u.classId + '/' + key).set({
+    uid: u.uid, studentId: u.studentId, name: u.name || '', topicId: str(p.topicId), topic: a.topic || '',
+    deadline: myDeadline(a, u), reason: String(p.reason || '').slice(0, 500), status: 'pending', createdAt: nowIso()
+  });
+  gas('fb.notifyExtension', { classId: u.classId, key: key }).catch(() => {});   // email the teacher; never blocks
+  return ok({ status: 'pending' });
+}
+async function myExtensionRequest(p) {
+  const u = await me();
+  if (u.role !== 'student') return ok(null);
+  const v = (await rtdb.ref('extRequests/' + u.classId + '/' + extKey(p.topicId, u.uid)).once('value')).val();
+  return ok(v ? { status: v.status, createdAt: v.createdAt, until: v.until || '' } : null);
+}
+async function extRequestsOf(classId, pendingOnly) {
+  const v = (await rtdb.ref('extRequests/' + str(classId)).once('value')).val() || {};
+  return Object.keys(v).map(k => Object.assign({ key: k }, v[k]))
+    .filter(r => !pendingOnly || r.status === 'pending').sort(byNewest);
+}
+async function listExtensionRequests(p) {
+  await teacher();
+  const rows = await extRequestsOf(p.class, false);
+  return ok(p.topicId ? rows.filter(r => r.topicId === str(p.topicId)) : rows);
+}
+async function setExtension(p, grant) {
+  const t = await teacher();
+  const ref = fs.doc('assignments/' + str(p.topicId));
+  const d = await ref.get();
+  if (!d.exists || d.data().teacherUid !== t.uid) return fail('Assignment not found.');
+  const s = await studentByIdForTeacher(t, p.studentId);
+  if (!s) return fail('Student not found.');
+  const field = new FP('extensions', safeKey(p.studentId));
+  if (grant) {
+    if (!deadlineMs(p.until)) return fail('Choose a new deadline.');
+    await ref.update(field, str(p.until));
+  } else if (p.remove) {
+    await ref.update(field, FV.delete());
+  }
+  const rq = rtdb.ref('extRequests/' + s.classId + '/' + extKey(p.topicId, s._id));
+  if ((await rq.once('value')).exists())
+    await rq.update({ status: grant ? 'granted' : (p.remove ? 'removed' : 'declined'), until: grant ? str(p.until) : '', decidedAt: nowIso() });
+  forget('assign|');
+  return ok();
 }
 
 // Feedback pushed from the annotation modal: the student sees it at once.
@@ -994,6 +1080,10 @@ const ACTIONS = {
   'write.heartbeat': heartbeat, 'write.raiseHand': raiseHand, 'write.getDraftSnapshot': getDraftSnapshot,
   'write.getAnnotation': getAnnotationForStudent, 'teacher.getAnnotation': getAnnotation,
   'teacher.getLive': getLive, 'teacher.clearLive': clearLive, 'teacher.getAlerts': getAlerts,
+  'write.requestExtension': requestExtension, 'write.myExtensionRequest': myExtensionRequest,
+  'teacher.listExtensionRequests': listExtensionRequests,
+  'teacher.grantExtension': p => setExtension(p, true), 'teacher.declineExtension': p => setExtension(p, false),
+  'teacher.removeExtension': p => setExtension(Object.assign({}, p, { remove: true }), false),
   'board.create': boardCreate, 'board.list': boardList, 'board.get': boardGet, 'board.meta': boardMeta,
   'board.save': boardSave, 'board.delete': boardDelete,
   'query.create': queryCreate, 'query.listForStudent': queryListForStudent, 'query.listForTeacher': queryListForTeacher,
