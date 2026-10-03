@@ -2421,8 +2421,8 @@ function renderResults(){
     var hasNote = !!(ts.note || ts.privateNote);
     return '<div class="res-row" data-key="'+AW.esc(gkey)+'">'+
       '<div class="res-who"><span class="res-av" style="background:'+pal[0]+';color:'+pal[1]+'">'+AW.esc(ini)+'</span>'+
-        '<span style="min-width:0"><span class="res-nm" title="'+AW.esc(nm)+'">'+AW.esc(nm)+(isNew?' <span class="res-new" title="Submitted in the last 24 h, not opened yet">new</span>':'')+'</span>'+
-        '<span class="res-sub">'+sub+'</span></span></div>'+
+        '<span style="min-width:0"><span class="res-nm">'+AW.esc(nm)+(isNew?' <span class="res-new" title="Submitted in the last 24 h, not opened yet">new</span>':'')+'</span>'+
+        '<span class="res-sub">'+sub+'</span></span><span class="res-full">'+AW.esc(nm)+'<br><span style="font-weight:400;opacity:.8">'+sub+'</span></span></div>'+
       '<div class="res-tries">'+chips+'</div>'+chg+scores+
       '<div class="res-acts">'+
         '<button type="button" class="res-ib res-notes-btn'+(hasNote?' has':'')+'" title="Notes" aria-label="Notes for '+AW.esc(nm)+'">'+AW.icon('chat')+'</button>'+
@@ -2503,6 +2503,7 @@ function renderResults(){
     }).catch(function(){});
   }
 
+  AW.markTruncated(box);
   AW.els('.res-sortable').forEach(function(h){ h.onclick=function(){ setResSort(h.dataset.sortkey); }; });
   // a score (or the arrow) opens the attempt; cleared data opens the Google Doc
   AW.els('[data-open-key]').forEach(function(el){
