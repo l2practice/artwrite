@@ -563,7 +563,7 @@ function renderProgress(){
              '<b>'+AW.esc(String(x.overall||x.teacher||'—'))+'</b><span>'+(dur(x.duration)||'&nbsp;')+'</span></button>';
     }
     var chg = change===null ? '<span class="res-chg" style="color:var(--aw-ink-3)">–</span>'
-      : '<span class="res-chg" style="color:'+(change>0?'#16825B':change<0?'#C2410C':'var(--aw-ink-2)')+'">'+(change>0?'▲ +':change<0?'▼ −':'')+Math.abs(change).toFixed(1)+'</span>';
+      : '<span class="res-chg" style="color:'+(change>0?'#16825B':change<0?'#C2410C':'var(--aw-ink-2)')+'">'+(change>0?'+':change<0?'−':'')+Math.abs(change).toFixed(1)+'</span>';
     var t1=g.taskType==='task1';
     function sc(lbl,v,oa){ return '<span class="'+(oa?'oa':'')+(v?'':' none')+'"><small>'+lbl+'</small>'+(v?AW.esc(String(v)):'–')+'</span>'; }
     var score='<div class="res-score-ro" title="'+(ts.overall?'Your teacher\'s score':'Not scored by your teacher yet')+'">'+
@@ -595,7 +595,7 @@ function renderProgress(){
       tile('T','#FDE7D6','#9A3B0A','Scored by teacher',st.scored)+
     '</div>'+
     '<div class="res-list"><div class="res-grid stu">'+
-      '<div class="res-head"><span>Task</span><span>Attempts, best in color</span><span>Change</span>'+
+      '<div class="res-head"><span>Task</span><span>Attempts, best in color</span><span title="Change from the first to the last attempt">+/−</span>'+
         '<span>Teacher score</span><span></span></div>'+
       body+
     '</div></div>'+
