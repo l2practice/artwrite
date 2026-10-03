@@ -2403,7 +2403,7 @@ function renderResults(){
     }
     var chg = change===null ? '<span class="res-chg" style="color:var(--aw-ink-3)">–</span>'
       : '<span class="res-chg" style="color:'+(change>0?'#16825B':change<0?'#C2410C':'var(--aw-ink-2)')+'">'+
-        (change>0?'▲ +':change<0?'▼ −':'')+Math.abs(change).toFixed(1)+'</span>';
+        (change>0?'+':change<0?'−':'')+Math.abs(change).toFixed(1)+'</span>';
     var t1=g.taskType==='task1';
     var scores='<div class="res-scores">'+
       '<input class="ms-in" data-f="tr" placeholder="'+(t1?'TA':'TR')+'" value="'+AW.esc(ts.tr||'')+'" aria-label="'+(t1?'Task Achievement':'Task Response')+'" title="'+(t1?'Task Achievement':'Task Response')+'">'+
@@ -2485,7 +2485,7 @@ function renderResults(){
     : '';
   box.innerHTML='<div class="res-layout"><div class="res-main">'+tiles+taskCard+
       '<div class="res-list"><div class="res-grid">'+
-        '<div class="res-head">'+sortHd('Student','name')+sortHd('Attempts, best in color','bestResult')+'<span>Change</span>'+
+        '<div class="res-head">'+sortHd('Student','name')+sortHd('Attempts, best in color','bestResult')+'<span title="Change from the first to the last attempt">+/−</span>'+
           '<span class="res-scores res-scores-hd"><span>'+(rows.every(function(r){return r.taskType==='task1';})?'TA':'TR')+'</span><span>CC</span><span>LR</span><span>GR</span><span>All</span></span><span></span></div>'+
         body+
       '</div></div>'+
