@@ -88,19 +88,22 @@
   .aw-tbtn:hover{background:var(--aw-primary-lt);color:var(--aw-primary-hv)}
   .aw-tbtn.on{background:var(--aw-primary);color:#fff;border-color:var(--aw-primary)}
   .ann-sep{width:1px;background:var(--aw-border-2);align-self:stretch;margin:2px 2px;display:inline-block}
-  /* PERMANENT FIX 3: resizable annotation modal */
-  /* Live annotation fills the screen so the essay can be projected for the class */
-  #modalBg{padding:0;z-index:860}  /* above the Ask AI button; notifications (900) still show */
-  .aw-modal{background:var(--aw-surface);border-radius:0;width:100vw;height:100vh;max-width:100vw;max-height:100vh;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 340px;box-shadow:none}
+  /* Student essay window: opens large, drag the bottom-right corner to stretch
+     it, Expand fills the page, and the essay zooms (− / + or ⌘/Ctrl + wheel)
+     so one essay can be corrected together with the whole class. */
+  #modalBg{z-index:860}  /* above the Ask AI button; notifications (900) still show */
+  .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:92vw;height:90vh;min-width:520px;min-height:380px;max-width:100vw;max-height:100vh;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 340px;box-shadow:var(--aw-shadow-lg);resize:both}
+  .aw-modal::-webkit-resizer{background:linear-gradient(135deg,transparent 50%,var(--aw-primary) 50%)}
+  #modalBg.is-max{padding:0}
+  #modalBg.is-max .aw-modal{width:100vw!important;height:100vh!important;border-radius:0;resize:none}
   .aw-modal.no-side{grid-template-columns:minmax(0,1fr)}
   .aw-modal.no-side .aw-modal-side{display:none}
-  .aw-modal .aw-doc-text{max-width:1180px;margin:8px auto;width:100%}
   .aw-ann-hbtn{min-height:40px;padding:8px 16px;font-size:.85rem}
   .aw-modal-card{background:var(--aw-surface);border-radius:var(--aw-r-lg);padding:24px 26px;box-shadow:var(--aw-shadow-lg)}
   /* PERMANENT FIX 1+2: flex column — header/footer sticky, middle scrolls */
   .aw-modal .aw-modal-doc{overflow:hidden;display:flex;flex-direction:column;min-height:0}
   .aw-modal .aw-doc-text{min-height:60vh;flex:1}
-  @media(max-width:800px){.aw-modal{grid-template-columns:minmax(0,1fr);overflow-y:auto}}
+  @media(max-width:800px){.aw-modal{grid-template-columns:minmax(0,1fr);overflow-y:auto;width:100vw;height:100vh;min-width:0;border-radius:0;resize:none}}
   .aw-modal-doc{padding:0;overflow:hidden;max-height:100vh;display:flex;flex-direction:column;min-height:0}
   /* PERMANENT FIX 1: sticky student name header */
   .aw-modal-doc-head{display:flex;align-items:center;justify-content:space-between;padding:14px 24px 12px;position:sticky;top:0;z-index:10;background:var(--aw-surface);border-bottom:1px solid var(--aw-border-2);margin:0;flex-shrink:0}
@@ -259,7 +262,7 @@
         <div><b id="mStudent">Student</b> <span style="color:var(--aw-ink-3)" id="mTopic"></span></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
           <button class="aw-btn aw-btn-ghost aw-ann-hbtn" id="mPanelBtn" title="Show or hide the scoring panel">Hide panel</button>
-          <button class="aw-btn aw-btn-ghost aw-ann-hbtn" id="mFsBtn" title="Full screen for the projector (Esc to leave)">Full screen</button>
+          <button class="aw-btn aw-btn-ghost aw-ann-hbtn" id="mFsBtn" title="Fill the whole page (or drag the bottom-right corner to resize)">Expand</button>
           <button class="aw-btn aw-btn-dark aw-ann-hbtn" id="mClose">Close</button>
         </div>
       </div>
@@ -352,7 +355,7 @@
             <span id="annLiveNote" style="font-size:.72rem;color:var(--aw-ink-3)">Updates as the student types</span>
           </div>
         </div>
-        <p style="font-size:.78rem;color:var(--aw-ink-3);margin:3px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done.</p>
+        <p style="font-size:.78rem;color:var(--aw-ink-3);margin:3px 0 0">Select text then use the toolbar to annotate. Click <b>Push to Student</b> when done. Drag the bottom-right corner to resize; ⌘/Ctrl + scroll to zoom the essay.</p>
       </div>
     </div>
     <div class="aw-modal-side">
@@ -1191,7 +1194,6 @@ function stopLiveWatch(){
 function stopLiveTextWatch(){ if(_liveTextUnsub){ _liveTextUnsub(); _liveTextUnsub=null; } }
 // Open a student's essay: fetch their text, then keep it in sync while open.
 function openLiveStudent(s){
-  annEnterFullscreen();   // must run inside the click, before anything async
   if(!AW.firebaseOn || !s.uid){ openAnnotation(s); return; }
   stopLiveTextWatch();
   var opened=false;
@@ -1460,38 +1462,40 @@ document.getElementById('viewSentFb').onclick = function(){
   document.body.appendChild(panel);
 };
 
-/*── Full screen for projecting a student's essay to the class ──────
-   The modal always fills the window; opening a student from Live also asks
-   the browser for real full screen (hides tabs and address bar). Esc or
-   Close leaves it. Both choices (full screen, scoring panel) are kept.  */
+/*── Student essay window: stretch, expand, zoom ─────────────────────
+   Opens large; drag the bottom-right corner to resize, Expand fills the
+   page, Hide panel gives the essay the full width. The essay zooms with
+   − / + or ⌘/Ctrl + mouse wheel (trackpad pinch), so one student's essay
+   can be corrected in front of the whole class. Choices are kept.       */
 function annPref(k, d){ try{ var v=localStorage.getItem(k); return v===null?d:v==='1'; }catch(e){ return d; } }
 function annSetPref(k, v){ try{ localStorage.setItem(k, v?'1':'0'); }catch(e){} }
-function annEnterFullscreen(){
-  if(!annPref('aw_ann_fs', true) || document.fullscreenElement) return;
-  var el=document.documentElement;
-  if(el.requestFullscreen) el.requestFullscreen().catch(function(){});
-}
-function annExitFullscreen(){
-  if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function(){});
-}
 function annSyncHeadBtns(){
-  var fs=document.getElementById('mFsBtn'), pb=document.getElementById('mPanelBtn');
-  if(fs) fs.textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen';
-  var side=annPref('aw_ann_side', true);
-  document.querySelector('#modalBg .aw-modal').classList.toggle('no-side', !side);
+  var bg=document.getElementById('modalBg'), fs=document.getElementById('mFsBtn'), pb=document.getElementById('mPanelBtn');
+  var max=annPref('aw_ann_max', false), side=annPref('aw_ann_side', true);
+  bg.classList.toggle('is-max', max);
+  bg.querySelector('.aw-modal').classList.toggle('no-side', !side);
+  if(fs) fs.textContent = max ? 'Restore size' : 'Expand';
   if(pb) pb.textContent = side ? 'Hide panel' : 'Show panel';
 }
-document.addEventListener('fullscreenchange', annSyncHeadBtns);
 document.getElementById('mFsBtn').onclick=function(){
-  if(document.fullscreenElement){ annSetPref('aw_ann_fs', false); annExitFullscreen(); }
-  else { annSetPref('aw_ann_fs', true); annEnterFullscreen(); }
+  annSetPref('aw_ann_max', !annPref('aw_ann_max', false)); annSyncHeadBtns();
 };
 document.getElementById('mPanelBtn').onclick=function(){
   annSetPref('aw_ann_side', !annPref('aw_ann_side', true)); annSyncHeadBtns();
 };
+// ⌘/Ctrl + wheel (or trackpad pinch) over the essay zooms the essay, not the page
+var _annWheel=0, _annWheelAt=0;
+mText.addEventListener('wheel', function(e){
+  if(!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  // a pinch sends many small events: step once per ~60px of movement
+  if(Date.now()-_annWheelAt > 400) _annWheel=0;
+  _annWheelAt=Date.now(); _annWheel+=e.deltaY;
+  if(Math.abs(_annWheel) >= 60){ annZoom(_annWheel < 0 ? 1 : -1); _annWheel=0; }
+}, { passive:false });
 
 function openAnnotation(s){
-  annEnterFullscreen(); annSyncHeadBtns();
+  annSyncHeadBtns();
   currentAnnot={ studentId:s.studentId, topicId:s.topicId, mode:s.mode, suggestions:[] };
   document.getElementById('mStudent').textContent=s.name||s.studentId;
   document.getElementById('mTopic').textContent=s.topic?('· '+s.topic):'';
@@ -1891,7 +1895,6 @@ document.getElementById('pushFb').onclick=function(){
 };
 document.getElementById('mClose').onclick=function(){
   document.getElementById('modalBg').classList.remove('show');
-  annExitFullscreen();
   liveSelected=null;
   stopLiveTextWatch();
   _annotLastSnapshot=''; _annotModalDirty=false;
@@ -1976,7 +1979,7 @@ document.getElementById('saveFb').onclick=function(){
     lr:document.getElementById('sLR').value, gra:document.getElementById('sGRA').value,
     note:'', teacherGrading:overall
   }).then(function(res){
-    if(res&&res.success){AW.toast('Feedback and score saved','ok');document.getElementById('modalBg').classList.remove('show');annExitFullscreen();}
+    if(res&&res.success){AW.toast('Feedback and score saved','ok');document.getElementById('modalBg').classList.remove('show');}
     else AW.toast('Lưu thất bại','err');
   }).finally(function(){ btn.disabled=false; btn.textContent=orig; });
 };
