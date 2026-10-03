@@ -336,6 +336,17 @@
     });
   };
 
+  /*── Names cut short by the column: mark them so hovering shows the full
+     text (.res-who.trunc .res-full). Re-checked when the window resizes. */
+  AW.markTruncated = function (root) {
+    (root || document).querySelectorAll('.res-who').forEach(function (w) {
+      var n = w.querySelector('.res-nm');
+      if (n) w.classList.toggle('trunc', n.scrollWidth > n.clientWidth + 1);
+    });
+  };
+  var _truncT = null;
+  global.addEventListener('resize', function () { clearTimeout(_truncT); _truncT = setTimeout(function () { AW.markTruncated(); }, 150); });
+
   /*── SHELL renderer (sidebar + topbar) ────────────*/
   AW.renderShell = function (opts) {
     var s = AW.session.get() || {};
