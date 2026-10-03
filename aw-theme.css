@@ -155,19 +155,22 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
   Dashboard shell — icon rail + topbar + content
   Used by student.html, teacher.html, library.html
 ───────────────────────────────────────────────────*/
-.aw-shell{display:grid;grid-template-columns:104px minmax(0,1fr);gap:16px;min-height:100vh;padding:16px}
-.aw-side{background:var(--aw-surface);border-radius:var(--aw-r-lg);box-shadow:var(--aw-shadow);padding:18px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;position:sticky;top:16px;height:calc(100vh - 32px);overflow-y:auto;scrollbar-width:none}
+.aw-shell{display:grid;grid-template-columns:88px minmax(0,1fr);gap:16px;min-height:100vh;padding:16px}
+.aw-side{background:var(--aw-surface);border-radius:var(--aw-r-lg);box-shadow:var(--aw-shadow);padding:16px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;position:sticky;top:16px;height:calc(100vh - 32px);overflow-y:auto;scrollbar-width:none}
 .aw-side::-webkit-scrollbar{display:none}
 .aw-side .aw-logo{margin:2px 0 16px}
 .aw-side .aw-logo-name{display:none}
 .aw-nav-group{display:none}
-.aw-nav{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:84px;min-height:60px;padding:9px 4px;border-radius:16px;color:var(--aw-ink-3);
-  text-decoration:none;font-weight:500;font-size:.7rem;line-height:1.2;text-align:center;cursor:pointer;transition:background .14s,color .14s;border:none;background:none;font-family:var(--aw-font-body)}
+.aw-nav{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:72px;min-height:58px;padding:8px 2px;border-radius:16px;color:var(--aw-ink-3);
+  text-decoration:none;font-weight:500;font-size:.72rem;line-height:1.2;text-align:center;cursor:pointer;transition:background .14s,color .14s;border:none;background:none;font-family:var(--aw-font-body)}
 .aw-nav span{white-space:normal;overflow:hidden;flex:0 0 auto;max-width:100%}
 .aw-nav:hover{background:var(--aw-surface-2);color:var(--aw-ink)}
 .aw-nav.active{background:var(--aw-primary);color:#fff;font-weight:600}
 .aw-nav svg{width:22px;height:22px;flex:0 0 auto}
 .aw-nav-sub{font-size:.66rem}
+.aw-side-foot{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:8px}
+.aw-side-foot .aw-avatar{width:44px;height:44px;cursor:default}
+.aw-eyebrow:empty{display:none}
 
 .aw-main{display:flex;flex-direction:column;min-width:0;gap:16px}
 .aw-topbar{display:flex;align-items:center;gap:16px;padding:8px 8px 0}
@@ -230,7 +233,7 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
 /* mobile: the rail becomes a drawer behind the menu button */
 @media(max-width:860px){
   .aw-shell{grid-template-columns:minmax(0,1fr);padding:10px}
-  .aw-side{position:fixed;left:-130px;top:10px;height:calc(100vh - 20px);z-index:200;transition:left .2s;width:104px;box-shadow:var(--aw-shadow-lg)}
+  .aw-side{position:fixed;left:-110px;top:10px;height:calc(100vh - 20px);z-index:200;transition:left .2s;width:88px;box-shadow:var(--aw-shadow-lg)}
   .aw-side.open{left:10px}
   .aw-menu-btn{display:inline-grid!important}
   .aw-topbar{padding:4px 2px 0;flex-wrap:wrap}

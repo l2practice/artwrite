@@ -53,22 +53,22 @@ if (!sess) throw 'redirect';
 var isTeacher = sess.role === 'teacher';
 
 var nav = isTeacher ? [
-  { id:'overview', label:'Class Overview', icon:'overview', href:'teacher.html' },
-  { id:'live',     label:'Live Observation', icon:'live', href:'teacher.html#live' },
-  { id:'assignments', label:'Assignments', icon:'tasks', href:'teacher.html#assignments' },
+  { id:'overview', label:'Overview', icon:'overview', href:'teacher.html' },
+  { id:'live',     label:'Live', icon:'live', href:'teacher.html#live' },
+  { id:'assignments', label:'Tasks', icon:'tasks', href:'teacher.html#assignments' },
   { id:'results',  label:'Results', icon:'progress', href:'teacher.html#results' },
-  { id:'board',    label:'Interactive Board', icon:'board', href:'board.html' },
+  { id:'board',    label:'Board', icon:'board', href:'board.html' },
   { id:'library',  label:'Library', icon:'library', active:true },
 ] : [
-  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
-  { id:'board',   label:'Interactive Board', icon:'board', href:'board.html' },
+  { id:'modes',   label:'Practice', icon:'modes', href:'student.html' },
+  { id:'board',   label:'Board', icon:'board', href:'board.html' },
   { id:'library', label:'Library', icon:'library', active:true },
-  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
+  { id:'progress',label:'Progress', icon:'progress', href:'student.html#progress' },
 ];
 
 var content = AW.renderShell({
   mount:'app', nav:nav,
-  eyebrow:(isTeacher?'Teacher':'Student')+' Interface', title:'Library'
+  eyebrow:'', title:'Library'
 });
 
 content.innerHTML =

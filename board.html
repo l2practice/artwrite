@@ -86,26 +86,26 @@ if (!sess) throw 'redirect';
 var isTeacher = sess.role === 'teacher';
 
 var nav = isTeacher ? [
-  { id:'overview', label:'Class Overview', icon:'overview', href:'teacher.html' },
-  { id:'live',     label:'Live Observation', icon:'live', href:'teacher.html#live' },
-  { id:'assign',   label:'Assignments', icon:'tasks', href:'teacher.html#assignments' },
+  { id:'overview', label:'Overview', icon:'overview', href:'teacher.html' },
+  { id:'live',     label:'Live', icon:'live', href:'teacher.html#live' },
+  { id:'assign',   label:'Tasks', icon:'tasks', href:'teacher.html#assignments' },
   { id:'results',  label:'Results', icon:'progress', href:'teacher.html#results' },
-  { id:'queries',  label:'Feedback Queries', icon:'chat', href:'teacher.html#queries' },
-  { id:'board',    label:'Interactive Board', icon:'board', active:true },
+  { id:'queries',  label:'Questions', icon:'chat', href:'teacher.html#queries' },
+  { id:'board',    label:'Board', icon:'board', active:true },
   { id:'library',  label:'Library', icon:'library', href:'library.html' },
   { id:'settings', label:'Settings', icon:'settings', href:'teacher.html#settings' },
 ] : [
-  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
-  { id:'board',   label:'Interactive Board', icon:'board', active:true },
+  { id:'modes',   label:'Practice', icon:'modes', href:'student.html' },
+  { id:'board',   label:'Board', icon:'board', active:true },
   { id:'library', label:'Library', icon:'library', href:'library.html' },
-  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
-  { id:'qa',      label:'Q&A with Teacher', icon:'chat', href:'student.html#qa' },
+  { id:'progress',label:'Progress', icon:'progress', href:'student.html#progress' },
+  { id:'qa',      label:'Q&A', icon:'chat', href:'student.html#qa' },
   { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
 ];
 
 var content = AW.renderShell({
   mount:'app', nav:nav,
-  eyebrow:(isTeacher?'Teacher':'Student')+' Interface', title:'Interactive Board'
+  eyebrow:'', title:'Interactive Board'
 });
 
 var curBoard=null, zoom=1, saveTimer=null, pollTimer=null;

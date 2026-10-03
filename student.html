@@ -132,17 +132,17 @@ if (!sess) throw 'redirect';
 var AW_AI_ON = true;
 
 var nav = [
-  { id:'modes',   label:'Practice Modes', icon:'modes', active:true },
-  { id:'board',   label:'Interactive Board', icon:'board', href:'board.html' },
+  { id:'modes',   label:'Practice', icon:'modes', active:true },
+  { id:'board',   label:'Board', icon:'board', href:'board.html' },
   { id:'library', label:'Library', icon:'library', href:'library.html' },
-  { id:'progress',label:'My Progress', icon:'progress' },
-  { id:'translate',label:'Translation Practice', icon:'translate' },
-  { id:'qa',      label:'Q&A with Teacher', icon:'chat' },
+  { id:'progress',label:'Progress', icon:'progress' },
+  { id:'translate',label:'Translate', icon:'translate' },
+  { id:'qa',      label:'Q&A', icon:'chat' },
   { id:'settings',label:'Settings', icon:'settings' },
 ];
 
 var content = AW.renderShell({
-  mount:'app', nav:nav, eyebrow:'Student Interface', title:'Practice Modes',
+  mount:'app', nav:nav, eyebrow:'', title:'Practice Modes',
   onNav: function(id){
     // set the hash; routeFromHash() does the rendering (single source of truth)
     if((location.hash||'').replace('#','')===id) return;

@@ -329,8 +329,9 @@
       '<div class="aw-shell">' +
         '<aside class="aw-side" id="awSide">' +
           AW.brandLockup() + navHtml +
-          '<div style="margin-top:auto">' +
-            '<button class="aw-nav" id="awLogout">' + AW.icon('logout') + '<span>Sign out</span></button>' +
+          '<div class="aw-side-foot">' +
+            '<div class="aw-avatar" title="' + AW.esc(name) + ' · ' + roleLabel + '">' + initials + '</div>' +
+            '<button class="aw-nav" id="awLogout" title="Sign out">' + AW.icon('logout') + '<span>Sign out</span></button>' +
           '</div>' +
         '</aside>' +
         '<div class="aw-main">' +
@@ -338,12 +339,7 @@
             '<button class="aw-menu-btn" id="awMenuBtn">' + AW.icon('menu') + '</button>' +
             '<div><div class="aw-eyebrow">' + (opts.eyebrow || '') + '</div>' +
             '<h1 class="aw-page-title" id="awPageTitle">' + (opts.title || '') + '</h1></div>' +
-            '<div class="aw-topbar-right">' +
-              '<span style="color:var(--aw-ink-3)">' + AW.icon('bell') + '</span>' +
-              '<div class="aw-user"><div class="aw-avatar">' + initials + '</div>' +
-              '<div><div class="aw-user-name">' + AW.esc(name) + '</div>' +
-              '<div class="aw-user-role">' + roleLabel + '</div></div></div>' +
-            '</div>' +
+            '<div class="aw-topbar-right" id="awTopRight"></div>' +
           '</header>' +
           '<main class="aw-content" id="awContent"></main>' +
         '</div>' +
