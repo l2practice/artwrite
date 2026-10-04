@@ -3448,7 +3448,7 @@ function showSettings(){
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
     '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
     (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th><th></th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
-    '<p style="margin:10px 0 0;font-size:.8rem;color:var(--aw-ink-3)">🎓 <b>End Course</b>: tạo bảng tổng kết (gửi email), sao lưu rồi xoá bài làm của lớp để sheet luôn nhẹ, và lưu trữ lớp.</p>'+
+    '<p style="margin:10px 0 0;font-size:.8rem;color:var(--aw-ink-3)">🎓 <b>End Course</b>: tạo bảng tổng kết (gửi email), sao lưu rồi xoá bài làm của lớp, và lưu trữ lớp: khoá tài khoản cả lớp, sinh viên không vào app được nữa.</p>'+
     '</div>'+
     /* ── Archived classes ── */
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
@@ -3722,7 +3722,7 @@ window.openEndSemester=function(classId){
       '</ol>'+
       '<p style="margin:0 0 12px;font-size:.8rem;color:var(--aw-ink-3)">Giữ lại: danh sách SV, bài tập đã giao, boards, bộ Translate.</p>'+
       '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="esClear" checked style="margin-top:4px"> <span><b>Clear class data</b> after backup <span style="color:var(--aw-ink-3)">(bỏ chọn = chỉ xuất báo cáo)</span></span></label>'+
-      '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="esArchive" checked style="margin-top:4px"> <span><b>Archive class</b> <span style="color:var(--aw-ink-3)">(SV không đăng nhập được cho tới khi Reactivate)</span></span></label>'+
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="esArchive" checked style="margin-top:4px"> <span><b>Archive class</b> <span style="color:var(--aw-ink-3)">(khoá tài khoản cả lớp, kể cả máy đang đăng nhập sẵn, cho tới khi Reactivate)</span></span></label>'+
       '<div style="display:flex;gap:10px;justify-content:flex-end">'+
         '<button id="esCancel" class="aw-btn aw-btn-ghost">Cancel</button>'+
         '<button id="esNext" class="aw-btn" style="background:'+RED+';color:#fff;font-weight:700">Continue →</button></div>');
@@ -3777,7 +3777,7 @@ window.openEndSemester=function(classId){
     m.show('✅ Done', '#12B76A',
       '<p style="margin:0 0 8px">📊 Bảng tổng kết đã tạo'+(d.emailed?' và gửi tới email của bạn':' (gửi email thất bại, dùng link bên dưới)')+'.</p>'+
       (d.cleared?'<p style="margin:0 0 8px">🧹 Đã sao lưu &amp; xoá <b>'+(d.removed||0)+'</b> dòng'+(line?' ('+line+')':'')+'.</p>':'')+
-      (d.archived?'<p style="margin:0 0 8px">🗃 Lớp đã lưu trữ, sinh viên không đăng nhập được nữa.</p>':'')+
+      (d.archived?'<p style="margin:0 0 8px">🗃 Lớp đã lưu trữ: tài khoản sinh viên đã khoá, máy nào đang mở app cũng bị đăng xuất.</p>':'')+
       '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">'+
         '<a class="aw-btn aw-btn-primary" href="'+AW.esc(d.url)+'" target="_blank" rel="noopener">📊 Open Report</a>'+
         '<button id="esClose" class="aw-btn aw-btn-ghost">Close</button></div>');

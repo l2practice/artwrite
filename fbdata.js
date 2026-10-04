@@ -99,8 +99,16 @@ async function me() {
   if (_me && _me.uid === u.uid) return _me;
   const d = await fs.doc('users/' + u.uid).get();
   if (!d.exists) throw new Error('SESSION_EXPIRED');
-  return (_me = Object.assign({ uid: u.uid }, d.data()));
+  const v = Object.assign({ uid: u.uid }, d.data());
+  // A student of an archived class is shut out, also from a session kept
+  // signed in before the class was archived.
+  if (v.role === 'student') {
+    const c = await fs.doc('classes/' + v.classId).get();
+    if (c.exists && c.data().archived) { await signOut(); throw new Error('CLASS_ARCHIVED'); }
+  }
+  return (_me = v);
 }
+const CLOSED_MSG = 'Lớp của bạn đã kết thúc học kỳ nên tài khoản đã khoá. Liên hệ giảng viên nếu bạn học lại lớp này.';
 async function teacher() {
   const t = await me();
   if (t.role !== 'teacher') throw Object.assign(new Error('Chỉ giáo viên mới dùng được chức năng này.'), { code: 'not-teacher' });
@@ -151,16 +159,14 @@ async function studentLogin(p) {
     const c = e.code || '';
     if (/too-many-requests/.test(c)) return fail('Đăng nhập sai quá nhiều lần. Vui lòng đợi vài phút.');
     if (/network/.test(c)) return fail('Lỗi mạng — kiểm tra kết nối và thử lại.');
+    if (/user-disabled/.test(c)) return fail(CLOSED_MSG);
     return fail('Sai Student ID/email hoặc mật khẩu.');
   }
   _me = null; forget();
-  const u = await me();
+  let u;
+  try { u = await me(); }
+  catch (e) { if (e.message === 'CLASS_ARCHIVED') return fail(CLOSED_MSG); throw e; }
   if (u.role !== 'student' || u.archived) { await signOut(); return fail('Sai Student ID/email hoặc mật khẩu.'); }
-  const cls = await fs.doc('classes/' + u.classId).get();
-  if (cls.exists && cls.data().archived) {
-    await signOut();
-    return fail('Lớp "' + (cls.data().className || u.classId) + '" đã kết thúc học kỳ nên tài khoản tạm khoá. Liên hệ giảng viên nếu bạn học lại lớp này.');
-  }
   return ok({ studentId: u.studentId, name: u.name, class: u.classId, email: u.email || '' });
 }
 
@@ -1100,7 +1106,8 @@ async function call(action, payload) {
     return await legacy(action, payload);
   } catch (e) {
     const code = (e && e.code) || '';
-    if (e && (e.message === 'SESSION_EXPIRED' || /unauthenticated/i.test(code))) return fail('SESSION_EXPIRED');
+    if (e && e.message === 'CLASS_ARCHIVED') return fail('CLASS_ARCHIVED');
+    if (e && (e.message === 'SESSION_EXPIRED' || /unauthenticated|user-disabled/i.test(code))) return fail('SESSION_EXPIRED');
     if (/permission[-_]denied/i.test(code) || /permission_denied/i.test((e && e.message) || '')) return fail(auth && auth.currentUser ? 'Bạn không có quyền truy cập dữ liệu này.' : 'SESSION_EXPIRED');
     if (/unavailable|deadline-exceeded/i.test(code)) return fail('Không kết nối được máy chủ — kiểm tra mạng và thử lại.');
     console.error('[fbdata] ' + action, e);

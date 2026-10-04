@@ -165,6 +165,7 @@ function fbAuthUpdate(uid, fields) {
   if (fields.password) body.password = fbAuthPw(fields.password);
   if (fields.role) body.customAttributes = JSON.stringify({ role: fields.role });
   if (fields.claims) body.customAttributes = JSON.stringify(fields.claims);
+  if (fields.disabled !== undefined) body.disableUser = !!fields.disabled;
   return gapi('post', itk('/accounts:update'), body);
 }
 function fbStudentClaims(uid, classId) { return fbAuthUpdate(uid, { claims: { role: 'student', cls: classId } }); }
@@ -309,6 +310,7 @@ function fbStudentEdit(p, caller) {
     if (!cls || cls.teacherUid !== caller.uid) return { success:false, error:'Lớp mới không thuộc tài khoản của bạn.' };
     patch.classId = cls.classId; progPatch.classId = cls.classId;
     fbStudentClaims(uid, cls.classId);   // Live follows the new class at the next sign-in
+    fbAuthUpdate(uid, { disabled: !!cls.archived });   // the account is locked exactly while its class is archived
   }
   var writes = [];
   if (Object.keys(patch).length) writes.push(wMerge('users/' + uid, patch));
@@ -745,6 +747,34 @@ function fbSemRun(cls, caller, clear) {
   return { ok: true, url: url, stats: stats, counts: counts, removed: removed, g: g };
 }
 
+// An archived class locks its students' Firebase accounts: no sign-in, and an
+// open session ends at its next token refresh (within the hour), so the
+// rules shut out even a page left open. Reactivate unlocks them.
+function fbLockClass(classId, teacherUid, lock) {
+  var uids = fsQuery('users', [['teacherUid', 'EQUAL', teacherUid], ['classId', 'EQUAL', classId]])
+    .filter(function(u) { return u.role === 'student'; }).map(function(u) { return u._id; });
+  var url = itk('/accounts:update'), token = ScriptApp.getOAuthToken(), failed = 0;
+  for (var i = 0; i < uids.length; i += 40) {
+    var reqs = uids.slice(i, i + 40).map(function(uid) {
+      return { url: url, method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+               headers: { Authorization: 'Bearer ' + token, 'X-Goog-User-Project': FB.PROJECT_ID },
+               payload: JSON.stringify({ localId: uid, disableUser: !!lock }) };
+    });
+    UrlFetchApp.fetchAll(reqs).forEach(function(r) { if (r.getResponseCode() >= 300) failed++; });
+  }
+  return { total: uids.length, failed: failed };
+}
+
+// One-off, run from the editor: lock the students of classes archived before
+// accounts were locked on archive.
+function fbLockArchivedClasses() {
+  var out = fsQuery('classes', [['archived', 'EQUAL', true]]).map(function(c) {
+    var r = fbLockClass(c.classId, c.teacherUid, true);
+    return c.classId + ': ' + (r.total - r.failed) + '/' + r.total;
+  });
+  return fbLog('Locked: ' + (out.join(', ') || 'no archived classes'));
+}
+
 function fbEndSemester(p, caller) {
   if (!fbCheckPassword(caller, p.password)) return { success: false, error: 'Mật khẩu không đúng.' };
   var cls = fbOwnedClass(p.classId, caller);
@@ -755,9 +785,10 @@ function fbEndSemester(p, caller) {
   var patch = { lastReport: run.url };
   if (archive) { patch.archived = true; patch.archivedAt = new Date().toISOString(); }
   fsCommit([wMerge('classes/' + cls.classId, patch)]);
+  var locked = archive ? fbLockClass(cls.classId, caller.uid, true) : null;
   var emailed = _semMail(run.g, run, { cleared: clear, archived: archive });
   return { success: true, data: { url: run.url, counts: run.counts, removed: run.removed,
-                                  cleared: clear, archived: archive, emailed: emailed } };
+                                  cleared: clear, archived: archive, emailed: emailed, locked: locked } };
 }
 
 // Reactivate: students sign in again with a clean slate. A class archived
@@ -778,6 +809,7 @@ function fbRestore(p, caller) {
   var patch = { archived: false, archivedAt: '' };
   if (run) patch.lastReport = run.url;
   fsCommit([wMerge('classes/' + cls.classId, patch)]);
+  fbLockClass(cls.classId, caller.uid, false);
   var active = fsQuery('users', [['teacherUid', 'EQUAL', caller.uid], ['classId', 'EQUAL', cls.classId]])
     .filter(function(u) { return u.role === 'student' && !u.archived; }).length;
   return { success: true, data: { classId: cls.classId, students: active, leftoverCleared: left, url: run ? run.url : '' } };

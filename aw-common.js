@@ -56,9 +56,10 @@
     if (!AW.firebaseOn) return AW._legacyApi(action, payload);
     return AW.firebaseReady().then(function (FB) { return FB.call(action, payload || {}); })
       .then(function (res) {
-        if (res && res.success === false && res.error === 'SESSION_EXPIRED') {
+        if (res && res.success === false && (res.error === 'SESSION_EXPIRED' || res.error === 'CLASS_ARCHIVED')) {
           AW.session.clear();
-          if (!/(login|signup)\.html/.test(location.pathname)) location.href = AW.LOGIN_PAGE;
+          if (!/(login|signup)\.html/.test(location.pathname))
+            location.href = AW.LOGIN_PAGE + (res.error === 'CLASS_ARCHIVED' ? '?closed=1' : '');
         }
         return res;
       });
@@ -81,7 +82,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=3'); })
+        .then(function () { return loadScript('fbdata.js?v=4'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
