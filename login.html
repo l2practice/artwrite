@@ -118,6 +118,10 @@ if (typeof AW === 'undefined') {
 }
 document.getElementById('brand').innerHTML = AW.brandLockup();
 
+// Sent here because the class was archived (End Course)
+if (/[?&]closed=1/.test(location.search))
+  AW.toast('Lớp của bạn đã kết thúc học kỳ nên tài khoản đã khoá. Liên hệ giảng viên nếu bạn học lại lớp này.','err',8000);
+
 // Already logged in?
 (function(){
   var s = AW.session.get();
