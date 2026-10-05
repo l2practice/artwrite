@@ -1847,28 +1847,47 @@ function annChangeFont(dir){
   AW.toast('Font size: '+px+'px'+(px===120?' (max)':''),'ok',1000);
 }
 function annClearFormat(){
-  var sel=window.getSelection();
-  if(!sel.rangeCount || sel.isCollapsed){ AW.toast('Select some text first','err'); return; }
-  document.execCommand('removeFormat', false, null);
-  document.execCommand('hiliteColor', false, 'transparent');
-  document.execCommand('backColor', false, 'transparent');
-  document.execCommand('foreColor', false, 'inherit');
-  // Strip leftover inline styles + annotation spans inside the selection
-  var r=sel.getRangeAt(0);
-  var tmp=document.createElement('div'); tmp.appendChild(r.cloneContents());
-  tmp.querySelectorAll('[style]').forEach(function(el){
-    el.removeAttribute('style');
-    // Keep text, remove wrapper span if it has no semantic class
-    if(el.tagName==='SPAN' && !el.className) {
-      el.outerHTML = el.innerHTML;
-    }
-  });
-  tmp.querySelectorAll('.aw-hl').forEach(function(el){
-    el.outerHTML = el.innerHTML;
-  });
-  var plain=tmp.innerHTML;
+  var r=restoreSelection();
+  if(!r || r.collapsed){ AW.toast('Select some text first','err'); return; }
+  var clearedText=r.toString();
+  // Work on a detached copy: execCommand can change/collapse the live Range,
+  // which previously left some annotation wrappers and styles behind.
+  var fragment=r.cloneContents();
+  var formattingTags={B:1,STRONG:1,I:1,EM:1,U:1,S:1,STRIKE:1,DEL:1,FONT:1,MARK:1};
+  function clean(node){
+    Array.prototype.slice.call(node.childNodes).forEach(function(child){
+      if(child.nodeType!==1) return;
+      clean(child);
+      if(formattingTags[child.tagName] || child.tagName==='SPAN'){
+        while(child.firstChild) child.parentNode.insertBefore(child.firstChild,child);
+        child.parentNode.removeChild(child);
+      } else {
+        // Retain document structure (paragraphs/lists/links), but remove
+        // presentation and annotation metadata from the selected content.
+        Array.prototype.slice.call(child.attributes).forEach(function(a){
+          if(a.name==='style' || a.name==='class' || a.name==='title' || a.name.indexOf('data-')===0)
+            child.removeAttribute(a.name);
+        });
+      }
+    });
+  }
+  clean(fragment);
   r.deleteContents();
-  r.insertNode(document.createRange().createContextualFragment(plain));
+  var startMark=document.createComment('clear-format-start');
+  var endMark=document.createComment('clear-format-end');
+  r.insertNode(endMark);
+  r.insertNode(fragment);
+  r.insertNode(startMark);
+  var next=document.createRange();
+  next.setStartAfter(startMark); next.setEndBefore(endMark);
+  startMark.parentNode.removeChild(startMark);
+  endMark.parentNode.removeChild(endMark);
+  var sel=window.getSelection();
+  sel.removeAllRanges(); sel.addRange(next); savedRange=next.cloneRange();
+  currentAnnot.suggestions=currentAnnot.suggestions.filter(function(s){
+    return !(s.original===clearedText && (s.type==='strike'||s.type==='highlight'||s.type==='comment'));
+  });
+  renderSuggestions();
   AW.toast('Formatting cleared','ok',1000);
 }
 // Push to Student — saves the marked-up snapshot to the Annotations tab.
@@ -1936,7 +1955,7 @@ document.addEventListener('keydown', function(e){
   if(!document.getElementById('modalBg').classList.contains('show')) return;
   var sel = window.getSelection();
   if(!sel || !sel.rangeCount || !mText.contains(sel.anchorNode)) return;
-  var name = ANN_KEYS[(e.shiftKey?'Shift+':'') + (e.altKey?'Alt+':'') + e.code];
+    var name = e.code==='Backslash' && !e.altKey ? 'clear' : ANN_KEYS[(e.shiftKey?'Shift+':'') + (e.altKey?'Alt+':'') + e.code];
   if(!name) return;
   e.preventDefault(); e.stopPropagation();
   if(name !== 'comment' && sel.isCollapsed){ AW.toast('Select text first','err'); return; }
