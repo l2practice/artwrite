@@ -62,8 +62,8 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
 
 /* ── brand lockup ── */
 .aw-logo{display:inline-flex;align-items:center;gap:10px;font-family:var(--aw-font-display);font-weight:700;color:var(--aw-ink);text-decoration:none}
-.aw-logo-mark{width:44px;height:44px;border-radius:14px;background:var(--aw-primary-dk);display:grid;place-items:center;color:#fff;flex:0 0 auto}
-.aw-logo-mark svg{width:20px;height:20px}
+.aw-logo-mark{width:44px;height:44px;border-radius:14px;background:var(--aw-primary);display:grid;place-items:center;color:#fff;flex:0 0 auto}
+.aw-logo-mark svg{width:30px;height:30px}
 .aw-logo-name{font-size:1.15rem}
 
 /* ── buttons ── */
@@ -396,7 +396,7 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
 .aw-hero>*{position:relative;z-index:1}
 .aw-hero-brand{display:flex;align-items:center;gap:12px;font-size:1.35rem;font-weight:700;letter-spacing:-.01em}
 .aw-hero-brand i{width:48px;height:48px;border-radius:14px;background:var(--aw-primary);display:grid;place-items:center;box-shadow:0 10px 30px rgba(86,97,224,.5)}
-.aw-hero-brand i svg{width:22px;height:22px}
+.aw-hero-brand i svg{width:32px;height:32px}
 .aw-hero-brand b{color:var(--aw-primary);font-weight:700}
 .aw-hero-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:#fff;box-shadow:var(--aw-shadow-sm);font-size:.85rem;font-weight:600;color:var(--aw-ink-2)}
 .aw-hero-pill::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--aw-primary)}
