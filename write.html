@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- App icon: SVG data URI — no file, no extra request, no 404 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='5'%20fill='%235661E0'/%3E%3Cg%20transform='translate(12,12)%20scale(1.12)%20translate(-11.2,-12.3)'%3E%3Cpath%20d='M4%2020l1.2-4.2L15%206a2%202%200%200%201%202.8%200l.2.2a2%202%200%200%201%200%202.8L8.2%2018.8%204%2020z'%20fill='%23ffffff'/%3E%3Cpath%20d='M13.5%207.5l3%203'%20stroke='%235661E0'%20stroke-width='1.4'%20stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#5661E0">
 <title>Writing App</title>
 <link rel="stylesheet" href="aw-theme.css">
@@ -42,6 +42,9 @@
                      repeating-linear-gradient(180deg,transparent 0,transparent 33px,#E7E9FB 33px,#E7E9FB 34px);
     background-attachment:local;background-position:0 14px}
   .aw-editor:focus{box-shadow:inset 0 0 0 2px var(--aw-primary-lt)}
+  /* nothing inside the essay may float over the page */
+  .aw-editor *{position:static!important;float:none!important;transform:none!important;max-width:100%}
+  .aw-editor img,.aw-editor iframe,.aw-editor svg,.aw-editor video,.aw-editor object,.aw-editor embed,.aw-editor canvas,.aw-editor dialog,.aw-editor button,.aw-editor input{display:none!important}
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
   .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:#fff;background:var(--aw-primary-dk);padding:6px 14px;border-radius:999px;font-variant-numeric:tabular-nums}
@@ -434,8 +437,95 @@ function updateWordCount(){
   wc.className = n >= MIN_WORDS ? 'wc-ok' : (n >= MIN_WORDS * 0.7 ? 'wc-warn' : '');
 }
 
+/* Pasted web content keeps its inline styles in Chrome, so a box styled
+   position:fixed from the source page ended up floating over the screen,
+   blocking every click — and the saved draft brought it back on reload.
+   Paste and drop now insert plain text; whatever is already in the editor
+   (old drafts, other routes in) is cleaned down to the formatting the
+   toolbar itself makes.                                                  */
+var ED_DROP  = /^(SCRIPT|STYLE|LINK|META|TITLE|IFRAME|FRAME|OBJECT|EMBED|SVG|MATH|IMG|PICTURE|VIDEO|AUDIO|CANVAS|TEMPLATE|NOSCRIPT|BUTTON|INPUT|SELECT|TEXTAREA|DIALOG)$/;
+var ED_KEEP  = /^(P|DIV|BR|B|STRONG|I|EM|U|S|STRIKE|SPAN|FONT|UL|OL|LI|SUB|SUP)$/;
+var ED_BLOCK = /^(H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE|HEADER|FOOTER|ASIDE|NAV|MAIN|TABLE|TBODY|THEAD|TFOOT|TR|TD|TH|FIGURE|FIGCAPTION|DL|DT|DD|ADDRESS|DETAILS|SUMMARY)$/;
+var ED_STYLE = ['color','background-color','font-weight','font-style','text-decoration','text-decoration-line','font-size'];
+function cleanEditorHtml(html){
+  var t = document.createElement('template');   // inert: nothing loads or runs
+  t.innerHTML = html || '';
+  (function walk(parent){
+    Array.prototype.slice.call(parent.childNodes).forEach(function(n){
+      if (n.nodeType === 3) return;
+      if (n.nodeType !== 1) { n.remove(); return; }
+      var tag = n.tagName.toUpperCase();
+      if (ED_DROP.test(tag)) { n.remove(); return; }
+      walk(n);
+      if (!ED_KEEP.test(tag)) {
+        if (ED_BLOCK.test(tag)) {
+          var d = document.createElement('div');
+          while (n.firstChild) d.appendChild(n.firstChild);
+          n.replaceWith(d);
+        } else {
+          while (n.firstChild) parent.insertBefore(n.firstChild, n);
+          n.remove();
+        }
+        return;
+      }
+      var keep = '';
+      ED_STYLE.forEach(function(k){
+        var v = n.style.getPropertyValue(k);
+        if (!v) return;
+        if (k === 'font-size' && !(/^\d+(\.\d+)?px$/.test(v) && parseFloat(v) <= 120)) return;
+        keep += k + ':' + v + ';';
+      });
+      var color = tag === 'FONT' ? n.getAttribute('color') : null;
+      Array.prototype.slice.call(n.attributes).forEach(function(a){ n.removeAttribute(a.name); });
+      if (keep) n.setAttribute('style', keep);
+      if (color) n.setAttribute('color', color);
+    });
+  })(t.content);
+  var out = document.createElement('div');
+  out.appendChild(t.content);
+  return out.innerHTML;
+}
+var ED_SUSPECT = 'img,iframe,svg,video,audio,object,embed,canvas,script,style,link,button,input,select,textarea,dialog,table,[style*="position"],[style*="inset"],[style*="z-index"],[class],[id]';
+function insertPlain(text){
+  text = String(text || '').replace(/\r\n?/g, '\n');
+  if (!text) return;
+  if (!document.execCommand('insertText', false, text)) {
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    var r = sel.getRangeAt(0); r.deleteContents();
+    var tn = document.createTextNode(text); r.insertNode(tn);
+    r.setStartAfter(tn); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+  }
+}
+editor.addEventListener('paste', function(e){
+  if (editor.getAttribute('contenteditable') !== 'true') return;
+  var cd = e.clipboardData || window.clipboardData;
+  if (!cd) return;
+  e.preventDefault();
+  insertPlain(cd.getData('text/plain') || cd.getData('text'));
+});
+editor.addEventListener('drop', function(e){
+  if (editor.getAttribute('contenteditable') !== 'true') return;
+  var dt = e.dataTransfer;
+  if (!dt) return;
+  e.preventDefault();
+  var text = dt.getData('text/plain');
+  if (!text) return;
+  if (document.caretRangeFromPoint) {
+    var r = document.caretRangeFromPoint(e.clientX, e.clientY), sel = window.getSelection();
+    if (r) { sel.removeAllRanges(); sel.addRange(r); }
+  }
+  insertPlain(text);
+});
+
 // Auto-save draft to localStorage on every keystroke
 editor.addEventListener('input', function(){
+  // something foreign got in anyway (browser extension, autocorrect …): clean it out
+  if (editor.getAttribute('contenteditable') === 'true' && editor.querySelector(ED_SUSPECT)) {
+    editor.innerHTML = cleanEditorHtml(editor.innerHTML);
+    var sel = window.getSelection(), r = document.createRange();
+    r.selectNodeContents(editor); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);
+  }
   updateWordCount();
   if (!RETRY) {
     try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
@@ -447,7 +537,8 @@ updateWordCount();
 if (!RETRY) {
   var saved = localStorage.getItem(DRAFT_KEY);
   if (saved && saved.trim() && saved.replace(/<[^>]*>/g,'').trim()) {
-    editor.innerHTML = saved;
+    editor.innerHTML = cleanEditorHtml(saved);
+    try { localStorage.setItem(DRAFT_KEY, editor.innerHTML); } catch(e){}
     updateWordCount();
     AW.toast('✓ Đã khôi phục bài đang viết dang dở','ok', 3000);
   } else if (MODE === 'inclass' && TOPIC_ID) {

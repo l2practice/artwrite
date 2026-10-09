@@ -267,7 +267,7 @@
   };
 
   // Inject the shared logo mark (pencil-in-rounded-square) as SVG string
-  AW.logoSVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20l1.2-4.2L15 6a2 2 0 0 1 2.8 0l.2.2a2 2 0 0 1 0 2.8L8.2 18.8 4 20z" fill="currentColor"/><path d="M13.5 7.5l3 3" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  AW.logoSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M5.4 18.6 6.39 15.21 16.15 5.45 18.55 7.85 8.79 17.61Z"/><path d="M6.39 15.21 8.79 17.61M14.95 6.65 17.35 9.05"/><path d="M5.4 18.6H13.1M15.5 18.6H17.7"/></svg>';
 
   AW.brandLockup = function () {
     return '<a class="aw-logo" href="#"><span class="aw-logo-mark">' + AW.logoSVG +
