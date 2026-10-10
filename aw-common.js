@@ -275,6 +275,17 @@
   };
 
   // word counter for essays
+  /* The overall band is computed by the app from the four criteria. When the
+     AI's text quotes its own overall ("Điểm Overall đạt 5.5") and that differs,
+     the number in the text is replaced so the page never contradicts itself.
+     Also used when showing feedback saved before this check existed. */
+  AW.syncOverall = function (text, overall) {
+    var o = parseFloat(overall);
+    if (!text || isNaN(o)) return text;
+    var shown = (Math.round(o * 2) / 2).toFixed(1);
+    return String(text).replace(/((?:overall(?:\s+band)?|band\s+overall|điểm\s+tổng(?:\s+thể)?|tổng\s+điểm)[^0-9\n]{0,24}?)(\d(?:[.,]\d)?)(?!\d)/gi,
+      function (m, pre, num) { return pre + shown; });
+  };
   AW.wordCount = function (text) {
     var t = (text || '').replace(/<[^>]*>/g, ' ').trim();
     return t ? t.split(/\s+/).length : 0;
