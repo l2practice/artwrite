@@ -759,9 +759,9 @@ function reviewFeedbackRec(r, refIdx){
   }
 
   var body='<div id="reviewContent">'+
-    rvHead(fb.overall, r.topic||'', 'Attempt '+(r.attempt||1), fb.band_description||'')+
+    rvHead(fb.overall, r.topic||'', 'Attempt '+(r.attempt||1), AW.syncOverall(fb.band_description||'', fb.overall))+
     crit('Task Response',s.TR)+crit('Coherence & Cohesion',s.CC)+crit('Lexical Resource',s.LR)+crit('Grammar',s.GRA)+
-    (fb.overall_feedback_vi?'<div class="rv-block"><h4>Overall assessment</h4><p>'+AW.esc(fb.overall_feedback_vi)+'</p></div>':'')+
+    (fb.overall_feedback_vi?'<div class="rv-block"><h4>Overall assessment</h4><p>'+AW.esc(AW.syncOverall(fb.overall_feedback_vi, fb.overall))+'</p></div>':'')+
     (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Repeated errors</h4><p>'+formatRepeated(fb.repeated_errors_vi)+'</p></div>':'')+
     ((fb.gra_errors||[]).length?'<div class="rv-block"><h4>Grammar</h4>'+fb.gra_errors.slice(0,10).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
     ((fb.lr_issues||[]).length?'<div class="rv-block"><h4>Lexical Resource</h4>'+fb.lr_issues.slice(0,8).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+

@@ -15,12 +15,19 @@
     if(r.scores){
       // Round each component to whole number (IELTS: only overall can be X.5).
       // No null-check here — parseFloat(undefined)||0 = 0, safe against missing keys.
+      // A half band ("5.5, borderline") goes DOWN: Math.round sent every 5.5 up to 6,
+      // so the overall came out half a band above the one the AI had written in its
+      // own description ("Overall đạt 5.5" next to a 6).
       ['TR','CC','LR','GRA'].forEach(function(k){
-        r.scores[k] = Math.round(parseFloat(r.scores[k])||0);
+        var v = parseFloat(r.scores[k])||0;
+        r.scores[k] = (v - Math.floor(v) === 0.5) ? Math.floor(v) : Math.round(v);
       });
       var avg=(r.scores.TR+r.scores.CC+r.scores.LR+r.scores.GRA)/4;
       var whole=Math.floor(avg), frac=avg-whole;
       r.overall = frac<0.25 ? whole : (frac<0.75 ? whole+0.5 : whole+1);
+      // the AI's text must not quote a different overall than the one shown
+      r.band_description = AW.syncOverall(r.band_description, r.overall);
+      r.overall_feedback_vi = AW.syncOverall(r.overall_feedback_vi, r.overall);
     }
     return r;
   }
@@ -32,7 +39,7 @@
       'CC: Band 7=logical, varied cohesion, good paragraphing. Band 6=mostly coherent. Band 5=some org. Band 4=incoherent.\n'+
       'LR: Band 7=flexible range, minor errors. Band 6=adequate. Band 5=limited. Band 4=basic.\n'+
       'GRA: Band 7=complex structures, frequent error-free. Band 6=mix. Band 5=frequent errors. Band 4=many errors.\n\n'+
-      'SCORING RULES:\n- Components: whole numbers or X.5 if borderline.\n- Overall = average of 4, round to 0.5.\n- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n- Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.\n\n'+
+      'SCORING RULES:\n- Components (TR, CC, LR, GRA): WHOLE numbers only, as in the official IELTS Writing marking — no X.5.\n- Overall = average of the 4, rounded the IELTS way (.25 → .5, .75 → next whole band). The app computes it from your components.\n- Do NOT write any numeric band score in band_description or overall_feedback_vi (the app shows the numbers next to your text).\n- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n- Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.\n\n'+
       '[CONDITIONAL RULES — enforce strictly, do not overlook any]\n'+
       '1) LEXICAL RESOURCE & GRAMMAR — HARD LIMITS:\n'+
       '- Spelling: count the spelling mistakes. IF more than 5 (i.e. frequent, causing difficulty for the reader) THEN cap LR at Band 5 and warn in Vietnamese: "Sai chính tả trên 5 lỗi không thể đạt Band 6 tiêu chí Vocab". IF 1-5 (occasional slips) THEN cap LR at Band 6 and list every error found.\n'+

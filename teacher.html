@@ -132,6 +132,13 @@
   .ann-comment-pop textarea:focus{border-color:var(--aw-primary)}
   .aw-modal-side{background:var(--aw-surface-2);padding:20px;border-left:none;overflow-y:auto;max-height:100vh}
   .aw-modal-side h4{margin:0 0 12px;font-size:.95rem}
+  .aw-live-lexis{margin:12px 0 4px;background:#fff;border-radius:16px;padding:10px 12px}
+  .aw-live-lexis summary{cursor:pointer;font-weight:700;font-size:.88rem;color:var(--aw-primary);list-style:none}
+  .aw-live-lexis summary::-webkit-details-marker{display:none}
+  .aw-live-lexis summary:after{content:' ▾';color:var(--aw-ink-3)}
+  .aw-live-lexis[open] summary:after{content:' ▴'}
+  .aw-live-lexis .lx-h{display:none}
+  .aw-live-lexis .lx{font-size:.8rem}
   .aw-suggest-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
   .aw-suggest{background:#FFF;border:none;border-radius:14px;padding:10px 12px;font-size:.82rem;box-shadow:var(--aw-shadow-sm)}
   .aw-suggest .orig{color:var(--aw-danger);text-decoration:line-through}
@@ -363,6 +370,10 @@
         <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 6px">Red strike = error, orange = your fix</p>
         <button class="aw-btn aw-btn-ghost aw-btn-block" id="viewSentFb" style="margin-bottom:10px;font-size:.8rem;padding:6px 10px">View sent feedback</button>
         <div class="aw-suggest-list" id="suggestList"></div>
+        <details class="aw-live-lexis" id="liveLexis">
+          <summary>📚 Vocabulary &amp; Collocations</summary>
+          <div id="liveLexisBody"></div>
+        </details>
         <h4 style="margin-top:12px">Scoring (IELTS)</h4>
         <div class="aw-score-input"><label>TR</label><input type="number" id="sTR" min="0" max="9" step="0.5"></div>
         <div class="aw-score-input"><label>CC</label><input type="number" id="sCC" min="0" max="9" step="0.5"></div>
@@ -1488,6 +1499,27 @@ mText.addEventListener('wheel', function(e){
   if(Math.abs(_annWheel) >= 60){ annZoom(_annWheel < 0 ? 1 : -1); _annWheel=0; }
 }, { passive:false });
 
+/* Vocabulary level (CEFR) + collocation analysis of the essay in the Live
+   window — the same analysis students get with their feedback, on the text
+   as it is now. Computed when the section is opened, for each new student,
+   and on ↻. */
+function refreshLiveLexis(){
+  var d=document.getElementById('liveLexis'), body=document.getElementById('liveLexisBody');
+  if(!d || !body || !d.open) return;
+  var text=(mText.innerText||'').trim();
+  if(AW.wordCount(text) < 20){ body.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3);margin:8px 0 0">Not enough text yet.</p>'; return; }
+  var who=currentAnnot && currentAnnot.studentId;
+  body.innerHTML='<span class="aw-spin aw-spin-dark"></span>';
+  AW.lexisBlock(text, { prompt:(currentAnnot&&currentAnnot.topic)||'' }).then(function(h){
+    if(!currentAnnot || currentAnnot.studentId!==who) return;
+    body.innerHTML='<div style="text-align:right;margin:4px 0"><a href="#" id="liveLexisRefresh" style="font-size:.75rem;color:var(--aw-primary)">↻ Update</a></div>'+
+      (AW.analyseVocabulary ? renderTeacherVocab(AW.analyseVocabulary(text)) : '')+
+      (h || '<p style="font-size:.8rem;color:var(--aw-ink-3)">Vocabulary data could not be loaded.</p>');
+    var rf=document.getElementById('liveLexisRefresh'); if(rf) rf.onclick=function(e){ e.preventDefault(); refreshLiveLexis(); };
+  });
+}
+document.getElementById('liveLexis').addEventListener('toggle', refreshLiveLexis);
+
 function openAnnotation(s){
   annSyncHeadBtns();
   currentAnnot={ studentId:s.studentId, topicId:s.topicId, mode:s.mode, suggestions:[] };
@@ -1498,6 +1530,8 @@ function openAnnotation(s){
   var snapshot = s.snapshot || '';
   mText.textContent = snapshot;
   mText.setAttribute('contenteditable','true');
+  currentAnnot.topic = s.topic || '';
+  refreshLiveLexis();
 
   // ── Open Docs button — always show when student has a topicId ───
   var openDocBtn = document.getElementById('openDocFromLiveBtn');
@@ -2666,7 +2700,7 @@ window.viewEssays=function(gkey, writeIdx){
         // AI Feedback
         if(fb){
           out+='<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">AI Feedback</h4>';
-          if(fb.overall_feedback_vi) out+='<p style="margin:0 0 8px"><b>Overall:</b> '+AW.esc(fb.overall_feedback_vi)+'</p>';
+          if(fb.overall_feedback_vi) out+='<p style="margin:0 0 8px"><b>Overall:</b> '+AW.esc(AW.syncOverall(fb.overall_feedback_vi, fb.overall))+'</p>';
           if(fb.repeated_errors_vi) out+='<p style="margin:0 0 8px;background:#FFF8EC;padding:8px;border-radius:6px"><b>⚠ Repeated errors:</b> '+AW.esc(fb.repeated_errors_vi)+'</p>';
           var c1label2 = (g.taskType==='task1') ? 'Task Achievement' : 'Task Response';
           if((fb.tr_comments||[]).length) out+='<p style="margin:0 0 8px"><b>'+c1label2+':</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';

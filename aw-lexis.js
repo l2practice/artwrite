@@ -108,6 +108,76 @@
   // a pattern with only one real word ("ability to", "impacted by") is grammar, not a collocation to praise
   function isRealCollocation(p) { return contentWords(p).length >= 2 || p.trim().split(/\s+/).length >= 3; }
 
+  /* Built once from ielts-vocab.json:
+       entry[k]   content words of an entry (word/phrase, collocations, examples, definition)
+       words[tp]  all content words of a topic;  title[tp] words of the topic's name
+       byWord[w]  topics a word belongs to;      colls[w]  IELTS collocations containing w */
+  // the words that name each topic in a task prompt; they count like the topic's title
+  var TOPIC_SEED = {
+    'Economy, money & consumer spending': 'economy economic money finance income spend spending consumer wealth price tax',
+    'Art, music & creativity': 'art arts artist music painting museum gallery creativity creative culture theatre',
+    'Travel & tourism': 'travel tourism tourist tourists holiday trip abroad visitor destination',
+    'Health & medicine': 'health healthy medicine medical doctor hospital disease illness obesity exercise',
+    'Crime & law': 'crime criminal criminals prison punishment police law sentence offender',
+    'Technology & innovation': 'technology technological innovation invention computer machine robot artificial digital device',
+    'Globalisation & culture': 'globalisation globalization global culture cultural tradition international multinational',
+    'Energy & resources': 'energy fuel fuels power electricity resource resources renewable nuclear solar coal',
+    'Animals & wildlife': 'animal animals wildlife species zoo endangered extinction',
+    'Government & politics': 'government governments politics political policy authority authorities state law',
+    'Sport & leisure': 'sport sports leisure athlete game games team exercise competition',
+    'Social issues: poverty, inequality & welfare': 'poverty poor inequality welfare homeless unemployment social',
+    'History, traditions & festivals': 'history historical tradition traditions festival festivals heritage past',
+    'Feelings, personality & character': 'personality character feeling feelings emotion happiness',
+    'Science & research': 'science scientific research scientist experiment discovery space',
+    'Food, diet & cooking': 'food diet cooking meal meals eat eating restaurant',
+    'Family & relationships': 'family families parent parents relationship marriage children',
+    'Work & careers': 'work job jobs career careers employee employees employer employment office salary',
+    'Memory, skills & personal development': 'skill skills memory personal development ability abilities',
+    'Cities, housing & urbanisation': 'city cities urban housing house houses town countryside rural urbanisation',
+    'Education & learning': 'education educational school schools student students university study studies teacher teachers learn learning course',
+    'Environment & climate change': 'environment environmental climate pollution green planet nature waste',
+    'Business & entrepreneurship': 'business businesses company companies entrepreneur firm firms market',
+    'Language & communication': 'language languages communication communicate speak speaking',
+    'Transport & infrastructure': 'transport traffic road roads car cars public infrastructure vehicle',
+    'Internet & social media': 'internet online social media website websites smartphone smartphones',
+    'Children, parenting & youth': 'child children parent parents parenting youth young teenager teenagers',
+    'Media & advertising': 'media advertising advertisement advertisements news newspaper television',
+    'Fashion & shopping': 'fashion shopping clothes brand brands shop shops',
+    'Weather & natural disasters': 'weather disaster disasters flood floods earthquake storm',
+    'Ageing & population change': 'ageing aging elderly population older retire retirement'
+  };
+  var _T = null;
+  function topicIndex() {
+    if (_T) return _T;
+    _T = { entry: {}, words: {}, core: {}, title: {}, byWord: {}, colls: {}, n: 0 };
+    Object.keys(IELTS || {}).forEach(function (k) {
+      var it = IELTS[k]; if (!it || !it.topics) return;
+      var ws = {};
+      contentWords([k, (it.collocations || []).join(' '), it.writing_example || '', it.speaking_example || '', it.definition || ''].join(' '))
+        .forEach(function (w) { if (w.length > 3) ws[lemmaOf(w)] = 1; });
+      _T.entry[k] = ws;
+      var core = {};   // the entry itself and its collocations — no example sentences
+      contentWords(k + ' ' + (it.collocations || []).join(' ')).forEach(function (w) { if (w.length > 3) core[lemmaOf(w)] = 1; });
+      it.topics.forEach(function (tp) {
+        if (/Speaking Parts/.test(tp)) return;
+        if (!_T.words[tp]) {
+          _T.words[tp] = {}; _T.core[tp] = {}; _T.title[tp] = {}; _T.n++;
+          contentWords(tp + ' ' + (TOPIC_SEED[tp] || '')).forEach(function (w) {
+            if (w.length > 3) { var l = lemmaOf(w); _T.title[tp][l] = _T.words[tp][l] = _T.core[tp][l] = 1; } });
+        }
+        Object.keys(ws).forEach(function (w) { _T.words[tp][w] = 1; });
+        Object.keys(core).forEach(function (w) { _T.core[tp][w] = 1; });
+      });
+      (it.collocations || []).forEach(function (c) {
+        contentWords(c).forEach(function (w) { var l = lemmaOf(w); (_T.colls[l] = _T.colls[l] || []).push({ e: c, v: '' }); });
+      });
+    });
+    Object.keys(_T.words).forEach(function (tp) {
+      Object.keys(_T.words[tp]).forEach(function (w) { (_T.byWord[w] = _T.byWord[w] || []).push(tp); });
+    });
+    return _T;
+  }
+
   AW.lexisAnalyse = function (text, opts) {
     opts = opts || {};
     var src = String(text || ''), low = ' ' + src.toLowerCase().replace(/[’‘]/g, "'").replace(/\s+/g, ' ') + ' ';
@@ -167,51 +237,75 @@
       if (!STOP[t] && t.length > 3) { set[t] = 1; set[lemmaOf(t)] = 1; } }); }
     addCtx(ctx, src); addCtx(ctx, opts.prompt); addCtx(ctxPrompt, opts.prompt);
 
-    // 4. words the student used that have a well-known collocation they did not use
-    //    (a word already inside a collocation or IELTS phrase they used is covered)
+    // 4. the essay's topic, from the task prompt (weighs 3×) and the essay. Words shared
+    //    by many topics ("people", "make") count little; topic names count extra.
+    var T = topicIndex(), topicScore = {};
+    Object.keys(ctx).forEach(function (w) {
+      var tps = T.byWord[w]; if (!tps) return;
+      var weight = (ctxPrompt[w] ? 3 : 1) * Math.log(T.n / tps.length);
+      tps.forEach(function (tp) { topicScore[tp] = (topicScore[tp] || 0) + weight * (T.title[tp][w] ? 3 : 1); });
+    });
+    var ranked = Object.keys(topicScore).sort(function (a, b) { return topicScore[b] - topicScore[a]; });
+    var topic = ranked[0] || '', top = topicScore[topic] || 0, second = topicScore[ranked[1]] || 0;
+    var topicRank = ranked.slice(0, 4).map(function (t) { return t + ':' + topicScore[t].toFixed(1); });
+    if (!(topic && top >= 8 && top >= 1.15 * second)) topic = '';
+    var topicWords = {};
+    if (topic) {
+      Object.keys(T.core[topic]).forEach(function (w) { topicWords[w] = 1; });
+      // a close runner-up (energy ⇄ environment) is part of the same essay
+      if (second >= 0.75 * top) Object.keys(T.core[ranked[1]]).forEach(function (w) { topicWords[w] = 1; });
+    }
+    function fits(w) { var l = lemmaOf(w); return (ctx[w] || ctx[l]) ? 3 : (topicWords[w] || topicWords[l]) ? 2 : 0; }
+
+    // 5. collocations for the student's own content words — only options that fit this
+    //    essay or its topic ("survival rate", not "survival kit"); a word already inside a
+    //    collocation or IELTS phrase they used is covered
     used.forEach(function (c) { contentWords(c.text).forEach(function (w) { headHit[lemmaOf(w)] = 1; }); });
     ielts.forEach(function (x) { contentWords(x.phrase).forEach(function (w) { headHit[lemmaOf(w)] = 1; }); });
     var suggest = [];
     Object.keys(lemmaCount).filter(function (l) {
-      var c = lemmaLevel[l]; return COLL && COLL[l] && !headHit[l] && !STOP[l] && !NO_SUGGEST[l] && l.length > 3 && c && /[nvj]/.test(c.pos || 'n') && c.levelNum >= 2;
-    }).sort(function (a, b) { return (lemmaCount[b] - lemmaCount[a]) || (lemmaLevel[b].levelNum - lemmaLevel[a].levelNum); })
-      .forEach(function (l) {
-        if (suggest.length >= 6) return;
-        // the most useful options first: words that fit this essay, general academic words; no chatty "leave me alone"
-        var items = (COLL[l].c || []).filter(function (c) { return c && c.e && isRealCollocation(c.e) && !/\b(me|you|my|your|it)\b/i.test(c.e); })
-          .map(function (c, i) {
-            var other = contentWords(c.e).filter(function (w) { return lemmaOf(w) !== l; }), sc = 0;
-            other.forEach(function (w) { if (ctx[w] || ctx[lemmaOf(w)]) sc += 3; var lv = AW.cefrOf && AW.cefrOf(w); if (lv && lv.levelNum >= 3) sc += 1; });
-            return { c: c, sc: sc - i * 0.1 };
-          }).sort(function (a, b) { return b.sc - a.sc; }).slice(0, 3).map(function (x) { return x.c; });
-        if (items.length >= 2) suggest.push({ word: l, count: lemmaCount[l], level: lemmaLevel[l].level, items: items, example: COLL[l].e || '', exampleVi: COLL[l].v || '' });
-      });
-
-    // 5. the essay's topic → IELTS phrases of that topic the student could use
-    var topicScore = {};
-    var entryHits = {};
-    Object.keys(IELTS || {}).forEach(function (k) {
-      var it = IELTS[k]; if (!it || !it.topics) return;
-      var ws = {}; contentWords(k + ' ' + (it.collocations || []).join(' ')).forEach(function (w) { if (w.length > 3) ws[lemmaOf(w)] = 1; });
-      var hit = Object.keys(ws).reduce(function (n, w) { return n + (ctxPrompt[w] ? 3 : ctx[w] ? 1 : 0); }, 0);
-      entryHits[k] = hit;
-      if (hit) it.topics.forEach(function (tp) { if (!/Speaking Parts/.test(tp)) topicScore[tp] = (topicScore[tp] || 0) + hit; });
+      var c = lemmaLevel[l];
+      return (COLL[l] || T.colls[l]) && !headHit[l] && !STOP[l] && !NO_SUGGEST[l] && l.length > 3 && c && /[nvj]/.test(c.pos || 'n') && c.levelNum >= 2;
+    }).map(function (l) {
+      return { l: l, sc: (ctxPrompt[l] ? 3 : 0) + (topicWords[l] ? 2 : 0) + Math.min(lemmaCount[l], 3) + lemmaLevel[l].levelNum * 0.3 };
+    }).sort(function (a, b) { return b.sc - a.sc; }).forEach(function (h) {
+      if (suggest.length >= 6) return;
+      var l = h.l, seen = {};
+      var pool = ((COLL[l] && COLL[l].c) || []).map(function (c) { return { e: c.e, v: c.v || '', ielts: false }; })
+        .concat((T.colls[l] || []).map(function (c) { return { e: c.e, v: c.v || '', ielts: true }; }));
+      var items = pool.filter(function (c) {
+        if (!c.e || seen[c.e.toLowerCase()] || !isRealCollocation(c.e) || /\b(me|you|my|your|it)\b/i.test(c.e)) return false;
+        return (seen[c.e.toLowerCase()] = 1);
+      }).map(function (c, i) {
+        // fit: another word of the collocation is in the essay/prompt (3) or in the topic (2)
+        var fit = 0, bonus = c.ielts ? 1 : 0;
+        contentWords(c.e).forEach(function (w) {
+          if (lemmaOf(w) === l) return;
+          fit = Math.max(fit, fits(w)); var lv = AW.cefrOf && AW.cefrOf(w); if (lv && lv.levelNum >= 3) bonus += 0.5;
+        });
+        return { c: c, fit: fit, sc: fit * 2 + bonus - i * 0.01 };
+      }).filter(function (x) { return x.fit >= 2; })
+        .sort(function (a, b) { return b.sc - a.sc; }).slice(0, 3).map(function (x) { return x.c; });
+      if (items.length >= 2) suggest.push({ word: l, count: lemmaCount[l], level: lemmaLevel[l].level, items: items });
     });
-    var ranked = Object.keys(topicScore).sort(function (a, b) { return topicScore[b] - topicScore[a]; });
-    var topic = ranked[0] || '', topicPhrases = [];
-    // only when the topic is clear: a real score and well ahead of the runner-up
-    if (topic && topicScore[topic] >= 5 && topicScore[topic] >= 1.4 * (topicScore[ranked[1]] || 0)) {
+
+    // 6. IELTS phrases of the topic the student could still use
+    var topicPhrases = [];
+    if (topic) {
       Object.keys(IELTS).filter(function (k) {
         var it = IELTS[k]; return it.topics && it.topics.indexOf(topic) >= 0 && it.use !== 'speaking' && !ieltsSeen[k];
+      }).map(function (k) {
+        var hit = Object.keys(T.entry[k] || {}).reduce(function (n, w) { return n + (ctxPrompt[w] ? 3 : ctx[w] ? 1 : 0); }, 0);
+        return { k: k, hit: hit };
       }).sort(function (a, b) {
-        return (entryHits[b] - entryHits[a]) || String(IELTS[b].band).localeCompare(String(IELTS[a].band)) || (/\s/.test(b) - /\s/.test(a));
-      }).slice(0, 4).forEach(function (k) {
-        var it = IELTS[k]; topicPhrases.push({ phrase: k, band: it.band || '', cefr: it.cefr || '', vi: it.vi || '', example: it.writing_example || '', tip: it.tip || '' });
+        return (b.hit - a.hit) || String(IELTS[b.k].band).localeCompare(String(IELTS[a.k].band)) || (/\s/.test(b.k) - /\s/.test(a.k));
+      }).slice(0, 4).forEach(function (x) {
+        var it = IELTS[x.k]; topicPhrases.push({ phrase: x.k, band: it.band || '', cefr: it.cefr || '', vi: it.vi || '', example: it.writing_example || '', tip: it.tip || '' });
       });
-    } else topic = '';
+    }
 
     return { profile: profile, collocations: used, ielts: ielts.slice(0, 12), basic: basic.slice(0, 6), suggest: suggest,
-             topic: topic, topicPhrases: topicPhrases, words: tokens.length };
+             topic: topic, topicPhrases: topicPhrases, topicRank: topicRank, words: tokens.length };
   };
 
   /* Short English text for the grader, next to AW.cefrSummary. */
