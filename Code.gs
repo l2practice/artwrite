@@ -1792,6 +1792,10 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
         h2('📚 Lexical Resource ('+lrList.length+')');
         lrList.forEach(function(e){ if (typeof e!=='object'||e===null){ note('• '+S(e),'#1F2933',10.5); return; } correction(e.original,e.better,e.explanation_vi); });
       }
+      if (fb.lexis_vi){
+        h2('🧩 Vocabulary level & Collocations');
+        body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:6});
+      }
       if (fb.cc_feedback&&fb.cc_feedback.assessment_vi){
         h2('🔗 Coherence & Cohesion');
         body.appendParagraph(S(fb.cc_feedback.assessment_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:4});

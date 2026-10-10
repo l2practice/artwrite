@@ -173,6 +173,7 @@
 
 <script src="aw-common.js"></script>
 <script src="aw-cefr.js"></script>
+<script src="aw-lexis.js"></script>
 <script src="aw-grader.js"></script>
 <script>
 // Safety shim: if aw-common.js is an older cached copy without groqKey,
@@ -264,6 +265,8 @@ if (hasRealTopic) {
    check below corrects it if this device has never looked the class up. */
 var AW_AI_ON = AW.classAICached(sess.class);
 if (AW_AI_ON === null) AW_AI_ON = true;
+// dictionary data for the vocabulary/collocation feedback: fetched while the student writes
+if (AW.lexisLoad) AW.lexisLoad().catch(function(){});
 
 content.innerHTML =
   ((!AW_AI_ON || AW.geminiKey.get()) ? '' :
@@ -1071,6 +1074,10 @@ function gradeBtnHandler(){
       vocabSummary = AW.cefrSummary(lastVocabProfile);
     }
   } catch(e) { lastVocabProfile = null; }
+  // collocations + level details for the grader (the data is preloaded with the page)
+  try {
+    if (AW.lexisReady && AW.lexisReady()) vocabSummary += '\n' + AW.lexisSummary(AW.lexisAnalyse(text, { prompt: PROMPT }));
+  } catch(e) {}
 
   // Wrap AW.grade in a 90-second timeout so the spinner never hangs forever.
   // Gemini API occasionally stalls without rejecting; this ensures the student
@@ -1566,11 +1573,15 @@ function renderFeedback(r){
           vocabHtml+
         '</div>'
       : '')+
+    (AW_AI_ON && AW.lexisBlock ? '<div id="lexisSide" style="border-top:1px solid var(--aw-border-2);padding-top:12px;margin-top:12px"></div>' : '')+
     '</div>';
 
   var sideBodyEl = document.getElementById('sideBody');
   sideBodyEl.style.display = '';
   sideBodyEl.innerHTML = sideHtml;
+  if (AW_AI_ON && AW.lexisBlock) AW.lexisBlock(lastPlainEssay, { prompt: PROMPT, aiNote: r.lexis_vi }).then(function(h){
+    var el = document.getElementById('lexisSide'); if (el) { if (h) el.innerHTML = h; else el.remove(); }
+  });
   setTimeout(function(){
     AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});
     // grow vocab bars from zero for a small reveal
