@@ -472,16 +472,24 @@ function wireToolbar(){
     canvas.addEventListener('mouseup', onUp);
   });
 }
-// zoom scales the canvas view only — it is never saved into the board content
 // Zoom is a view-only setting — it is never saved into the board content.
-// Teacher: scales the whole canvas, so the projector shows the exact layout.
-// Student: scales the text size only, so the column keeps its width and
-// long lines simply re-wrap instead of running off the side.
+// Teacher: the whole canvas grows (text in any size, images, spacing), so
+// the projector shows the exact layout. Scaling only the base font-size
+// left text the teacher had sized with A+/A− (px) unchanged, so a zoom
+// only stretched the line spacing. The width is divided by the zoom so the
+// enlarged board still fits the window and lines re-wrap.
+// Student: the teacher's font sizes are stripped (renderForStudent), so
+// scaling the text size is enough and the column keeps its width.
 function applyZoom(){
   var canvas=document.getElementById('canvas'); if(!canvas)return;
-  // fontSize scaling — not transform:scale which clips text and distorts line-height
-  canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
   canvas.style.transform='none';
+  if(isTeacher){
+    canvas.style.fontSize='';
+    canvas.style.zoom = zoom===1 ? '' : String(zoom);
+    canvas.style.width = zoom===1 ? '' : (100/zoom).toFixed(3)+'%';
+  } else {
+    canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
+  }
   var ind=document.getElementById('zoomInd');
   if(ind) ind.textContent=Math.round(zoom*100)+'%';
 }
