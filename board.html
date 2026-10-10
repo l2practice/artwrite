@@ -176,7 +176,7 @@ function openBoardModal(){
 function openBoard(id){
   AW.api('board.get',{boardId:id}).then(function(res){
     if(!res||!res.success){AW.toast('Không mở được bảng','err');return;}
-    curBoard=res.data; zoom=1;
+    curBoard=res.data; zoom=isTeacher ? boardSavedZoom() : 1;
     renderBoard();
     if(!isTeacher){ startStudentPoll(); }
   });
@@ -280,6 +280,7 @@ function renderBoard(){
     wireStudentZoom();
     mountBoardHelp();
   }
+  applyZoom();
 }
 
 /*── Students can raise a hand / ask the teacher while reading the board ──*/
@@ -446,8 +447,17 @@ function wireToolbar(){
     canvas.focus(); scheduleSave();
   };
   AW.els('[data-zoom]').forEach(function(b){
-    b.onclick=function(){ zoom=Math.max(.5,Math.min(3, zoom+(b.dataset.zoom==='in'?.1:-.1))); applyZoom(); };
+    b.onclick=function(){ boardZoomStep(b.dataset.zoom==='in'?1:-1); };
   });
+  // ⌘/Ctrl + wheel (or trackpad pinch) over the board zooms the board, not the page
+  var wheelSum=0, wheelAt=0;
+  canvas.addEventListener('wheel', function(e){
+    if(!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    if(Date.now()-wheelAt > 400) wheelSum=0;   // a pinch sends many small events
+    wheelAt=Date.now(); wheelSum+=e.deltaY;
+    if(Math.abs(wheelSum) >= 60){ boardZoomStep(wheelSum < 0 ? 1 : -1); wheelSum=0; }
+  }, { passive:false });
   document.getElementById('imgBtn').onclick=function(){ document.getElementById('imgFile').click(); };
   document.getElementById('imgFile').onchange=function(){ if(this.files[0]) handleImage(this.files[0]); };
 
@@ -473,20 +483,32 @@ function wireToolbar(){
   });
 }
 // Zoom is a view-only setting — it is never saved into the board content.
-// Teacher: the whole canvas grows (text in any size, images, spacing), so
-// the projector shows the exact layout. Scaling only the base font-size
-// left text the teacher had sized with A+/A− (px) unchanged, so a zoom
-// only stretched the line spacing. The width is divided by the zoom so the
-// enlarged board still fits the window and lines re-wrap.
+// Teacher (same steps, ⌘/Ctrl + wheel and remembered level as the Live
+// essay window): CSS zoom grows everything — text of any size, including
+// what was sized with A+/A− in px, images and spacing. The canvas keeps its
+// normal auto width, so it still fills the window and the bigger text
+// re-wraps to the edge.
 // Student: the teacher's font sizes are stripped (renderForStudent), so
-// scaling the text size is enough and the column keeps its width.
+// scaling the text size is enough.
+var BOARD_ZOOM_STEPS=[0.8,0.9,1,1.2,1.4,1.6,1.8,2,2.5,3];
+function boardZoomStep(dir){
+  var i=BOARD_ZOOM_STEPS.indexOf(zoom);
+  if(i===-1){ i=0; while(i<BOARD_ZOOM_STEPS.length-1 && BOARD_ZOOM_STEPS[i]<zoom) i++; }
+  i=Math.max(0,Math.min(BOARD_ZOOM_STEPS.length-1,i+(dir>0?1:-1)));
+  zoom=BOARD_ZOOM_STEPS[i]; applyZoom();
+  try{ localStorage.setItem('aw_board_zoom', String(zoom)); }catch(e){}
+}
+function boardSavedZoom(){
+  var z=0; try{ z=parseFloat(localStorage.getItem('aw_board_zoom')); }catch(e){}
+  return BOARD_ZOOM_STEPS.indexOf(z)>=0 ? z : 1;
+}
 function applyZoom(){
   var canvas=document.getElementById('canvas'); if(!canvas)return;
   canvas.style.transform='none';
   if(isTeacher){
     canvas.style.fontSize='';
+    canvas.style.width='';
     canvas.style.zoom = zoom===1 ? '' : String(zoom);
-    canvas.style.width = zoom===1 ? '' : (100/zoom).toFixed(3)+'%';
   } else {
     canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
   }
