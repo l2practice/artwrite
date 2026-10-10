@@ -599,6 +599,7 @@
 
 <script src="aw-common.js"></script>
 <script src="aw-cefr.js"></script>
+<script src="aw-lexis.js"></script>
 <script src="aw-teacher-ai.js"></script>
 <script>
 if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
@@ -2660,6 +2661,8 @@ window.viewEssays=function(gkey, writeIdx){
         if(d.essay && window.AW && AW.analyseVocabulary){
           out+=renderTeacherVocab(AW.analyseVocabulary(d.essay));
         }
+        // Vocabulary level & collocations (dictionary-based, filled in below)
+        if(d.essay && AW.lexisBlock) out+='<div id="lexis_'+i+'" style="margin:12px 0"></div>';
         // AI Feedback
         if(fb){
           out+='<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">AI Feedback</h4>';
@@ -2676,6 +2679,9 @@ window.viewEssays=function(gkey, writeIdx){
             'New submissions include full feedback.</p>';
         }
         el.innerHTML = out;
+        if(d.essay && AW.lexisBlock) AW.lexisBlock(d.essay, { prompt: g.prompt||'', aiNote: fb && fb.lexis_vi }).then(function(h){
+          var lx=document.getElementById('lexis_'+i); if(lx && rvTok === window._rvTok){ if(h) lx.innerHTML=h; else lx.remove(); }
+        });
       });
     }).catch(function(e){
       console.error('getAttemptDetail failed', e);
