@@ -17,7 +17,8 @@
     users/{uid}          role 'student'|'teacher', studentId, name, classId,
                          teacherUid (students), birthdate, phone, email,
                          archived, createdAt
-    loginIndex/{sha256}  sha256(lowercased email) → { sid }   (email sign-in)
+    loginIndex/{sha256}  sha256(lowercased email) → { sid } or, for one person in several
+                         classes, { sid, multi: true, sids: [...] }   (email sign-in)
     classes/{classId}    classId, className, year, semester, teacherUid,
                          teacherEmail, aiEnabled, archived, createdAt, …
     assignments/{topicId} topicId, mode, classId, teacherUid, topic, prompt,
@@ -150,7 +151,7 @@ async function studentLogin(p) {
   if (id.indexOf('@') >= 0) {
     const idx = await fs.doc('loginIndex/' + await sha256Hex(low(id))).get();
     if (!idx.exists) return fail('Sai Student ID/email hoặc mật khẩu.');
-    if (idx.data().multi) return fail('Email này gắn với nhiều tài khoản. Hãy đăng nhập bằng Student ID.');
+    if (idx.data().multi) return fail('Email này dùng cho nhiều lớp (mỗi lớp một Student ID). Hãy đăng nhập bằng Student ID của lớp bạn muốn vào.');
     sid = idx.data().sid;
   }
   await setPersistence(!!p.remember);

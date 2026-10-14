@@ -265,8 +265,14 @@ document.getElementById('form').onsubmit = function(e){
     hideLoading();
     if (res && res.success){
       AW.session.set(Object.assign({role:'student'}, res.data), {remember:false});
-      AW.toast('Đăng ký thành công!','ok');
-      setTimeout(function(){ location.href = AW.STUDENT_HOME; }, 600);
+      if (res.data && res.data.otherClasses) {
+        // same person, another class: a second account with its own Student ID
+        AW.toast('Đăng ký thành công! Lớp này dùng Student ID '+res.data.studentId+'. Tài khoản ở lớp cũ vẫn giữ nguyên — vào lớp nào thì đăng nhập bằng Student ID của lớp đó.','ok',6000);
+        setTimeout(function(){ location.href = AW.STUDENT_HOME; }, 3500);
+      } else {
+        AW.toast('Đăng ký thành công!','ok');
+        setTimeout(function(){ location.href = AW.STUDENT_HOME; }, 600);
+      }
     } else {
       var msg = (res && res.error) || 'Đăng ký thất bại.';
       // Map server error to specific field if possible

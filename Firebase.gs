@@ -225,9 +225,19 @@ function fbStudentSignup(p) {
   var sid = fbStr(p.studentId), email = fbLow(p.email), phone = fbStr(p.phone), uid = fbUidForStudent(sid);
   if (fsGet('users/' + uid) || fsQuery('users', [['studentId', 'EQUAL', sid]], 1).length)
     return { success:false, error:'Student ID "' + sid + '" đã được đăng ký. Nếu là tài khoản của bạn, hãy đăng nhập hoặc liên hệ giảng viên.', field:'studentId' };
-  if (fsGet('loginIndex/' + fbSha256(email)))
-    return { success:false, error:'Email "' + p.email + '" đã được đăng ký với một tài khoản khác.', field:'email' };
-  if (fsQuery('users', [['phone', 'EQUAL', phone]], 1).length)
+  // One person may study in several classes at once, each with its own Student ID
+  // (a separate account per class). The email and phone may then be reused, but only
+  // by the same person: same date of birth and the same name or phone number.
+  var mine = fsQuery('users', [['email', 'EQUAL', email]]).filter(function(u) { return u.role === 'student'; });
+  if (mine.length || fsGet('loginIndex/' + fbSha256(email))) {
+    var same = mine.filter(function(u) { return fbSamePerson(u, p); });
+    if (!same.length)
+      return { success:false, error:'Email "' + p.email + '" đã được đăng ký với một tài khoản khác. Nếu bạn học thêm lớp khác, hãy nhập đúng họ tên và ngày sinh như tài khoản cũ.', field:'email' };
+    var inClass = same.filter(function(u) { return u.classId === classId && !u.archived; })[0];
+    if (inClass)
+      return { success:false, error:'Bạn đã có tài khoản trong lớp này (Student ID ' + inClass.studentId + '). Hãy đăng nhập bằng Student ID đó.', field:'studentId' };
+  }
+  if (fsQuery('users', [['phone', 'EQUAL', phone]]).some(function(u) { return fbLow(u.email) !== email; }))
     return { success:false, error:'Số điện thoại "' + phone + '" đã được đăng ký với một tài khoản khác.', field:'phone' };
 
   try { fbAuthCreate(uid, fbLoginEmailFor(sid), p.password); }
@@ -240,9 +250,21 @@ function fbStudentSignup(p) {
   fsCommit([
     wSet('users/' + uid, { role:'student', studentId:sid, name:fbStr(p.name), classId:classId, teacherUid:cls.teacherUid || '',
       birthdate:fbStr(p.birthdate), phone:phone, email:email, archived:false, createdAt:new Date().toISOString() }),
-    wSet('loginIndex/' + fbSha256(email), { sid: sid })
+    wSet('loginIndex/' + fbSha256(email), fbLoginIndexDoc(mine.map(function(u) { return u.studentId; }).concat([sid])))
   ]);
-  return { success:true, data:{ studentId:sid, name:p.name, class:classId } };
+  return { success:true, data:{ studentId:sid, name:p.name, class:classId, otherClasses: mine.length } };
+}
+
+function fbFold(v) { return fbLow(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/\s+/g, ' '); }
+function fbSamePerson(u, p) {
+  var b1 = fbStr(u.birthdate).slice(0, 10), b2 = fbStr(p.birthdate).slice(0, 10);
+  if (!b1 || b1 !== b2) return false;
+  return fbFold(u.name) === fbFold(p.name) || (fbStr(u.phone) && fbStr(u.phone) === fbStr(p.phone));
+}
+// sha256(email) → the Student ID(s) signing in with that email
+function fbLoginIndexDoc(sids) {
+  var list = sids.filter(function(x, i) { return x && sids.indexOf(x) === i; });
+  return list.length > 1 ? { sid: list[0], multi: true, sids: list } : { sid: list[0] || '' };
 }
 
 function fbTeacherSignup(p) {
@@ -264,7 +286,21 @@ function fbForgotPassword(p) {
   if (!email) return { success:false, error:'Nhập email đã đăng ký.' };
   var uid = '', name = '', sid = '';
   var idx = fsGet('loginIndex/' + fbSha256(email));
-  if (idx && idx.multi) return { success:false, error:'Email này gắn với nhiều tài khoản. Liên hệ giảng viên để đặt lại mật khẩu.' };
+  if (idx && idx.multi) {
+    // one person in several classes: a new password for each class account, one email
+    var accts = fsQuery('users', [['email', 'EQUAL', email]]).filter(function(u) { return u.role === 'student' && !u.archived; });
+    if (!accts.length) return { success:false, error:'Không tìm thấy tài khoản với email này.' };
+    var lines = accts.map(function(u) {
+      var pw1 = fbRandomPassword(); fbAuthUpdate(u._id, { password: pw1 });
+      return '• Lớp ' + u.classId + ' — Student ID: ' + u.studentId + ' — mật khẩu mới: ' + pw1;
+    });
+    try {
+      MailApp.sendEmail({ to: email, name: 'ArticuWrite', subject: 'ArticuWrite — Mật khẩu mới',
+        body: 'Xin chào ' + (accts[0].name || '') + ',\n\nEmail này dùng cho ' + accts.length + ' tài khoản (mỗi lớp một Student ID):\n' +
+              lines.join('\n') + '\n\nĐăng nhập bằng Student ID của lớp bạn muốn vào, rồi vào Settings để đổi mật khẩu.\n\n— ArticuWrite' });
+    } catch (err) { return { success:false, error:'Không gửi được email: ' + err.message }; }
+    return { success:true, data:{ sent:true, accounts: accts.length } };
+  }
   if (idx) {
     sid = idx.sid; uid = fbUidForStudent(sid);
     var u = fsGet('users/' + uid); name = u ? u.name : '';
@@ -315,7 +351,11 @@ function fbStudentEdit(p, caller) {
   var writes = [];
   if (Object.keys(patch).length) writes.push(wMerge('users/' + uid, patch));
   if (Object.keys(progPatch).length && fsGet('progress/' + uid)) writes.push(wMerge('progress/' + uid, progPatch));
-  if (patch.studentId && s.email) writes.push(wSet('loginIndex/' + fbSha256(fbLow(s.email)), { sid: patch.studentId }));
+  if (patch.studentId && s.email) {
+    var others = fsQuery('users', [['email', 'EQUAL', fbLow(s.email)]])
+      .filter(function(u) { return u.role === 'student' && u._id !== uid; }).map(function(u) { return u.studentId; });
+    writes.push(wSet('loginIndex/' + fbSha256(fbLow(s.email)), fbLoginIndexDoc([patch.studentId].concat(others))));
+  }
   fsCommit(writes);
   return { success:true };
 }
@@ -523,7 +563,7 @@ function fbStep3_Students() {
     if (email) (emails[email] = emails[email] || []).push(sid);
   });
   Object.keys(emails).forEach(function(e) {
-    writes.push(wSet('loginIndex/' + fbSha256(e), emails[e].length > 1 ? { sid: emails[e][0], multi: true } : { sid: emails[e][0] }));
+    writes.push(wSet('loginIndex/' + fbSha256(e), fbLoginIndexDoc(emails[e])));
   });
   fsCommit(writes);
   return fbLog('Student accounts created: ' + made + ', already there/skipped: ' + skipped + ', profiles written: ' + rows.length);
