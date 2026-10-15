@@ -12,12 +12,23 @@
 <style>
   .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
   .aw-modal-bg.show{display:flex}
-  .aw-modal2{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:720px;max-height:88vh;overflow-y:auto;box-shadow:var(--aw-shadow-lg);padding:28px}
+  .aw-modal2{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:min(1180px,96vw);max-height:92vh;overflow-y:auto;box-shadow:var(--aw-shadow-lg);padding:0 32px 28px}
+  /* the bar with the topic, zoom and Close stays on top while the outline scrolls */
+  .lib-bar{position:sticky;top:0;z-index:2;background:var(--aw-surface);display:flex;align-items:center;gap:10px;padding:18px 0 12px;margin-bottom:4px}
+  .lib-bar .aw-eyebrow{flex:1;min-width:0;margin:0}
+  .lib-zoom{display:inline-flex;align-items:center;gap:2px;background:var(--aw-surface-2);border-radius:999px;padding:3px}
+  .lib-zoom button{border:none;background:none;min-width:34px;height:32px;border-radius:999px;cursor:pointer;font-weight:700;color:var(--aw-ink-2);font-size:.85rem}
+  .lib-zoom button:hover{background:#fff}
+  .lib-zoom span{min-width:44px;text-align:center;font-size:.78rem;color:var(--aw-ink-3);font-variant-numeric:tabular-nums}
+  /* both body paragraphs side by side when there is room */
+  .lib-outline{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px;margin-top:14px}
+  .lib-outline .aw-outline-para{margin-top:0}
+  @media(max-width:700px){ .aw-modal2{padding:0 18px 22px} .lib-outline{grid-template-columns:1fr} }
   .aw-modal2 h2{font-family:var(--aw-font-display);margin:0 0 4px;font-size:1.3rem}
   .aw-outline-para{background:var(--aw-surface-2);border:none;border-radius:18px;padding:16px 18px;margin-top:14px}
   .aw-outline-para h4{margin:0 0 10px;color:var(--aw-primary);font-size:.95rem}
   .aw-mp{border-left:3px solid var(--aw-primary);padding-left:12px;margin-bottom:12px}
-  .aw-mp-row{font-size:.88rem;line-height:1.5;margin-bottom:3px}
+  .aw-mp-row{font-size:.95rem;line-height:1.6;margin-bottom:4px}
   .aw-mp-row b{color:var(--aw-ink);font-weight:600}
   .aw-lock-note{background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:14px;color:#7A5A0A;font-size:.88rem;margin-top:14px}
   .aw-toggle{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.82rem;font-weight:600}
@@ -163,7 +174,7 @@ function outlineHtml(q){
   var html='';
   if(b1) html+='<div class="aw-outline-para"><h4>Body Paragraph 1</h4>'+b1+'</div>';
   if(b2) html+='<div class="aw-outline-para"><h4>Body Paragraph 2</h4>'+b2+'</div>';
-  return html || '<p style="color:var(--aw-ink-3)">No model outline for this prompt yet.</p>';
+  return html ? '<div class="lib-outline">'+html+'</div>' : '<p style="color:var(--aw-ink-3)">No model outline for this prompt yet.</p>';
 }
 
 function accessManagerHtml(q){
@@ -204,11 +215,15 @@ function openDetail(q){
   var body=document.getElementById('modalBody');
   var showOutline = isTeacher || q.outlineUnlocked;
   body.innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:start;gap:12px">'+
-      '<div><div class="aw-eyebrow">'+AW.esc(q.topic)+(q.taskType?' · '+AW.esc(q.taskType):'')+'</div>'+
-      '<h2>'+AW.esc(q.question)+'</h2></div>'+
+    '<div class="lib-bar">'+
+      '<div class="aw-eyebrow">'+AW.esc(q.topic)+(q.taskType?' · '+AW.esc(q.taskType):'')+'</div>'+
+      '<div class="lib-zoom" title="Text size (⌘/Ctrl + scroll)">'+
+        '<button type="button" data-lz="-1" aria-label="Smaller text">A−</button><span id="libZoomLbl"></span>'+
+        '<button type="button" data-lz="1" aria-label="Larger text">A+</button><button type="button" data-lz="0" aria-label="Reset text size">↺</button></div>'+
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeDetail()">Close</button>'+
     '</div>'+
+    '<div id="libDetail">'+
+    '<h2>'+AW.esc(q.question)+'</h2>'+
     (q.keywords?'<p style="color:var(--aw-ink-2);font-size:.9rem"><b>Keywords:</b> '+AW.esc(q.keywords)+'</p>':'')+
     (isTeacher?accessManagerHtml(q):'')+
     (showOutline
@@ -216,8 +231,11 @@ function openDetail(q){
       : '<div class="aw-lock-note">🔒 The model outline for this prompt is locked. Your teacher will open it when appropriate. You can still practice this prompt now.</div>')+
     '<div style="margin-top:20px;display:flex;gap:10px">'+
       (isTeacher?'':'<button class="aw-btn aw-btn-primary" id="writeBtn">Write this prompt</button>')+
+    '</div>'+
     '</div>';
   document.getElementById('modalBg').classList.add('show');
+  AW.els('[data-lz]').forEach(function(b){ b.onclick=function(){ libZoomStep(+b.dataset.lz); }; });
+  applyLibZoom();
 
   if(isTeacher){
     wireAccessButtons(q);
@@ -276,6 +294,31 @@ function refreshLibrary(){
 var lastOpenQ='';
 var _origOpenDetail=openDetail;
 openDetail=function(q){ lastOpenQ=q.question; _origOpenDetail(q); };
+/* Text size of the prompt window: the whole content grows (CSS zoom) and
+   re-wraps to the window's width; the level is remembered on this device. */
+var LIB_ZOOM_STEPS=[0.9,1,1.1,1.25,1.4,1.6,1.8,2];
+var libZoom=(function(){ var z=1; try{ z=parseFloat(localStorage.getItem('aw_lib_zoom'))||1; }catch(e){} return LIB_ZOOM_STEPS.indexOf(z)>=0?z:1; })();
+function applyLibZoom(){
+  var el=document.getElementById('libDetail'); if(!el) return;
+  el.style.zoom = libZoom===1 ? '' : String(libZoom);
+  var l=document.getElementById('libZoomLbl'); if(l) l.textContent=Math.round(libZoom*100)+'%';
+}
+function libZoomStep(dir){
+  var i=LIB_ZOOM_STEPS.indexOf(libZoom); if(i<0) i=1;
+  libZoom = dir===0 ? 1 : LIB_ZOOM_STEPS[Math.max(0,Math.min(LIB_ZOOM_STEPS.length-1,i+dir))];
+  try{ localStorage.setItem('aw_lib_zoom', String(libZoom)); }catch(e){}
+  applyLibZoom();
+}
+(function(){
+  var sum=0, at=0;
+  document.getElementById('modalBody').addEventListener('wheel', function(e){
+    if(!(e.ctrlKey||e.metaKey)) return;
+    e.preventDefault();
+    if(Date.now()-at>400) sum=0;   // a trackpad pinch sends many small events
+    at=Date.now(); sum+=e.deltaY;
+    if(Math.abs(sum)>=60){ libZoomStep(sum<0?1:-1); sum=0; }
+  }, {passive:false});
+})();
 window.closeDetail=function(){document.getElementById('modalBg').classList.remove('show');};
 </script>
 </body>
