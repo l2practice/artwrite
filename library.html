@@ -29,7 +29,12 @@
   .aw-outline-para h4{margin:0 0 10px;color:var(--aw-primary);font-size:.95rem}
   .aw-mp{border-left:3px solid var(--aw-primary);padding-left:12px;margin-bottom:12px}
   .aw-mp-row{font-size:.95rem;line-height:1.6;margin-bottom:4px}
-  .aw-mp-row b{color:var(--aw-ink);font-weight:600}
+  .aw-mp-row b{color:var(--aw-ink);font-weight:700}
+  /* the teacher's colour code for outline parts — labels only, the text stays black */
+  .aw-mp-row b.lb-mp{color:#15803D}   /* main point: green */
+  .aw-mp-row b.lb-why{color:#4B5563}  /* why: dark grey */
+  .aw-mp-row b.lb-ex{color:#A16207}   /* example: yellow, darkened enough to read on a light background */
+  .aw-mp-row b.lb-res{color:#1D4ED8}  /* result: blue */
   .aw-lock-note{background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:14px;color:#7A5A0A;font-size:.88rem;margin-top:14px}
   .aw-toggle{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.82rem;font-weight:600}
   .aw-toggle input{display:none}
@@ -162,10 +167,10 @@ document.getElementById('fType').onchange=applyFilters;
 function mpBlock(label,mp){
   if(!mp || (!mp.mp&&!mp.why&&!mp.example&&!mp.result)) return '';
   return '<div class="aw-mp">'+
-    (mp.mp?'<div class="aw-mp-row"><b>'+label+' — Main point:</b> '+AW.esc(mp.mp)+'</div>':'')+
-    (mp.why?'<div class="aw-mp-row"><b>Why:</b> '+AW.esc(mp.why)+'</div>':'')+
-    (mp.example?'<div class="aw-mp-row"><b>Example:</b> '+AW.esc(mp.example)+'</div>':'')+
-    (mp.result?'<div class="aw-mp-row"><b>Result:</b> '+AW.esc(mp.result)+'</div>':'')+
+    (mp.mp?'<div class="aw-mp-row"><b class="lb-mp">'+label+' — Main point:</b> '+AW.esc(mp.mp)+'</div>':'')+
+    (mp.why?'<div class="aw-mp-row"><b class="lb-why">Why:</b> '+AW.esc(mp.why)+'</div>':'')+
+    (mp.example?'<div class="aw-mp-row"><b class="lb-ex">Example:</b> '+AW.esc(mp.example)+'</div>':'')+
+    (mp.result?'<div class="aw-mp-row"><b class="lb-res">Result:</b> '+AW.esc(mp.result)+'</div>':'')+
   '</div>';
 }
 function outlineHtml(q){
