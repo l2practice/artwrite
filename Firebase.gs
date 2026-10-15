@@ -1121,3 +1121,86 @@ function fbNightlyBackup() {
   P.setProperty('fb_backup_since', essays[essays.length - 1].timestamp);
   return fbLog('Backup: ' + rows.length + ' new submissions copied (up to ' + essays[essays.length - 1].timestamp + ').');
 }
+
+// ════════════════════════════════════════════════════════════
+// LIBRARY → FIRESTORE
+// The library stays in its Google Sheet (LIBRARY_SHEET_ID) — that is where it
+// is edited. A copy in Firestore is what the app reads, so the Library page no
+// longer waits for Apps Script to open the Sheet:
+//   library/meta          { chunks, hash, count, updatedAt }
+//   library/c0, c1 …      { json } — the prompts (one per prompt, duplicates merged
+//                         by libraryCollect() in Code.gs), split to stay under the
+//                         1 MB document limit; read in one go, cached by hash
+//   libraryRules/all      { json } — the access rules with Student IDs (teachers only)
+// Students see who may open an outline as { all, cls: {classId}, stu: {hash(sid)} }.
+//
+// When it is refreshed:
+//   • an edit in the library Sheet (onChange trigger, set up by fbLibrarySetup)
+//   • a change from the app (library.* actions in Code.gs → librarySynced)
+//   • every hour, as a safety net (also picks up manual edits of LibraryAccess)
+// Nothing is written when nothing changed (the content hash is compared).
+// ════════════════════════════════════════════════════════════
+var FB_LIB_CHUNK_BYTES = 700000;
+
+function fbLibStuKey(sid) { return fbSha256('libs:' + fbStr(sid)).slice(0, 16); }
+
+function fbLibrarySync(force) {
+  var lock = LockService.getScriptLock(), props = PropertiesService.getScriptProperties();
+  if (!lock.tryLock(force ? 25000 : 2000)) { props.setProperty('FB_LIB_DIRTY', '1'); return 'busy — will run again'; }
+  try {
+    var out = '';
+    for (var pass = 0; pass < 3; pass++) {   // an edit that came in during the sync gets a second pass
+      props.deleteProperty('FB_LIB_DIRTY');
+      out = fbLibraryWrite_();
+      if (props.getProperty('FB_LIB_DIRTY') !== '1') break;
+    }
+    return out;
+  } finally { lock.releaseLock(); }
+}
+
+function fbLibraryWrite_() {
+  var items = libraryCollect(), rules = {};
+  var pub = items.map(function(e) {
+    var acc = { all: '', cls: {}, stu: {} };
+    (e.accessRules || []).forEach(function(r) {
+      var st = String(r.state).toLowerCase() === 'open' ? 'Open' : 'Locked';
+      if (r.scope === 'all') acc.all = st;
+      else if (r.scope === 'class') acc.cls[r.target] = st;
+      else if (r.scope === 'student') acc.stu[fbLibStuKey(r.target)] = st;
+    });
+    if (e.accessRules && e.accessRules.length) rules[e.key] = e.accessRules;
+    return { key: e.key, topic: e.topic, testingDate: e.testingDate, dates: e.dates, taskType: e.taskType,
+             question: e.question, keywords: e.keywords, globalOpen: e.globalOpen, rowIndex: e.rowIndex,
+             copies: e.rows.length, body1: e.body1, body2: e.body2, acc: acc };
+  });
+  var rulesJson = JSON.stringify(rules), hash = fbSha256(JSON.stringify(pub) + rulesJson);
+  var meta = fsGet('library/meta');
+  if (meta && meta.hash === hash) return 'Library unchanged (' + pub.length + ' prompts).';
+
+  // split into documents under the size limit (Vietnamese text: count bytes, not characters)
+  var chunks = [], cur = [], size = 2;
+  pub.forEach(function(it) {
+    var b = Utilities.newBlob(JSON.stringify(it)).getBytes().length + 1;
+    if (cur.length && size + b > FB_LIB_CHUNK_BYTES) { chunks.push(cur); cur = []; size = 2; }
+    cur.push(it); size += b;
+  });
+  if (cur.length || !chunks.length) chunks.push(cur);
+  var w = chunks.map(function(c, i) { return wSet('library/c' + i, { json: JSON.stringify(c) }); });
+  for (var j = chunks.length; meta && j < (meta.chunks || 0); j++) w.push(wDelete('library/c' + j));
+  w.push(wSet('libraryRules/all', { json: rulesJson }));
+  w.push(wSet('library/meta', { chunks: chunks.length, hash: hash, count: pub.length, updatedAt: new Date().toISOString() }));
+  fsCommit(w);
+  return fbLog('Library → Firebase: ' + pub.length + ' prompts in ' + chunks.length + ' part(s).');
+}
+
+// Run ONCE from the editor: first copy + the triggers that keep it up to date.
+function fbLibrarySetup() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (['fbLibraryOnChange', 'fbLibraryHourly'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('fbLibraryOnChange').forSpreadsheet(LIBRARY_SHEET_ID).onChange().create();
+  ScriptApp.newTrigger('fbLibraryHourly').timeBased().everyHours(1).create();
+  return fbLog(fbLibrarySync(true) + ' Triggers set: on every change of the library Sheet + hourly.');
+}
+function fbLibraryOnChange(e) { fbLibrarySync(false); }
+function fbLibraryHourly() { fbLibrarySync(false); }

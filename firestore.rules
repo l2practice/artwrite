@@ -39,6 +39,16 @@ service cloud.firestore {
       allow update: if owns(resource.data) && unchanged('teacherUid');
       allow delete: if false;
     }
+    // Library: a copy of the library Sheet written by Apps Script (fbLibrarySync).
+    // Everyone signed in reads it; the access rules with Student IDs are teachers' only.
+    match /library/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /libraryRules/{id} {
+      allow read: if isTeacher();
+      allow write: if false;
+    }
     match /assignments/{id} {
       allow read: if signedIn();
       allow create: if isTeacher() && request.resource.data.teacherUid == request.auth.uid

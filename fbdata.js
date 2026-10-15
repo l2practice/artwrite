@@ -11,7 +11,8 @@
                  Google Docs / Sheets export — needs admin rights or
                  Google services. Sent with the caller's ID token.
     everything   still on the Google Sheet (Live, annotations, queries,
-    else         boards, translate, library, vocab) until it moves over.
+    else         boards, translate, vocab) until it moves over. The library is read
+    from a Firestore copy of its Sheet (getLibrary).
 
   Collections (see firestore.rules):
     users/{uid}          role 'student'|'teacher', studentId, name, classId,
@@ -1051,6 +1052,45 @@ async function gas(action, payload, anonymous) {
   } finally { clearTimeout(timer); }
 }
 // Still on the Google Sheet: the original transport (fetch + JSONP fallback).
+// ════════════════════════════════════════════
+// LIBRARY — Firestore copy of the library Sheet (Firebase.gs ▸ fbLibrarySync)
+// ════════════════════════════════════════════
+//   library/meta {chunks, hash} · library/c0.. {json} · libraryRules/all {json} (teachers)
+// One small read when nothing changed: the prompts are kept in this browser
+// under the copy's hash. Until the first copy exists, the Sheet answers as before.
+const LIB_CACHE = 'aw_lib_cache';
+async function getLibrary(p) {
+  const meta = await fs.doc('library/meta').get();
+  if (!meta.exists) return legacy('write.getLibrary', p);
+  const m = meta.data();
+  let items = null;
+  try { const c = JSON.parse(localStorage.getItem(LIB_CACHE) || 'null'); if (c && c.hash === m.hash) items = c.items; } catch (e) {}
+  if (!items) {
+    const parts = await Promise.all(Array.from({ length: m.chunks || 0 }, (_, i) => fs.doc('library/c' + i).get()));
+    items = [].concat(...parts.map(d => d.exists ? JSON.parse(d.data().json || '[]') : []));
+    try { localStorage.setItem(LIB_CACHE, JSON.stringify({ hash: m.hash, items })); } catch (e) {}
+  }
+  const u = await me(), isTeacher = u.role === 'teacher';
+  let rules = {};
+  if (isTeacher) {
+    const r = await fs.doc('libraryRules/all').get();
+    try { rules = r.exists ? JSON.parse(r.data().json || '{}') : {}; } catch (e) {}
+  }
+  const stuKey = isTeacher ? '' : (await sha256Hex('libs:' + str(u.studentId))).slice(0, 16);
+  const byTopic = {}, order = [];
+  items.forEach(e => {
+    const acc = e.acc || {};
+    // student rule > class rule > rule for everyone > the Sheet's Outline column
+    const st = isTeacher ? '' : ((acc.stu || {})[stuKey] || (acc.cls || {})[u.classId] || acc.all || '');
+    const q = Object.assign({}, e, { outlineUnlocked: isTeacher ? !!e.globalOpen : (st ? st === 'Open' : !!e.globalOpen) });
+    delete q.acc;
+    if (isTeacher) q.accessRules = rules[e.key] || [];
+    if (!byTopic[e.topic]) { byTopic[e.topic] = { topic: e.topic, questions: [] }; order.push(e.topic); }
+    byTopic[e.topic].questions.push(q);
+  });
+  return ok(order.map(t => byTopic[t]));
+}
+
 function legacy(action, payload) { return window.AW._legacyApi(action, payload); }
 
 const GAS_FB = {
@@ -1078,6 +1118,7 @@ const ACTIONS = {
   'class.archive': classArchive, 'class.setAiEnabled': classSetAiEnabled, 'class.listArchived': classListArchived,
   'student.archive': archiveStudent,
   'write.saveResult': saveResult, 'write.getAssignments': getAssignments, 'write.getPrompt': getPrompt,
+  'write.getLibrary': getLibrary,
   'write.getAttemptCount': getAttemptCount, 'write.getMyResults': getMyResults, 'write.getEssay': getEssay,
   'teacher.getResults': getResults, 'teacher.getAttemptDetail': getAttemptDetail,
   'teacher.deleteAttempt': deleteAttempt, 'teacher.saveManualScore': saveManualScore,

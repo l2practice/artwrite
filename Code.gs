@@ -203,12 +203,12 @@ function dispatch(action, p) {
     case 'board.uploadImage':        return boardUploadImage(p);
     // library
     case 'write.getLibrary':     return getLibrary(p);
-    case 'library.add':          return libraryAdd(p);
-    case 'library.delete':       return libraryDelete(p);
-    case 'library.toggleLock':   return libraryToggleLock(p);
-    case 'library.lockAll':      return libraryLockAll(p);
-    case 'library.setAccess':    return librarySetAccess(p);
-    case 'library.removeAccess': return libraryRemoveAccess(p);
+    case 'library.add':          return librarySynced(libraryAdd(p));
+    case 'library.delete':       return librarySynced(libraryDelete(p));
+    case 'library.toggleLock':   return librarySynced(libraryToggleLock(p));
+    case 'library.lockAll':      return librarySynced(libraryLockAll(p));
+    case 'library.setAccess':    return librarySynced(librarySetAccess(p));
+    case 'library.removeAccess': return librarySynced(libraryRemoveAccess(p));
     // admin / util
     case 'ping':                     return { success:true, data:'pong', time:new Date().toISOString() };
     case 'admin.resetTab':           return resetTab(p);
@@ -2242,42 +2242,81 @@ function librarySheet() {
   return book.getSheets()[0];
 }
 
-function getLibrary(p) {
-  p = p || {};
-  var sh = librarySheet();
-  var data = sh.getDataRange().getValues();
-  if (data.length < 2) return { success:true, data:[] };
-  var rules = readAll(T.LIBACCESS);
-  var isTeacher = !p.studentId;
-  var byTopic = {};
+/*  The same prompt is often in the sheet more than once (tested again on
+    another date, pasted twice). libNorm() is the identity of a prompt: case,
+    quotes, spaces and end punctuation ignored. libraryCollect() keeps ONE item
+    per prompt — the copy with the fullest outline — with every testing date
+    and sheet row, and themes that differ only in case/spaces are one topic.
+    Used by getLibrary() (Sheet edition) and by the Firebase copy (Firebase.gs). */
+function libNorm(q) {
+  return String(q == null ? '' : q).toLowerCase().replace(/[‘’“”"'`]/g, '')
+    .replace(/\s+/g, ' ').replace(/[\s.?!:;,]+$/, '').trim();
+}
+function libraryCollect() {
+  var data = librarySheet().getDataRange().getValues();
+  var rules = readAll(T.LIBACCESS), byKey = {}, order = [], topicName = {};
+  function mp(r, i) { return { why:r[i]||'', mp:r[i+1]||'', example:r[i+2]||'', result:r[i+3]||'' }; }
   for (var i = 1; i < data.length; i++) {
     var r = data[i];
     if (!r[3] && !r[1]) continue;
-    var topic = r[1] || 'Uncategorized';
-    var question = r[3] || '';
-    if (!byTopic[topic]) byTopic[topic] = { topic:topic, questions:[] };
-    var globalOpen = String(r[21]||'').toLowerCase() === 'open';
-    var qRules = rules.filter(function(x){ return String(x['Question'])===String(question); });
-    var unlocked = isTeacher ? globalOpen : resolveStudentAccess(qRules, globalOpen, p.studentId, p.class);
-    var item = {
-      rowIndex: i+1, testingDate: fmt(r[0]),
-      taskType: r[2]||'', question: question, keywords: r[4]||'',
-      outlineUnlocked: unlocked, globalOpen: globalOpen,
-      body1: {
-        mp1:{ why:r[5]||'',  mp:r[6]||'',  example:r[7]||'',  result:r[8]||''  },
-        mp2:{ why:r[9]||'',  mp:r[10]||'', example:r[11]||'', result:r[12]||'' }
-      },
-      body2: {
-        mp1:{ why:r[13]||'', mp:r[14]||'', example:r[15]||'', result:r[16]||'' },
-        mp2:{ why:r[17]||'', mp:r[18]||'', example:r[19]||'', result:r[20]||'' }
-      }
-    };
-    if (isTeacher) item.accessRules = qRules.map(function(x){
-      return { scope:x['Scope'], target:x['Target'], state:x['State'] };
-    });
-    byTopic[topic].questions.push(item);
+    var question = String(r[3] || '').trim(), topicRaw = String(r[1] || '').trim() || 'Uncategorized';
+    var tk = libNorm(topicRaw); if (!topicName[tk]) topicName[tk] = topicRaw;
+    var key = question ? libNorm(question) : '#row' + (i + 1);
+    var fill = 0; for (var c = 5; c <= 20; c++) if (String(r[c] || '').trim()) fill++;
+    var item = { key:key, topic:topicName[tk], testingDate:fmt(r[0]), taskType:r[2]||'', question:question, keywords:r[4]||'',
+      globalOpen: String(r[21]||'').toLowerCase() === 'open', rowIndex:i+1, fill:fill,
+      body1:{ mp1:mp(r,5), mp2:mp(r,9) }, body2:{ mp1:mp(r,13), mp2:mp(r,17) } };
+    var e = byKey[key];
+    if (!e) { item.rows = [i+1]; item.dates = item.testingDate ? [item.testingDate] : []; byKey[key] = item; order.push(key); continue; }
+    e.rows.push(i+1);
+    if (item.testingDate && e.dates.indexOf(item.testingDate) < 0) e.dates.push(item.testingDate);
+    if (item.fill > e.fill) {   // the fuller copy supplies the content
+      ['taskType','keywords','rowIndex','fill','body1','body2'].forEach(function(f){ e[f] = item[f]; });
+    }
+    // the neater wording of the prompt is shown (capital first letter, end punctuation)
+    function neat(q) { return (/^[A-Z\u201C"]/.test(q) ? 2 : 0) + (/[.?!]["\u201D]?$/.test(q) ? 1 : 0); }
+    if (neat(item.question) > neat(e.question)) e.question = item.question;
+    e.globalOpen = e.globalOpen || item.globalOpen;   // open when any copy is open
+    if (!e.keywords && item.keywords) e.keywords = item.keywords;
+    if (!e.taskType && item.taskType) e.taskType = item.taskType;
   }
-  return { success:true, data: Object.keys(byTopic).map(function(k){ return byTopic[k]; }) };
+  return order.map(function(k) {
+    var e = byKey[k];
+    e.dates.sort().reverse();
+    if (e.dates.length) e.testingDate = e.dates[0];
+    e.accessRules = rules.filter(function(x) { return e.question && libNorm(x['Question']) === k; })
+      .map(function(x) { return { scope:x['Scope'], target:String(x['Target']==null?'':x['Target']), state:x['State'] }; });
+    delete e.fill;
+    return e;
+  });
+}
+
+function getLibrary(p) {
+  p = p || {};
+  var isTeacher = !p.studentId, byTopic = {}, order = [];
+  libraryCollect().forEach(function(e) {
+    var item = JSON.parse(JSON.stringify(e));
+    item.outlineUnlocked = isTeacher ? e.globalOpen : resolveRuleAccess(e.accessRules, e.globalOpen, p.studentId, p.class);
+    if (!isTeacher) delete item.accessRules;
+    if (!byTopic[e.topic]) { byTopic[e.topic] = { topic:e.topic, questions:[] }; order.push(e.topic); }
+    byTopic[e.topic].questions.push(item);
+  });
+  return { success:true, data: order.map(function(k){ return byTopic[k]; }) };
+}
+// student rule > class rule > rule for everyone > the sheet's Outline column
+function resolveRuleAccess(rules, globalOpen, studentId, classId) {
+  function find(scope, target) { return rules.filter(function(x){ return x.scope===scope && (scope==='all' || String(x.target)===String(target)); })[0]; }
+  var r = find('student', studentId) || find('class', classId) || find('all', '');
+  return r ? String(r.state).toLowerCase() === 'open' : globalOpen;
+}
+
+// After a change made in the app, refresh the Firebase copy of the library
+// (Firebase.gs) so students see it at once; harmless without Firebase.
+function librarySynced(res) {
+  if (res && res.success && typeof fbLibrarySync === 'function') {
+    try { fbLibrarySync(true); } catch (e) { Logger.log('Library → Firebase: ' + e.message); }
+  }
+  return res;
 }
 
 function resolveStudentAccess(qRules, globalOpen, studentId, classId) {
@@ -2336,14 +2375,20 @@ function libraryToggleLock(p) {
   if (!p.rowIndex) return { success:false, error:'Thiếu rowIndex.' };
   var sh = librarySheet();
   if (sh.getLastColumn() < 22) sh.getRange(1,22).setValue('Outline');
+  var data = sh.getDataRange().getValues();
+  var key = libNorm(data[p.rowIndex-1] && data[p.rowIndex-1][3]);
   var cur = String(sh.getRange(p.rowIndex,22).getValue()||'').toLowerCase();
   var next = (cur==='open') ? 'Locked' : 'Open';
-  sh.getRange(p.rowIndex,22).setValue(next);
+  for (var i = 1; i < data.length; i++) {   // every copy of the same prompt
+    if (i+1 === p.rowIndex || (key && libNorm(data[i][3]) === key)) sh.getRange(i+1,22).setValue(next);
+  }
   return { success:true, data:{ rowIndex:p.rowIndex, outlineUnlocked:next==='Open' } };
 }
 
 function libraryAdd(p) {
-  var sh = librarySheet();
+  var sh = librarySheet(), key = libNorm(p.question);
+  if (key && sh.getDataRange().getValues().some(function(r, i){ return i > 0 && libNorm(r[3]) === key; }))
+    return { success:false, error:'Đề này đã có trong thư viện.' };
   var row = new Array(21).fill('');
   row[0]=p.testingDate||''; row[1]=p.topic||'General'; row[2]=p.taskType||'';
   row[3]=p.question||''; row[4]=p.keywords||'';
@@ -2351,11 +2396,11 @@ function libraryAdd(p) {
 }
 
 function libraryDelete(p) {
-  var sh = librarySheet(), data = sh.getDataRange().getValues();
-  for (var i=1;i<data.length;i++){
-    if (String(data[i][3])===String(p.question)){ sh.deleteRow(i+1); return { success:true }; }
+  var sh = librarySheet(), data = sh.getDataRange().getValues(), key = libNorm(p.question), n = 0;
+  for (var i = data.length-1; i >= 1; i--) {   // every copy, bottom up
+    if (key && libNorm(data[i][3]) === key) { sh.deleteRow(i+1); n++; }
   }
-  return { success:false, error:'Không tìm thấy.' };
+  return n ? { success:true, data:{ deleted:n } } : { success:false, error:'Không tìm thấy.' };
 }
 
 // ── Backfill feedback (re-grade tool) ─────────────────────────
