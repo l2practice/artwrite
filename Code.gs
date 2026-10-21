@@ -1606,13 +1606,17 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
   if (p.regenerate) alreadySummarized=false;
   var needsSummary=_complete0&&!alreadySummarized;
 
-  var doc, existingFile=null, startIndex=-1, appendMode=false, body;
+  var doc, existingFile=null, startIndex=-1, appendMode=false, body, createdNew=false;
   if (storedId && !p.regenerate){
     try {
       existingFile=DriveApp.getFileById(storedId); doc=DocumentApp.openById(storedId);
-      if (currentCnt>storedCnt){ appendMode=true; startIndex=storedCnt; body=doc.getBody(); }
+      if (!doc.getBody().getText().trim()){ body=doc.getBody(); }   // left empty by a failed run: build it again
+      else if (currentCnt>storedCnt){ appendMode=true; startIndex=storedCnt; body=doc.getBody(); }
       else if (needsSummary){ appendMode=true; startIndex=currentCnt; body=doc.getBody(); }
-      else { return { success:true, data:{ url:doc.getUrl(), fileName:existingFile.getName(), reused:true } }; }
+      else {
+        var w0 = feedbackDocPlace_(existingFile, folder, studentEmail);
+        return { success:true, data:{ url:doc.getUrl(), fileName:existingFile.getName(), reused:true, warning:w0||undefined } };
+      }
     } catch(e){ storedId=''; doc=null; existingFile=null; }
   }
   if (!doc){
@@ -1622,10 +1626,11 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     if (!doc){
       var it=folder.getFilesByName(fileName);
       if (it.hasNext()){ existingFile=it.next(); doc=DocumentApp.openById(existingFile.getId()); doc.getBody().clear(); }
-      else { doc=DocumentApp.create(fileName); }
+      else { doc=DocumentApp.create(fileName); createdNew=true; feedbackDocPlace_(DriveApp.getFileById(doc.getId()), folder, studentEmail); }
     }
     startIndex=-1; appendMode=false; body=doc.getBody();
   }
+  try {
   body.setMarginTop(50).setMarginBottom(50).setMarginLeft(56).setMarginRight(56);
 
   function S(v){
@@ -1842,18 +1847,40 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     note('Báo cáo tạo tự động bởi ArticuWrite · Dong Nai University',LIGHT,9);
   }
   doc.saveAndClose();
-  var newDocId=doc.getId();
-
-  saveMeta(newDocId, currentCnt, summaryAdded);
-
-  try {
-    var file2=DriveApp.getFileById(newDocId);
-    if (!existingFile){ folder.addFile(file2); DriveApp.getRootFolder().removeFile(file2); }
-    file2.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.VIEW);
-  } catch(err){
-    return { success:true, data:{ url:doc.getUrl(), warning:'Folder move: '+err.message } };
+  } catch (buildErr) {
+    // nothing half-made is left behind or handed out; the next try starts clean
+    if (createdNew) { try { DriveApp.getFileById(doc.getId()).setTrashed(true); } catch (e2) {} }
+    Logger.log('Feedback Doc ' + fileName + ': ' + buildErr.message);
+    return { success:false, error:'Không tạo được file nhận xét (' + buildErr.message + '). Thử lại sau ít phút.' };
   }
-  return { success:true, data:{ url:doc.getUrl(), fileName:fileName, updated:!!existingFile } };
+  var newDocId=doc.getId();
+  saveMeta(newDocId, currentCnt, summaryAdded);
+  var warn = feedbackDocPlace_(DriveApp.getFileById(newDocId), folder, studentEmail);
+  return { success:true, data:{ url:doc.getUrl(), fileName:fileName, updated:!!existingFile, warning:warn||undefined } };
+}
+
+/*  Every feedback Doc students get a link to must be in the feedback folder
+    and readable with the link. Moving and sharing are separate steps: a
+    failed move no longer skips the sharing (that left Docs only the teacher
+    could open — "access denied" for the student). If link sharing itself
+    is refused, the student's email is added as a viewer instead.
+    Returns '' or a short warning.                                        */
+function feedbackDocPlace_(file, folder, studentEmail) {
+  var warn = [];
+  try {
+    var inFolder = false, ps = file.getParents();
+    while (ps.hasNext()) { if (ps.next().getId() === folder.getId()) { inFolder = true; break; } }
+    if (!inFolder) file.moveTo(folder);
+  } catch (e) { warn.push('move: ' + e.message); }
+  try {
+    if (file.getSharingAccess() !== DriveApp.Access.ANYONE_WITH_LINK || file.getSharingPermission() === DriveApp.Permission.NONE)
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {
+    warn.push('share: ' + e.message);
+    if (studentEmail) { try { file.addViewer(String(studentEmail).trim()); } catch (e3) { warn.push('viewer: ' + e3.message); } }
+  }
+  if (warn.length) Logger.log('Feedback Doc ' + file.getName() + ' — ' + warn.join('; '));
+  return warn.join('; ');
 }
 
 // ── Export results sheet ───────────────────────────────────────
