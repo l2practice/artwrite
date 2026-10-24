@@ -80,7 +80,7 @@
       '[MINIMUM DEPTH — a strong essay still gets detailed feedback]\n'+
       'A high band is NEVER a reason to return short or empty feedback. Band 7 is not perfect: it still contains imprecise word choice, slightly unnatural collocations, over-long sentences, weak or unsupported examples, and paragraphs that could be developed further. Praise alone is not useful feedback.\n'+
       '- ALWAYS return at least 3 items in "lr_issues" and at least 2 in "gra_errors". If the essay has no outright errors, use these slots for PRECISION upgrades: quote the exact wording used and offer a more precise, more natural, or more academic alternative, explaining in Vietnamese why the alternative is better. Never invent an error that is not in the text — an upgrade suggestion is not an error, so word the explanation as an improvement, not a mistake.\n'+
-      '- ALWAYS return one tr_comments entry for EVERY paragraph of the essay (Opening, each Body, Conclusion), even when the paragraph is good: say specifically what works and what single change would strengthen it.\n'+
+      '- ALWAYS return one tr_comments entry for EVERY paragraph of the response (Task 2: Opening, each Body, Conclusion. Task 1: Introduction, Overview, each Body — Task 1 has NO Conclusion), even when the paragraph is good: say specifically what works and what single change would strengthen it.\n'+
       '- "cc_feedback.assessment_vi" must name at least one concrete thing to improve, not only praise.\n'+
       '- "overall_feedback_vi" must state both what the student did well AND the single most important thing to work on next. Never end with praise only.\n'+
       '- "lexis_vi" (Vietnamese, 3–5 sentences): comment on the student\'s VOCABULARY LEVEL and COLLOCATIONS. Use the VOCABULARY DATA section (CEFR spread, dictionary-matched collocations, repeated basic words) as evidence and check it against the essay. Name 1–2 collocations the student used well (quote them), point out any unnatural word combination, and give 2–3 natural collocations the student could use for their OWN ideas in this essay (English collocation + Vietnamese meaning). Do not repeat items already listed in lr_issues.\n'+
@@ -92,7 +92,7 @@
       'Do NOT summarise body paragraph grammar/vocab in one sentence. List individual errors and upgrades for each sentence that has room for improvement. A body paragraph with 4+ sentences should have at least 2–3 grammar items AND 2–3 vocabulary items reported.\n'+
       'Return ALL grammar items in the "gra_errors" array and ALL vocabulary items in the "lr_issues" array (do NOT bury them in tr_comments). Aim for 5–8 items in each array for a typical 250–350 word essay.\n'+
       'TOKEN RULES for tr_comments — follow strictly to keep output short:\n'+
-      '- Do NOT quote whole paragraphs. For each comment set "paragraph_role" to the paragraph label ONLY: "Opening", "Body 1", "Body 2", "Body 3"... , or "Conclusion". Standard mapping: a 4-paragraph essay = Opening, Body 1, Body 2, Conclusion; a 5-paragraph essay = Opening, Body 1, Body 2, Body 3, Conclusion.\n'+
+      '- Do NOT quote whole paragraphs. For each comment set "paragraph_role" to the paragraph label ONLY. Task 2: "Opening", "Body 1", "Body 2", "Body 3"... , or "Conclusion" (a 4-paragraph essay = Opening, Body 1, Body 2, Conclusion; a 5-paragraph essay = Opening, Body 1, Body 2, Body 3, Conclusion). Task 1: "Introduction", "Overview", "Body 1", "Body 2" (never "Conclusion" — see the Task 1 rules).\n'+
       '- Leave "quote" EMPTY unless you must point to ONE specific problematic sentence — then put ONLY that single sentence in "quote" (never the whole paragraph).\n'+
       '- "assessment_vi" is your comment on that paragraph. Keep it concise.';
 
@@ -134,6 +134,18 @@
         'This is Task 1 (NOT an opinion essay). Criterion 1 = Task Achievement (TA): assess overview presence, data accuracy, key features selected, comparisons made. '+
         'Do NOT expect or reward a personal opinion/thesis statement — Task 1 must not have one. '+
         'TA score (stored as TR field) MUST reflect: did the student cover the main features, include an overview, and make relevant comparisons?'+
+        '\n\n=== TASK 1 STRUCTURE (these rules OVERRIDE the essay rules above wherever they differ) ===\n'+
+        'A Task 1 report has FOUR parts:\n'+
+        '1. Introduction — paraphrases what the chart/diagram/map shows (no opinion, no data details).\n'+
+        '2. Overview — the main trends / most striking features in general terms, usually without specific figures. It is normally the 2nd paragraph; it is sometimes placed at the END instead — that is less common but fully acceptable: never penalise an overview at the end, label that paragraph "Overview".\n'+
+        '3. Body 1 and 4. Body 2 — the key features with accurate supporting data, grouped logically, with comparisons.\n'+
+        'There is NO Conclusion in Task 1:\n'+
+        '- Never ask for, suggest or praise a conclusion; never criticise the absence of one; never use "Conclusion" as a paragraph_role. Do not tell the student to "add a concluding sentence/paragraph" — if the main features are not summarised, the advice is to ADD/IMPROVE THE OVERVIEW.\n'+
+        '- If the last paragraph summarises the main trends, it IS the overview (label it "Overview").\n'+
+        '- If the last paragraph gives an opinion, reasons, predictions or information not shown in the visual, flag it as irrelevant for Task 1 (TA).\n'+
+        '- No clear overview anywhere → cap TA at Band 5 (official descriptor) and say so in Vietnamese. An overview full of specific numbers → advise moving the figures to the body paragraphs.\n'+
+        '- The Task 2 rules about thesis statements, position, thesis–topic alignment, "Inconsistent Position" and conclusions do NOT apply to Task 1. Coherence & Cohesion for Task 1: logical grouping of the data, clear progression Introduction → Overview → Body 1 → Body 2, comparison language and referencing.\n'+
+        '- In tr_comments return one entry each for Introduction, Overview, Body 1, Body 2 (in the order the student wrote them).'+
         wcInstruction+
         attemptNote;
     } else {
