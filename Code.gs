@@ -1582,7 +1582,10 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
   var studentName = rows[0]['Name'] || p.studentId;
   var studentEmail= rows[0]['Email'] || '';
   var topicShort  = (rows[0]['Topic']||'Topic').replace(/[\\/:*?"<>|]/g,'').slice(0,40);
-  var promptText  = asg && asg['Prompt'] ? String(asg['Prompt']).replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim() : '';
+  // keep the teacher's line breaks (<br>, one line per <div>/<p>) in the Doc
+  var promptText  = asg && asg['Prompt'] ? String(asg['Prompt']).replace(/<br\s*\/?>/gi,'\n').replace(/<\/?(div|p|li|h[1-6])[^>]*>/gi,'\n')
+                      .replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+                      .replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').replace(/\n+/g,'\n').trim() : '';
   var fileName    = dateStr+'_'+className+'_'+p.studentId+'_'+studentName+'_'+taskLabel+'_'+modeCode+'_'+topicShort;
 
   var folder;
