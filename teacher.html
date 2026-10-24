@@ -2536,7 +2536,7 @@ function renderResults(){
         '<b style="font-size:1.02rem">'+AW.esc(g0.topic||'')+'</b>'+
         '<span class="aw-task-badge '+(g0.taskType==='task1'?'t1':'t2')+'" style="margin:0">'+(g0.taskType==='task1'?'Task 1':'Task 2')+'</span>'+
         '<span style="font-size:.85rem;color:var(--aw-ink-3)">'+AW.esc(g0.className||g0.class||'')+'</span>'+
-        (p0?'<p style="flex:1 1 100%;margin:4px 0 0;font-size:.88rem;line-height:1.55;color:var(--aw-ink-2)">'+AW.esc(p0)+'</p>':'')+
+        (p0?'<p style="flex:1 1 100%;margin:4px 0 0;font-size:.88rem;line-height:1.55;color:var(--aw-ink-2);white-space:pre-line">'+AW.esc(p0)+'</p>':'')+
       '</div>'
     : '';
   box.innerHTML='<div class="res-layout"><div class="res-main">'+tiles+taskCard+

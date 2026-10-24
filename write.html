@@ -287,7 +287,7 @@ content.innerHTML =
           ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
           : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
         return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt '+ttBadge+'</h4>' +
-          '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>';
+          '<div class="aw-prompt-text">'+AW.esc(AW.stripHtml(PROMPT))+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +
         '<button class="aw-tb-btn" data-cmd="bold"><b>B</b></button>' +

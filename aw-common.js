@@ -518,10 +518,21 @@
   };
 
   // Strip HTML tags, return plain text (for displaying saved richtext prompts)
+  /*  HTML (e.g. a prompt typed in the teacher's editor) → plain text that keeps
+      the teacher's line breaks: <br> and the end of each block (div, p, li …)
+      become a new line. Plain textContent ran the lines together.          */
   AW.stripHtml = function (html) {
     var tmp = document.createElement('div');
     tmp.innerHTML = html || '';
-    return tmp.textContent || tmp.innerText || '';
+    tmp.querySelectorAll('br').forEach(function (b) { b.replaceWith('\n'); });
+    var BLOCK = /^(DIV|P|LI|H[1-6]|TR|BLOCKQUOTE|PRE|UL|OL|TABLE)$/;
+    tmp.querySelectorAll('div,p,li,h1,h2,h3,h4,h5,h6,tr,blockquote,pre').forEach(function (el) {
+      // the browser keeps the first line as bare text and puts each later line in a <div>
+      var prev = el.previousSibling;
+      if (prev && !(prev.nodeType === 1 && BLOCK.test(prev.tagName)) && !/\n$/.test(prev.textContent)) el.before('\n');
+      el.append('\n');
+    });
+    return (tmp.textContent || '').replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   };
 
   /*  AW.fmtDate — format any date string/value as local dd/MM/yyyy HH:mm.
