@@ -82,7 +82,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=6'); })
+        .then(function () { return loadScript('fbdata.js?v=7'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
