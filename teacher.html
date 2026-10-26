@@ -27,6 +27,10 @@
   .res-sortable:hover{filter:brightness(1.12)}
   .res-sortable.on .res-caret{opacity:1}
   .res-caret{opacity:.55;font-size:.7em}
+    .res-req{display:inline-block;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-right:6px;vertical-align:1px;font-variant-numeric:tabular-nums}
+  .res-req.ok{background:#DDF3EA;color:#14633F}
+  .res-req.part{background:#FFF1C7;color:#7A5A00}
+  .res-req.none{background:#F0F1F3;color:#6B7683}
   .res-new{display:inline-block;background:var(--aw-writing);color:#fff;font-size:.6rem;font-weight:700;
     text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
   .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
@@ -2473,7 +2477,12 @@ function renderResults(){
     var nm=String(g.name||g.studentId), parts=nm.trim().split(/\s+/);
     var ini=(parts.length>1?parts[parts.length-2][0]+parts[parts.length-1][0]:nm.slice(0,2)).toUpperCase();
     var pal=RES_PASTELS[Math.abs(hashStr(String(g.studentId)))%RES_PASTELS.length];
-    var sub = AW.esc(g.studentId) + (oneTopic ? '' : ' · '+AW.esc(g.topic||'')+' ('+(t1?'T1':'T2')+')');
+    // how many of the required attempts are done (homework: as set on the task; otherwise 3)
+    var req = Number(g.requiredAttempts) || 3, nDone = w.length;
+    var done = nDone >= req;
+    var reqBadge = '<span class="res-req '+(done?'ok':nDone?'part':'none')+'" title="'+(done?'All '+req+' attempts done':nDone+' of '+req+' attempts done')+'">'+
+      (done?'✓ ':'')+Math.min(nDone,req)+'/'+req+'</span>';
+    var sub = reqBadge + AW.esc(g.studentId) + (oneTopic ? '' : ' · '+AW.esc(g.topic||'')+' ('+(t1?'T1':'T2')+')');
     var hasNote = !!(ts.note || ts.privateNote);
     return '<div class="res-row" data-key="'+AW.esc(gkey)+'">'+
       '<div class="res-who"><span class="res-av" style="background:'+pal[0]+';color:'+pal[1]+'">'+AW.esc(ini)+'</span>'+

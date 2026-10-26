@@ -521,7 +521,7 @@ async function getResults(p) {
   const [classes, progs, asg] = await Promise.all([myClasses(t), classProgress(t, classId), classAssign(t, classId)]);
   const classNames = {}, prompts = {};
   classes.forEach(c => { classNames[c.classId] = c.className; });
-  asg.forEach(a => { prompts[a.topicId] = { prompt: a.prompt, taskType: a.taskType || 'task2', minWords: Number(a.minWords) || 0 }; });
+  asg.forEach(a => { prompts[a.topicId] = { prompt: a.prompt, taskType: a.taskType || 'task2', minWords: Number(a.minWords) || 0, requiredAttempts: Number(a.requiredAttempts) || 0 }; });
   const mode = ['free', 'homework', 'inclass'].indexOf(p.mode) >= 0 ? p.mode : 'free';
   const cutoff = Number(p.days) > 0 ? Date.now() - Number(p.days) * 86400000 : 0;
   const groups = {};
@@ -535,7 +535,7 @@ async function getResults(p) {
         studentId: prog.studentId, name: prog.name, class: r.classId || prog.classId,
         className: classNames[r.classId || prog.classId] || r.classId || '',
         topic: r.topic, topicId: r.topicId, taskType: r.taskType || pr.taskType || 'task2',
-        prompt: pr.prompt || '', minWords: pr.minWords || 0, writes: [],
+        prompt: pr.prompt || '', minWords: pr.minWords || 0, requiredAttempts: pr.requiredAttempts || 0, writes: [],
         teacherScore: (prog.tscore || {})[tsKey(mode, r.topicId)] || null
       };
       if (r.cleared) { groups[key].cleared = true; groups[key].docUrl = r.docUrl || ''; }
