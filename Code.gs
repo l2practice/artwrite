@@ -1704,7 +1704,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       pq.setAttributes({FOREGROUND_COLOR:NAVY,BOLD:true,FONT_SIZE:12,SPACING_BEFORE:10,SPACING_AFTER:3});
       var qt=body.appendTable([[promptText]]); qt.setBorderColor('#B8D4F0');
       var qc=qt.getCell(0,0); qc.setBackgroundColor('#EAF2FB');
-      qc.getChild(0).asParagraph().setAttributes({FOREGROUND_COLOR:'#1F2933',ITALIC:true,FONT_SIZE:11,LINE_SPACING:1.3});
+      qc.getChild(0).asParagraph().setAttributes({FOREGROUND_COLOR:'#1F2933',ITALIC:true,BOLD:true,FONT_SIZE:11,LINE_SPACING:1.3});
     }
   }
 
@@ -1742,10 +1742,11 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     var wcSource = asgMinW > 0 ? 'yêu cầu của GV: '+minWC+' từ' : 'chuẩn IELTS '+taskType.toUpperCase()+': '+minWC+' từ';
     note((wcOk?'✓':'⚠')+' Word count: '+essayWC+' từ — '+(wcOk?'đạt ':' chưa đạt ')+wcSource, wcOk?GREEN:RED, 9.5);
 
-    // Split essay — double newline first, fallback to single newline for legacy essays
-    var essayParas = essayText.split(/\n\n+/).map(function(p){ return p.replace(/\n/g,' ').trim(); }).filter(Boolean);
-    if (essayParas.length<=1 && essayText.indexOf('\n')!==-1)
-      essayParas = essayText.split(/\n+/).map(function(p){ return p.trim(); }).filter(Boolean);
+    // One paragraph per line the student started with Enter. The editor saves a new
+    // paragraph sometimes as one line break and sometimes as two (often one between
+    // the first two paragraphs), so splitting on blank lines first glued the
+    // Introduction and Body 1 together whenever both kinds were in the same essay.
+    var essayParas = essayText.replace(/\r\n?/g,'\n').split(/\n+/).map(function(p){ return p.replace(/\s+/g,' ').trim(); }).filter(Boolean);
     if (!essayParas.length) essayParas = ['(no text)'];
     essayParas.forEach(function(paraText, paraIdx){
       var ep = body.appendParagraph(paraText);
@@ -1770,7 +1771,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       h1('💬 Feedback',BLUE);
       if (fb.overall_feedback_vi){
         h2('⭐ Nhận xét chung');
-        body.appendParagraph(S(fb.overall_feedback_vi)).setAttributes({FONT_SIZE:11,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:6});
+        body.appendParagraph(S(fb.overall_feedback_vi)).setAttributes({FONT_SIZE:11,FOREGROUND_COLOR:'#1F2933',BOLD:true,LINE_SPACING:1.3,SPACING_AFTER:6});
       }
       if (fb.repeated_errors_vi){
         h2('⚠️ Lỗi lặp lại',AMBER);
@@ -1849,6 +1850,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     body.appendHorizontalRule();
     note('Báo cáo tạo tự động bởi ArticuWrite · Dong Nai University',LIGHT,9);
   }
+  feedbackDocStyle_(body);
   doc.saveAndClose();
   } catch (buildErr) {
     // nothing half-made is left behind or handed out; the next try starts clean
@@ -1860,6 +1862,28 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
   saveMeta(newDocId, currentCnt, summaryAdded);
   var warn = feedbackDocPlace_(DriveApp.getFileById(newDocId), folder, studentEmail);
   return { success:true, data:{ url:doc.getUrl(), fileName:fileName, updated:!!existingFile, warning:warn||undefined } };
+}
+
+/*  The house style of the feedback Doc (set by the teacher): Google Sans for all
+    text and justified paragraphs; the centred score table keeps its alignment.
+    Applied to the whole Doc each time, so attempts added later match.        */
+var FEEDBACK_DOC_FONT = 'Google Sans';
+function feedbackDocStyle_(body) {
+  var P = DocumentApp.ElementType, A = DocumentApp.HorizontalAlignment;
+  function para(el) {
+    el.setAttributes({ FONT_FAMILY: FEEDBACK_DOC_FONT });
+    if (el.getAlignment() !== A.CENTER) el.setAlignment(A.JUSTIFY);
+  }
+  for (var i = 0; i < body.getNumChildren(); i++) {
+    var el = body.getChild(i), t = el.getType();
+    if (t === P.PARAGRAPH) para(el.asParagraph());
+    else if (t === P.LIST_ITEM) para(el.asListItem());
+    else if (t === P.TABLE) {
+      var tb = el.asTable();
+      for (var r = 0; r < tb.getNumRows(); r++)
+        for (var c = 0; c < tb.getRow(r).getNumCells(); c++) tb.getCell(r, c).setAttributes({ FONT_FAMILY: FEEDBACK_DOC_FONT });
+    }
+  }
 }
 
 /*  Every feedback Doc students get a link to must be in the feedback folder
