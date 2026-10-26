@@ -1617,6 +1617,9 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       else if (currentCnt>storedCnt){ appendMode=true; startIndex=storedCnt; body=doc.getBody(); }
       else if (needsSummary){ appendMode=true; startIndex=currentCnt; body=doc.getBody(); }
       else {
+        // a Doc made before the current house style gets it now (font, alignment only —
+        // the content and the teacher's comments stay as they are)
+        if (feedbackDocNeedsStyle_(doc.getBody())) { feedbackDocStyle_(doc.getBody()); doc.saveAndClose(); }
         var w0 = feedbackDocPlace_(existingFile, folder, studentEmail);
         return { success:true, data:{ url:doc.getUrl(), fileName:existingFile.getName(), reused:true, warning:w0||undefined } };
       }
@@ -1868,6 +1871,19 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     text and justified paragraphs; the centred score table keeps its alignment.
     Applied to the whole Doc each time, so attempts added later match.        */
 var FEEDBACK_DOC_FONT = 'Google Sans';
+// true when the Doc's first lines of text are not yet in the house font
+function feedbackDocNeedsStyle_(body) {
+  var seen = 0;
+  for (var i = 0; i < body.getNumChildren() && seen < 3; i++) {
+    var el = body.getChild(i), t = el.getType();
+    if (t !== DocumentApp.ElementType.PARAGRAPH && t !== DocumentApp.ElementType.LIST_ITEM) continue;
+    var tx = (t === DocumentApp.ElementType.PARAGRAPH ? el.asParagraph() : el.asListItem()).editAsText();
+    if (!tx.getText().trim()) continue;
+    seen++;
+    if (tx.getFontFamily(0) !== FEEDBACK_DOC_FONT) return true;
+  }
+  return false;
+}
 function feedbackDocStyle_(body) {
   var P = DocumentApp.ElementType, A = DocumentApp.HorizontalAlignment;
   function para(el) {
