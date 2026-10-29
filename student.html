@@ -22,6 +22,22 @@
   .aw-mode-inclass .aw-mode-ic{background:var(--aw-primary-lt)}
   .aw-mode-hw .aw-mode-ic{background:#FFF1C7;color:#7A5A00}
   .aw-mode-translate .aw-mode-ic{background:#FCE4F1;color:#9C2A68}
+  .aw-mode-test .aw-mode-ic{background:var(--aw-primary-dk);color:#fff}
+  /* Test Simulation page */
+  .ts-hero{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--aw-surface);border-radius:var(--aw-r-lg);box-shadow:var(--aw-shadow);padding:22px 24px;margin-bottom:14px}
+  .ts-hero-ic{width:56px;height:56px;border-radius:18px;background:var(--aw-primary-dk);color:#fff;display:grid;place-items:center;flex:0 0 auto}
+  .ts-hero-ic svg{width:28px;height:28px}
+  .ts-hero-txt{flex:1;min-width:240px}
+  .ts-hero-txt h2{margin:0 0 4px;font-family:var(--aw-font-display);font-size:1.2rem}
+  .ts-hero-txt p{margin:0;color:var(--aw-ink-2);line-height:1.55;font-size:.92rem}
+  .ts-running{background:#FFF1C7;color:#7A5A00;border-radius:16px;padding:12px 16px;margin-bottom:14px;font-size:.9rem}
+  .ts-running a{color:inherit;font-weight:700}
+  .ts-list{display:flex;flex-direction:column;gap:10px}
+  .ts-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--aw-surface);border-radius:18px;padding:12px 16px;box-shadow:var(--aw-shadow-sm)}
+  .ts-row-main{flex:1;min-width:200px}
+  .ts-row-main b{display:block;font-size:.98rem}
+  .ts-row-main span{font-size:.8rem;color:var(--aw-ink-3)}
+  .ts-tries{display:flex;gap:8px}
   /* Chart thumbnail hover in assignment card */
   .aw-chart-thumb-wrap{position:relative;display:inline-flex;align-items:center}
   .aw-chart-thumb-pop{
@@ -94,6 +110,7 @@
 <script src="aw-common.js"></script>
 <script src="aw-cefr.js"></script>
 <script src="aw-lexis.js"></script>
+<script src="aw-exam-review.js"></script>
 <style>
   /* CEFR vocab profile — shared with write.html */
   .aw-vocab-bar-wrap{margin:10px 0 14px}
@@ -163,6 +180,10 @@ function showModes(){
         'aw-mode-free' + (AW_AI_ON ? '' : ' aw-mode-locked')) +
       modeCard('inclass',AW.icon('clock'),'In-class Practice','Timed writing assigned by your teacher, with live guidance.','aw-mode-inclass') +
       modeCard('homework',AW.icon('tasks'),'Homework','Complete assigned essays with the required number of revisions.','aw-mode-hw') +
+      modeCard('test',AW.icon('exam'),'Test Simulation',
+        AW_AI_ON ? 'A full IELTS Writing test: Part 1 + Part 2 in 60 minutes, full screen, marked by AI.'
+                 : 'Không khả dụng cho lớp của bạn.',
+        'aw-mode-test' + (AW_AI_ON ? '' : ' aw-mode-locked')) +
       modeCard('translate',AW.icon('translate'),'Translation Practice','Translate EN↔VI sentences graded by AI on meaning. Complete rounds of 5 sentences until all are cleared.','aw-mode-translate') +
     '</div>' +
     '<h2 class="aw-sec-title">Recent Practice</h2>' +
@@ -172,6 +193,7 @@ function showModes(){
   AW.els('.aw-mode-card').forEach(function(c){
     c.onclick=function(){
       var m=c.dataset.mode;
+      if(m==='test'){ location.hash='test'; return; }
       if(m==='free' && !AW_AI_ON){
         AW.toast('Mục Free Writing không khả dụng cho lớp của bạn. Hãy làm bài trong mục Homework hoặc In-class Practice.','err',5000);
         return;
@@ -423,7 +445,9 @@ function loadHistory(){
     }
     box2.innerHTML=data.slice(0,8).map(function(h){
       var band=h.bestResult||h.overall||h.teacher||'—';
-      var taskBadge = (h.taskType==='task1')
+      var taskBadge = (h.mode==='test')
+        ? '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-dk);color:#fff;margin-left:5px;vertical-align:middle">TEST</span>'
+        : (h.taskType==='task1')
         ? '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#16825B;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
         : '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #C5CAF7;margin-left:5px;vertical-align:middle">T2</span>';
       return '<div class="aw-hist"><div class="aw-hist-main">' +
@@ -433,6 +457,7 @@ function loadHistory(){
     }).join('');
     AW.els('[data-tid]').forEach(function(b){
       b.onclick=function(){
+        if(b.dataset.mode==='test'){ location.href='exam.html?test='+encodeURIComponent(b.dataset.tid); return; }
         location.href='write.html?mode='+b.dataset.mode+'&retry=1&topicId='+encodeURIComponent(b.dataset.tid)+'&topic='+encodeURIComponent(b.dataset.topic)+'&type='+encodeURIComponent(b.dataset.ttype||'task2');
       };
     });
@@ -525,7 +550,7 @@ function showProgress(){
     content.innerHTML=
       '<h2 class="aw-sec-title">My Scores</h2>'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
-        '<select class="aw-select" id="pMode"><option value="">All modes</option><option value="inclass">In-class</option><option value="homework">Homework</option><option value="free">Free Writing</option></select>'+
+        '<select class="aw-select" id="pMode"><option value="">All modes</option><option value="inclass">In-class</option><option value="homework">Homework</option><option value="free">Free Writing</option><option value="test">Test Simulation</option></select>'+
         '<div class="aw-search" style="flex:1;min-width:180px">'+AW.icon('search')+'<input id="pSearch" placeholder="Search topic…"></div>'+
         '<select class="aw-select" id="pSort"><option value="latest">Sort: Latest</option><option value="best">Sort: Best band</option><option value="topic">Sort: Topic</option></select>'+
       '</div>'+
@@ -540,7 +565,7 @@ function renderProgress(){
   var box=document.getElementById('progressBox'); if(!box)return;
   var q=(document.getElementById('pSearch').value||'').toLowerCase();
   var mode=document.getElementById('pMode').value;
-  var modeLabel={free:'Free Writing',homework:'Homework',inclass:'In-class'};
+  var modeLabel={free:'Free Writing',homework:'Homework',inclass:'In-class',test:'Test Simulation'};
   var rows=(window._myGroups||[]).filter(function(g){
     if(mode && g.mode!==mode) return false;
     if(q && (g.topic||'').toLowerCase().indexOf(q)===-1) return false;
@@ -568,7 +593,7 @@ function renderProgress(){
     for(var i=0;i<slots;i++){
       var x=w[i];
       if(!x){ chips+='<span class="res-try none"><b>–</b><span>Not yet</span></span>'; continue; }
-      var tip='Attempt '+(i+1)+' · TR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—');
+      var tip='Attempt '+(i+1)+(g.mode==='test'?' · Part 1 '+(x.t1||'—')+' · Part 2 '+(x.t2||'—'):' · TR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—'));
       chips+='<button type="button" class="res-try'+(i===bestI?' best':'')+'" data-gi="'+gi+'" data-wi="'+i+'" title="'+AW.esc(tip)+'">'+
              '<b>'+AW.esc(String(x.overall||x.teacher||'—'))+'</b><span>'+(dur(x.duration)||'&nbsp;')+'</span></button>';
     }
@@ -585,7 +610,7 @@ function renderProgress(){
       : '<button type="button" class="res-ib" title="Write again" aria-label="Write again" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">'+RES_RETRY+'</button>';
     return '<div class="res-row" data-gi="'+gi+'">'+
       '<div class="res-who" style="min-width:0"><span style="min-width:0">'+
-        '<span class="res-nm">'+AW.esc(g.topic||'')+'<span class="res-tag'+(t1?' t1':'')+'">'+(t1?'T1':'T2')+'</span></span>'+
+        '<span class="res-nm">'+AW.esc(g.topic||'')+'<span class="res-tag'+(t1?' t1':'')+'">'+(g.mode==='test'?'Test':t1?'T1':'T2')+'</span></span>'+
         '<span class="res-sub">'+AW.esc(sub)+'</span></span><span class="res-full" style="left:0">'+AW.esc(g.topic||'')+'</span></div>'+
       '<div class="res-tries">'+chips+'</div>'+chg+score+
       '<div class="res-acts">'+
@@ -649,6 +674,7 @@ window.reviewGroupWrite=function(gi,wi){
   reviewFeedbackRec(rec,gi);
 };
 window.retryFromProgress=function(mode,topicId,topic,taskType){
+  if(mode==='test'){ location.href='exam.html?test='+encodeURIComponent(topicId); return; }
   location.href='write.html?mode='+encodeURIComponent(mode)+'&retry=1&topicId='+encodeURIComponent(topicId)+'&topic='+encodeURIComponent(topic)+'&type='+encodeURIComponent(taskType||'task2');
 };
 window.reviewFeedback=function(i){
@@ -702,6 +728,7 @@ function reviewFeedbackRec(r, refIdx){
     document.getElementById('reviewModal').classList.add('show');
     return;
   }
+  if(fb.test){ reviewTestRec(r, fb, i); return; }
   var s=fb.scores||{};
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E9EBFB;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#5661E0,#7C84EE);border-radius:4px"></div></div></div>';}
@@ -795,6 +822,19 @@ function reviewFeedbackRec(r, refIdx){
     if (el && window._reviewRec === r) { if (h) el.innerHTML = h; else el.parentNode.remove(); }
   });
 };
+/* Test Simulation attempt: both parts in one review. No Google Doc for tests. */
+function reviewTestRec(r, fb, i){
+  document.getElementById('reviewModalBody').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">'+
+      '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.3rem">'+AW.esc(r.topic||'Test')+' · Attempt '+(r.attempt||1)+'</h2>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="exportReviewPDF()">⤓ PDF</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="openDiscuss('+i+')">💬 Ask teacher</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeReview()">Close</button></div>'+
+    '</div><div id="reviewContent">'+AW.testReviewHtml(fb,{prefix:'rvt'})+'</div>';
+  document.getElementById('reviewModal').classList.add('show');
+  AW.testReviewLexis(fb,{prefix:'rvt', alive:function(){ return window._reviewRec===r; }});
+}
 // ── Share feedback as link or PDF ──
 window.shareReview=function(i){
   var r=window._reviewRec||(window._myResults||[])[i]; if(!r)return;
@@ -861,7 +901,9 @@ window.exportGoogleDoc=function(i){
 window.exportReviewPDF=function(){
   var el=document.getElementById('reviewContent');
   var w=window.open('','_blank');
-  w.document.write('<html><head><title>ArticuWrite Feedback</title><style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h4{color:#5661E0;margin:16px 0 6px;font-size:.9rem;text-transform:uppercase}.rv-block{margin-top:12px;padding-top:12px;border-top:1px solid #E9EBFB}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#5661E0">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString('vi-VN')+'</p></body></html>');
+  var base=location.href.replace(/[#?].*$/,'').replace(/[^/]*$/,'');
+  var extra=['tsr-style','lx-style'].map(function(id){ var e=document.getElementById(id); return e?'<style>'+e.textContent+'</style>':''; }).join('');
+  w.document.write('<html><head><title>Writing App Feedback</title><link rel="stylesheet" href="'+base+'aw-theme.css">'+extra+'<style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h4{color:#5661E0;margin:16px 0 6px;font-size:.9rem;text-transform:uppercase}.rv-block{margin-top:12px;padding-top:12px;border-top:1px solid #E9EBFB}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#5661E0">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString('vi-VN')+'</p></body></html>');
   w.document.close();
   setTimeout(function(){w.print();},400);
 };
@@ -1024,9 +1066,57 @@ function showSettings(){
     });
   };
 }
+/*═══════════ TEST SIMULATION ═══════════
+  The test itself runs in exam.html (full screen, 60 min). This page starts a
+  new one, points back to one still running, and lists the student's tests. */
+function showTestSim(){
+  document.getElementById('awPageTitle').textContent='Test Simulation';
+  if(!AW_AI_ON){
+    content.innerHTML='<div class="aw-empty">'+AW.icon('exam')+'<p>Test Simulation không khả dụng cho lớp của bạn.</p></div>';
+    return;
+  }
+  var run=null;
+  try{ run=JSON.parse(localStorage.getItem('aw_exam_'+sess.studentId)||'null'); }catch(e){}
+  var live = run && (run.phase==='running' || run.phase==='submitted');
+  content.innerHTML=
+    '<div class="ts-hero"><div class="ts-hero-ic">'+AW.icon('exam')+'</div>'+
+      '<div class="ts-hero-txt"><h2>IELTS Writing — full test</h2>'+
+        '<p>Part 1 + Part 2 in <b>60 minutes</b>, in full screen, laid out like the computer-delivered IELTS test. You add the questions first. When the hour is up the test is submitted and marked by AI. You can take each test <b>3 times</b>.</p></div>'+
+      '<button class="aw-btn aw-btn-primary" id="tsNew">'+(live?'Continue the running test':'+ New test')+'</button></div>'+
+    (live?'<div class="ts-running">⏱ <b>'+AW.esc(run.title||'Your test')+'</b> '+(run.phase==='running'?'is still running — the clock does not stop.':'is waiting to be marked.')+' <a href="exam.html">Open it</a></div>':'')+
+    '<h2 class="aw-sec-title">My tests</h2>'+
+    '<div id="tsList"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+  document.getElementById('tsNew').onclick=function(){ location.href='exam.html'; };
+  fetchMyResults(function(rows){
+    var box=document.getElementById('tsList'); if(!box) return;
+    window._myGroups=rows||[];
+    var tests=window._myGroups.filter(function(g){ return g.mode==='test'; });
+    if(!tests.length){ box.innerHTML='<div class="aw-empty">'+AW.icon('exam')+'<p>No tests yet. Start one above.</p></div>'; return; }
+    box.innerHTML='<div class="ts-list">'+tests.map(function(g){
+      var gi=window._myGroups.indexOf(g), w=g.writes||[], best=-1, bv=null, chips='';
+      w.forEach(function(x,xi){ var v=parseFloat(x.overall); if(!isNaN(v)&&(bv===null||v>bv)){ bv=v; best=xi; } });
+      for(var i=0;i<3;i++){
+        var x=w[i];
+        if(!x){ chips+='<span class="res-try none"><b>–</b><span>Not yet</span></span>'; continue; }
+        chips+='<button type="button" class="res-try'+(i===best?' best':'')+'" data-gi="'+gi+'" data-wi="'+i+'" title="Attempt '+(i+1)+' · Part 1 '+AW.esc(String(x.t1||'—'))+' · Part 2 '+AW.esc(String(x.t2||'—'))+'">'+
+               '<b>'+AW.esc(String(x.overall||x.teacher||'—'))+'</b><span>P1 '+AW.esc(String(x.t1===''||x.t1==null?'–':x.t1))+' · P2 '+AW.esc(String(x.t2===''||x.t2==null?'–':x.t2))+'</span></button>';
+      }
+      var ts=g.teacherScore||{};
+      var act = (g.cleared || w.length>=3)
+        ? '<span class="res-sub">'+(g.cleared?'Closed':'Done 3/3')+'</span>'
+        : '<button class="aw-btn aw-btn-ghost" style="padding:8px 16px" onclick="location.href=\'exam.html?test='+encodeURIComponent(g.topicId)+'\'">↺ Try again ('+(w.length+1)+'/3)</button>';
+      return '<div class="ts-row"><div class="ts-row-main"><b>'+AW.esc(g.topic||'Test')+'</b>'+
+          '<span>'+(g.latestTime?AW.fmtDate(g.latestTime):'')+(ts.overall?' · Teacher: '+AW.esc(String(ts.overall)):'')+'</span></div>'+
+        '<div class="ts-tries">'+chips+'</div>'+act+'</div>';
+    }).join('')+'</div>'+
+    '<p style="font-size:.8rem;color:var(--aw-ink-3);margin:10px 4px 0">Click a score to see that attempt with its feedback.</p>';
+    AW.els('#tsList .res-try[data-gi]').forEach(function(c){ c.onclick=function(){ reviewGroupWrite(+c.dataset.gi,+c.dataset.wi); }; });
+  });
+}
 function routeFromHash(){
   var h=(location.hash||'').replace('#','');
   if(h==='progress'){ showProgress(); AW.setActiveNav('progress'); }
+  else if(h==='test'){ showTestSim(); AW.setActiveNav('test'); }
   else if(h==='translate'){ showTranslate(); AW.setActiveNav('translate'); }
   else if(h==='qa'){ showQA(); AW.setActiveNav('qa'); }
   else if(h==='settings'){ showSettings(); AW.setActiveNav('settings'); }
