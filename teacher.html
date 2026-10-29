@@ -29,6 +29,8 @@
   .res-caret{opacity:.55;font-size:.7em}
     .res-req{display:inline-block;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-right:6px;vertical-align:1px;font-variant-numeric:tabular-nums}
   .res-req.ok{background:#DDF3EA;color:#14633F}
+  .res-src{display:inline-block;font-size:.64rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-right:6px;vertical-align:1px}
+  .res-src.teacher{background:var(--aw-primary-lt);color:#3B44B8}.res-src.random{background:#FFF1C7;color:#7A5A00}.res-src.own{background:#DDF3EA;color:#14633F}
   /* Tasks page: one colour + icon per kind of task */
   .aw-new-btn svg{width:18px;height:18px;flex:0 0 auto}
   .aw-new-hw{background:#FFF1C7;color:#7A5A00}.aw-new-hw:hover{background:#FFE89A;box-shadow:var(--aw-shadow)}
@@ -2085,6 +2087,7 @@ function resSortValue(g,k){
   if(k==='attemptCount') return (g.writes||[]).length;
   if(k==='class')        return String(g.className||g.class||'').toLowerCase();
   if(k==='topic')        return String(g.topic||'').toLowerCase();
+  if(k==='source')       return ({teacher:'1',random:'2',own:'3'}[g.source||'own']||'3')+String(g.topic||'').toLowerCase();
   return String(g[k]==null?'':g[k]).toLowerCase();
 }
 /* Dates and numbers read best highest-first; text reads best A→Z. */
@@ -2242,7 +2245,7 @@ function showResults(){
             '<option value="0">All results</option>'+
           '</select>'+
           '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">Load results</button>'+
-          '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">'+(_mode==='test'?'Test Simulation — 60-minute tests the students set themselves':'Free Writing — No topic to choose')+'</span>'+
+          '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">'+(_mode==='test'?'Test Simulation — your tests and the students\' own (typed or random questions)':'Free Writing — No topic to choose')+'</span>'+
         '</div>'+
         '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
           secFiltersHtml()+
@@ -2293,9 +2296,14 @@ function showResults(){
   }
 
   function secFiltersHtml(){
+    var isTest = _mode==='test';
     return '<div class="aw-search" style="flex:1;min-width:180px">'+AW.icon('search')+'<input id="resSearch" placeholder="Name or student ID"></div>'+
-      '<select class="aw-select" id="fTaskType"><option value="">All task types</option><option value="task1">Task 1</option><option value="task2">Task 2</option></select>'+
+      (isTest
+        ? '<select class="aw-select" id="fSource" title="Which questions the test used"><option value="">All tests</option>'+
+            '<option value="teacher">Teacher\'s tests</option><option value="random">Random questions</option><option value="own">Own questions</option></select>'
+        : '<select class="aw-select" id="fTaskType"><option value="">All task types</option><option value="task1">Task 1</option><option value="task2">Task 2</option></select>')+
       '<select class="aw-select" id="fSort">'+
+        (isTest?'<option value="source">Sort: Questions</option>':'')+
         '<option value="latest">Sort: Submitted</option>'+
         '<option value="name">Sort: Name</option>'+
         '<option value="studentId">Sort: Student ID</option>'+
@@ -2314,6 +2322,17 @@ function showResults(){
     setTimeout(function(){
       var srch=document.getElementById('resSearch');
       var ftt=document.getElementById('fTaskType');
+      var fsrc=document.getElementById('fSource');
+      if(fsrc){
+        fsrc.onchange=renderResults;
+        // one entry per test the teacher set, to find a single test quickly
+        AW.api('write.getAssignments',{class:curClass(),mode:'test'}).then(function(r){
+          var rows=(r&&r.data)||[]; if(!rows.length||!document.getElementById('fSource')) return;
+          var og=document.createElement('optgroup'); og.label='Teacher\'s test';
+          rows.slice().reverse().forEach(function(a){ var o=document.createElement('option'); o.value='t:'+a.topicId; o.textContent=a.topic||'Test'; og.appendChild(o); });
+          fsrc.appendChild(og);
+        }).catch(function(){});
+      }
       var fs=document.getElementById('fSort');
       var fsd=document.getElementById('fSortDir');
       var clf=document.getElementById('clearFilters');
@@ -2326,6 +2345,7 @@ function showResults(){
       if(clf){ clf.onclick=function(){
         var s=document.getElementById('resSearch'); if(s)s.value='';
         var ft=document.getElementById('fTaskType'); if(ft)ft.value='';
+        var fsr=document.getElementById('fSource'); if(fsr)fsr.value='';
         renderResults();
       };}
       function runExport(btn, params){
@@ -2408,10 +2428,15 @@ function renderResults(){
   var box=document.getElementById('resultsBox'); if(!box)return;
   var q=(document.getElementById('resSearch')?document.getElementById('resSearch').value:'').toLowerCase();
   var fTaskType=document.getElementById('fTaskType')?document.getElementById('fTaskType').value:'';
+  var fSource=document.getElementById('fSource')?document.getElementById('fSource').value:'';
   // fTopic is now a server-side filter (passed to getResults on load), not client-side
   // fClass is removed — class is selected globally via the header class selector
   var rows=resultsData.filter(function(g){
     if(fTaskType && (g.taskType||'task2')!==fTaskType) return false;
+    if(fSource){
+      if(fSource.indexOf('t:')===0){ if(String(g.topicId)!==fSource.slice(2)) return false; }
+      else if((g.source||'own')!==fSource) return false;
+    }
     if(q && (g.name+' '+g.studentId).toLowerCase().indexOf(q)===-1) return false;
     return true;
   });
@@ -2490,7 +2515,8 @@ function renderResults(){
     var done = nDone >= req;
     var reqBadge = '<span class="res-req '+(done?'ok':nDone?'part':'none')+'" title="'+(done?'All '+req+' attempts done':nDone+' of '+req+' attempts done')+'">'+
       (done?'✓ ':'')+Math.min(nDone,req)+'/'+req+'</span>';
-    var sub = reqBadge + AW.esc(g.studentId) + (oneTopic ? '' : ' · '+AW.esc(g.topic||'')+' ('+(g.taskType==='test'?'Test':t1?'T1':'T2')+')');
+    var srcBadge = g.taskType==='test' ? '<span class="res-src '+AW.esc(g.source||'own')+'" title="'+AW.esc(AW.testSourceLabel(g.source))+'">'+({teacher:'Teacher',random:'Random',own:'Own'}[g.source||'own']||'Own')+'</span>' : '';
+    var sub = reqBadge + srcBadge + AW.esc(g.studentId) + (oneTopic ? '' : ' · '+AW.esc(g.topic||'')+' ('+(g.taskType==='test'?'Test':t1?'T1':'T2')+')');
     var hasNote = !!(ts.note || ts.privateNote);
     return '<div class="res-row" data-key="'+AW.esc(gkey)+'">'+
       '<div class="res-who"><span class="res-av" style="background:'+pal[0]+';color:'+pal[1]+'">'+AW.esc(ini)+'</span>'+
@@ -2828,11 +2854,13 @@ function showAssignments(){
       '<button class="aw-btn aw-btn-primary aw-new-btn" onclick="newAssignment(\'inclass\')">'+AW.icon('classroom')+'New In-class Task</button>'+
       '<button class="aw-btn aw-new-btn aw-new-hw" onclick="newAssignment(\'homework\')">'+AW.icon('homework')+'New Homework</button>'+
       '<button class="aw-btn aw-new-btn aw-new-tr" onclick="openTrModal()">'+AW.icon('translate')+'New Translate Set</button>'+
+      '<button class="aw-btn aw-btn-dark aw-new-btn" onclick="openTestModal()">'+AW.icon('exam')+'New Test</button>'+
     '</div>'+
     '<div class="aw-tabs" id="assignTabs">'+
       '<button class="aw-tab active" data-amode="inclass">In-class Practice</button>'+
       '<button class="aw-tab" data-amode="homework">Homework</button>'+
       '<button class="aw-tab" data-amode="translate">Translation Practice</button>'+
+      '<button class="aw-tab" data-amode="test">Test Simulation</button>'+
     '</div>'+
     '<div id="assignList"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
   AW.els('[data-amode]').forEach(function(t){
@@ -2841,6 +2869,8 @@ function showAssignments(){
       t.classList.add('active');
       if(t.dataset.amode==='translate'){
         loadTranslateList();
+      } else if(t.dataset.amode==='test'){
+        loadTestList();
       } else loadAssignmentList(t.dataset.amode);
     };
   });
@@ -2877,6 +2907,113 @@ function loadAssignmentList(mode){
       row.onclick=function(){ showAssignDetail(JSON.parse(row.dataset.a)); };
     });
   });
+}
+
+/*═══════════ TEST SIMULATION (teacher's tests) ═══════════
+  A test is an assignment with mode 'test': Part 1 (+ chart picture) and
+  Part 2. Students take both in one 60-minute sitting (exam.html), 3 times. */
+var _testRows=[];
+function loadTestList(){
+  var box=document.getElementById('assignList'); if(!box) return;
+  box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('write.getAssignments',{class:curClass(),mode:'test'}).then(function(res){
+    _testRows=((res&&res.data)||[]).slice().reverse();
+    var b=document.getElementById('assignList'); if(!b) return;
+    if(!_testRows.length){
+      b.innerHTML='<div class="aw-empty">'+AW.icon('exam')+'<p>No tests yet. Click <b>New Test</b> to set one for this class.</p></div>';
+      return;
+    }
+    function cut(t){ t=String(t||'').replace(/\s+/g,' ').trim(); return AW.esc(t.slice(0,110))+(t.length>110?'…':''); }
+    b.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Title</th><th>Part 1</th><th>Part 2</th><th>Created</th></tr></thead><tbody>'+
+      _testRows.map(function(a,i){
+        var t=a.test||{};
+        return '<tr class="aw-test-row" style="cursor:pointer" data-i="'+i+'">'+
+          '<td style="max-width:200px;white-space:normal"><b>'+AW.esc(a.topic||'Test')+'</b></td>'+
+          '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:280px;white-space:normal">'+(t.chart?'📊 ':'')+cut(t.t1)+'</td>'+
+          '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:280px;white-space:normal">'+cut(t.t2)+'</td>'+
+          '<td>'+(a.createdAt?AW.fmtDate(a.createdAt):'—')+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+    AW.els('.aw-test-row').forEach(function(r){ r.onclick=function(){ openTestModal(_testRows[+r.dataset.i]); }; });
+  });
+}
+function openTestModal(a){
+  if(!curClass()){ AW.toast('Chọn lớp trước.','err'); return; }
+  var t=(a&&a.test)||{}, chart=t.chart||'', chartData='';
+  var old=document.getElementById('testModal'); if(old) old.remove();
+  var bg=document.createElement('div'); bg.className='aw-modal-bg show'; bg.id='testModal';
+  bg.innerHTML='<div class="aw-amodal" style="max-width:760px!important">'+
+    '<h2 style="margin:0 0 4px">'+(a?'Edit test':'New Test')+'</h2>'+
+    '<p class="aw-auth-sub" style="margin:0 0 16px">Sinh viên làm cả 2 phần trong một lần thi 60 phút (toàn màn hình), tối đa 3 lần. Đề chỉ hiện khi sinh viên bấm Start.</p>'+
+    '<div class="aw-field"><label class="aw-label">Title</label><input class="aw-input" id="tmTitle" maxlength="80" placeholder="e.g. Mock test 1" value="'+AW.esc((a&&a.topic)||'')+'"></div>'+
+    '<div class="aw-field"><label class="aw-label">Part 1 — Task 1 question</label>'+
+      '<textarea class="aw-input" id="tmT1" rows="4" style="resize:vertical" placeholder="The chart below shows … Summarise the information by selecting and reporting the main features, and make comparisons where relevant.">'+AW.esc(t.t1||'')+'</textarea>'+
+      '<div id="tmDrop" style="margin-top:8px;border:2px dashed var(--aw-border);border-radius:12px;padding:14px;text-align:center;cursor:pointer;font-size:.85rem;color:var(--aw-ink-2)"></div>'+
+      '<input type="file" id="tmFile" accept="image/*" hidden></div>'+
+    '<div class="aw-field"><label class="aw-label">Part 2 — Task 2 question</label>'+
+      '<textarea class="aw-input" id="tmT2" rows="4" style="resize:vertical" placeholder="Some people believe … To what extent do you agree or disagree?">'+AW.esc(t.t2||'')+'</textarea></div>'+
+    '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px">'+
+      (a?'<button class="aw-btn aw-btn-ghost" id="tmDel" style="color:#D93025;margin-right:auto">Delete</button>':'')+
+      '<button class="aw-btn aw-btn-ghost" id="tmCancel">Cancel</button>'+
+      '<button class="aw-btn aw-btn-primary" id="tmSave">'+(a?'Save':'Create test')+'</button></div></div>';
+  document.body.appendChild(bg);
+  var drop=document.getElementById('tmDrop'), file=document.getElementById('tmFile');
+  function showChart(){
+    var src=chartData||chart;
+    drop.innerHTML = src ? '<img src="'+AW.esc(src)+'" style="display:block;max-width:100%;max-height:200px;margin:0 auto 6px;border-radius:8px" alt="chart">✓ Chart · <a href="#" id="tmRm">Remove</a>'
+                         : '📊 Hình biểu đồ cho Part 1 — bấm để chọn, kéo thả, hoặc dán (Ctrl+V)';
+    var rm=document.getElementById('tmRm');
+    if(rm) rm.onclick=function(e){ e.preventDefault(); e.stopPropagation(); chart=''; chartData=''; showChart(); };
+  }
+  function setFile(f){
+    if(!f||!/^image\//.test(f.type)){ AW.toast('Hãy chọn một file ảnh.','err'); return; }
+    var r=new FileReader();
+    r.onload=function(){ var img=new Image(); img.onload=function(){
+      var k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement('canvas');
+      c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+      var x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height);
+      chartData=c.toDataURL('image/jpeg',0.85); showChart();
+    }; img.src=r.result; };
+    r.readAsDataURL(f);
+  }
+  showChart();
+  drop.onclick=function(e){ if(e.target.id!=='tmRm') file.click(); };
+  file.onchange=function(){ if(file.files[0]) setFile(file.files[0]); file.value=''; };
+  drop.addEventListener('dragover',function(e){ e.preventDefault(); });
+  drop.addEventListener('drop',function(e){ e.preventDefault(); if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+  function onPaste(e){
+    var it=e.clipboardData&&e.clipboardData.items; if(!it) return;
+    for(var i=0;i<it.length;i++) if(/^image\//.test(it[i].type)){ e.preventDefault(); setFile(it[i].getAsFile()); return; }
+  }
+  document.addEventListener('paste',onPaste);
+  function close(){ document.removeEventListener('paste',onPaste); bg.remove(); }
+  document.getElementById('tmCancel').onclick=close;
+  if(a) document.getElementById('tmDel').onclick=function(){
+    if(!confirm('Xoá bài thi "'+(a.topic||'Test')+'"?\nSinh viên sẽ không thấy bài này nữa; kết quả đã làm vẫn còn trong Results.')) return;
+    AW.api('teacher.deleteAssignment',{topicId:a.topicId}).then(function(res){
+      if(res&&res.success){ AW.toast('Đã xoá','ok'); close(); loadTestList(); } else AW.toast((res&&res.error)||'Xoá thất bại','err');
+    });
+  };
+  document.getElementById('tmSave').onclick=function(){
+    var btn=this, title=document.getElementById('tmTitle').value.trim();
+    var t1=document.getElementById('tmT1').value.trim(), t2=document.getElementById('tmT2').value.trim();
+    if(!t1||!t2){ AW.toast('Nhập đề cho cả Part 1 và Part 2.','err'); return; }
+    btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span> Saving…';
+    var up = chartData
+      ? AW.api('board.uploadImage',{dataUrl:chartData, name:'test-chart-'+Date.now()+'.jpg'}).then(function(r){
+          if(r&&r.success&&r.data&&r.data.url) return r.data.url;
+          throw new Error((r&&r.error)||'Không tải được hình lên');
+        })
+      : Promise.resolve(chart);
+    up.then(function(url){
+      var test={t1:t1,t2:t2,chart:url||''};
+      return a ? AW.api('teacher.updateAssignment',{topicId:a.topicId, topic:title||a.topic||'Test', test:test})
+               : AW.api('teacher.createAssignment',{class:curClass(), mode:'test', topic:title||'Test', test:test});
+    }).then(function(res){
+      if(res&&res.success){ AW.toast(a?'Đã lưu':'Đã tạo bài thi','ok'); close();
+        var tab=document.querySelector('[data-amode="test"]'); if(tab) tab.click(); else loadTestList(); }
+      else throw new Error((res&&res.error)||'Lưu thất bại');
+    }).catch(function(e){ AW.toast((e&&e.message)||'Lưu thất bại','err',5000); btn.disabled=false; btn.textContent=a?'Save':'Create test'; });
+  };
 }
 
 /*── Clear Data status (ClearData.gs) ──*/
