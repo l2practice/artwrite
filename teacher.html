@@ -29,6 +29,10 @@
   .res-caret{opacity:.55;font-size:.7em}
     .res-req{display:inline-block;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-right:6px;vertical-align:1px;font-variant-numeric:tabular-nums}
   .res-req.ok{background:#DDF3EA;color:#14633F}
+  /* Tasks page: one colour + icon per kind of task */
+  .aw-new-btn svg{width:18px;height:18px;flex:0 0 auto}
+  .aw-new-hw{background:#FFF1C7;color:#7A5A00}.aw-new-hw:hover{background:#FFE89A;box-shadow:var(--aw-shadow)}
+  .aw-new-tr{background:#F1EBFE;color:#6D3FD6}.aw-new-tr:hover{background:#E4D9FD;box-shadow:var(--aw-shadow)}
   .res-req.part{background:#FFF1C7;color:#7A5A00}
   .res-req.none{background:#F0F1F3;color:#6B7683}
   .res-new{display:inline-block;background:var(--aw-writing);color:#fff;font-size:.6rem;font-weight:700;
@@ -615,6 +619,7 @@
 <script src="aw-common.js"></script>
 <script src="aw-cefr.js"></script>
 <script src="aw-lexis.js"></script>
+<script src="aw-exam-review.js"></script>
 <script src="aw-teacher-ai.js"></script>
 <script>
 if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
@@ -2112,6 +2117,7 @@ function showResults(){
       '<button class="aw-tab" data-mode="inclass">In-Class Practice</button>'+
       '<button class="aw-tab" data-mode="homework">Homework</button>'+
       '<button class="aw-tab" data-mode="free">Free Writing</button>'+
+      '<button class="aw-tab" data-mode="test">Test Simulation</button>'+
       '<button class="aw-tab" data-mode="translate">Translation Practice</button>'+
     '</div>'+
     '<div id="resFilterBar" style="display:none"></div>'+
@@ -2223,7 +2229,8 @@ function showResults(){
   function renderFilterBar(){
     var bar = document.getElementById('resFilterBar');
     bar.style.display = '';
-    var isFree = (_mode === 'free');
+    // Free Writing and Test Simulation: the student chose the questions, so no topic to pick
+    var isFree = (_mode === 'free' || _mode === 'test');
 
     if(isFree){
       // Free writing: no topic selector, just days + Load
@@ -2235,7 +2242,7 @@ function showResults(){
             '<option value="0">All results</option>'+
           '</select>'+
           '<button class="aw-btn aw-btn-primary" id="loadResBtn" style="padding:9px 22px;font-weight:700">Load results</button>'+
-          '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">Free Writing — No topic to choose</span>'+
+          '<span id="resHint" style="font-size:.82rem;color:var(--aw-ink-3)">'+(_mode==='test'?'Test Simulation — 60-minute tests the students set themselves':'Free Writing — No topic to choose')+'</span>'+
         '</div>'+
         '<div id="resSecBar" style="display:none;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">'+
           secFiltersHtml()+
@@ -2456,7 +2463,8 @@ function renderResults(){
       var x=w[i];
       if(!x){ chips+='<span class="res-try none"><b>–</b><span>Not yet</span></span>'; continue; }
       var band=x.overall||x.teacher||'—';
-      var tip='Attempt '+(i+1)+(x.startTime?' · '+when(x.startTime):'')+'\nTR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—')+
+      var tip='Attempt '+(i+1)+(x.startTime?' · '+when(x.startTime):'')+
+              (g.taskType==='test'?'\nPart 1 '+(x.t1||'—')+' · Part 2 '+(x.t2||'—'):'\nTR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—'))+
               (docUrl?'\nData cleared — opens the Google Doc':'');
       chips+='<button type="button" class="res-try'+(i===bestI?' best':'')+'" data-open-key="'+AW.esc(gkey)+'" data-open-wi="'+i+'" title="'+AW.esc(tip)+'">'+
              '<b>'+AW.esc(String(band))+'</b><span>'+(dur(x.duration)||(docUrl?'Doc':'&nbsp;'))+'</span></button>';
@@ -2482,7 +2490,7 @@ function renderResults(){
     var done = nDone >= req;
     var reqBadge = '<span class="res-req '+(done?'ok':nDone?'part':'none')+'" title="'+(done?'All '+req+' attempts done':nDone+' of '+req+' attempts done')+'">'+
       (done?'✓ ':'')+Math.min(nDone,req)+'/'+req+'</span>';
-    var sub = reqBadge + AW.esc(g.studentId) + (oneTopic ? '' : ' · '+AW.esc(g.topic||'')+' ('+(t1?'T1':'T2')+')');
+    var sub = reqBadge + AW.esc(g.studentId) + (oneTopic ? '' : ' · '+AW.esc(g.topic||'')+' ('+(g.taskType==='test'?'Test':t1?'T1':'T2')+')');
     var hasNote = !!(ts.note || ts.privateNote);
     return '<div class="res-row" data-key="'+AW.esc(gkey)+'">'+
       '<div class="res-who"><span class="res-av" style="background:'+pal[0]+';color:'+pal[1]+'">'+AW.esc(ini)+'</span>'+
@@ -2543,7 +2551,7 @@ function renderResults(){
   var taskCard = oneTopic
     ? '<div class="res-card" style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:16px 22px">'+
         '<b style="font-size:1.02rem">'+AW.esc(g0.topic||'')+'</b>'+
-        '<span class="aw-task-badge '+(g0.taskType==='task1'?'t1':'t2')+'" style="margin:0">'+(g0.taskType==='task1'?'Task 1':'Task 2')+'</span>'+
+        '<span class="aw-task-badge '+(g0.taskType==='task1'?'t1':'t2')+'" style="margin:0">'+(g0.taskType==='test'?'Test · Part 1 + 2':g0.taskType==='task1'?'Task 1':'Task 2')+'</span>'+
         '<span style="font-size:.85rem;color:var(--aw-ink-3)">'+AW.esc(g0.className||g0.class||'')+'</span>'+
         (p0?'<p style="flex:1 1 100%;margin:4px 0 0;font-size:.88rem;line-height:1.55;color:var(--aw-ink-2);white-space:pre-line">'+AW.esc(p0)+'</p>':'')+
       '</div>'
@@ -2633,13 +2641,15 @@ window.viewEssays=function(gkey, writeIdx){
   });
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E9EBFB;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#5661E0,#7C84EE);border-radius:4px"></div></div></div>';}
+  var isTest = g.taskType==='test';   // Test Simulation: both parts in one attempt, no Google Doc
   var header='<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:nowrap">'+
     '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem;flex:1 1 auto;min-width:0;'+
       'overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+AW.esc((g.name||g.studentId)+' — '+(g.topic||''))+'">'+
       AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
     '<div style="display:flex;gap:6px;flex:0 0 auto;white-space:nowrap">'+
+      (isTest?'':
       '<button class="aw-btn aw-btn-accent" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\')" title="Mở file nhận xét trên Google Docs">📄 Open Doc</button>'+
-      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\',true)" title="Tạo lại file từ đầu">↻ Re-create Doc</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\',true)" title="Tạo lại file từ đầu">↻ Re-create Doc</button>')+
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="printTeacherFeedback()">⤓ PDF</button>'+
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="closeEssayModal()">Close</button>'+
     '</div></div>';
@@ -2658,10 +2668,11 @@ window.viewEssays=function(gkey, writeIdx){
             'style="padding:4px 12px;font-size:.78rem;color:#D93025;border-color:#F3C2BD">Delete attempt</button>'+
         '</div>'+
         (x.timestamp?'<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 '+AW.fmtDate(x.timestamp)+'</div>':'')+
+        (isTest?'':
         '<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
           '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#5661E0,#7C84EE);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
           '<div style="flex:1">'+crit(c1label,x.tr)+crit('Coherence & Cohesion',x.cc)+crit('Lexical Resource',x.lr)+crit('Grammar',x.gra)+'</div>'+
-        '</div>'+
+        '</div>')+
         '<div id="detail_'+i+'" style="color:var(--aw-ink-3);font-size:.85rem">'+
           '<span class="aw-spin aw-spin-dark"></span> Đang tải nội dung bài viết…'+
         '</div>'+
@@ -2683,6 +2694,11 @@ window.viewEssays=function(gkey, writeIdx){
         var el = document.getElementById('detail_'+i);
         if (!el) return;
         var fb=null; try{ fb=d.feedback?JSON.parse(d.feedback):null; }catch(e){}
+        if (fb && fb.test){
+          el.innerHTML = AW.testReviewHtml(fb, { prefix:'tvt'+i, teacher:true });
+          AW.testReviewLexis(fb, { prefix:'tvt'+i, alive:function(){ return rvTok === window._rvTok; } });
+          return;
+        }
         var out='';
         // PERMANENT FIX: word count badge (free→IELTS standard, hw/inclass→GV minWords)
         if (d.essay) {
@@ -2751,7 +2767,9 @@ window.closeEssayModal=function(){document.getElementById('essayModal').classLis
 window.printTeacherFeedback=function(){
   var el=document.getElementById('teacherReviewContent'); if(!el)return;
   var w=window.open('','_blank');
-  w.document.write('<html><head><title>ArticuWrite Feedback</title><style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h4{color:#5661E0;margin:16px 0 6px;font-size:.9rem}.rv-block{margin-top:14px;padding-top:14px;border-top:1px solid #E9EBFB}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#5661E0">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString()+'</p></body></html>');
+  var base=location.href.replace(/[#?].*$/,'').replace(/[^/]*$/,'');
+  var extra=['tsr-style','lx-style'].map(function(id){ var e=document.getElementById(id); return e?'<style>'+e.textContent+'</style>':''; }).join('');
+  w.document.write('<html><head><title>Writing App Feedback</title><link rel="stylesheet" href="'+base+'aw-theme.css">'+extra+'<style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h4{color:#5661E0;margin:16px 0 6px;font-size:.9rem}.rv-block{margin-top:14px;padding-top:14px;border-top:1px solid #E9EBFB}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#5661E0">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString()+'</p></body></html>');
   w.document.close(); setTimeout(function(){w.print();},400);
 };
 window.exportTeacherDoc=function(gkey, regenerate){
@@ -2807,9 +2825,9 @@ function showAssignments(){
   document.getElementById('awPageTitle').textContent='Assignments';
   content.innerHTML=
     '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">'+
-      '<button class="aw-btn aw-btn-primary" onclick="newAssignment(\'homework\')">+ New Homework</button>'+
-      '<button class="aw-btn aw-btn-ghost" onclick="newAssignment(\'inclass\')">+ New In-class Task</button>'+
-      '<button class="aw-btn aw-btn-ghost" style="color:#8B5CF6;border-color:#8B5CF6" onclick="openTrModal()">New Translate Set</button>'+
+      '<button class="aw-btn aw-btn-primary aw-new-btn" onclick="newAssignment(\'inclass\')">'+AW.icon('classroom')+'New In-class Task</button>'+
+      '<button class="aw-btn aw-new-btn aw-new-hw" onclick="newAssignment(\'homework\')">'+AW.icon('homework')+'New Homework</button>'+
+      '<button class="aw-btn aw-new-btn aw-new-tr" onclick="openTrModal()">'+AW.icon('translate')+'New Translate Set</button>'+
     '</div>'+
     '<div class="aw-tabs" id="assignTabs">'+
       '<button class="aw-tab active" data-amode="inclass">In-class Practice</button>'+

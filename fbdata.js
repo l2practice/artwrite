@@ -407,16 +407,19 @@ async function deleteAssignment(p) {
 /*  One transaction: numbers the attempt from the student's own progress doc,
     so two saves can never take the same number, and a re-sent save (same
     submissionId) is recognised instead of counted twice.                    */
+const MODES = ['free', 'homework', 'inclass', 'test'];
 async function saveResult(p) {
   const u = await me();
   if (u.role !== 'student') return fail('Chỉ sinh viên mới nộp bài được.');
   const mode = p.mode;
-  if (['free', 'homework', 'inclass'].indexOf(mode) < 0) return fail('Mode không hợp lệ: ' + mode);
+  if (MODES.indexOf(mode) < 0) return fail('Mode không hợp lệ: ' + mode);
   const topicId = str(p.topicId);
+  // Test Simulation: the student sets the two questions; the id ties the attempts together
+  if (mode === 'test' && !/^TS-[A-Za-z0-9_-]{4,40}$/.test(topicId)) return fail('Mã bài thi không hợp lệ.');
   const subId = safeKey(p.submissionId) || (safeKey(u.studentId) + '_' + Date.now().toString(36) + '_' + genId(5));
 
   let asg = null;
-  if (mode !== 'free' && topicId) {
+  if (mode !== 'free' && mode !== 'test' && topicId) {
     const d = await fs.doc('assignments/' + topicId).get();
     asg = d.exists ? d.data() : null;
   }
@@ -446,6 +449,14 @@ async function saveResult(p) {
       aiGrading: p.aiGrading != null ? p.aiGrading : '', teacherGrading: p.teacherGrading != null ? p.teacherGrading : '',
       attempt, hasFb: String(p.feedback || '').length > 10, noAI: !!p.noAI, docLink: p.docLink || ''
     };
+    if (mode === 'test') {
+      // the questions travel with every attempt, so a retry and the teacher see the same test
+      const q = p.test || {};
+      light.test = { t1: String(q.t1 || '').slice(0, 4000), t2: String(q.t2 || '').slice(0, 4000),
+                     chart: /^https:\/\//.test(q.chart || '') ? String(q.chart).slice(0, 500) : '' };
+      light.t1Band = p.t1Band != null ? p.t1Band : '';
+      light.t2Band = p.t2Band != null ? p.t2Band : '';
+    }
     tx.set(essayRef, { uid: u.uid, studentId: u.studentId, classId: u.classId, teacherUid: u.teacherUid || '',
                        mode, topicId, timestamp: ts, essay: String(p.essay || ''), feedback: String(p.feedback || '') });
     const base = { studentId: u.studentId, name: u.name || '', classId: u.classId, teacherUid: u.teacherUid || '' };
@@ -472,7 +483,8 @@ async function getEssay(p) {
 function groupKey(r) { return r.mode + '||' + str(r.topicId); }
 function writeOut(r) {
   return { attempt: Number(r.attempt) || '', timestamp: r.timestamp, startTime: r.startTime, finishTime: r.finishTime, duration: r.duration,
-           overall: r.aiGrading, teacher: r.teacherGrading, tr: r.tr || '', cc: r.cc || '', lr: r.lr || '', gra: r.gra || '' };
+           overall: r.aiGrading, teacher: r.teacherGrading, tr: r.tr || '', cc: r.cc || '', lr: r.lr || '', gra: r.gra || '',
+           t1: r.t1Band != null ? r.t1Band : '', t2: r.t2Band != null ? r.t2Band : '' };
 }
 function bestOf(writes) {
   let best = null;
@@ -496,7 +508,7 @@ async function getMyResults(p) {
       let ts = (prog.tscore || {})[tsKey(r.mode, r.topicId)] || null;
       if (ts) { ts = Object.assign({}, ts); delete ts.note; }
       groups[k] = { mode: r.mode, topic: r.topic, topicId: r.topicId, taskType: r.taskType || a.taskType || 'task2',
-        chartImageId: a.chartImageId || '', prompt: a.prompt || '', minWords: a.minWords || 0,
+        chartImageId: a.chartImageId || '', prompt: a.prompt || '', minWords: a.minWords || 0, test: r.test || null,
         className: r.classId === u.classId ? className : (r.classId || ''),
         assignedDate: a.createdAt || r.timestamp, deadline: a.deadline || '', writes: [], teacherScore: ts };
     }
@@ -522,7 +534,7 @@ async function getResults(p) {
   const classNames = {}, prompts = {};
   classes.forEach(c => { classNames[c.classId] = c.className; });
   asg.forEach(a => { prompts[a.topicId] = { prompt: a.prompt, taskType: a.taskType || 'task2', minWords: Number(a.minWords) || 0, requiredAttempts: Number(a.requiredAttempts) || 0 }; });
-  const mode = ['free', 'homework', 'inclass'].indexOf(p.mode) >= 0 ? p.mode : 'free';
+  const mode = MODES.indexOf(p.mode) >= 0 ? p.mode : 'free';
   const cutoff = Number(p.days) > 0 ? Date.now() - Number(p.days) * 86400000 : 0;
   const groups = {};
   progs.forEach(prog => {
@@ -535,7 +547,7 @@ async function getResults(p) {
         studentId: prog.studentId, name: prog.name, class: r.classId || prog.classId,
         className: classNames[r.classId || prog.classId] || r.classId || '',
         topic: r.topic, topicId: r.topicId, taskType: r.taskType || pr.taskType || 'task2',
-        prompt: pr.prompt || '', minWords: pr.minWords || 0, requiredAttempts: pr.requiredAttempts || 0, writes: [],
+        prompt: pr.prompt || '', minWords: pr.minWords || 0, requiredAttempts: pr.requiredAttempts || 0, writes: [], test: r.test || null,
         teacherScore: (prog.tscore || {})[tsKey(mode, r.topicId)] || null
       };
       if (r.cleared) { groups[key].cleared = true; groups[key].docUrl = r.docUrl || ''; }
@@ -597,7 +609,7 @@ async function deleteAttempt(p) {
 }
 
 async function saveManualScore(p) {
-  if (['free', 'homework', 'inclass'].indexOf(p.mode) < 0) return fail('Invalid mode.');
+  if (MODES.indexOf(p.mode) < 0) return fail('Invalid mode.');
   const t = await teacher();
   const sp = await studentProgress(t, p.studentId);
   const rows = sp ? itemsOf(sp.data).filter(r => r.mode === p.mode && str(r.topicId) === str(p.topicId)).sort(byAttempt) : [];

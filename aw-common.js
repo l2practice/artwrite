@@ -82,7 +82,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=7'); })
+        .then(function () { return loadScript('fbdata.js?v=8'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
@@ -319,6 +319,9 @@
     pen:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>',
     clock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>',
     home:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+    exam:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="7"/><path d="M12 10.5V14l2 1.5M10 3h4M12 3v4M18.5 7.5l1.5-1.5"/></svg>',
+    classroom:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="11" rx="1.5"/><path d="M7 7h6M7 10h4"/><circle cx="17" cy="18" r="2"/><path d="M13 22c0-2 1.8-3 4-3s4 1 4 3"/></svg>',
+    homework:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 17l1-3 4-4 2 2-4 4z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>',
   };
   AW.icon = function (name) { return IC[name] || ''; };
@@ -334,7 +337,7 @@
       ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
       ['settings', 'Settings', 'settings'] ] },
     student: { home: 'student.html', items: [
-      ['modes', 'Practice', 'modes'], ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
+      ['modes', 'Practice', 'modes'], ['test', 'Test', 'exam'], ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
       ['progress', 'Progress', 'progress'], ['translate', 'Translate', 'translate'], ['qa', 'Q&A', 'chat'],
       ['settings', 'Settings', 'settings'] ] }
   };

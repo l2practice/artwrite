@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1E2142">
+<title>Writing App</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  /* Test Simulation — laid out like the computer-delivered IELTS Writing test
+     (top bar with the clock, the question left, the answer right, parts and
+     Submit at the bottom), dressed in the app's colours. */
+  html,body{height:100%}
+  body.ex{margin:0;background:var(--aw-bg);color:var(--aw-ink);font-family:var(--aw-font-body)}
+  .ex-page{min-height:100%;display:flex;flex-direction:column}
+  .ex-top{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--aw-primary-dk);color:#fff;min-height:58px;box-sizing:border-box}
+  .ex-brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .ex-brand i{width:34px;height:34px;border-radius:10px;background:var(--aw-primary);display:grid;place-items:center;flex:0 0 auto}
+  .ex-brand i svg{width:22px;height:22px;color:#fff}
+  .ex-brand b{font-size:.98rem;white-space:nowrap}
+  .ex-brand small{display:block;font-size:.7rem;opacity:.75;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+  .ex-cand{font-size:.8rem;line-height:1.3;opacity:.92;padding-left:14px;border-left:1px solid rgba(255,255,255,.18);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ex-cand small{display:block;opacity:.7}
+  .ex-timer{margin:0 auto;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.22);border-radius:999px;padding:7px 16px;font:700 .95rem var(--aw-font-display);cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ex-timer svg{width:18px;height:18px}
+  .ex-timer.hid #exTimeTxt{opacity:.75;font-weight:600}
+  .ex-timer.warn{background:#FFF1C7;color:#7A5A00;border-color:#FFF1C7}
+  .ex-timer.danger{background:#D2372F;border-color:#D2372F;color:#fff}
+  .ex-timer.flash{animation:exFlash .5s ease-in-out 8 alternate}
+  @keyframes exFlash{from{box-shadow:0 0 0 0 rgba(255,241,199,.0)}to{box-shadow:0 0 0 8px rgba(255,241,199,.55)}}
+  .ex-tools{display:flex;gap:6px;align-items:center}
+  .ex-tb{background:rgba(255,255,255,.1);color:#fff;border:0;border-radius:10px;min-width:36px;height:34px;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
+  .ex-tb:hover{background:rgba(255,255,255,.2)}
+  .ex-parthd{flex:0 0 auto;background:var(--aw-primary-lt);padding:11px 22px;font-size:.92rem;color:var(--aw-ink)}
+  .ex-parthd b{font-size:1.02rem;margin-right:10px}
+  .ex-body{flex:1 1 auto;display:flex;min-height:0;background:var(--aw-surface);--ex-fs:16px}
+  .ex-q{flex:0 0 48%;overflow-y:auto;padding:22px 26px;box-sizing:border-box;font-size:var(--ex-fs);line-height:1.6}
+  .ex-q .ex-qt{white-space:pre-wrap}
+  .ex-q img{display:block;max-width:100%;margin:16px 0 0;border-radius:10px;border:1px solid var(--aw-border-2);background:#fff}
+  .ex-q .ex-qmin{margin-top:14px;font-weight:600}
+  .ex-div{flex:0 0 8px;background:var(--aw-bg);cursor:col-resize;position:relative;user-select:none;touch-action:none}
+  .ex-div:hover,.ex-div.drag{background:var(--aw-primary)}
+  .ex-div:after{content:'';position:absolute;top:50%;left:50%;width:2px;height:34px;transform:translate(-50%,-50%);background:rgba(98,103,138,.45);border-radius:2px}
+  .ex-a{flex:1 1 0;display:flex;flex-direction:column;padding:18px 22px;min-width:0;box-sizing:border-box}
+  .ex-a textarea{flex:1 1 auto;width:100%;resize:none;border:1.5px solid var(--aw-border);border-radius:14px;padding:14px 16px;box-sizing:border-box;font:var(--ex-fs)/1.65 var(--aw-font-body);color:var(--aw-ink);background:#fff;outline:none}
+  .ex-a textarea:focus{border-color:var(--aw-primary);box-shadow:var(--aw-ring)}
+  .ex-a textarea[readonly]{background:var(--aw-surface-2)}
+  .ex-wc{margin-top:8px;font-size:.85rem;color:var(--aw-ink-2);text-align:right}
+  .ex-wc b{font-variant-numeric:tabular-nums}
+  .ex-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--aw-surface);border-top:1px solid var(--aw-border)}
+  .ex-pbtn{display:flex;align-items:center;gap:10px;background:var(--aw-surface-2);border:1.5px solid transparent;border-radius:14px;padding:8px 16px;cursor:pointer;font-family:var(--aw-font-body);color:var(--aw-ink)}
+  .ex-pbtn b{font-size:.92rem}
+  .ex-pbtn span{font-size:.78rem;color:var(--aw-ink-3);font-variant-numeric:tabular-nums}
+  .ex-pbtn.on{border-color:var(--aw-primary);background:var(--aw-primary-lt)}
+  .ex-pbtn.on span{color:var(--aw-primary-hv)}
+  .ex-sp{flex:1}
+  .ex-nav{width:42px;height:42px;border-radius:50%;border:0;background:var(--aw-primary-dk);color:#fff;font-size:1.1rem;cursor:pointer}
+  .ex-nav:disabled{opacity:.3;cursor:default}
+  .ex-submit{margin-left:6px}
+  @media(max-width:760px){
+    .ex-top{flex-wrap:wrap;gap:8px 10px;padding:8px 12px}.ex-cand{display:none}
+    .ex-timer{order:3;margin:0;flex:1 1 100%;justify-content:center}
+    .ex-body{flex-direction:column;overflow-y:auto}.ex-div{display:none}
+    .ex-q{flex:none;padding:16px}.ex-a{flex:none;padding:12px 16px}.ex-a textarea{min-height:52vh}
+    .ex-foot{flex-wrap:wrap}.ex-pbtn{flex:1}
+  }
+
+  /* screens before and after the test */
+  .ex-wrap{flex:1;display:flex;justify-content:center;padding:28px 16px 40px}
+  .ex-card{width:100%;max-width:880px;background:var(--aw-surface);border-radius:var(--aw-r-lg);box-shadow:var(--aw-shadow);padding:28px 30px;box-sizing:border-box}
+  .ex-card h1{margin:0 0 4px;font-family:var(--aw-font-display);font-size:1.45rem}
+  .ex-card .ex-lead{margin:0 0 20px;color:var(--aw-ink-2);line-height:1.55}
+  .ex-sec{margin-top:18px;padding:18px;border-radius:20px;background:var(--aw-surface-2)}
+  .ex-sec h3{margin:0 0 4px;font-size:1rem;display:flex;align-items:center;gap:8px}
+  .ex-sec p.ex-hint{margin:0 0 10px;font-size:.8rem;color:var(--aw-ink-3)}
+  .ex-sec textarea,.ex-card input.aw-input{width:100%;box-sizing:border-box}
+  .ex-sec textarea{min-height:120px;resize:vertical;font:inherit;font-size:.92rem;line-height:1.55;border:1.5px solid var(--aw-border);border-radius:14px;padding:12px 14px;background:#fff;outline:none}
+  .ex-sec textarea:focus{border-color:var(--aw-primary)}
+  .ex-drop{margin-top:10px;border:2px dashed var(--aw-border);border-radius:14px;padding:16px;text-align:center;cursor:pointer;background:#fff;font-size:.85rem;color:var(--aw-ink-2)}
+  .ex-drop.has{border-color:#16825B}
+  .ex-drop img{display:block;max-width:100%;max-height:220px;margin:0 auto 8px;border-radius:8px}
+  .ex-pill{display:inline-block;font-size:.7rem;font-weight:800;padding:2px 9px;border-radius:999px}
+  .ex-pill.t1{background:#EAF7F0;color:#16825B}.ex-pill.t2{background:var(--aw-primary-lt);color:var(--aw-primary-hv)}
+  .ex-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:22px}
+  .ex-key{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px;padding:12px 14px;border-radius:14px;background:#FFF8EC;font-size:.85rem}
+  .ex-key input{flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--aw-border);border-radius:10px}
+  .ex-ins{font-size:.95rem;line-height:1.6}
+  .ex-ins h4{margin:18px 0 6px;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--aw-primary-hv)}
+  .ex-ins ul{margin:0;padding-left:20px}.ex-ins li{margin:3px 0}
+  .ex-meta{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
+  .ex-meta span{background:var(--aw-surface-2);border-radius:999px;padding:5px 12px;font-size:.82rem;font-weight:600}
+  .ex-big{font-size:1.05rem;padding:14px 28px}
+
+  /* overlays */
+  .ex-ov{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(30,33,66,.72);padding:20px}
+  .ex-box{background:#fff;border-radius:22px;padding:26px 24px;max-width:460px;width:100%;text-align:center;box-shadow:var(--aw-shadow-lg)}
+  .ex-box h2{margin:6px 0 8px;font-size:1.2rem;font-family:var(--aw-font-display)}
+  .ex-box p{margin:0 0 14px;color:var(--aw-ink-2);line-height:1.55;font-size:.92rem}
+  .ex-box .ex-ic{font-size:2.2rem}
+  .ex-box .ex-row{justify-content:center;margin-top:8px}
+  .ex-wcl{display:flex;gap:8px;justify-content:center;margin:0 0 14px}
+  .ex-wcl span{background:var(--aw-surface-2);border-radius:12px;padding:6px 12px;font-size:.85rem}
+  .ex-wcl span.low{background:#FFF0F0;color:#B42318}
+  .ex-steps{text-align:left;margin:10px auto 0;max-width:300px;font-size:.88rem}
+  .ex-steps div{display:flex;align-items:center;gap:8px;margin:6px 0;color:var(--aw-ink-3)}
+  .ex-steps div.on{color:var(--aw-ink);font-weight:600}.ex-steps div.ok{color:#16825B}
+  .ex-banner{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:2500;background:#FFF1C7;color:#7A5A00;font-weight:700;border-radius:999px;padding:10px 22px;box-shadow:var(--aw-shadow-lg)}
+  .ex-banner.danger{background:#D2372F;color:#fff}
+  .ex-res-top{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:16px}
+</style>
+</head>
+<body class="ex">
+<div id="exApp" class="ex-page"></div>
+
+<script src="aw-common.js"></script>
+<script src="aw-cefr.js"></script>
+<script src="aw-lexis.js"></script>
+<script src="aw-grader.js"></script>
+<script src="aw-exam-review.js"></script>
+<script>
+var sess = AW.session.require('student');
+if (!sess) throw 'redirect';
+
+var LIMIT_MS = 60 * 60 * 1000;          // one hour for both parts, no extensions
+var MAX_ATTEMPTS = 3;
+var SKEY = 'aw_exam_' + sess.studentId;  // the running test survives a reload
+var app = document.getElementById('exApp');
+var qp = new URLSearchParams(location.search);
+var st = null;                           // the test this page is on
+var FS_OK = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+
+function loadState(){ try { return JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch(e){ return null; } }
+function saveState(){ try { localStorage.setItem(SKEY, JSON.stringify(st)); } catch(e){} }
+function clearState(){ try { localStorage.removeItem(SKEY); } catch(e){} }
+function backToList(){ location.href = 'student.html#test'; }
+function newId(){ return 'TS-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function words(t){ return AW.wordCount(t || ''); }
+function fmtWhen(){ var d = new Date(); return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(); }
+
+function topBar(extra){
+  return '<div class="ex-top"><div class="ex-brand"><i>' + AW.logoSVG + '</i><div><b>Writing App</b><small>Test Simulation</small></div></div>' +
+    '<div class="ex-cand">' + AW.esc(sess.name || '') + '<small>' + AW.esc(sess.studentId || '') + '</small></div>' + (extra || '') + '</div>';
+}
+function keyBar(){
+  if (AW.geminiKey.get()) return '';
+  return '<div class="ex-key" id="exKeyBar"><span>🔑 Bài thi được AI chấm ngay khi nộp — nhập Gemini API key (lưu trên máy này):</span>' +
+    '<input id="exKey" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-dark" id="exKeySave" style="min-height:38px;padding:8px 16px">Save</button>' +
+    '<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free key</a></div>';
+}
+function wireKeyBar(after){
+  var b = document.getElementById('exKeySave'); if (!b) return;
+  b.onclick = function(){
+    var k = document.getElementById('exKey').value.trim();
+    if (k.length < 20) { AW.toast('Key không hợp lệ.', 'err'); return; }
+    AW.geminiKey.set(k); AW.toast('Đã lưu API key', 'ok');
+    document.getElementById('exKeyBar').remove();
+    if (after) after();
+  };
+}
+
+/*═════════ 1. Set up: the student brings the two questions ═════════*/
+function showSetup(){
+  var chart = '';
+  app.innerHTML = topBar('<span class="ex-sp"></span><button class="ex-tb" style="padding:0 14px" onclick="backToList()">← Back</button>') +
+    '<div class="ex-wrap"><div class="ex-card">' +
+      '<h1>New test</h1>' +
+      '<p class="ex-lead">Nhập đề của bài thi trước khi bắt đầu. Khi bấm <b>Start test</b>, màn hình chuyển sang toàn màn hình và đồng hồ <b>60 phút</b> bắt đầu chạy cho cả 2 phần. Hết giờ, bài tự nộp để AI chấm. Bạn được làm tối đa <b>3 lần</b> với cùng đề này.</p>' +
+      '<label class="aw-label" for="exTitle">Test name <span style="font-weight:400;color:var(--aw-ink-3)">— optional</span></label>' +
+      '<input class="aw-input" id="exTitle" maxlength="80" placeholder="e.g. Cambridge 18 — Test 2">' +
+      '<div class="ex-sec"><h3>Part 1 <span class="ex-pill t1">Task 1 · 150 words</span></h3>' +
+        '<p class="ex-hint">The report question (chart, table, map, process…).</p>' +
+        '<textarea id="exT1" placeholder="The chart below shows … Summarise the information by selecting and reporting the main features, and make comparisons where relevant."></textarea>' +
+        '<div class="ex-drop" id="exDrop" tabindex="0"><div id="exDropTxt">📊 Thêm hình biểu đồ — bấm để chọn, kéo thả, hoặc dán (Ctrl+V)</div>' +
+          '<input type="file" id="exFile" accept="image/*" hidden></div>' +
+      '</div>' +
+      '<div class="ex-sec"><h3>Part 2 <span class="ex-pill t2">Task 2 · 250 words</span></h3>' +
+        '<p class="ex-hint">The essay question.</p>' +
+        '<textarea id="exT2" placeholder="Some people believe … To what extent do you agree or disagree?"></textarea>' +
+      '</div>' +
+      keyBar() +
+      '<div class="ex-row"><button class="aw-btn aw-btn-primary ex-big" id="exNext">Continue →</button>' +
+        '<span style="font-size:.8rem;color:var(--aw-ink-3)">Bạn sẽ đọc hướng dẫn thi trước khi đồng hồ chạy.</span></div>' +
+    '</div></div>';
+  wireKeyBar();
+
+  var drop = document.getElementById('exDrop'), file = document.getElementById('exFile');
+  function setChart(f){
+    if (!f || !/^image\//.test(f.type)) { AW.toast('Hãy chọn một file ảnh.', 'err'); return; }
+    shrink(f, function(url){
+      chart = url;
+      drop.classList.add('has');
+      document.getElementById('exDropTxt').innerHTML = '<img src="' + url + '" alt="chart">✓ Đã thêm hình · <a href="#" id="exRm">Remove</a>';
+      document.getElementById('exRm').onclick = function(e){ e.preventDefault(); e.stopPropagation(); chart = ''; drop.classList.remove('has');
+        document.getElementById('exDropTxt').textContent = '📊 Thêm hình biểu đồ — bấm để chọn, kéo thả, hoặc dán (Ctrl+V)'; };
+    });
+  }
+  drop.onclick = function(e){ if (e.target.id !== 'exRm') file.click(); };
+  file.onchange = function(){ if (file.files[0]) setChart(file.files[0]); file.value = ''; };
+  drop.addEventListener('dragover', function(e){ e.preventDefault(); });
+  drop.addEventListener('drop', function(e){ e.preventDefault(); if (e.dataTransfer.files[0]) setChart(e.dataTransfer.files[0]); });
+  document.onpaste = function(e){
+    var it = e.clipboardData && e.clipboardData.items; if (!it) return;
+    for (var i = 0; i < it.length; i++) if (/^image\//.test(it[i].type)) { e.preventDefault(); setChart(it[i].getAsFile()); return; }
+  };
+
+  document.getElementById('exNext').onclick = function(){
+    var t1 = document.getElementById('exT1').value.trim(), t2 = document.getElementById('exT2').value.trim();
+    if (words(t1) < 8) { AW.toast('Nhập đề Part 1 (Task 1).', 'err'); document.getElementById('exT1').focus(); return; }
+    if (words(t2) < 8) { AW.toast('Nhập đề Part 2 (Task 2).', 'err'); document.getElementById('exT2').focus(); return; }
+    if (!AW.geminiKey.get()) { AW.toast('Nhập Gemini API key trước — bài thi được AI chấm khi nộp.', 'err', 5000); return; }
+    var title = document.getElementById('exTitle').value.trim() || ('Test · ' + fmtWhen());
+    var btn = this;
+    function ready(chartUrl, localChart){
+      document.onpaste = null;
+      st = { v: 1, testId: newId(), title: title, t1: t1, t2: t2, chart: chartUrl || '', localChart: localChart || '',
+             attempt: 1, phase: 'ready' };
+      saveState();
+      showIntro();
+    }
+    if (!chart) { ready(''); return; }
+    btn.disabled = true; btn.innerHTML = '<span class="aw-spin"></span> Uploading the chart…';
+    // the chart is kept on Drive so retries and the teacher see the same picture
+    AW.api('board.uploadImage', { dataUrl: chart, name: 'test-chart-' + Date.now() + '.jpg' }).then(function(res){
+      if (res && res.success && res.data && res.data.url) ready(res.data.url);
+      else throw new Error((res && res.error) || 'upload');
+    }).catch(function(){
+      AW.toast('Không tải được hình lên — hình chỉ hiện trong lần thi này.', 'err', 5000);
+      ready('', chart);
+    });
+  };
+}
+// keep the upload small: longest side 1600px, JPEG
+function shrink(f, cb){
+  var r = new FileReader();
+  r.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      var k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+      cb(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = r.result;
+  };
+  r.readAsDataURL(f);
+}
+
+/*═════════ 2. Instructions, then Start (full screen + the clock) ═════════*/
+function showIntro(){
+  app.innerHTML = topBar('<span class="ex-sp"></span><button class="ex-tb" style="padding:0 14px" id="exLeave">← Back</button>') +
+    '<div class="ex-wrap"><div class="ex-card ex-ins">' +
+      '<h1>IELTS Academic Writing</h1>' +
+      '<div class="ex-meta"><span>' + AW.esc(st.title) + '</span><span>Time: 1 hour</span><span>Attempt ' + st.attempt + ' of ' + MAX_ATTEMPTS + '</span></div>' +
+      '<h4>Instructions to candidates</h4><ul>' +
+        '<li>Answer <b>both</b> parts.</li>' +
+        '<li>You can change your answers at any time during the test.</li></ul>' +
+      '<h4>Information for candidates</h4><ul>' +
+        '<li>There are two parts in this test.</li>' +
+        '<li>Part 2 contributes twice as much as Part 1 to the writing score.</li>' +
+        '<li>The test clock will show you when there are 10 minutes and 5 minutes remaining.</li>' +
+        '<li>When the hour is up, your answers are <b>submitted automatically</b> for AI marking.</li>' +
+        '<li>The test runs in full screen. Leaving full screen, switching tabs and pasting text from outside the test are recorded for your teacher.</li></ul>' +
+      keyBar() +
+      '<div class="ex-row"><button class="aw-btn aw-btn-primary ex-big" id="exStart">Start test</button>' +
+        '<span style="font-size:.8rem;color:var(--aw-ink-3)">Đồng hồ 60 phút chạy ngay khi bấm.</span></div>' +
+    '</div></div>';
+  wireKeyBar();
+  document.getElementById('exLeave').onclick = function(){
+    if (st.attempt === 1 && !confirm('Bỏ bài thi này? Đề bạn đã nhập sẽ không được lưu.')) return;
+    clearState(); backToList();
+  };
+  document.getElementById('exStart').onclick = function(){
+    if (!AW.geminiKey.get()) { AW.toast('Nhập Gemini API key trước khi bắt đầu.', 'err', 5000); return; }
+    enterFs();                                   // must run inside the click
+    var now = Date.now();
+    st.phase = 'running'; st.startedAt = now; st.endsAt = now + LIMIT_MS; st.startIso = new Date(now).toISOString();
+    st.a1 = ''; st.a2 = ''; st.fsExits = 0; st.tabSwitches = 0; st.pasteBlocked = 0;
+    st.subId = String(sess.studentId) + '_' + now.toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    saveState();
+    showExam();
+  };
+}
+
+function enterFs(){
+  var d = document.documentElement;
+  try {
+    var p = d.requestFullscreen ? d.requestFullscreen({ navigationUI: 'hide' }) : (d.webkitRequestFullscreen && d.webkitRequestFullscreen());
+    if (p && p.catch) p.catch(function(){});
+  } catch(e){}
+}
+function exitFs(){
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function(){});
+    else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } catch(e){}
+}
+function isFs(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+
+/*═════════ 3. The test ═════════*/
+var cur = 1, tick = null, warned = {}, timerHidden = false, insideClip = '', dragInside = false, ended = false;
+var CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>';
+
+function showExam(){
+  var chart = st.chart || st.localChart || '';
+  function qpane(n, text, img){
+    return '<div class="ex-q" id="exQ' + n + '"' + (n === 1 ? '' : ' hidden') + '>' +
+      '<div class="ex-qt">' + AW.esc(text) + '</div>' +
+      (img ? '<img src="' + AW.esc(img) + '" alt="Part 1 chart">' : '') + '</div>';
+  }
+  app.innerHTML = topBar(
+      '<button class="ex-timer" id="exTimer" title="Hide or show the time">' + CLOCK + '<span id="exTimeTxt">60 minutes left</span></button>' +
+      '<div class="ex-tools"><button class="ex-tb" id="exFsm" title="Smaller text">A−</button><button class="ex-tb" id="exFsp" title="Larger text">A+</button></div>') +
+    '<div class="ex-parthd" id="exPartHd"></div>' +
+    '<div class="ex-body" id="exBody">' +
+      qpane(1, st.t1, chart) + qpane(2, st.t2, '') +
+      '<div class="ex-div" id="exDiv" title="Drag to resize"></div>' +
+      '<div class="ex-a">' +
+        '<textarea id="exA1" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Part 1 answer"></textarea>' +
+        '<textarea id="exA2" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Part 2 answer" hidden></textarea>' +
+        '<div class="ex-wc">Word count: <b id="exWc">0</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="ex-foot">' +
+      '<button class="ex-pbtn on" data-p="1"><b>Part 1</b><span id="exN1">0 words</span></button>' +
+      '<button class="ex-pbtn" data-p="2"><b>Part 2</b><span id="exN2">0 words</span></button>' +
+      '<span class="ex-sp"></span>' +
+      '<button class="ex-nav" id="exPrev" title="Previous part" aria-label="Previous part">←</button>' +
+      '<button class="ex-nav" id="exNx" title="Next part" aria-label="Next part">→</button>' +
+      '<button class="aw-btn aw-btn-primary ex-submit" id="exSubmit">✓ Submit test</button>' +
+    '</div>';
+
+  var a1 = document.getElementById('exA1'), a2 = document.getElementById('exA2');
+  a1.value = st.a1 || ''; a2.value = st.a2 || '';
+  var saveT = null;
+  [a1, a2].forEach(function(ta, i){
+    ta.addEventListener('input', function(){
+      st['a' + (i + 1)] = ta.value;
+      counts();
+      clearTimeout(saveT); saveT = setTimeout(saveState, 300);
+    });
+    // copy and paste work inside the test; text from outside does not come in
+    ta.addEventListener('copy', function(){ insideClip = ta.value.substring(ta.selectionStart, ta.selectionEnd); });
+    ta.addEventListener('cut', function(){ insideClip = ta.value.substring(ta.selectionStart, ta.selectionEnd); });
+    ta.addEventListener('paste', function(e){
+      var t = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+      if (t && t.replace(/\r/g, '') === insideClip.replace(/\r/g, '')) return;
+      e.preventDefault();
+      st.pasteBlocked = (st.pasteBlocked || 0) + 1; saveState();
+      AW.toast('Không dán được nội dung từ bên ngoài bài thi.', 'err', 3500);
+    });
+    ta.addEventListener('dragstart', function(){ dragInside = true; });
+    ta.addEventListener('dragend', function(){ dragInside = false; });
+    ta.addEventListener('drop', function(e){ if (!dragInside) e.preventDefault(); });
+  });
+
+  AW.els('.ex-pbtn').forEach(function(b){ b.onclick = function(){ go(+b.dataset.p); }; });
+  document.getElementById('exPrev').onclick = function(){ go(1); };
+  document.getElementById('exNx').onclick = function(){ go(2); };
+  document.getElementById('exSubmit').onclick = askSubmit;
+  document.getElementById('exTimer').onclick = function(){ timerHidden = !timerHidden; render(); };
+
+  var body = document.getElementById('exBody'), fs = 16;
+  try { fs = parseInt(localStorage.getItem('aw_exam_fs'), 10) || 16; } catch(e){}
+  function setFs(v){ fs = Math.max(13, Math.min(26, v)); body.style.setProperty('--ex-fs', fs + 'px'); try { localStorage.setItem('aw_exam_fs', fs); } catch(e){} }
+  setFs(fs);
+  document.getElementById('exFsm').onclick = function(){ setFs(fs - 1); };
+  document.getElementById('exFsp').onclick = function(){ setFs(fs + 1); };
+  wireDivider();
+
+  go(1);
+  counts();
+  render();
+  tick = setInterval(render, 250);
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+  document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('beforeunload', onLeave);
+  if (FS_OK && !isFs()) setTimeout(function(){ if (!isFs() && st.phase === 'running') fsGate(false); }, 600);
+}
+
+function go(n){
+  cur = n;
+  document.getElementById('exQ1').hidden = n !== 1; document.getElementById('exQ2').hidden = n !== 2;
+  document.getElementById('exA1').hidden = n !== 1; document.getElementById('exA2').hidden = n !== 2;
+  AW.els('.ex-pbtn').forEach(function(b){ b.classList.toggle('on', +b.dataset.p === n); });
+  document.getElementById('exPrev').disabled = n === 1; document.getElementById('exNx').disabled = n === 2;
+  document.getElementById('exPartHd').innerHTML = n === 1
+    ? '<b>Part 1</b>You should spend about 20 minutes on this task. Write at least 150 words.'
+    : '<b>Part 2</b>You should spend about 40 minutes on this task. Write at least 250 words.';
+  counts();
+  var ta = document.getElementById('exA' + n);
+  if (!ta.readOnly) ta.focus();
+}
+function counts(){
+  var n1 = words(document.getElementById('exA1').value), n2 = words(document.getElementById('exA2').value);
+  document.getElementById('exN1').textContent = n1 + ' word' + (n1 === 1 ? '' : 's');
+  document.getElementById('exN2').textContent = n2 + ' word' + (n2 === 1 ? '' : 's');
+  document.getElementById('exWc').textContent = cur === 1 ? n1 : n2;
+}
+function render(){
+  var left = st.endsAt - Date.now(), el = document.getElementById('exTimer'), tx = document.getElementById('exTimeTxt');
+  if (!el) return;
+  if (left <= 0) { tx.textContent = '0 minutes left'; timeUp(); return; }
+  var mins = Math.ceil(left / 60000), s = Math.ceil(left / 1000);
+  var text = left <= 5 * 60000
+    ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' left'
+    : mins + ' minute' + (mins === 1 ? '' : 's') + ' left';
+  tx.textContent = timerHidden && left > 5 * 60000 ? 'Show time' : text;
+  el.classList.toggle('hid', timerHidden && left > 5 * 60000);
+  el.classList.toggle('warn', left <= 10 * 60000 && left > 5 * 60000);
+  el.classList.toggle('danger', left <= 5 * 60000);
+  [[10, ''], [5, 'danger']].forEach(function(w){
+    if (!warned[w[0]] && left <= w[0] * 60000 && left > (w[0] - 1) * 60000) {
+      warned[w[0]] = true;
+      el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      banner(w[0] + ' minutes left', w[1]);
+    }
+  });
+}
+function banner(text, cls){
+  var b = document.createElement('div'); b.className = 'ex-banner ' + (cls || ''); b.textContent = text;
+  document.body.appendChild(b); setTimeout(function(){ b.remove(); }, 5000);
+}
+function wireDivider(){
+  var d = document.getElementById('exDiv'), body = document.getElementById('exBody');
+  var pct = 48;
+  try { pct = parseFloat(localStorage.getItem('aw_exam_split')) || 48; } catch(e){}
+  function apply(){ AW.els('.ex-q').forEach(function(q){ q.style.flexBasis = pct + '%'; }); }
+  apply();
+  d.addEventListener('pointerdown', function(e){
+    d.setPointerCapture(e.pointerId); d.classList.add('drag');
+    function mv(ev){ var r = body.getBoundingClientRect(); pct = Math.max(25, Math.min(70, (ev.clientX - r.left) / r.width * 100)); apply(); }
+    function up(){ d.classList.remove('drag'); d.removeEventListener('pointermove', mv); d.removeEventListener('pointerup', up);
+      try { localStorage.setItem('aw_exam_split', pct.toFixed(1)); } catch(e){} }
+    d.addEventListener('pointermove', mv); d.addEventListener('pointerup', up);
+  });
+}
+
+function onFsChange(){
+  if (ended || st.phase !== 'running') return;
+  if (!isFs()) { st.fsExits = (st.fsExits || 0) + 1; saveState(); fsGate(true); }
+}
+function onVis(){
+  if (ended || st.phase !== 'running') return;
+  if (document.visibilityState === 'hidden') { st.tabSwitches = (st.tabSwitches || 0) + 1; saveState(); }
+}
+function onLeave(e){ if (!ended && st && st.phase === 'running') { e.preventDefault(); e.returnValue = ''; } }
+
+// writing waits until the test is back in full screen; the clock does not stop
+function fsGate(left){
+  if (!FS_OK || document.getElementById('exFsGate')) return;
+  var ov = document.createElement('div'); ov.className = 'ex-ov'; ov.id = 'exFsGate';
+  ov.innerHTML = '<div class="ex-box"><div class="ex-ic">⛶</div>' +
+    '<h2>' + (left ? 'You left full screen' : 'Your test is running') + '</h2>' +
+    '<p>' + (left ? 'Việc thoát toàn màn hình đã được ghi lại. ' : '') + 'Đồng hồ vẫn đang chạy — quay lại toàn màn hình để làm tiếp.</p>' +
+    '<div class="ex-row"><button class="aw-btn aw-btn-primary ex-big" id="exFsBack">Return to full screen</button></div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('exFsBack').onclick = function(){
+    enterFs();
+    setTimeout(function(){ if (isFs() || !FS_OK) { ov.remove(); var ta = document.getElementById('exA' + cur); if (ta) ta.focus(); } }, 350);
+  };
+  var chk = setInterval(function(){ if (isFs() || ended) { clearInterval(chk); ov.remove(); } }, 400);
+}
+
+function askSubmit(){
+  var n1 = words(st.a1), n2 = words(st.a2);
+  var ov = document.createElement('div'); ov.className = 'ex-ov';
+  ov.innerHTML = '<div class="ex-box"><div class="ex-ic">📤</div><h2>Submit your test?</h2>' +
+    '<p>Sau khi nộp, bạn không sửa được bài nữa. AI sẽ chấm cả 2 phần.</p>' +
+    '<div class="ex-wcl"><span class="' + (n1 < 150 ? 'low' : '') + '">Part 1 · ' + n1 + ' words</span><span class="' + (n2 < 250 ? 'low' : '') + '">Part 2 · ' + n2 + ' words</span></div>' +
+    ((n1 < 150 || n2 < 250) ? '<p style="color:#B42318;font-size:.85rem">Bài viết dưới số từ tối thiểu sẽ bị trừ điểm.</p>' : '') +
+    '<div class="ex-row"><button class="aw-btn aw-btn-ghost" id="exNo">Keep writing</button><button class="aw-btn aw-btn-primary" id="exYes">Submit</button></div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('exNo').onclick = function(){ ov.remove(); };
+  document.getElementById('exYes').onclick = function(){ ov.remove(); finish(false); };
+}
+function timeUp(){ if (!ended) finish(true); }
+
+function finish(auto){
+  if (ended) return;
+  ended = true;
+  clearInterval(tick);
+  var a1 = document.getElementById('exA1'), a2 = document.getElementById('exA2');
+  if (a1) { st.a1 = a1.value; st.a2 = a2.value; a1.readOnly = a2.readOnly = true; }
+  st.phase = 'submitted'; st.autoSubmitted = !!auto; st.finishIso = new Date(Math.min(Date.now(), st.endsAt)).toISOString();
+  saveState();
+  window.removeEventListener('beforeunload', onLeave);
+  var g = document.getElementById('exFsGate'); if (g) g.remove();
+  exitFs();
+  if (auto) {
+    var ov = document.createElement('div'); ov.className = 'ex-ov';
+    ov.innerHTML = '<div class="ex-box"><div class="ex-ic">⏰</div><h2>Time is up</h2><p>Bài của bạn đã được nộp tự động để AI chấm.</p></div>';
+    document.body.appendChild(ov);
+    setTimeout(function(){ ov.remove(); grade(); }, 2200);
+  } else grade();
+}
+
+/*═════════ 4. Marking: both parts, then one saved attempt ═════════*/
+function withTimeout(p, ms){
+  var t;
+  return Promise.race([p, new Promise(function(_, rej){ t = setTimeout(function(){ rej(new Error('AI không phản hồi sau ' + Math.round(ms / 1000) + ' giây.')); }, ms); })])
+    .then(function(v){ clearTimeout(t); return v; }, function(e){ clearTimeout(t); throw e; });
+}
+function gradePart(n){
+  var text = ((n === 1 ? st.a1 : st.a2) || '').trim(), prompt = n === 1 ? st.t1 : st.t2;
+  if (!words(text)) return Promise.resolve({ empty: true, overall: 0, scores: { TR: 0, CC: 0, LR: 0, GRA: 0 } });
+  var vocab = '';
+  try { vocab = AW.cefrSummary(AW.analyseVocabulary(text)); } catch(e){}
+  try { if (AW.lexisReady && AW.lexisReady()) vocab += '\n' + AW.lexisSummary(AW.lexisAnalyse(text, { prompt: prompt })); } catch(e){}
+  var payload = { writing: text, question: prompt, attempt: st.attempt, aiNotes: '', vocabSummary: vocab,
+                  taskType: n === 1 ? 'task1' : 'task2', minWords: n === 1 ? 150 : 250 };
+  function once(){ return withTimeout(AW.grade(payload, AW.geminiKey.get()), 120000); }
+  return once().catch(function(){ return new Promise(function(r){ setTimeout(r, 3000); }).then(once); });
+}
+function gradingScreen(){
+  app.innerHTML = topBar() + '<div class="ex-wrap"><div class="ex-card" style="max-width:520px;text-align:center">' +
+    '<span class="aw-spin aw-spin-dark" style="width:34px;height:34px"></span>' +
+    '<h1 style="margin-top:14px">Marking your test…</h1><p class="ex-lead" style="margin:6px 0 0">Thường mất 30–90 giây. Đừng đóng trang này.</p>' +
+    '<div class="ex-steps"><div id="exS1">○ Part 1</div><div id="exS2">○ Part 2</div><div id="exS3">○ Saving</div></div></div></div>';
+}
+function step(id, state){
+  var el = document.getElementById(id); if (!el) return;
+  el.className = state; el.textContent = (state === 'ok' ? '✓ ' : state === 'on' ? '… ' : '○ ') + el.textContent.replace(/^[✓…○] /, '');
+}
+function grade(){
+  st.graded = st.graded || {};
+  gradingScreen();
+  if (AW.lexisLoad) AW.lexisLoad().catch(function(){});
+  if (typeof AW.grade !== 'function' || !AW.geminiKey.get()) { gradeFailed(new Error('Thiếu Gemini API key hoặc bộ chấm chưa tải được.')); return; }
+  var jobs = [1, 2].map(function(n){
+    if (st.graded['r' + n]) { step('exS' + n, 'ok'); return Promise.resolve(st.graded['r' + n]); }
+    step('exS' + n, 'on');
+    return gradePart(n).then(function(r){ st.graded['r' + n] = r; saveState(); step('exS' + n, 'ok'); return r; });
+  });
+  Promise.all(jobs).then(function(){ save(); }, gradeFailed);
+}
+function gradeFailed(e){
+  app.innerHTML = topBar() + '<div class="ex-wrap"><div class="ex-card" style="max-width:560px;text-align:center">' +
+    '<div style="font-size:2.2rem">⚠️</div><h1>AI chưa chấm được</h1>' +
+    '<p class="ex-lead">Bài làm của bạn vẫn được giữ trên máy này. Kiểm tra mạng / API key rồi chấm lại.<br><small style="color:var(--aw-ink-3)">' + AW.esc((e && e.message) || '') + '</small></p>' +
+    '<div class="ex-key" style="justify-content:center"><span>Đổi Gemini key (nếu cần):</span><input id="exKey2" type="password" placeholder="AIza…"></div>' +
+    '<div class="ex-row" style="justify-content:center"><button class="aw-btn aw-btn-primary ex-big" id="exAgain">Mark again</button></div></div></div>';
+  document.getElementById('exAgain').onclick = function(){
+    var k = document.getElementById('exKey2').value.trim(); if (k.length >= 20) AW.geminiKey.set(k);
+    grade();
+  };
+}
+function combine(){
+  var r1 = st.graded.r1, r2 = st.graded.r2, s1 = r1.scores || {}, s2 = r2.scores || {};
+  function w(k){ return AW.ieltsRound(((parseFloat(s1[k]) || 0) + 2 * (parseFloat(s2[k]) || 0)) / 3); }
+  return {
+    test: true, overall: AW.examCombine(r1.overall, r2.overall), t1: r1.overall, t2: r2.overall,
+    scores: { TR: w('TR'), CC: w('CC'), LR: w('LR'), GRA: w('GRA') },
+    task1: Object.assign({}, r1, { prompt: st.t1, chart: st.chart || '', essay: st.a1 || '' }),
+    task2: Object.assign({}, r2, { prompt: st.t2, essay: st.a2 || '' }),
+    integrity: { fsExits: st.fsExits || 0, tabSwitches: st.tabSwitches || 0, pasteBlocked: st.pasteBlocked || 0, autoSubmitted: !!st.autoSubmitted }
+  };
+}
+function save(){
+  step('exS3', 'on');
+  var fb = combine(), end = new Date(st.finishIso || Date.now());
+  var payload = {
+    studentId: sess.studentId, name: sess.name, class: sess.class || '', mode: 'test',
+    topicId: st.testId, topic: st.title, taskType: 'test', submissionId: st.subId,
+    startTime: st.startIso, finishTime: end.toISOString(), duration: Math.round((end - st.startedAt) / 1000),
+    tr: fb.scores.TR, cc: fb.scores.CC, lr: fb.scores.LR, gra: fb.scores.GRA,
+    aiGrading: fb.overall, teacherGrading: '', t1Band: fb.t1, t2Band: fb.t2,
+    essay: 'PART 1\n' + (st.a1 || '') + '\n\nPART 2\n' + (st.a2 || ''),
+    feedback: JSON.stringify(fb), test: { t1: st.t1, t2: st.t2, chart: st.chart || '' }
+  };
+  var tries = 0;
+  function go(){
+    tries++;
+    return AW.api('write.saveResult', payload).then(function(res){
+      if (res && res.success) return res;
+      if (res && res.locked) return res;
+      if (tries < 4) return new Promise(function(r){ setTimeout(r, 2500 * tries); }).then(go);
+      throw new Error((res && res.error) || 'Không lưu được bài');
+    }, function(e){
+      if (tries < 4) return new Promise(function(r){ setTimeout(r, 2500 * tries); }).then(go);
+      throw e;
+    });
+  }
+  go().then(function(res){
+    if (res.locked) { clearState(); showResult(fb, MAX_ATTEMPTS, res.error); return; }
+    var n = (res.data && res.data.attempt) || st.attempt;
+    clearState();
+    showResult(fb, n);
+  }, function(e){
+    app.innerHTML = topBar() + '<div class="ex-wrap"><div class="ex-card" style="max-width:520px;text-align:center">' +
+      '<div style="font-size:2.2rem">💾</div><h1>Đã chấm xong nhưng chưa lưu được</h1>' +
+      '<p class="ex-lead">Đừng đóng trang. Bấm để lưu lại — bài chỉ được tính 1 lần.<br><small style="color:var(--aw-ink-3)">' + AW.esc((e && e.message) || '') + '</small></p>' +
+      '<div class="ex-row" style="justify-content:center"><button class="aw-btn aw-btn-primary ex-big" id="exSaveAgain">Save again</button></div></div></div>';
+    document.getElementById('exSaveAgain').onclick = function(){ gradingScreen(); step('exS1', 'ok'); step('exS2', 'ok'); save(); };
+  });
+}
+
+/*═════════ 5. Result ═════════*/
+function showResult(fb, n, lockMsg){
+  var more = !lockMsg && n < MAX_ATTEMPTS;
+  var testId = st.testId;
+  app.innerHTML = topBar() + '<div class="ex-wrap"><div class="ex-card">' +
+    '<div class="ex-res-top"><div><h1>' + AW.esc(st.title) + '</h1>' +
+      '<div class="ex-meta"><span>Attempt ' + n + ' of ' + MAX_ATTEMPTS + '</span>' + (st.autoSubmitted ? '<span>Submitted when time was up</span>' : '') + '</div></div>' +
+      '<div class="ex-row" style="margin:0">' +
+        (more ? '<button class="aw-btn aw-btn-primary" id="exRetry">↺ Try again (attempt ' + (n + 1) + ' of ' + MAX_ATTEMPTS + ')</button>' : '') +
+        '<button class="aw-btn aw-btn-ghost" onclick="backToList()">Back to Test Simulation</button></div></div>' +
+    (lockMsg ? '<p class="tsr-note">' + AW.esc(lockMsg) + '</p>' : '') +
+    AW.testReviewHtml(fb, { prefix: 'exr' }) + '</div></div>';
+  AW.testReviewLexis(fb, { prefix: 'exr' });
+  var r = document.getElementById('exRetry');
+  if (r) r.onclick = function(){ location.href = 'exam.html?test=' + encodeURIComponent(testId); };
+  window.scrollTo(0, 0);
+}
+
+/*═════════ Start: resume a running test, open a retry, or set up a new one ═════════*/
+function boot(){
+  st = loadState();
+  if (st && st.phase === 'running') {
+    // the page was reloaded or closed mid-test: that left full screen too
+    if (FS_OK) { st.fsExits = (st.fsExits || 0) + 1; saveState(); }
+    if (Date.now() >= st.endsAt) { finish(true); return; }
+    showExam(); return;
+  }
+  if (st && st.phase === 'submitted') { grade(); return; }
+  var want = qp.get('test');
+  if (want) {
+    app.innerHTML = topBar() + '<div class="ex-wrap"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+    AW.api('write.getMyResults', { studentId: sess.studentId }).then(function(res){
+      var g = ((res && res.data) || []).filter(function(x){ return x.mode === 'test' && x.topicId === want; })[0];
+      if (!g || !g.test) { AW.toast('Không tìm thấy bài thi này.', 'err'); setTimeout(backToList, 1500); return; }
+      var done = (g.writes || []).length;
+      if (g.cleared || done >= MAX_ATTEMPTS) { AW.toast('Bạn đã làm đủ ' + MAX_ATTEMPTS + ' lần cho bài thi này.', 'err', 4000); setTimeout(backToList, 1800); return; }
+      st = { v: 1, testId: want, title: g.topic || 'Test', t1: g.test.t1 || '', t2: g.test.t2 || '', chart: g.test.chart || '',
+             attempt: done + 1, phase: 'ready' };
+      saveState();
+      showIntro();
+    });
+    return;
+  }
+  if (st && st.phase === 'ready') { showIntro(); return; }
+  showSetup();
+}
+
+AW.loadClassAI(sess.class, function(on){
+  if (!on) {
+    app.innerHTML = topBar() + '<div class="ex-wrap"><div class="ex-card" style="max-width:520px;text-align:center">' +
+      '<div style="font-size:2rem">🔒</div><h1>Test Simulation</h1><p class="ex-lead">Mục này không khả dụng cho lớp của bạn.</p>' +
+      '<button class="aw-btn aw-btn-primary" onclick="backToList()">Back</button></div></div>';
+    return;
+  }
+  boot();
+});
+</script>
+</body>
+</html>
