@@ -322,12 +322,18 @@ function isPast(a, u) {
   const d = myDeadline(a, u);
   return a.mode === 'homework' && !!d && Date.now() > deadlineMs(d);
 }
+// Test Simulation questions: Part 1 (+ chart picture) and Part 2
+function testOf(q) {
+  q = q || {};
+  return { t1: String(q.t1 || '').slice(0, 4000), t2: String(q.t2 || '').slice(0, 4000),
+           chart: /^https:\/\//.test(q.chart || '') ? String(q.chart).slice(0, 500) : '' };
+}
 function assignOut(a, u) {
   const out = {
     topicId: a.topicId || a._id, mode: a.mode, class: a.classId, topic: a.topic, prompt: a.prompt,
     taskType: a.taskType || 'task2', chartImageId: a.chartImageId || '', aiNotes: a.aiNotes || '',
     requiredAttempts: a.requiredAttempts, durationMin: a.durationMin, deadline: a.deadline,
-    dataStatus: a.dataStatus || ''
+    dataStatus: a.dataStatus || '', test: a.test || null, createdAt: a.createdAt || ''
   };
   if (u && u.role === 'student') {
     out.myDeadline = myDeadline(a, u);
@@ -359,7 +365,8 @@ async function getPrompt(p) {
   return ok({ prompt: a.prompt || '', topic: a.topic || '', taskType: a.taskType || 'task2',
               chartImageId: a.chartImageId || '', minWords: a.minWords || 0,
               writingType: a.writingType || 'full_essay', aiNotes: a.aiNotes || '', durationMin: a.durationMin || '',
-              mode: a.mode || '', deadline: myDeadline(a, u), isPastDeadline: isPast(a, u), dataStatus: a.dataStatus || '' });
+              mode: a.mode || '', deadline: myDeadline(a, u), isPastDeadline: isPast(a, u), dataStatus: a.dataStatus || '',
+              test: a.test || null, active: a.active !== false });
 }
 async function createAssignment(p) {
   const t = await teacher();
@@ -367,6 +374,17 @@ async function createAssignment(p) {
   const cls = (await myClasses(t)).find(c => c.classId === classId);
   if (!cls) return fail('Lớp không thuộc tài khoản của bạn.');
   const topicId = safeKey(p.topicId) || ('A' + Date.now().toString(36) + genId(4));
+  if (p.mode === 'test') {
+    // a Test Simulation the whole class takes: both parts, up to 3 attempts
+    const test = testOf(p.test);
+    if (!test.t1.trim() || !test.t2.trim()) return fail('Cần nhập đề cho cả Part 1 và Part 2.');
+    await fs.doc('assignments/' + topicId).set({
+      topicId, mode: 'test', classId, teacherUid: t.uid, topic: p.topic || 'Test', prompt: test.t2, taskType: 'test',
+      test, requiredAttempts: 3, createdAt: nowIso(), active: true, dataStatus: ''
+    });
+    forget('assign|');
+    return ok({ topicId, taskType: 'test' });
+  }
   const taskType = p.taskType === 'task1' ? 'task1' : 'task2';
   await fs.doc('assignments/' + topicId).set({
     topicId, mode: p.mode || 'homework', classId, teacherUid: t.uid, topic: p.topic || '', prompt: p.prompt || '',
@@ -387,6 +405,7 @@ async function updateAssignment(p) {
   ['topic', 'prompt', 'deadline', 'aiNotes'].forEach(k => { if (p[k] != null) patch[k] = p[k]; });
   if (p.minWords != null) patch.minWords = Number(p.minWords) || 0;
   if (p.requiredAttempts != null) patch.requiredAttempts = Number(p.requiredAttempts) || 1;
+  if (p.test) { patch.test = testOf(p.test); patch.prompt = patch.test.t2; }
   await ref.update(patch);
   forget('assign|');
   return ok();
@@ -414,15 +433,19 @@ async function saveResult(p) {
   const mode = p.mode;
   if (MODES.indexOf(mode) < 0) return fail('Mode không hợp lệ: ' + mode);
   const topicId = str(p.topicId);
-  // Test Simulation: the student sets the two questions; the id ties the attempts together
-  if (mode === 'test' && !/^TS-[A-Za-z0-9_-]{4,40}$/.test(topicId)) return fail('Mã bài thi không hợp lệ.');
+  // Test Simulation: a test the student set up (TS-…, own or random questions)
+  // or one the teacher created for the class (an assignment with mode 'test')
+  const ownTest = mode === 'test' && /^TS-[A-Za-z0-9_-]{4,40}$/.test(topicId);
+  if (mode === 'test' && !ownTest && !topicId) return fail('Mã bài thi không hợp lệ.');
   const subId = safeKey(p.submissionId) || (safeKey(u.studentId) + '_' + Date.now().toString(36) + '_' + genId(5));
 
   let asg = null;
-  if (mode !== 'free' && mode !== 'test' && topicId) {
+  if (mode !== 'free' && !ownTest && topicId) {
     const d = await fs.doc('assignments/' + topicId).get();
     asg = d.exists ? d.data() : null;
   }
+  if (mode === 'test' && !ownTest && !(asg && asg.mode === 'test' && asg.classId === u.classId))
+    return fail('Không tìm thấy bài thi này.');
   const progRef = fs.doc('progress/' + u.uid), essayRef = fs.doc('essays/' + subId);
   return fs.runTransaction(async tx => {
     const snap = await tx.get(progRef);
@@ -450,10 +473,10 @@ async function saveResult(p) {
       attempt, hasFb: String(p.feedback || '').length > 10, noAI: !!p.noAI, docLink: p.docLink || ''
     };
     if (mode === 'test') {
-      // the questions travel with every attempt, so a retry and the teacher see the same test
-      const q = p.test || {};
-      light.test = { t1: String(q.t1 || '').slice(0, 4000), t2: String(q.t2 || '').slice(0, 4000),
-                     chart: /^https:\/\//.test(q.chart || '') ? String(q.chart).slice(0, 500) : '' };
+      // the questions travel with every attempt, so a retry and the teacher see the same test;
+      // a teacher's test takes its questions from the assignment, not from the page
+      light.test = ownTest ? testOf(p.test) : testOf(asg.test);
+      light.source = ownTest ? (p.testSource === 'random' ? 'random' : 'own') : 'teacher';
       light.t1Band = p.t1Band != null ? p.t1Band : '';
       light.t2Band = p.t2Band != null ? p.t2Band : '';
     }
@@ -509,6 +532,7 @@ async function getMyResults(p) {
       if (ts) { ts = Object.assign({}, ts); delete ts.note; }
       groups[k] = { mode: r.mode, topic: r.topic, topicId: r.topicId, taskType: r.taskType || a.taskType || 'task2',
         chartImageId: a.chartImageId || '', prompt: a.prompt || '', minWords: a.minWords || 0, test: r.test || null,
+        source: r.source || (r.mode === 'test' ? 'own' : ''),
         className: r.classId === u.classId ? className : (r.classId || ''),
         assignedDate: a.createdAt || r.timestamp, deadline: a.deadline || '', writes: [], teacherScore: ts };
     }
@@ -548,6 +572,7 @@ async function getResults(p) {
         className: classNames[r.classId || prog.classId] || r.classId || '',
         topic: r.topic, topicId: r.topicId, taskType: r.taskType || pr.taskType || 'task2',
         prompt: pr.prompt || '', minWords: pr.minWords || 0, requiredAttempts: pr.requiredAttempts || 0, writes: [], test: r.test || null,
+        source: r.source || (r.mode === 'test' ? 'own' : ''),
         teacherScore: (prog.tscore || {})[tsKey(mode, r.topicId)] || null
       };
       if (r.cleared) { groups[key].cleared = true; groups[key].docUrl = r.docUrl || ''; }

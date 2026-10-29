@@ -27,6 +27,8 @@
   };
 
   function esc(s) { return AW.esc(s); }
+  var SRC = { teacher: 'Teacher\'s test', random: 'Random questions', own: 'Own questions' };
+  AW.testSourceLabel = function (src) { return SRC[src] || SRC.own; };
   function band(v) { return (v === '' || v == null || isNaN(parseFloat(v))) ? '—' : String(v); }
 
   function bar(name, val) {
@@ -94,7 +96,7 @@
       '<div class="tsr-ov"><b>' + band(fb.overall) + '</b><span>WRITING BAND</span></div>' +
       '<div class="tsr-sub"><div><span>Part 1</span><b>' + band(fb.t1) + '</b></div>' +
         '<div><span>Part 2</span><b>' + band(fb.t2) + '</b></div>' +
-        '<p>Part 2 counts twice as much as Part 1.</p></div></div>';
+        '<p>' + (SRC[fb.source] ? SRC[fb.source] + ' · ' : '') + 'Part 2 counts twice as much as Part 1.</p></div></div>';
     var note = '';
     if (fb.noAI) note = '<p class="tsr-note">Lớp của bạn không dùng AI chấm — giáo viên sẽ chấm bài này.</p>';
     if (opts.teacher) {

@@ -38,23 +38,42 @@
   .ex-body{flex:1 1 auto;display:flex;min-height:0;background:var(--aw-surface);--ex-fs:16px}
   .ex-q{flex:0 0 48%;overflow-y:auto;padding:22px 26px;box-sizing:border-box;font-size:var(--ex-fs);line-height:1.6}
   .ex-q .ex-qt{white-space:pre-wrap}
+  .ex-q .ex-qt p{margin:0 0 1em}.ex-q .ex-qt .ex-task{font-weight:700}
+  /* highlights and notes on the question, as in the real test */
+  .ex-qt mark{background:#FFE58A;color:inherit;border-radius:3px;padding:0 1px;cursor:pointer}
+  .ex-qt mark.nt{background:#CFE0FF;border-bottom:2px solid var(--aw-primary)}
+  .ex-qt mark.nt:after{content:'✎';font-size:.7em;vertical-align:super;color:var(--aw-primary-hv);margin-left:1px}
+  .ex-pop{position:fixed;z-index:2600;background:var(--aw-primary-dk);color:#fff;border-radius:12px;padding:5px;display:flex;gap:4px;box-shadow:var(--aw-shadow-lg)}
+  .ex-pop button{background:transparent;border:0;color:#fff;font:600 .82rem var(--aw-font-body);padding:7px 11px;border-radius:8px;cursor:pointer}
+  .ex-pop button:hover{background:rgba(255,255,255,.14)}
+  .ex-note{position:fixed;z-index:2600;width:280px;background:#fff;border-radius:14px;box-shadow:var(--aw-shadow-lg);padding:12px;border:1px solid var(--aw-border)}
+  .ex-note textarea{width:100%;box-sizing:border-box;min-height:90px;border:1.5px solid var(--aw-border);border-radius:10px;padding:8px 10px;font:.88rem/1.5 var(--aw-font-body);resize:vertical;outline:none}
+  .ex-note textarea:focus{border-color:var(--aw-primary)}
+  .ex-note div{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+  .ex-note button{min-height:34px;padding:6px 12px;font-size:.82rem}
   .ex-q img{display:block;max-width:100%;margin:16px 0 0;border-radius:10px;border:1px solid var(--aw-border-2);background:#fff}
   .ex-q .ex-qmin{margin-top:14px;font-weight:600}
   .ex-div{flex:0 0 8px;background:var(--aw-bg);cursor:col-resize;position:relative;user-select:none;touch-action:none}
   .ex-div:hover,.ex-div.drag{background:var(--aw-primary)}
-  .ex-div:after{content:'';position:absolute;top:50%;left:50%;width:2px;height:34px;transform:translate(-50%,-50%);background:rgba(98,103,138,.45);border-radius:2px}
+  .ex-div:after{content:'⟷';position:absolute;top:50%;left:50%;width:34px;height:34px;transform:translate(-50%,-50%);background:#fff;border:1.5px solid var(--aw-border);border-radius:10px;display:grid;place-items:center;font-size:1rem;color:var(--aw-ink-2);box-shadow:var(--aw-shadow-sm)}
+  .ex-div:hover:after,.ex-div.drag:after{border-color:var(--aw-primary);color:var(--aw-primary)}
   .ex-a{flex:1 1 0;display:flex;flex-direction:column;padding:18px 22px;min-width:0;box-sizing:border-box}
   .ex-a textarea{flex:1 1 auto;width:100%;resize:none;border:1.5px solid var(--aw-border);border-radius:14px;padding:14px 16px;box-sizing:border-box;font:var(--ex-fs)/1.65 var(--aw-font-body);color:var(--aw-ink);background:#fff;outline:none}
   .ex-a textarea:focus{border-color:var(--aw-primary);box-shadow:var(--aw-ring)}
   .ex-a textarea[readonly]{background:var(--aw-surface-2)}
-  .ex-wc{margin-top:8px;font-size:.85rem;color:var(--aw-ink-2);text-align:right}
+  .ex-wc{margin-top:8px;font-size:.9rem;color:var(--aw-ink-2)}
   .ex-wc b{font-variant-numeric:tabular-nums}
-  .ex-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--aw-surface);border-top:1px solid var(--aw-border)}
-  .ex-pbtn{display:flex;align-items:center;gap:10px;background:var(--aw-surface-2);border:1.5px solid transparent;border-radius:14px;padding:8px 16px;cursor:pointer;font-family:var(--aw-font-body);color:var(--aw-ink)}
-  .ex-pbtn b{font-size:.92rem}
+  /* bottom bar: one half per part, a line on top of each (green once answered) */
+  .ex-foot{flex:0 0 auto;display:flex;align-items:stretch;gap:10px;padding:0 16px 0 0;background:var(--aw-surface);border-top:1px solid var(--aw-border)}
+  .ex-parts{flex:1;display:flex;min-width:0}
+  .ex-pbtn{flex:1;display:flex;align-items:center;gap:10px;background:transparent;border:0;border-top:4px solid var(--aw-border-2);padding:12px 18px;cursor:pointer;font-family:var(--aw-font-body);color:var(--aw-ink-2);text-align:left;min-width:0}
+  .ex-pbtn b{font-size:.95rem;font-weight:500}
+  .ex-pbtn i{font-style:normal;width:18px;color:transparent;font-weight:800}
   .ex-pbtn span{font-size:.78rem;color:var(--aw-ink-3);font-variant-numeric:tabular-nums}
-  .ex-pbtn.on{border-color:var(--aw-primary);background:var(--aw-primary-lt)}
-  .ex-pbtn.on span{color:var(--aw-primary-hv)}
+  .ex-pbtn.done{border-top-color:#16825B}.ex-pbtn.done i{color:#16825B}
+  .ex-pbtn.on{background:var(--aw-primary-lt);color:var(--aw-ink)}.ex-pbtn.on b{font-weight:800}
+  .ex-pbtn.on:not(.done){border-top-color:var(--aw-primary)}
+  .ex-acts{display:flex;align-items:center;gap:8px;padding:8px 0}
   .ex-sp{flex:1}
   .ex-nav{width:42px;height:42px;border-radius:50%;border:0;background:var(--aw-primary-dk);color:#fff;font-size:1.1rem;cursor:pointer}
   .ex-nav:disabled{opacity:.3;cursor:default}
@@ -64,7 +83,7 @@
     .ex-timer{order:3;margin:0;flex:1 1 100%;justify-content:center}
     .ex-body{flex-direction:column;overflow-y:auto}.ex-div{display:none}
     .ex-q{flex:none;padding:16px}.ex-a{flex:none;padding:12px 16px}.ex-a textarea{min-height:52vh}
-    .ex-foot{flex-wrap:wrap}.ex-pbtn{flex:1}
+    .ex-foot{flex-wrap:wrap;padding:0}.ex-parts{flex:1 1 100%}.ex-acts{flex:1 1 100%;justify-content:flex-end;padding:8px 12px}
   }
 
   /* screens before and after the test */
@@ -92,6 +111,20 @@
   .ex-meta{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
   .ex-meta span{background:var(--aw-surface-2);border-radius:999px;padding:5px 12px;font-size:.82rem;font-weight:600}
   .ex-big{font-size:1.05rem;padding:14px 28px}
+  /* iOS-style switch */
+  .ex-switch{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:20px;background:var(--aw-surface-2);margin-top:6px;cursor:pointer}
+  .ex-switch input{position:absolute;opacity:0;width:0;height:0}
+  .ex-switch .sw{flex:0 0 auto;width:52px;height:32px;border-radius:999px;background:#C9CDE3;position:relative;transition:background .2s}
+  .ex-switch .sw:after{content:'';position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.2);transition:transform .2s}
+  .ex-switch input:checked + .sw{background:#34C759}
+  .ex-switch input:checked + .sw:after{transform:translateX(20px)}
+  .ex-switch input:focus-visible + .sw{box-shadow:var(--aw-ring)}
+  .ex-switch b{display:block;font-size:.98rem}.ex-switch small{display:block;color:var(--aw-ink-3);font-size:.8rem;margin-top:2px}
+  .ex-src{display:inline-block;font-size:.72rem;font-weight:800;border-radius:999px;padding:3px 10px}
+  .ex-src.teacher{background:var(--aw-primary-lt);color:var(--aw-primary-hv)}
+  .ex-src.random{background:#FFF1C7;color:#7A5A00}
+  .ex-src.own{background:#DDF3EA;color:#14633F}
+  .ex-randnote{margin-top:14px;padding:14px 16px;border-radius:16px;background:#FFF8EC;font-size:.88rem;line-height:1.55}
 
   /* overlays */
   .ex-ov{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(30,33,66,.72);padding:20px}
@@ -139,6 +172,8 @@ function newId(){ return 'TS-' + Date.now().toString(36) + Math.random().toStrin
 function words(t){ return AW.wordCount(t || ''); }
 function fmtWhen(){ var d = new Date(); return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(); }
 
+var SRC_LABEL = { teacher: 'Your teacher\'s test', random: 'Random questions', own: 'Your own questions' };
+function srcChip(src){ src = src || 'own'; return '<span class="ex-src ' + src + '">' + SRC_LABEL[src] + '</span>'; }
 function topBar(extra){
   return '<div class="ex-top"><div class="ex-brand"><i>' + AW.logoSVG + '</i><div><b>Writing App</b><small>Test Simulation</small></div></div>' +
     '<div class="ex-cand">' + AW.esc(sess.name || '') + '<small>' + AW.esc(sess.studentId || '') + '</small></div>' + (extra || '') + '</div>';
@@ -160,22 +195,27 @@ function wireKeyBar(after){
   };
 }
 
-/*═════════ 1. Set up: the student brings the two questions ═════════*/
+/*═════════ 1. Set up a test of one's own: typed or random questions ═════════*/
+var T1_RE = /\b(task\s*1|t1|chart|graph|table|map|process|diagram|pie|bar)\b/i;
+function libChart(q){ return q.chart || q.chartUrl || q.image || q.imageUrl || ''; }
 function showSetup(){
-  var chart = '';
+  var chart = '', lib = null, used = {}, random = false;
   app.innerHTML = topBar('<span class="ex-sp"></span><button class="ex-tb" style="padding:0 14px" onclick="backToList()">← Back</button>') +
     '<div class="ex-wrap"><div class="ex-card">' +
-      '<h1>New test</h1>' +
-      '<p class="ex-lead">Nhập đề của bài thi trước khi bắt đầu. Khi bấm <b>Start test</b>, màn hình chuyển sang toàn màn hình và đồng hồ <b>60 phút</b> bắt đầu chạy cho cả 2 phần. Hết giờ, bài tự nộp để AI chấm. Bạn được làm tối đa <b>3 lần</b> với cùng đề này.</p>' +
-      '<label class="aw-label" for="exTitle">Test name <span style="font-weight:400;color:var(--aw-ink-3)">— optional</span></label>' +
-      '<input class="aw-input" id="exTitle" maxlength="80" placeholder="e.g. Cambridge 18 — Test 2">' +
-      '<div class="ex-sec"><h3>Part 1 <span class="ex-pill t1">Task 1 · 150 words</span></h3>' +
+      '<h1>Create your own test</h1>' +
+      '<p class="ex-lead">Khi bấm <b>Start test</b>, màn hình chuyển sang toàn màn hình và đồng hồ <b>60 phút</b> bắt đầu chạy cho cả 2 phần. Hết giờ, bài tự nộp để AI chấm. Bạn được làm tối đa <b>3 lần</b> với cùng đề.</p>' +
+      '<label class="ex-switch" for="exRand"><input type="checkbox" id="exRand"><span class="sw"></span>' +
+        '<span><b>Random questions</b><small>Lấy đề ngẫu nhiên từ Library — bạn chỉ thấy đề khi bắt đầu thi, như thi thật.</small></span></label>' +
+      '<div style="margin-top:16px"><label class="aw-label" for="exTitle">Test name <span style="font-weight:400;color:var(--aw-ink-3)">— optional</span></label>' +
+      '<input class="aw-input" id="exTitle" maxlength="80" placeholder="e.g. Cambridge 18 — Test 2"></div>' +
+      '<div id="exRandNote" class="ex-randnote" hidden></div>' +
+      '<div class="ex-sec" id="exSec1"><h3>Part 1 <span class="ex-pill t1">Task 1 · 150 words</span></h3>' +
         '<p class="ex-hint">The report question (chart, table, map, process…).</p>' +
         '<textarea id="exT1" placeholder="The chart below shows … Summarise the information by selecting and reporting the main features, and make comparisons where relevant."></textarea>' +
         '<div class="ex-drop" id="exDrop" tabindex="0"><div id="exDropTxt">📊 Thêm hình biểu đồ — bấm để chọn, kéo thả, hoặc dán (Ctrl+V)</div>' +
           '<input type="file" id="exFile" accept="image/*" hidden></div>' +
       '</div>' +
-      '<div class="ex-sec"><h3>Part 2 <span class="ex-pill t2">Task 2 · 250 words</span></h3>' +
+      '<div class="ex-sec" id="exSec2"><h3>Part 2 <span class="ex-pill t2">Task 2 · 250 words</span></h3>' +
         '<p class="ex-hint">The essay question.</p>' +
         '<textarea id="exT2" placeholder="Some people believe … To what extent do you agree or disagree?"></textarea>' +
       '</div>' +
@@ -184,6 +224,49 @@ function showSetup(){
         '<span style="font-size:.8rem;color:var(--aw-ink-3)">Bạn sẽ đọc hướng dẫn thi trước khi đồng hồ chạy.</span></div>' +
     '</div></div>';
   wireKeyBar();
+
+  // Library questions for the random option, minus the ones already used in a test
+  function loadLib(){
+    if (lib) return Promise.resolve(lib);
+    return Promise.all([AW.api('write.getLibrary', { studentId: sess.studentId, class: sess.class }),
+                        AW.api('write.getMyResults', { studentId: sess.studentId })]).then(function(r){
+      var t1 = [], t2 = [];
+      ((r[1] && r[1].data) || []).forEach(function(g){ if (g.mode === 'test' && g.test) { used[norm(g.test.t1)] = 1; used[norm(g.test.t2)] = 1; } });
+      ((r[0] && r[0].data) || []).forEach(function(top){
+        (top.questions || []).forEach(function(q){
+          var text = String(q.question || '').trim(); if (words(text) < 6) return;
+          var isT1 = T1_RE.test(String(q.taskType || '')) || !!libChart(q);
+          (isT1 ? t1 : t2).push({ text: text, chart: libChart(q), topic: top.topic });
+        });
+      });
+      lib = { t1: t1, t2: t2 };
+      return lib;
+    });
+  }
+  function norm(t){ return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function pick(list){
+    var fresh = list.filter(function(q){ return !used[norm(q.text)]; });
+    var from = fresh.length ? fresh : list;
+    return from[Math.floor(Math.random() * from.length)];
+  }
+  var note = document.getElementById('exRandNote'), sec1 = document.getElementById('exSec1'), sec2 = document.getElementById('exSec2');
+  function applyMode(){
+    sec2.hidden = random;
+    sec1.hidden = random && !!(lib && lib.t1.length);
+    note.hidden = !random;
+    if (!random) return;
+    if (!lib) { note.innerHTML = '<span class="aw-spin aw-spin-dark"></span> Loading the Library…'; return; }
+    note.innerHTML = '🎲 Part 2 sẽ được chọn ngẫu nhiên trong <b>' + lib.t2.length + '</b> đề Task 2 của Library' +
+      (lib.t1.length ? ', Part 1 trong <b>' + lib.t1.length + '</b> đề Task 1.' :
+        '.<br>Library chưa có đề Task 1 — hãy nhập đề Part 1 bên dưới.') +
+      ' Đề chỉ hiện khi bạn bấm <b>Start test</b>.';
+  }
+  document.getElementById('exRand').onchange = function(){
+    random = this.checked; applyMode();
+    if (random && !lib) loadLib().then(applyMode, function(){
+      AW.toast('Không tải được Library.', 'err'); random = false; document.getElementById('exRand').checked = false; applyMode();
+    });
+  };
 
   var drop = document.getElementById('exDrop'), file = document.getElementById('exFile');
   function setChart(f){
@@ -207,19 +290,27 @@ function showSetup(){
 
   document.getElementById('exNext').onclick = function(){
     var t1 = document.getElementById('exT1').value.trim(), t2 = document.getElementById('exT2').value.trim();
+    var r1 = null, r2 = null;
+    if (random) {
+      if (!lib) { AW.toast('Library đang tải, chờ một chút.', 'err'); return; }
+      if (!lib.t2.length) { AW.toast('Library chưa có đề Task 2.', 'err'); return; }
+      r2 = pick(lib.t2); t2 = r2.text;
+      if (lib.t1.length) { r1 = pick(lib.t1); t1 = r1.text; }
+    }
     if (words(t1) < 8) { AW.toast('Nhập đề Part 1 (Task 1).', 'err'); document.getElementById('exT1').focus(); return; }
     if (words(t2) < 8) { AW.toast('Nhập đề Part 2 (Task 2).', 'err'); document.getElementById('exT2').focus(); return; }
     if (!AW.geminiKey.get()) { AW.toast('Nhập Gemini API key trước — bài thi được AI chấm khi nộp.', 'err', 5000); return; }
-    var title = document.getElementById('exTitle').value.trim() || ('Test · ' + fmtWhen());
+    var title = document.getElementById('exTitle').value.trim() || ((random ? 'Random test · ' : 'Test · ') + fmtWhen());
     var btn = this;
     function ready(chartUrl, localChart){
       document.onpaste = null;
-      st = { v: 1, testId: newId(), title: title, t1: t1, t2: t2, chart: chartUrl || '', localChart: localChart || '',
-             attempt: 1, phase: 'ready' };
+      st = { v: 1, testId: newId(), source: random ? 'random' : 'own', title: title, t1: t1, t2: t2,
+             chart: chartUrl || '', localChart: localChart || '', attempt: 1, phase: 'ready' };
       saveState();
       showIntro();
     }
-    if (!chart) { ready(''); return; }
+    if (r1 && libChart(r1)) { ready(libChart(r1)); return; }
+    if (!chart || r1) { ready(''); return; }
     btn.disabled = true; btn.innerHTML = '<span class="aw-spin"></span> Uploading the chart…';
     // the chart is kept on Drive so retries and the teacher see the same picture
     AW.api('board.uploadImage', { dataUrl: chart, name: 'test-chart-' + Date.now() + '.jpg' }).then(function(res){
@@ -252,7 +343,7 @@ function showIntro(){
   app.innerHTML = topBar('<span class="ex-sp"></span><button class="ex-tb" style="padding:0 14px" id="exLeave">← Back</button>') +
     '<div class="ex-wrap"><div class="ex-card ex-ins">' +
       '<h1>IELTS Academic Writing</h1>' +
-      '<div class="ex-meta"><span>' + AW.esc(st.title) + '</span><span>Time: 1 hour</span><span>Attempt ' + st.attempt + ' of ' + MAX_ATTEMPTS + '</span></div>' +
+      '<div class="ex-meta"><span>' + AW.esc(st.title) + '</span><span>Time: 1 hour</span><span>Attempt ' + st.attempt + ' of ' + MAX_ATTEMPTS + '</span>' + srcChip(st.source) + '</div>' +
       '<h4>Instructions to candidates</h4><ul>' +
         '<li>Answer <b>both</b> parts.</li>' +
         '<li>You can change your answers at any time during the test.</li></ul>' +
@@ -268,7 +359,7 @@ function showIntro(){
     '</div></div>';
   wireKeyBar();
   document.getElementById('exLeave').onclick = function(){
-    if (st.attempt === 1 && !confirm('Bỏ bài thi này? Đề bạn đã nhập sẽ không được lưu.')) return;
+    if (st.attempt === 1 && st.source !== 'teacher' && !confirm('Bỏ bài thi này? Đề của bài sẽ không được lưu.')) return;
     clearState(); backToList();
   };
   document.getElementById('exStart').onclick = function(){
@@ -305,12 +396,13 @@ var CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 function showExam(){
   var chart = st.chart || st.localChart || '';
   function qpane(n, text, img){
+    var saved = st['qh' + n];   // highlights and notes made earlier in this sitting
     return '<div class="ex-q" id="exQ' + n + '"' + (n === 1 ? '' : ' hidden') + '>' +
-      '<div class="ex-qt">' + AW.esc(text) + '</div>' +
+      '<div class="ex-qt" id="exQt' + n + '">' + (saved || paperHtml(n, text)) + '</div>' +
       (img ? '<img src="' + AW.esc(img) + '" alt="Part 1 chart">' : '') + '</div>';
   }
   app.innerHTML = topBar(
-      '<button class="ex-timer" id="exTimer" title="Hide or show the time">' + CLOCK + '<span id="exTimeTxt">60 minutes left</span></button>' +
+      '<button class="ex-timer" id="exTimer" title="Hide or show the time">' + CLOCK + '<span id="exTimeTxt">1 hour remaining</span></button>' +
       '<div class="ex-tools"><button class="ex-tb" id="exFsm" title="Smaller text">A−</button><button class="ex-tb" id="exFsp" title="Larger text">A+</button></div>') +
     '<div class="ex-parthd" id="exPartHd"></div>' +
     '<div class="ex-body" id="exBody">' +
@@ -319,16 +411,16 @@ function showExam(){
       '<div class="ex-a">' +
         '<textarea id="exA1" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Part 1 answer"></textarea>' +
         '<textarea id="exA2" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Part 2 answer" hidden></textarea>' +
-        '<div class="ex-wc">Word count: <b id="exWc">0</b></div>' +
+        '<div class="ex-wc">Words: <b id="exWc">0</b></div>' +
       '</div>' +
     '</div>' +
-    '<div class="ex-foot">' +
-      '<button class="ex-pbtn on" data-p="1"><b>Part 1</b><span id="exN1">0 words</span></button>' +
-      '<button class="ex-pbtn" data-p="2"><b>Part 2</b><span id="exN2">0 words</span></button>' +
-      '<span class="ex-sp"></span>' +
+    '<div class="ex-foot"><div class="ex-parts">' +
+      '<button class="ex-pbtn on" data-p="1"><i>✓</i><b>Part 1</b><span id="exN1">0 words</span></button>' +
+      '<button class="ex-pbtn" data-p="2"><i>✓</i><b>Part 2</b><span id="exN2">0 words</span></button></div>' +
+      '<div class="ex-acts">' +
       '<button class="ex-nav" id="exPrev" title="Previous part" aria-label="Previous part">←</button>' +
       '<button class="ex-nav" id="exNx" title="Next part" aria-label="Next part">→</button>' +
-      '<button class="aw-btn aw-btn-primary ex-submit" id="exSubmit">✓ Submit test</button>' +
+      '<button class="aw-btn aw-btn-primary ex-submit" id="exSubmit">✓ Submit test</button></div>' +
     '</div>';
 
   var a1 = document.getElementById('exA1'), a2 = document.getElementById('exA2');
@@ -368,6 +460,7 @@ function showExam(){
   document.getElementById('exFsm').onclick = function(){ setFs(fs - 1); };
   document.getElementById('exFsp').onclick = function(){ setFs(fs + 1); };
   wireDivider();
+  wireMarks(1); wireMarks(2);
 
   go(1);
   counts();
@@ -380,6 +473,19 @@ function showExam(){
   if (FS_OK && !isFs()) setTimeout(function(){ if (!isFs() && st.phase === 'running') fsGate(false); }, 600);
 }
 
+/* The question as the paper prints it: framing lines in regular type, the
+   task itself in bold. Lines the student already typed are not repeated. */
+function paperHtml(n, text){
+  var body = String(text || '').trim()
+    .replace(/^\s*write about the following topic:?\s*/i, '')
+    .replace(/\s*give reasons for your answer[\s\S]*$/i, '')
+    .replace(/\s*write at least \d+ words\.?\s*$/i, '');
+  var paras = body.split(/\n\s*\n/).map(function(p){ return '<p class="ex-task">' + AW.esc(p.trim()) + '</p>'; }).join('');
+  if (n === 1) return paras + '<p>Write at least 150 words.</p>';
+  return '<p>Write about the following topic:</p>' + paras +
+    '<p>Give reasons for your answer and include any relevant examples from your own knowledge or experience.</p>' +
+    '<p>Write at least 250 words.</p>';
+}
 function go(n){
   cur = n;
   document.getElementById('exQ1').hidden = n !== 1; document.getElementById('exQ2').hidden = n !== 2;
@@ -397,16 +503,17 @@ function counts(){
   var n1 = words(document.getElementById('exA1').value), n2 = words(document.getElementById('exA2').value);
   document.getElementById('exN1').textContent = n1 + ' word' + (n1 === 1 ? '' : 's');
   document.getElementById('exN2').textContent = n2 + ' word' + (n2 === 1 ? '' : 's');
+  AW.els('.ex-pbtn').forEach(function(b){ b.classList.toggle('done', (+b.dataset.p === 1 ? n1 : n2) > 0); });
   document.getElementById('exWc').textContent = cur === 1 ? n1 : n2;
 }
 function render(){
   var left = st.endsAt - Date.now(), el = document.getElementById('exTimer'), tx = document.getElementById('exTimeTxt');
   if (!el) return;
-  if (left <= 0) { tx.textContent = '0 minutes left'; timeUp(); return; }
+  if (left <= 0) { tx.textContent = '0 minutes remaining'; timeUp(); return; }
   var mins = Math.ceil(left / 60000), s = Math.ceil(left / 1000);
   var text = left <= 5 * 60000
-    ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' left'
-    : mins + ' minute' + (mins === 1 ? '' : 's') + ' left';
+    ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' remaining'
+    : (mins === 60 ? '1 hour' : mins + ' minute' + (mins === 1 ? '' : 's')) + ' remaining';
   tx.textContent = timerHidden && left > 5 * 60000 ? 'Show time' : text;
   el.classList.toggle('hid', timerHidden && left > 5 * 60000);
   el.classList.toggle('warn', left <= 10 * 60000 && left > 5 * 60000);
@@ -415,7 +522,7 @@ function render(){
     if (!warned[w[0]] && left <= w[0] * 60000 && left > (w[0] - 1) * 60000) {
       warned[w[0]] = true;
       el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
-      banner(w[0] + ' minutes left', w[1]);
+      banner(w[0] + ' minutes remaining', w[1]);
     }
   });
 }
@@ -463,6 +570,85 @@ function fsGate(left){
   };
   var chk = setInterval(function(){ if (isFs() || ended) { clearInterval(chk); ov.remove(); } }, 400);
 }
+
+/* Highlight and notes on the question, as in the real test: select words →
+   Highlight / Add note; click a highlight → Add or edit the note / Clear.
+   They stay for this sitting, also over a reload. */
+var _pop = null;
+function closePop(){ if (_pop) { _pop.remove(); _pop = null; } }
+function saveMarks(n){ var el = document.getElementById('exQt' + n); if (el) { st['qh' + n] = el.innerHTML; saveState(); } }
+function placeNear(box, rect){
+  var top = rect.top - box.offsetHeight - 8;
+  if (top < 8) top = rect.bottom + 8;
+  box.style.top = Math.min(top, window.innerHeight - box.offsetHeight - 8) + 'px';
+  box.style.left = Math.max(8, Math.min(window.innerWidth - box.offsetWidth - 8, rect.left + rect.width / 2 - box.offsetWidth / 2)) + 'px';
+}
+function popAt(rect, buttons){
+  closePop();
+  var p = document.createElement('div'); p.className = 'ex-pop';
+  buttons.forEach(function(b){
+    var x = document.createElement('button'); x.type = 'button'; x.textContent = b[0];
+    x.onmousedown = function(e){ e.preventDefault(); };     // keep the selection
+    x.onclick = function(){ closePop(); b[1](); };
+    p.appendChild(x);
+  });
+  document.body.appendChild(p); placeNear(p, rect); _pop = p;
+}
+function setNote(marks, text){
+  marks.forEach(function(m, i){
+    if (text && i === 0) { m.dataset.note = text; m.classList.add('nt'); m.title = text; }
+    else { delete m.dataset.note; m.classList.remove('nt'); m.removeAttribute('title'); }
+  });
+}
+function noteBox(marks, n){
+  closePop();
+  var m = marks[0], b = document.createElement('div'); b.className = 'ex-note';
+  b.innerHTML = '<textarea placeholder="Your note…" aria-label="Note"></textarea>' +
+    '<div><button type="button" class="aw-btn aw-btn-ghost" data-a="x">Delete note</button><button type="button" class="aw-btn aw-btn-primary" data-a="ok">Save</button></div>';
+  document.body.appendChild(b); placeNear(b, m.getBoundingClientRect()); _pop = b;
+  var ta = b.querySelector('textarea'); ta.value = m.dataset.note || ''; ta.focus();
+  b.querySelector('[data-a="ok"]').onclick = function(){ setNote(marks, ta.value.trim()); saveMarks(n); closePop(); };
+  b.querySelector('[data-a="x"]').onclick = function(){ setNote(marks, ''); saveMarks(n); closePop(); };
+}
+function unwrap(m){ var p = m.parentNode; while (m.firstChild) p.insertBefore(m.firstChild, m); p.removeChild(m); p.normalize(); }
+// one <mark> per text node, so a selection across paragraphs stays valid HTML
+function wrapRange(r, root){
+  var sc = r.startContainer, so = r.startOffset, ec = r.endContainer, eo = r.endOffset, list = [];
+  var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  while (w.nextNode()) if (r.intersectsNode(w.currentNode)) list.push(w.currentNode);
+  var marks = [];
+  list.forEach(function(t){
+    var s = t === sc ? so : 0, e = t === ec ? eo : t.nodeValue.length;
+    if (s >= e || !t.nodeValue.slice(s, e).trim()) return;
+    if (t.parentNode.tagName === 'MARK') { marks.push(t.parentNode); return; }
+    if (e < t.nodeValue.length) t.splitText(e);
+    if (s > 0) t = t.splitText(s);
+    var m = document.createElement('mark'); t.parentNode.insertBefore(m, t); m.appendChild(t); marks.push(m);
+  });
+  return marks;
+}
+function wireMarks(n){
+  var q = document.getElementById('exQt' + n);
+  q.addEventListener('copy', function(){ insideClip = String(window.getSelection() || ''); });
+  q.addEventListener('mouseup', function(){
+    setTimeout(function(){
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+      var r = sel.getRangeAt(0);
+      if (!q.contains(r.commonAncestorContainer)) return;
+      function mark(){ var ms = wrapRange(r, q); sel.removeAllRanges(); saveMarks(n); return ms; }
+      popAt(r.getBoundingClientRect(), [['Highlight', mark], ['Add note', function(){ var ms = mark(); if (ms.length) noteBox(ms, n); }]]);
+    }, 0);
+  });
+  q.addEventListener('click', function(e){
+    var m = e.target.closest && e.target.closest('mark');
+    if (!m || !q.contains(m)) return;
+    var sel = window.getSelection(); if (sel && !sel.isCollapsed) return;
+    popAt(m.getBoundingClientRect(), [[m.dataset.note ? 'Edit note' : 'Add note', function(){ noteBox([m], n); }],
+                                      ['Clear', function(){ unwrap(m); saveMarks(n); }]]);
+  });
+}
+document.addEventListener('mousedown', function(e){ if (_pop && !_pop.contains(e.target)) closePop(); });
 
 function askSubmit(){
   var n1 = words(st.a1), n2 = words(st.a2);
@@ -551,7 +737,7 @@ function combine(){
   var r1 = st.graded.r1, r2 = st.graded.r2, s1 = r1.scores || {}, s2 = r2.scores || {};
   function w(k){ return AW.ieltsRound(((parseFloat(s1[k]) || 0) + 2 * (parseFloat(s2[k]) || 0)) / 3); }
   return {
-    test: true, overall: AW.examCombine(r1.overall, r2.overall), t1: r1.overall, t2: r2.overall,
+    test: true, source: st.source || 'own', overall: AW.examCombine(r1.overall, r2.overall), t1: r1.overall, t2: r2.overall,
     scores: { TR: w('TR'), CC: w('CC'), LR: w('LR'), GRA: w('GRA') },
     task1: Object.assign({}, r1, { prompt: st.t1, chart: st.chart || '', essay: st.a1 || '' }),
     task2: Object.assign({}, r2, { prompt: st.t2, essay: st.a2 || '' }),
@@ -568,7 +754,7 @@ function save(){
     tr: fb.scores.TR, cc: fb.scores.CC, lr: fb.scores.LR, gra: fb.scores.GRA,
     aiGrading: fb.overall, teacherGrading: '', t1Band: fb.t1, t2Band: fb.t2,
     essay: 'PART 1\n' + (st.a1 || '') + '\n\nPART 2\n' + (st.a2 || ''),
-    feedback: JSON.stringify(fb), test: { t1: st.t1, t2: st.t2, chart: st.chart || '' }
+    feedback: JSON.stringify(fb), test: { t1: st.t1, t2: st.t2, chart: st.chart || '' }, testSource: st.source || 'own'
   };
   var tries = 0;
   function go(){
@@ -603,7 +789,7 @@ function showResult(fb, n, lockMsg){
   var testId = st.testId;
   app.innerHTML = topBar() + '<div class="ex-wrap"><div class="ex-card">' +
     '<div class="ex-res-top"><div><h1>' + AW.esc(st.title) + '</h1>' +
-      '<div class="ex-meta"><span>Attempt ' + n + ' of ' + MAX_ATTEMPTS + '</span>' + (st.autoSubmitted ? '<span>Submitted when time was up</span>' : '') + '</div></div>' +
+      '<div class="ex-meta"><span>Attempt ' + n + ' of ' + MAX_ATTEMPTS + '</span>' + srcChip(st.source) + (st.autoSubmitted ? '<span>Submitted when time was up</span>' : '') + '</div></div>' +
       '<div class="ex-row" style="margin:0">' +
         (more ? '<button class="aw-btn aw-btn-primary" id="exRetry">↺ Try again (attempt ' + (n + 1) + ' of ' + MAX_ATTEMPTS + ')</button>' : '') +
         '<button class="aw-btn aw-btn-ghost" onclick="backToList()">Back to Test Simulation</button></div></div>' +
@@ -613,6 +799,21 @@ function showResult(fb, n, lockMsg){
   var r = document.getElementById('exRetry');
   if (r) r.onclick = function(){ location.href = 'exam.html?test=' + encodeURIComponent(testId); };
   window.scrollTo(0, 0);
+}
+
+// A test the teacher made for the class: its questions are shown only once the clock starts
+function openTeacherTest(id){
+  app.innerHTML = topBar() + '<div class="ex-wrap"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+  Promise.all([AW.api('write.getPrompt', { topicId: id }), AW.api('write.getAttemptCount', { studentId: sess.studentId, mode: 'test', topicId: id })])
+    .then(function(r){
+      var a = r[0] && r[0].data, done = (r[1] && r[1].data && r[1].data.count) || 0;
+      if (!a || a.mode !== 'test' || !a.test) { AW.toast('Không tìm thấy bài thi này.', 'err'); setTimeout(backToList, 1500); return; }
+      if (done >= MAX_ATTEMPTS) { AW.toast('Bạn đã làm đủ ' + MAX_ATTEMPTS + ' lần cho bài thi này.', 'err', 4000); setTimeout(backToList, 1800); return; }
+      st = { v: 1, testId: id, source: 'teacher', title: a.topic || 'Test', t1: a.test.t1 || '', t2: a.test.t2 || '',
+             chart: a.test.chart || '', attempt: done + 1, phase: 'ready' };
+      saveState();
+      showIntro();
+    });
 }
 
 /*═════════ Start: resume a running test, open a retry, or set up a new one ═════════*/
@@ -626,6 +827,7 @@ function boot(){
   }
   if (st && st.phase === 'submitted') { grade(); return; }
   var want = qp.get('test');
+  if (want && !/^TS-/.test(want)) { openTeacherTest(want); return; }
   if (want) {
     app.innerHTML = topBar() + '<div class="ex-wrap"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
     AW.api('write.getMyResults', { studentId: sess.studentId }).then(function(res){
@@ -633,7 +835,7 @@ function boot(){
       if (!g || !g.test) { AW.toast('Không tìm thấy bài thi này.', 'err'); setTimeout(backToList, 1500); return; }
       var done = (g.writes || []).length;
       if (g.cleared || done >= MAX_ATTEMPTS) { AW.toast('Bạn đã làm đủ ' + MAX_ATTEMPTS + ' lần cho bài thi này.', 'err', 4000); setTimeout(backToList, 1800); return; }
-      st = { v: 1, testId: want, title: g.topic || 'Test', t1: g.test.t1 || '', t2: g.test.t2 || '', chart: g.test.chart || '',
+      st = { v: 1, testId: want, source: g.source || 'own', title: g.topic || 'Test', t1: g.test.t1 || '', t2: g.test.t2 || '', chart: g.test.chart || '',
              attempt: done + 1, phase: 'ready' };
       saveState();
       showIntro();
