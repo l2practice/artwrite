@@ -1106,10 +1106,10 @@ function showTestSim(){
     }
     return h;
   }
-  function row(title, sub, g, topicId){
+  function row(title, sub, g, topicId, closed){
     var n=((g&&g.writes)||[]).length, ts=(g&&g.teacherScore)||{};
-    var act = (g&&g.cleared) || n>=3
-      ? '<span class="res-sub">'+((g&&g.cleared)?'Closed':'Done 3/3')+'</span>'
+    var act = (g&&g.cleared) || n>=3 || closed
+      ? '<span class="res-sub">'+(n>=3?'Done 3/3':'Closed')+'</span>'
       : '<button class="aw-btn '+(n?'aw-btn-ghost':'aw-btn-primary')+'" style="padding:8px 16px" onclick="location.href=\'exam.html?test='+encodeURIComponent(topicId)+'\'">'+(n?'↺ Try again ('+(n+1)+'/3)':'Start test')+'</button>';
     return '<div class="ts-row"><div class="ts-row-main"><b>'+AW.esc(title||'Test')+'</b>'+
         '<span>'+sub+(ts.overall?' · Teacher: '+AW.esc(String(ts.overall)):'')+'</span></div>'+
@@ -1122,13 +1122,17 @@ function showTestSim(){
     window._myGroups=r[0]||[];
     var mine=window._myGroups.filter(function(g){ return g.mode==='test'; });
     var byId={}; mine.forEach(function(g){ byId[g.topicId]=g; });
-    var tt=((r[1]&&r[1].data)||[]).slice().reverse();
+    var tt=((r[1]&&r[1].data)||[]).filter(function(a){ return a.test && a.test.t1 && a.test.t2; }).reverse();
     var tBox=document.getElementById('tsTeacher'), oBox=document.getElementById('tsList');
     if(!tBox||!oBox) return;
     tBox.innerHTML = tt.length
       ? '<div class="ts-list">'+tt.map(function(a){
-          var g=byId[a.topicId];
-          return row(a.topic, tsSrc('teacher')+' '+(a.createdAt?'Set '+AW.fmtDate(a.createdAt):''), g, a.topicId);
+          var g=byId[a.topicId], due;
+          if(a.isClosed) due='<span style="color:#475467;font-weight:700">Closed</span>'+(a.extendUntil||a.deadline?' since '+AW.fmtDate(a.extendUntil||a.deadline):'');
+          else if(a.isLate) due='<span style="color:#C2410C;font-weight:700">Past the deadline</span> · still open until '+AW.fmtDate(a.extendUntil)+' (counts as late)';
+          else if(a.deadline) due='Due '+AW.fmtDate(a.deadline)+(a.extendUntil?' · late until '+AW.fmtDate(a.extendUntil):'');
+          else due=a.createdAt?'Set '+AW.fmtDate(a.createdAt):'';
+          return row(a.topic, tsSrc('teacher')+' '+due, g, a.topicId, a.isClosed);
         }).join('')+'</div>'
       : '<div class="aw-empty" style="padding:20px">'+AW.icon('exam')+'<p>Your teacher has not set a test yet.</p></div>';
     var own=mine.filter(function(g){ return g.source!=='teacher'; });

@@ -322,6 +322,9 @@ function isPast(a, u) {
   const d = myDeadline(a, u);
   return a.mode === 'homework' && !!d && Date.now() > deadlineMs(d);
 }
+// Test Simulation set by the teacher: open until the deadline; after it,
+// students may still take it (marked late) until extendUntil; then it closes.
+function testClose(a) { return deadlineMs(a.extendUntil) || deadlineMs(a.deadline); }
 // Test Simulation questions: Part 1 (+ chart picture) and Part 2
 function testOf(q) {
   q = q || {};
@@ -335,6 +338,12 @@ function assignOut(a, u) {
     requiredAttempts: a.requiredAttempts, durationMin: a.durationMin, deadline: a.deadline,
     dataStatus: a.dataStatus || '', test: a.test || null, createdAt: a.createdAt || ''
   };
+  if (a.mode === 'test') {
+    const dl = deadlineMs(a.deadline), close = testClose(a), now = Date.now();
+    out.extendUntil = a.extendUntil || '';
+    out.isLate = !!dl && now > dl && !(close && now > close);
+    out.isClosed = !!close && now > close;
+  }
   if (u && u.role === 'student') {
     out.myDeadline = myDeadline(a, u);
     out.extended = out.myDeadline !== (a.deadline || '');
@@ -366,7 +375,8 @@ async function getPrompt(p) {
               chartImageId: a.chartImageId || '', minWords: a.minWords || 0,
               writingType: a.writingType || 'full_essay', aiNotes: a.aiNotes || '', durationMin: a.durationMin || '',
               mode: a.mode || '', deadline: myDeadline(a, u), isPastDeadline: isPast(a, u), dataStatus: a.dataStatus || '',
-              test: a.test || null, active: a.active !== false });
+              test: a.test || null, active: a.active !== false,
+              extendUntil: a.extendUntil || '', isClosed: a.mode === 'test' && !!testClose(a) && Date.now() > testClose(a) });
 }
 async function createAssignment(p) {
   const t = await teacher();
@@ -376,11 +386,13 @@ async function createAssignment(p) {
   const topicId = safeKey(p.topicId) || ('A' + Date.now().toString(36) + genId(4));
   if (p.mode === 'test') {
     // a Test Simulation the whole class takes: both parts, up to 3 attempts
-    const test = testOf(p.test);
+    const test = testOf(p.test), topic = String(p.topic || '').trim();
+    if (!topic) return fail('Nhập tên (title) cho bài thi.');
     if (!test.t1.trim() || !test.t2.trim()) return fail('Cần nhập đề cho cả Part 1 và Part 2.');
     await fs.doc('assignments/' + topicId).set({
-      topicId, mode: 'test', classId, teacherUid: t.uid, topic: p.topic || 'Test', prompt: test.t2, taskType: 'test',
-      test, requiredAttempts: 3, createdAt: nowIso(), active: true, dataStatus: ''
+      topicId, mode: 'test', classId, teacherUid: t.uid, topic, prompt: test.t2, taskType: 'test',
+      test, requiredAttempts: 3, deadline: p.deadline || '', extendUntil: p.extendUntil || '',
+      createdAt: nowIso(), active: true, dataStatus: ''
     });
     forget('assign|');
     return ok({ topicId, taskType: 'test' });
@@ -402,7 +414,8 @@ async function updateAssignment(p) {
   const ref = fs.doc('assignments/' + str(p.topicId));
   if (!(await ref.get()).exists) return fail('Assignment not found.');
   const patch = {};
-  ['topic', 'prompt', 'deadline', 'aiNotes'].forEach(k => { if (p[k] != null) patch[k] = p[k]; });
+  ['topic', 'prompt', 'deadline', 'aiNotes', 'extendUntil'].forEach(k => { if (p[k] != null) patch[k] = p[k]; });
+  if (p.topic != null && !String(p.topic).trim()) return fail('Title không được để trống.');
   if (p.minWords != null) patch.minWords = Number(p.minWords) || 0;
   if (p.requiredAttempts != null) patch.requiredAttempts = Number(p.requiredAttempts) || 1;
   if (p.test) { patch.test = testOf(p.test); patch.prompt = patch.test.t2; }
@@ -464,6 +477,12 @@ async function saveResult(p) {
       if (dl && Date.now() > dl + 2 * 3600000)
         return fail('Đã quá hạn nộp bài (deadline: ' + dlStr + '). Hãy xin giáo viên gia hạn.', { locked: true, overdue: true, attempt: prior });
     }
+    // a teacher's test closes at its last day; one started just before still gets its hour
+    if (asg && asg.mode === 'test') {
+      const close = testClose(asg);
+      if (close && Date.now() > close + 75 * 60000)
+        return fail('Bài thi này đã đóng (hạn cuối: ' + (asg.extendUntil || asg.deadline) + ').', { locked: true, attempt: prior });
+    }
     const attempt = prior + 1, ts = nowIso();
     const light = {
       id: subId, mode, topicId, topic: p.topic || '', taskType: p.taskType || 'task2', classId: u.classId,
@@ -477,6 +496,7 @@ async function saveResult(p) {
       // a teacher's test takes its questions from the assignment, not from the page
       light.test = ownTest ? testOf(p.test) : testOf(asg.test);
       light.source = ownTest ? (p.testSource === 'random' ? 'random' : 'own') : 'teacher';
+      if (!ownTest && asg.deadline && ms(light.startTime || ts) > deadlineMs(asg.deadline)) light.late = true;
       light.t1Band = p.t1Band != null ? p.t1Band : '';
       light.t2Band = p.t2Band != null ? p.t2Band : '';
     }
@@ -507,7 +527,7 @@ function groupKey(r) { return r.mode + '||' + str(r.topicId); }
 function writeOut(r) {
   return { attempt: Number(r.attempt) || '', timestamp: r.timestamp, startTime: r.startTime, finishTime: r.finishTime, duration: r.duration,
            overall: r.aiGrading, teacher: r.teacherGrading, tr: r.tr || '', cc: r.cc || '', lr: r.lr || '', gra: r.gra || '',
-           t1: r.t1Band != null ? r.t1Band : '', t2: r.t2Band != null ? r.t2Band : '' };
+           t1: r.t1Band != null ? r.t1Band : '', t2: r.t2Band != null ? r.t2Band : '', late: !!r.late };
 }
 function bestOf(writes) {
   let best = null;
