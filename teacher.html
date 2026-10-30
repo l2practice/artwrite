@@ -2489,10 +2489,10 @@ function renderResults(){
       if(!x){ chips+='<span class="res-try none"><b>–</b><span>Not yet</span></span>'; continue; }
       var band=x.overall||x.teacher||'—';
       var tip='Attempt '+(i+1)+(x.startTime?' · '+when(x.startTime):'')+
-              (g.taskType==='test'?'\nPart 1 '+(x.t1||'—')+' · Part 2 '+(x.t2||'—'):'\nTR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—'))+
+              (g.taskType==='test'?'\nPart 1 '+(x.t1||'—')+' · Part 2 '+(x.t2||'—')+(x.late?' · LATE':''):'\nTR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—'))+
               (docUrl?'\nData cleared — opens the Google Doc':'');
       chips+='<button type="button" class="res-try'+(i===bestI?' best':'')+'" data-open-key="'+AW.esc(gkey)+'" data-open-wi="'+i+'" title="'+AW.esc(tip)+'">'+
-             '<b>'+AW.esc(String(band))+'</b><span>'+(dur(x.duration)||(docUrl?'Doc':'&nbsp;'))+'</span></button>';
+             '<b>'+AW.esc(String(band))+'</b><span>'+(x.late?'<b style="font-size:inherit;color:#C2410C">Late</b> ':'')+(dur(x.duration)||(docUrl?'Doc':'&nbsp;'))+'</span></button>';
     }
     var chg = change===null ? '<span class="res-chg" style="color:var(--aw-ink-3)">–</span>'
       : '<span class="res-chg" style="color:'+(change>0?'#16825B':change<0?'#C2410C':'var(--aw-ink-2)')+'">'+
@@ -2924,14 +2924,19 @@ function loadTestList(){
       return;
     }
     function cut(t){ t=String(t||'').replace(/\s+/g,' ').trim(); return AW.esc(t.slice(0,110))+(t.length>110?'…':''); }
-    b.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Title</th><th>Part 1</th><th>Part 2</th><th>Created</th></tr></thead><tbody>'+
+    b.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Title</th><th>Part 1</th><th>Part 2</th><th>Deadline</th><th>Open until</th></tr></thead><tbody>'+
       _testRows.map(function(a,i){
-        var t=a.test||{};
+        var t=a.test||{}, missing=!t.t1||!t.t2;
+        var state = a.isClosed ? ' <span class="aw-tag" style="background:#F2F4F7;color:#475467;font-size:.7rem;font-weight:700">Closed</span>'
+                  : a.isLate ? ' <span class="aw-tag" style="background:#FFF1C7;color:#7A5A00;font-size:.7rem;font-weight:700">Late window</span>' : '';
         return '<tr class="aw-test-row" style="cursor:pointer" data-i="'+i+'">'+
-          '<td style="max-width:200px;white-space:normal"><b>'+AW.esc(a.topic||'Test')+'</b></td>'+
-          '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:280px;white-space:normal">'+(t.chart?'📊 ':'')+cut(t.t1)+'</td>'+
-          '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:280px;white-space:normal">'+cut(t.t2)+'</td>'+
-          '<td>'+(a.createdAt?AW.fmtDate(a.createdAt):'—')+'</td></tr>';
+          '<td style="max-width:200px;white-space:normal"><b>'+AW.esc(a.topic||'Test')+'</b>'+state+'</td>'+
+          (missing
+            ? '<td colspan="2" style="color:#B42318;font-size:.84rem;white-space:normal">⚠ Bài này chưa có đề (tạo bằng bản cũ của app) — bấm để nhập lại đề, sinh viên mới thấy được.</td>'
+            : '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:280px;white-space:normal">'+(t.chart?'📊 ':'')+cut(t.t1)+'</td>'+
+              '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:280px;white-space:normal">'+cut(t.t2)+'</td>')+
+          '<td>'+(a.deadline?AW.fmtDate(a.deadline):'—')+'</td>'+
+          '<td>'+(a.extendUntil?AW.fmtDate(a.extendUntil):'—')+'</td></tr>';
       }).join('')+'</tbody></table></div>';
     AW.els('.aw-test-row').forEach(function(r){ r.onclick=function(){ openTestModal(_testRows[+r.dataset.i]); }; });
   });
@@ -2939,18 +2944,27 @@ function loadTestList(){
 function openTestModal(a){
   if(!curClass()){ AW.toast('Chọn lớp trước.','err'); return; }
   var t=(a&&a.test)||{}, chart=t.chart||'', chartData='';
+  var dl=String((a&&a.deadline)||''), dlVal=dl?dl.slice(0,16):'', exVal=String((a&&a.extendUntil)||'').slice(0,10);
+  var clsName=(curClassObj()&&curClassObj().className)||curClass();
   var old=document.getElementById('testModal'); if(old) old.remove();
   var bg=document.createElement('div'); bg.className='aw-modal-bg show'; bg.id='testModal';
   bg.innerHTML='<div class="aw-amodal" style="max-width:760px!important">'+
     '<h2 style="margin:0 0 4px">'+(a?'Edit test':'New Test')+'</h2>'+
-    '<p class="aw-auth-sub" style="margin:0 0 16px">Sinh viên làm cả 2 phần trong một lần thi 60 phút (toàn màn hình), tối đa 3 lần. Đề chỉ hiện khi sinh viên bấm Start.</p>'+
-    '<div class="aw-field"><label class="aw-label">Title</label><input class="aw-input" id="tmTitle" maxlength="80" placeholder="e.g. Mock test 1" value="'+AW.esc((a&&a.topic)||'')+'"></div>'+
+    '<p class="aw-auth-sub" style="margin:0 0 16px">Lớp <b>'+AW.esc(clsName)+'</b> · Sinh viên làm cả 2 phần trong một lần thi 60 phút (toàn màn hình), tối đa 3 lần. Đề chỉ hiện khi sinh viên bấm Start.</p>'+
+    '<div class="aw-field"><label class="aw-label">Title <span style="color:var(--aw-danger)">*</span></label><input class="aw-input" id="tmTitle" maxlength="80" placeholder="e.g. Mock test 1" value="'+AW.esc((a&&a.topic)||'')+'"></div>'+
     '<div class="aw-field"><label class="aw-label">Part 1 — Task 1 question</label>'+
       '<textarea class="aw-input" id="tmT1" rows="4" style="resize:vertical" placeholder="The chart below shows … Summarise the information by selecting and reporting the main features, and make comparisons where relevant.">'+AW.esc(t.t1||'')+'</textarea>'+
       '<div id="tmDrop" style="margin-top:8px;border:2px dashed var(--aw-border);border-radius:12px;padding:14px;text-align:center;cursor:pointer;font-size:.85rem;color:var(--aw-ink-2)"></div>'+
       '<input type="file" id="tmFile" accept="image/*" hidden></div>'+
     '<div class="aw-field"><label class="aw-label">Part 2 — Task 2 question</label>'+
       '<textarea class="aw-input" id="tmT2" rows="4" style="resize:vertical" placeholder="Some people believe … To what extent do you agree or disagree?">'+AW.esc(t.t2||'')+'</textarea></div>'+
+    '<div style="display:flex;gap:12px;flex-wrap:wrap">'+
+      '<div class="aw-field" style="flex:1;min-width:220px"><label class="aw-label">Deadline <span style="font-weight:400;color:var(--aw-ink-3)">— optional</span></label>'+
+        '<input type="datetime-local" class="aw-input" id="tmDl" value="'+AW.esc(dlVal)+'"></div>'+
+      '<div class="aw-field" style="flex:1;min-width:220px"><label class="aw-label">Auto-extend until <span style="font-weight:400;color:var(--aw-ink-3)">— optional</span></label>'+
+        '<input type="date" class="aw-input" id="tmEx" value="'+AW.esc(exVal)+'"></div>'+
+    '</div>'+
+    '<p style="margin:-4px 0 14px;font-size:.8rem;color:var(--aw-ink-3);line-height:1.5">Sau deadline, sinh viên vẫn làm được (ghi là <b>nộp trễ</b>) đến hết ngày gia hạn — không cần xin. Qua ngày đó bài đóng, không gia hạn thêm. Để trống ngày gia hạn: bài đóng ngay tại deadline.</p>'+
     '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px">'+
       (a?'<button class="aw-btn aw-btn-ghost" id="tmDel" style="color:#D93025;margin-right:auto">Delete</button>':'')+
       '<button class="aw-btn aw-btn-ghost" id="tmCancel">Cancel</button>'+
@@ -2996,7 +3010,12 @@ function openTestModal(a){
   document.getElementById('tmSave').onclick=function(){
     var btn=this, title=document.getElementById('tmTitle').value.trim();
     var t1=document.getElementById('tmT1').value.trim(), t2=document.getElementById('tmT2').value.trim();
+    var dlIn=document.getElementById('tmDl').value, exIn=document.getElementById('tmEx').value;
+    if(!title){ AW.toast('Nhập title cho bài thi.','err'); document.getElementById('tmTitle').focus(); return; }
     if(!t1||!t2){ AW.toast('Nhập đề cho cả Part 1 và Part 2.','err'); return; }
+    if(exIn && !dlIn){ AW.toast('Đặt deadline trước khi chọn ngày gia hạn.','err'); return; }
+    if(exIn && exIn < dlIn.slice(0,10)){ AW.toast('Ngày gia hạn phải sau deadline.','err'); return; }
+    var deadline=dlIn?dlIn+':00':'';
     btn.disabled=true; btn.innerHTML='<span class="aw-spin"></span> Saving…';
     var up = chartData
       ? AW.api('board.uploadImage',{dataUrl:chartData, name:'test-chart-'+Date.now()+'.jpg'}).then(function(r){
@@ -3006,8 +3025,8 @@ function openTestModal(a){
       : Promise.resolve(chart);
     up.then(function(url){
       var test={t1:t1,t2:t2,chart:url||''};
-      return a ? AW.api('teacher.updateAssignment',{topicId:a.topicId, topic:title||a.topic||'Test', test:test})
-               : AW.api('teacher.createAssignment',{class:curClass(), mode:'test', topic:title||'Test', test:test});
+      return a ? AW.api('teacher.updateAssignment',{topicId:a.topicId, topic:title, test:test, deadline:deadline, extendUntil:exIn})
+               : AW.api('teacher.createAssignment',{class:curClass(), mode:'test', topic:title, test:test, deadline:deadline, extendUntil:exIn});
     }).then(function(res){
       if(res&&res.success){ AW.toast(a?'Đã lưu':'Đã tạo bài thi','ok'); close();
         var tab=document.querySelector('[data-amode="test"]'); if(tab) tab.click(); else loadTestList(); }

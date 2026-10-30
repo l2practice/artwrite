@@ -807,7 +807,8 @@ function openTeacherTest(id){
   Promise.all([AW.api('write.getPrompt', { topicId: id }), AW.api('write.getAttemptCount', { studentId: sess.studentId, mode: 'test', topicId: id })])
     .then(function(r){
       var a = r[0] && r[0].data, done = (r[1] && r[1].data && r[1].data.count) || 0;
-      if (!a || a.mode !== 'test' || !a.test) { AW.toast('Không tìm thấy bài thi này.', 'err'); setTimeout(backToList, 1500); return; }
+      if (!a || a.mode !== 'test' || !a.test || !a.test.t2) { AW.toast('Không tìm thấy bài thi này.', 'err'); setTimeout(backToList, 1500); return; }
+      if (a.isClosed) { AW.toast('Bài thi này đã đóng.', 'err', 4000); setTimeout(backToList, 1800); return; }
       if (done >= MAX_ATTEMPTS) { AW.toast('Bạn đã làm đủ ' + MAX_ATTEMPTS + ' lần cho bài thi này.', 'err', 4000); setTimeout(backToList, 1800); return; }
       st = { v: 1, testId: id, source: 'teacher', title: a.topic || 'Test', t1: a.test.t1 || '', t2: a.test.t2 || '',
              chart: a.test.chart || '', attempt: done + 1, phase: 'ready' };
