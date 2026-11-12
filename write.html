@@ -47,7 +47,11 @@
   .aw-editor img,.aw-editor iframe,.aw-editor svg,.aw-editor video,.aw-editor object,.aw-editor embed,.aw-editor canvas,.aw-editor dialog,.aw-editor button,.aw-editor input{display:none!important}
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
-  .aw-timer{position:fixed;top:14px;right:18px;z-index:900;box-shadow:var(--aw-shadow-lg);font-weight:700;font-family:var(--aw-font-display);color:#fff;background:var(--aw-primary-dk);padding:6px 14px;border-radius:999px;font-variant-numeric:tabular-nums}
+  .aw-timer{position:fixed;top:14px;right:18px;z-index:900;font-weight:800;font-size:1.35rem;font-family:var(--aw-font-display);color:#1E2142;background:#FFB020;padding:10px 20px;border-radius:999px;border:3px solid #fff;box-shadow:0 8px 26px rgba(30,33,66,.35);font-variant-numeric:tabular-nums}
+  .aw-timer.low{background:#D93025;color:#fff}
+  .aw-timer.last{background:#B42318;color:#fff;animation:awTimerPulse 1s ease-in-out infinite}
+  @keyframes awTimerPulse{50%{transform:scale(1.08)}}
+  @media (prefers-reduced-motion:reduce){.aw-timer.last{animation:none}}
   .aw-mini{border:none;background:var(--aw-surface-2);color:var(--aw-ink-2);border-radius:999px;padding:6px 12px;font:600 .78rem var(--aw-font-body);cursor:pointer;white-space:nowrap}
   .aw-mini:hover{background:var(--aw-primary-lt);color:var(--aw-primary-hv)}
   .aw-notes-drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);z-index:950;background:var(--aw-surface);box-shadow:var(--aw-shadow-lg);padding:18px 18px 24px;overflow-y:auto;box-sizing:border-box}
@@ -644,7 +648,7 @@ if (DURATION_MIN) {
     if (remain <= 0) {
       clearInterval(_cdTick); _cdTick = null;
       _timeUp = true;
-      if (tEl) { tEl.textContent = '⏱ 0:00'; tEl.style.color = '#B42318'; tEl.style.fontWeight = '900'; }
+      if (tEl) { tEl.textContent = '⏱ 0:00'; tEl.className = 'aw-timer last'; }
       // REQ: just show warning, do NOT auto-submit
       if (writePhase !== 'graded') {
         showTimeUpWarning();
@@ -654,8 +658,7 @@ if (DURATION_MIN) {
     var m = Math.floor(remain/60), s = remain % 60;
     if (tEl) {
       tEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
-      if (remain <= 60)   { tEl.style.color = '#B42318'; tEl.style.fontWeight = '900'; }
-      else if (remain <= 300) tEl.style.color = '#D93025';
+      tEl.className = 'aw-timer' + (remain <= 60 ? ' last' : remain <= 300 ? ' low' : '');
     }
     if (remain === 600) AW.toast('⏰ Còn 10 phút — hãy hoàn thiện bài nhé!', 'err', 4000);
     if (remain === 300) AW.toast('⚠️ Còn 5 phút — chuẩn bị kết bài!', 'err', 4000);
