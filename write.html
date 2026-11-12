@@ -36,7 +36,7 @@
   .aw-grade-bar{height:8px;background:var(--aw-surface-2);border-radius:5px;overflow:hidden;margin:6px 0}
   .aw-grade-fill{height:100%;width:0;background:linear-gradient(90deg,#5661E0,#7C84EE);border-radius:5px;transition:width .6s ease}
   .aw-grade-sub{font-size:.82rem;color:var(--aw-ink-3);margin:12px 0 0}
-  .aw-editor{min-height:calc(100vh - 300px);border:none;border-radius:16px;padding:14px 26px 24px 64px;font-family:var(--aw-font-essay);font-size:1.12rem;line-height:34px;color:var(--aw-ink);outline:none;overflow-y:auto;resize:none;white-space:pre-wrap;
+  .aw-editor{min-height:max(260px,calc(100vh - 420px));border:none;border-radius:16px;padding:14px 26px 24px 64px;font-family:var(--aw-font-essay);font-size:1.12rem;line-height:34px;color:var(--aw-ink);outline:none;overflow-y:auto;resize:none;white-space:pre-wrap;
     background-color:var(--aw-surface);
     background-image:linear-gradient(90deg,transparent 44px,#F6C9C0 44px,#F6C9C0 46px,transparent 46px),
                      repeating-linear-gradient(180deg,transparent 0,transparent 33px,#E7E9FB 33px,#E7E9FB 34px);
@@ -46,13 +46,20 @@
   .aw-editor *{position:static!important;float:none!important;transform:none!important;max-width:100%}
   .aw-editor img,.aw-editor iframe,.aw-editor svg,.aw-editor video,.aw-editor object,.aw-editor embed,.aw-editor canvas,.aw-editor dialog,.aw-editor button,.aw-editor input{display:none!important}
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
-  .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
-  .aw-timer{position:fixed;top:14px;right:18px;z-index:900;font-weight:800;font-size:1.35rem;font-family:var(--aw-font-display);color:#1E2142;background:#FFB020;padding:10px 20px;border-radius:999px;border:3px solid #fff;box-shadow:0 8px 26px rgba(30,33,66,.35);font-variant-numeric:tabular-nums}
+  .aw-write-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0;white-space:nowrap;font-size:.85rem;color:var(--aw-ink-2)}
+  /* action row: buttons keep their own width (the primary one no longer
+     stretches with the pane); the clock sits beside them and floats in the
+     corner once the row is scrolled out of view */
+  .aw-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .aw-actions .aw-btn{flex:0 1 auto;min-width:min(200px,45%);min-height:48px}
+  .aw-actions svg,.aw-mini svg{width:18px;height:18px;flex:0 0 auto}
+  .aw-timer{display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;min-height:48px;padding:0 20px;border-radius:999px;font:800 1.2rem var(--aw-font-display);color:#1E2142;background:#FFB020;font-variant-numeric:tabular-nums}
+  .aw-timer.float{position:fixed;top:14px;right:18px;z-index:900;border:3px solid #fff;box-shadow:0 8px 26px rgba(30,33,66,.35)}
   .aw-timer.low{background:#D93025;color:#fff}
   .aw-timer.last{background:#B42318;color:#fff;animation:awTimerPulse 1s ease-in-out infinite}
-  @keyframes awTimerPulse{50%{transform:scale(1.08)}}
+  @keyframes awTimerPulse{50%{transform:scale(1.06)}}
   @media (prefers-reduced-motion:reduce){.aw-timer.last{animation:none}}
-  .aw-mini{border:none;background:var(--aw-surface-2);color:var(--aw-ink-2);border-radius:999px;padding:6px 12px;font:600 .78rem var(--aw-font-body);cursor:pointer;white-space:nowrap}
+  .aw-mini{display:inline-flex;align-items:center;gap:6px;min-height:36px;border:none;background:var(--aw-surface-2);color:var(--aw-ink-2);border-radius:999px;padding:6px 14px;font:600 .78rem var(--aw-font-body);cursor:pointer;white-space:nowrap}
   .aw-mini:hover{background:var(--aw-primary-lt);color:var(--aw-primary-hv)}
   .aw-notes-drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);z-index:950;background:var(--aw-surface);box-shadow:var(--aw-shadow-lg);padding:18px 18px 24px;overflow-y:auto;box-sizing:border-box}
   .aw-side-panel{background:var(--aw-surface);border-left:none;padding:18px;height:calc(100vh - 140px);overflow-y:auto;position:sticky;top:0;display:flex;flex-direction:column}
@@ -294,7 +301,7 @@ content.innerHTML =
           ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
           : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
         return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt '+ttBadge+
-          ' <button type="button" class="aw-mini" id="copyPrompt" style="float:right;margin-top:-4px">⧉ Copy prompt</button></h4>' +
+          ' <button type="button" class="aw-mini" id="copyPrompt" style="float:right;margin-top:-6px">'+AW.icon('copy')+'Copy prompt</button></h4>' +
           '<div class="aw-prompt-text">'+AW.esc(AW.stripHtml(PROMPT))+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +
@@ -317,13 +324,13 @@ content.innerHTML =
       '</div>' +
       '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
       '<div class="aw-write-meta"><span id="wc">0 words</span>' +
-        '<button type="button" class="aw-mini" id="copyEssay">⧉ Copy essay</button>' +
-        '<button type="button" class="aw-mini" id="openNotes">📒 My notes</button>' +
-        (DURATION_MIN ? '<span class="aw-timer" id="timer">⏱ '+DURATION_MIN+':00</span>' : '') +
+        '<button type="button" class="aw-mini" id="copyEssay">'+AW.icon('copy')+'Copy essay</button>' +
+        '<button type="button" class="aw-mini" id="openNotes">'+AW.icon('pen')+'My notes</button>' +
       '</div>' +
-      '<div style="display:flex;gap:8px">' +
-        '<button class="aw-btn aw-btn-ghost" id="pauseBtn" style="flex:0 0 auto;padding:12px 18px" title="Save your draft and continue later">⏸ Pause &amp; Save</button>' +
-        '<button class="aw-btn aw-btn-primary" id="gradeBtn" style="flex:1">'+(AW_AI_ON?'Get AI feedback':'Submit')+'</button>' +
+      '<div class="aw-actions">' +
+        '<button class="aw-btn aw-btn-ghost" id="pauseBtn" title="Save your draft and continue later">'+AW.icon('pause')+'Pause &amp; Save</button>' +
+        '<button class="aw-btn aw-btn-primary" id="gradeBtn">'+(AW_AI_ON?'Get AI feedback':'Submit')+'</button>' +
+        (DURATION_MIN ? '<span class="aw-timer" id="timer" role="timer" aria-label="Time left">'+AW.icon('clock')+'<span id="timerTxt">'+DURATION_MIN+':00</span></span>' : '') +
       '</div>' +
     '</div>' +  /* end aw-write-pane-left */
     '<div class="aw-write-divider" id="writeDivider" title="Kéo để thay đổi kích thước"></div>' +
@@ -575,6 +582,7 @@ window.pauseWriting = function(){
 // clear draft after successful submission
 window.clearDraft = function(){
   try { localStorage.removeItem(DRAFT_KEY); localStorage.removeItem(TIMER_KEY); } catch(e){}
+  var t = document.getElementById('timer'); if (t) t.style.display = 'none';   // the attempt is in: its clock is done
 };
 
 /*──────── leaving by mistake, copy, notes ────────*/
@@ -641,14 +649,16 @@ var _timeUp  = false;
 var TIMER_KEY = 'aw_timer_' + MODE + '_' + TOPIC_ID;   // seconds left, kept with the draft
 if (DURATION_MIN) {
   var remain = (!RETRY && parseInt(localStorage.getItem(TIMER_KEY), 10)) || DURATION_MIN * 60;
-  var tEl = document.getElementById('timer');
+  var tEl = document.getElementById('timer'), tTxt = document.getElementById('timerTxt');
+  if (tEl && window.IntersectionObserver)
+    new IntersectionObserver(function(en){ tEl.classList.toggle('float', en[0].intersectionRatio < 0.9); }, { threshold: 0.9 }).observe(tEl.parentNode);
   _cdTick = setInterval(function(){
     remain--;
     try { localStorage.setItem(TIMER_KEY, Math.max(remain, 1)); } catch(e){}
     if (remain <= 0) {
       clearInterval(_cdTick); _cdTick = null;
       _timeUp = true;
-      if (tEl) { tEl.textContent = '⏱ 0:00'; tEl.className = 'aw-timer last'; }
+      if (tEl) { tTxt.textContent = '0:00'; tEl.classList.add('last'); }
       // REQ: just show warning, do NOT auto-submit
       if (writePhase !== 'graded') {
         showTimeUpWarning();
@@ -657,8 +667,9 @@ if (DURATION_MIN) {
     }
     var m = Math.floor(remain/60), s = remain % 60;
     if (tEl) {
-      tEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
-      tEl.className = 'aw-timer' + (remain <= 60 ? ' last' : remain <= 300 ? ' low' : '');
+      tTxt.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+      tEl.classList.toggle('low', remain <= 300 && remain > 60);
+      tEl.classList.toggle('last', remain <= 60);
     }
     if (remain === 600) AW.toast('⏰ Còn 10 phút — hãy hoàn thiện bài nhé!', 'err', 4000);
     if (remain === 300) AW.toast('⚠️ Còn 5 phút — chuẩn bị kết bài!', 'err', 4000);
