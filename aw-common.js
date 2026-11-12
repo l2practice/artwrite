@@ -270,7 +270,7 @@
   AW.logoSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M5.4 18.6 6.39 15.21 16.15 5.45 18.55 7.85 8.79 17.61Z"/><path d="M6.39 15.21 8.79 17.61M14.95 6.65 17.35 9.05"/><path d="M5.4 18.6H13.1M15.5 18.6H17.7"/></svg>';
 
   AW.brandLockup = function () {
-    return '<a class="aw-logo" href="#"><span class="aw-logo-mark">' + AW.logoSVG +
+    return '<a class="aw-logo" href="#" aria-label="Writing App"><span class="aw-logo-mark">' + AW.logoSVG +
            '</span><span class="aw-logo-name">ArticuWrite</span></a>';
   };
 
@@ -476,7 +476,7 @@
         '</aside>' +
         '<div class="aw-main">' +
           '<header class="aw-topbar">' +
-            '<button class="aw-menu-btn" id="awMenuBtn">' + AW.icon('menu') + '</button>' +
+            '<button class="aw-menu-btn" id="awMenuBtn" aria-label="Menu">' + AW.icon('menu') + '</button>' +
             '<div><div class="aw-eyebrow">' + (opts.eyebrow || '') + '</div>' +
             '<h1 class="aw-page-title" id="awPageTitle">' + (opts.title || '') + '</h1></div>' +
             '<div class="aw-topbar-right" id="awTopRight"></div>' +
@@ -733,6 +733,31 @@
       cb(on);
     }).catch(function () { cb(true); });
   };
+
+  /*── Keyboard: cards and rows marked role="button" tabindex="0" answer
+     Enter and Space like real buttons.                                   */
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][tabindex]')) { e.preventDefault(); e.target.click(); }
+  });
+  /*── Phones show .aw-table rows as stacked cards (aw-theme.css); each cell
+     takes its column heading as a label. Tables are drawn in many places,
+     so they are labelled here as they appear.                            */
+  var _tblT = null;
+  function labelTables() {
+    document.querySelectorAll('.aw-table').forEach(function (t) {
+      var heads = [].map.call(t.querySelectorAll('thead th'), function (h) { return h.textContent.trim(); });
+      if (!heads.length) return;
+      t.querySelectorAll('tbody tr').forEach(function (tr) {
+        var col = 0;
+        [].forEach.call(tr.children, function (td) {
+          if (!td.hasAttribute('data-label')) td.setAttribute('data-label', td.colSpan > 1 ? '' : (heads[col] || ''));
+          col += td.colSpan || 1;
+        });
+      });
+    });
+  }
+  if (global.MutationObserver) new MutationObserver(function () { clearTimeout(_tblT); _tblT = setTimeout(labelTables, 80); })
+    .observe(document.documentElement, { childList: true, subtree: true });
 
   global.AW = AW;
 })(window);
