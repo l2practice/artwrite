@@ -70,11 +70,11 @@
         return '<p>' + (c.paragraph_role ? '<b>' + esc(c.paragraph_role) + ':</b> ' : '') + esc(c.assessment_vi || '') +
           (c.suggestion_en ? '<br><span class="tsr-sug">→ ' + esc(c.suggestion_en) + '</span>' : '') + '</p>';
       }).join('') + '</div>';
-    if ((t.gra_errors || []).length) h += '<div class="tsr-blk"><h4>Grammar</h4>' + t.gra_errors.slice(0, 10).map(function (e) {
+    if ((t.gra_errors || []).length) h += '<div class="tsr-blk"><h4>Grammar</h4>' + t.gra_errors.map(function (e) {
       return '<p><s>' + esc(e.wrong) + '</s> → <ins>' + esc(e.correct) + '</ins>' +
         (e.explanation_vi ? '<br><small>' + esc(e.explanation_vi) + '</small>' : '') + '</p>';
     }).join('') + '</div>';
-    if ((t.lr_issues || []).length) h += '<div class="tsr-blk"><h4>Lexical Resource</h4>' + t.lr_issues.slice(0, 8).map(function (e) {
+    if ((t.lr_issues || []).length) h += '<div class="tsr-blk"><h4>Lexical Resource</h4>' + t.lr_issues.map(function (e) {
       return '<p><s>' + esc(e.original) + '</s> → <ins>' + esc(e.better) + '</ins>' +
         (e.explanation_vi ? '<br><small>' + esc(e.explanation_vi) + '</small>' : '') + '</p>';
     }).join('') + '</div>';

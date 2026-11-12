@@ -509,6 +509,21 @@ async function saveResult(p) {
   });
 }
 
+// My notes (vocabulary + notes): kept in the student's own progress document
+async function notesGet() {
+  const u = await me();
+  const d = await fs.doc('progress/' + u.uid).get();
+  return ok((d.exists && d.data().notes) || { vocab: '', notes: '' });
+}
+async function notesSave(p) {
+  const u = await me();
+  if (u.role !== 'student') return fail('Chỉ sinh viên mới có ghi chú.');
+  const notes = { vocab: String(p.vocab || '').slice(0, 30000), notes: String(p.notes || '').slice(0, 30000), at: nowIso() };
+  const ref = fs.doc('progress/' + u.uid);
+  if ((await ref.get()).exists) await ref.update({ notes });
+  else await ref.set({ studentId: u.studentId, name: u.name || '', classId: u.classId, teacherUid: u.teacherUid || '', items: {}, tscore: {}, notes });
+  return ok();
+}
 async function getAttemptCount(p) {
   const u = await me();
   const d = await fs.doc('progress/' + u.uid).get();
@@ -1176,6 +1191,7 @@ const ACTIONS = {
   'student.archive': archiveStudent,
   'write.saveResult': saveResult, 'write.getAssignments': getAssignments, 'write.getPrompt': getPrompt,
   'write.getLibrary': getLibrary,
+  'notes.get': notesGet, 'notes.save': notesSave,
   'write.getAttemptCount': getAttemptCount, 'write.getMyResults': getMyResults, 'write.getEssay': getEssay,
   'teacher.getResults': getResults, 'teacher.getAttemptDetail': getAttemptDetail,
   'teacher.deleteAttempt': deleteAttempt, 'teacher.saveManualScore': saveManualScore,

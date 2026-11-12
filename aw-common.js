@@ -82,7 +82,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=9'); })
+        .then(function () { return loadScript('fbdata.js?v=10'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
@@ -338,7 +338,7 @@
       ['settings', 'Settings', 'settings'] ] },
     student: { home: 'student.html', items: [
       ['modes', 'Practice', 'modes'], ['test', 'Test', 'exam'], ['board', 'Board', 'board', 'board.html'], ['library', 'Library', 'library', 'library.html'],
-      ['progress', 'Progress', 'progress'], ['translate', 'Translate', 'translate'], ['qa', 'Q&A', 'chat'],
+      ['progress', 'Progress', 'progress'], ['notes', 'Notes', 'pen'], ['translate', 'Translate', 'translate'], ['qa', 'Q&A', 'chat'],
       ['settings', 'Settings', 'settings'] ] }
   };
   AW.navFor = function (role, active, onHome) {
@@ -349,6 +349,46 @@
       else if (!onHome) o.href = n.home + (it[0] === n.items[0][0] ? '' : '#' + it[0]);
       return o;
     });
+  };
+
+  /*── My notes: vocabulary + free notes, saved with the student's account
+     (student.html#notes and the drawer on the writing page). Export PDF gives
+     them a copy that outlives the class.                                   */
+  AW.notesPanel = function (el) {
+    el.innerHTML =
+      '<div style="max-width:860px">' +
+        '<label class="aw-label" for="awNtV">Vocabulary</label>' +
+        '<textarea class="aw-input" id="awNtV" rows="9" style="resize:vertical;width:100%;box-sizing:border-box" placeholder="word / collocation — nghĩa — ví dụ" disabled></textarea>' +
+        '<label class="aw-label" for="awNtN" style="margin-top:12px;display:block">Notes</label>' +
+        '<textarea class="aw-input" id="awNtN" rows="9" style="resize:vertical;width:100%;box-sizing:border-box" placeholder="Ghi chú của bạn…" disabled></textarea>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">' +
+          '<button type="button" class="aw-btn aw-btn-primary" id="awNtSave" disabled>Save</button>' +
+          '<button type="button" class="aw-btn aw-btn-ghost" id="awNtPdf">⤓ Export PDF</button>' +
+          '<span id="awNtSt" style="font-size:.82rem;color:var(--aw-ink-3)">Loading…</span></div></div>';
+    var v = el.querySelector('#awNtV'), n = el.querySelector('#awNtN'), st = el.querySelector('#awNtSt'),
+        btn = el.querySelector('#awNtSave'), t = null;
+    function save() {
+      clearTimeout(t); st.textContent = 'Saving…';
+      AW.api('notes.save', { vocab: v.value, notes: n.value }).then(function (res) {
+        st.textContent = res && res.success ? 'Saved ✓' : ((res && res.error) || 'Chưa lưu được — thử lại.');
+      }, function () { st.textContent = 'Chưa lưu được — kiểm tra mạng.'; });
+    }
+    // nothing can be typed (or saved over the stored notes) until they have loaded
+    AW.api('notes.get', {}).then(function (res) {
+      if (!res || !res.success) { st.textContent = (res && res.error) || 'Không tải được ghi chú.'; return; }
+      v.value = res.data.vocab || ''; n.value = res.data.notes || '';
+      v.disabled = n.disabled = btn.disabled = false; st.textContent = '';
+      [v, n].forEach(function (x) { x.oninput = function () { st.textContent = 'Not saved yet'; clearTimeout(t); t = setTimeout(save, 1500); }; });
+      btn.onclick = save;
+    }, function () { st.textContent = 'Không tải được ghi chú — kiểm tra mạng.'; });
+    el.querySelector('#awNtPdf').onclick = function () {
+      var s = AW.session.get() || {}, w = window.open('', '_blank');
+      if (!w) { AW.toast('Hãy cho phép cửa sổ bật lên để xuất PDF.', 'err'); return; }
+      w.document.write('<html><head><title>My Notes</title><style>body{font-family:system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h2{color:#5661E0;font-size:1.05rem;margin:22px 0 6px}pre{white-space:pre-wrap;font:inherit;line-height:1.6;margin:0}</style></head><body>' +
+        '<h1>My Notes</h1><p style="color:#62678A">' + AW.esc(s.name || '') + ' · ' + new Date().toLocaleDateString('vi-VN') + '</p>' +
+        '<h2>Vocabulary</h2><pre>' + AW.esc(v.value) + '</pre><h2>Notes</h2><pre>' + AW.esc(n.value) + '</pre></body></html>');
+      w.document.close(); setTimeout(function () { w.print(); }, 300);
+    };
   };
 
   /*── Names cut short by the column: mark them so hovering shows the full

@@ -90,7 +90,8 @@
       '  (a) GRAMMAR: identify subject-verb agreement errors, tense inconsistencies, article misuse (a/an/the), preposition errors, wrong word form (noun/verb/adj confusion), missing/extra words, run-on sentences, comma splices, dangling modifiers. Quote the exact wrong form → correct form → explain in Vietnamese WHY it is wrong.\n'+
       '  (b) VOCABULARY: identify unnatural collocations, imprecise word choice, informal words in formal context, repetitive nouns that should be replaced by pronouns or synonyms, words that are close but not the best fit. Quote the original word/phrase → suggest a more precise/natural/academic alternative → explain in Vietnamese what the difference is.\n'+
       'Do NOT summarise body paragraph grammar/vocab in one sentence. List individual errors and upgrades for each sentence that has room for improvement. A body paragraph with 4+ sentences should have at least 2–3 grammar items AND 2–3 vocabulary items reported.\n'+
-      'Return ALL grammar items in the "gra_errors" array and ALL vocabulary items in the "lr_issues" array (do NOT bury them in tr_comments). Aim for 5–8 items in each array for a typical 250–350 word essay.\n'+
+      'Return ALL grammar items in the "gra_errors" array and ALL vocabulary items in the "lr_issues" array (do NOT bury them in tr_comments).\n'+
+      'COMPLETENESS: report EVERY grammar error and EVERY vocabulary problem in the whole response, in the order they appear — no upper limit, never stop at a fixed number, never keep some back for a later attempt. The student corrects the essay from this ONE report: an error that is in the text but missing here must not turn up as a "new" error when the same text is graded again.\n'+
       'TOKEN RULES for tr_comments — follow strictly to keep output short:\n'+
       '- Do NOT quote whole paragraphs. For each comment set "paragraph_role" to the paragraph label ONLY. Task 2: "Opening", "Body 1", "Body 2", "Body 3"... , or "Conclusion" (a 4-paragraph essay = Opening, Body 1, Body 2, Conclusion; a 5-paragraph essay = Opening, Body 1, Body 2, Body 3, Conclusion). Task 1: "Introduction", "Overview", "Body 1", "Body 2" (never "Conclusion" — see the Task 1 rules).\n'+
       '- Leave "quote" EMPTY unless you must point to ONE specific problematic sentence — then put ONLY that single sentence in "quote" (never the whole paragraph).\n'+
@@ -169,160 +170,82 @@
       prompt += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
     }
 
-    // Gemini model chain: 3.5-flash → 3.5-flash-lite → 3.6-flash
-    // If ALL fail → prompt student to enter Groq key → grade with Groq
-    var GEMINI_MODELS = [
-      'gemini-3.5-flash',      // primary
-      'gemini-3.5-flash-lite', // fallback 1: lighter, same family
-      'gemini-3.6-flash',      // fallback 2: newest (Jul 2026)
-    ];
-    var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+    var g = await geminiPass(geminiKey, prompt);
+    if (g.raw) return parseAiJson(g.raw, 'AI');
 
-    // Gemini 3.x: do NOT override temperature/topK/topP (causes empty responses)
-    function buildGenerationConfig(modelName) {
-      var is3x = modelName.indexOf('gemini-3') === 0;
-      if (is3x) {
-        return { candidateCount:1, maxOutputTokens:8000,
-                 thinkingConfig:{ thinkingLevel:'minimal' } };
-      }
-      return { temperature:0.1, topK:1, topP:0.1, candidateCount:1, maxOutputTokens:8000 };
-    }
-
-    var lastData = null, geminiOk = false, lastGeminiErr = '';
-
-    for (var mi = 0; mi < GEMINI_MODELS.length; mi++) {
-      var modelName = GEMINI_MODELS[mi];
-
-      var resp = await fetch(GEMINI_BASE + modelName + ':generateContent?key=' + geminiKey, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          contents:[{parts:[{text:prompt}]}],
-          generationConfig: buildGenerationConfig(modelName)
-        })
-      });
-
-      if (resp.ok) { lastData = await resp.json(); geminiOk = true; break; }
-
-      var errBody = await resp.json().catch(function(){ return {}; });
-      lastGeminiErr = (errBody.error && errBody.error.message) || String(resp.status);
-
-      var isModelErr  = resp.status===404 || resp.status===400 ||
-                        lastGeminiErr.indexOf('no longer available')!==-1 ||
-                        lastGeminiErr.indexOf('deprecated')!==-1 ||
-                        lastGeminiErr.indexOf('not found')!==-1;
-      var isQuota     = resp.status===429 ||
-                        lastGeminiErr.indexOf('quota')!==-1 ||
-                        lastGeminiErr.indexOf('RESOURCE_EXHAUSTED')!==-1;
-      var isOverloaded = resp.status===503 || resp.status===502 || resp.status===500;
-
-      if (isOverloaded) {
-        // Toast immediately so student knows what's happening, then fall to Groq
-        if (window.AW && AW.toast)
-          AW.toast('⏳ Gemini AI đang quá tải — đang chuyển sang AI dự phòng…', 'err', 4000);
-        lastGeminiErr = 'overloaded:' + resp.status;
-        break; // skip remaining Gemini models, go straight to Groq
-      }
-      if (isQuota) {
-        if (window.AW && AW.toast)
-          AW.toast('⏳ Gemini AI hết lượt — đang chuyển sang AI dự phòng…', 'err', 4000);
-        lastGeminiErr = 'quota:' + resp.status;
-        break;
-      }
-      // auth/unknown error → throw immediately, no point trying other models
-      if (!isModelErr) throw new Error('Gemini error: ' + lastGeminiErr);
-      // deprecated model → try next model silently
-    }
-
-    // -- Groq fallback ------------------------------------------------
-    if (!geminiOk) {
-      var storedGroqKey = (window.AW && AW.groqKey) ? AW.groqKey.get() : '';
-      var groqKeyToUse  = storedGroqKey;
-      if (!groqKeyToUse) {
-        // No key stored → ask student, then grade with Groq, then retry Gemini
-        return requestGroqKey(lastGeminiErr).then(async function(key) {
-          try {
-            return await gradeWithGroq(key, prompt);
-          } catch(groqErr) {
-            // Groq also failed → retry Gemini one more time
-            return retryGeminiAfterGroqFail(geminiKey, prompt, groqErr);
-          }
-        });
-      }
-      // Silent Groq fallback — already have a key
-      try {
-        return await gradeWithGroq(groqKeyToUse, prompt);
-      } catch(groqErr) {
-        var ge = (groqErr && groqErr.message) || '';
-        // If Groq quota → retry Gemini (different error class than Groq model fail)
-        return retryGeminiAfterGroqFail(geminiKey, prompt, groqErr);
-      }
-    }
-
-    var raw = (((lastData.candidates||[])[0]||{}).content||{}).parts;
-    raw = raw && raw[0] ? raw[0].text : '';
-    var finishReason = ((lastData.candidates||[])[0]||{}).finishReason || '';
-    if (!raw && finishReason==='STOP')
-      throw new Error('Gemini trả về rỗng (finish_reason: STOP). Thử lại sau vài giây.');
-    if (!raw) throw new Error('Gemini trả về rỗng. Thử lại sau vài giây.');
-    var clean = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi,'')
-                   .replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    // Fix 4: exit early if no JSON object found (avoids useless loop)
-    var si = clean.indexOf('{');
-    if (si === -1) throw new Error('Lỗi định dạng: AI không trả về JSON. Vui lòng thử lại.');
-    var depth = 0, ei = -1;
-    for (var ci = si; ci < clean.length; ci++) {
-      if (clean[ci]==='{') depth++;
-      else if (clean[ci]==='}') { depth--; if (depth===0) { ei=ci; break; } }
-    }
-    if (ei === -1) throw new Error('Lỗi định dạng: JSON từ AI bị không hoàn chỉnh. Vui lòng thử lại.');
-    // Fix 3: wrap JSON.parse in try-catch to show friendly error instead of crashing
+    // -- Groq fallback: every Gemini model was busy, over quota or too slow --
+    if (window.AW && AW.toast) AW.toast('⏳ Gemini đang bận — đang chuyển sang AI dự phòng…', 'err', 4000);
+    var groqKey = (window.AW && AW.groqKey) ? AW.groqKey.get() : '';
+    if (!groqKey) groqKey = await requestGroqKey(g.err);   // rejects if the student cancels
     try {
-      return normaliseScores(JSON.parse(clean.substring(si, ei+1)));
-    } catch(parseErr) {
-      throw new Error('Lỗi đọc kết quả từ AI (JSON sai cú pháp). Vui lòng thử lại.');
+      return await gradeWithGroq(groqKey, prompt);
+    } catch (groqErr) {
+      if (window.AW && AW.toast) AW.toast('⏳ Groq cũng gặp sự cố — đang thử lại Gemini lần cuối…', 'err', 3500);
+      await new Promise(function (r) { setTimeout(r, 6000); });   // congestion is short-lived
+      var g2 = await geminiPass(geminiKey, prompt);
+      if (g2.raw) return parseAiJson(g2.raw, 'AI');
+      throw new Error('AI đang ngẽn: cả Gemini và Groq đều không phản hồi. ' +
+        'Đây là sự cố tạm thời của dịch vụ AI — không phải lỗi ứng dụng. ' +
+        'Vui lòng đợi 2–3 phút rồi bấm lại. Bài viết của bạn vẫn an toàn.');
     }
   }
 
-  /*-- retryGeminiAfterGroqFail: when Groq also fails, try Gemini once more.
-       If Gemini still fails, throw "AI đang ngẽn" to surface a clear message. */
-  async function retryGeminiAfterGroqFail(geminiKey, prompt, groqErr) {
-    if (window.AW && AW.toast)
-      AW.toast('⏳ Groq cũng gặp sự cố — đang thử lại Gemini lần cuối…', 'err', 3500);
-    try {
-      var retryModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-3.5-flash'];
-      for (var ri = 0; ri < retryModels.length; ri++) {
-        var rResp = await fetch(
-          'https://generativelanguage.googleapis.com/v1beta/models/' +
-          retryModels[ri] + ':generateContent?key=' + geminiKey,
-          { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-              contents:[{parts:[{text:prompt}]}],
-              generationConfig:{ temperature:0.1, topK:1, topP:0.1,
-                                 candidateCount:1, maxOutputTokens:8000 }
-            })
-          }
-        );
-        if (rResp.ok) {
-          var rData = await rResp.json();
-          var rRaw  = (((rData.candidates||[])[0]||{}).content||{}).parts;
-          rRaw = rRaw && rRaw[0] ? rRaw[0].text : '';
-          if (!rRaw) continue;
-          var rClean = rRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-          var rsi = rClean.indexOf('{'), rei = -1, rdepth = 0;
-          if (rsi !== -1) {
-            for (var rci = rsi; rci < rClean.length; rci++) {
-              if (rClean[rci]==='{') rdepth++;
-              else if (rClean[rci]==='}') { rdepth--; if (rdepth===0) { rei=rci; break; } }
-            }
-          }
-          if (rei !== -1) return normaliseScores(JSON.parse(rClean.substring(rsi, rei+1)));
-        }
+  var GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+  var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  // Gemini 3.x: do NOT override temperature/topK/topP (causes empty responses)
+  function buildGenerationConfig(modelName) {
+    var cfg = { candidateCount:1, maxOutputTokens:16000, responseMimeType:'application/json' };
+    if (modelName.indexOf('gemini-3') === 0) cfg.thinkingConfig = { thinkingLevel:'minimal' };
+    else { cfg.temperature = 0.1; cfg.topK = 1; cfg.topP = 0.1; }
+    return cfg;
+  }
+
+  /* One pass over the Gemini models → { raw } or { err }. Each model has its
+     own quota and capacity, so a busy, rate-limited, slow, retired or empty
+     one is skipped — it used to end the pass, which sent whole classes to the
+     Groq fallback while the other models were free. A wrong key or no network
+     throws at once: no other model would fix that.                         */
+  async function geminiPass(geminiKey, prompt) {
+    var err = '';
+    for (var mi = 0; mi < GEMINI_MODELS.length; mi++) {
+      var modelName = GEMINI_MODELS[mi], resp;
+      var ctrl = new AbortController(), timer = setTimeout(function () { ctrl.abort(); }, 45000);
+      try {
+        resp = await fetch(GEMINI_BASE + modelName + ':generateContent?key=' + geminiKey, {
+          method:'POST', headers:{'Content-Type':'application/json'}, signal: ctrl.signal,
+          body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig: buildGenerationConfig(modelName) })
+        });
+      } catch (e) {
+        if (e && e.name === 'AbortError') { err = 'overloaded:timeout'; continue; }
+        throw new Error('network: ' + ((e && e.message) || 'failed to fetch'));
+      } finally { clearTimeout(timer); }
+
+      if (resp.ok) {
+        var data = await resp.json().catch(function(){ return {}; });
+        var parts = (((data.candidates||[])[0]||{}).content||{}).parts;
+        var raw = parts && parts[0] ? parts[0].text : '';
+        if (raw) return { raw: raw };
+        err = 'empty'; continue;
       }
-    } catch(finalErr) { /* fall through to final error below */ }
-    // Both Gemini and Groq failed completely
-    throw new Error('AI đang ngẽn: cả Gemini và Groq đều không phản hồi. ' +
-      'Đây là sự cố tạm thời của dịch vụ AI — không phải lỗi ứng dụng. ' +
-      'Vui lòng đợi 2–3 phút rồi bấm lại. Bài viết của bạn vẫn an toàn.');
+      var body = await resp.json().catch(function(){ return {}; });
+      var msg = (body.error && body.error.message) || String(resp.status);
+      if (resp.status === 401 || resp.status === 403 || /api[ _]key/i.test(msg)) throw new Error('Gemini error: API key — ' + msg);
+      if (resp.status === 429 || /quota|RESOURCE_EXHAUSTED/i.test(msg)) { err = 'quota:' + resp.status; continue; }
+      if (resp.status >= 500) { err = 'overloaded:' + resp.status; continue; }
+      if (resp.status === 404 || resp.status === 400 || /no longer available|deprecated|not found/i.test(msg)) { err = msg; continue; }
+      throw new Error('Gemini error: ' + msg);
+    }
+    return { err: err };
+  }
+
+  // The JSON object inside an AI reply (it may be wrapped in ``` or stray text)
+  function parseAiJson(raw, who) {
+    var clean = String(raw).replace(/<thinking>[\s\S]*?<\/thinking>/gi,'')
+                   .replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    var si = clean.indexOf('{'), ei = clean.lastIndexOf('}');
+    if (si === -1 || ei <= si) throw new Error('Lỗi định dạng: ' + who + ' không trả về JSON hoàn chỉnh. Vui lòng thử lại.');
+    try { return normaliseScores(JSON.parse(clean.substring(si, ei+1))); }
+    catch (parseErr) { throw new Error('Lỗi đọc kết quả từ ' + who + ' (JSON sai cú pháp). Vui lòng thử lại.'); }
   }
 
   // requestGroqKey: shows popup asking student to enter their Groq key.
@@ -429,7 +352,7 @@
         body: JSON.stringify({
           model: groqModel,
           messages:[{role:'user', content:prompt}],
-          temperature:0.1, max_tokens:6000,
+          temperature:0.1, max_tokens:8000,
           response_format:{type:'json_object'}
         })
       });
@@ -438,20 +361,7 @@
         var groqRaw  = ((groqData.choices||[])[0]||{}).message;
         groqRaw = groqRaw ? groqRaw.content : '';
         if (!groqRaw) throw new Error('Groq trả về rỗng. Thử lại sau.');
-        var groqClean = groqRaw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-        var gsi = groqClean.indexOf('{');
-        if (gsi === -1) throw new Error('Lỗi định dạng: Groq không trả về JSON. Vui lòng thử lại.');
-        var gdepth = 0, gei = -1;
-        for (var gci = gsi; gci < groqClean.length; gci++) {
-          if (groqClean[gci]==='{') gdepth++;
-          else if (groqClean[gci]==='}') { gdepth--; if (gdepth===0) { gei=gci; break; } }
-        }
-        if (gei === -1) throw new Error('Lỗi định dạng: JSON từ Groq bị không hoàn chỉnh. Vui lòng thử lại.');
-        try {
-          return normaliseScores(JSON.parse(groqClean.substring(gsi, gei+1)));
-        } catch(parseErr) {
-          throw new Error('Lỗi đọc kết quả từ Groq (JSON sai cú pháp). Vui lòng thử lại.');
-        }
+        return parseAiJson(groqRaw, 'Groq');
       }
       var groqErr = await groqResp.json().catch(function(){return{};});
       lastErr = (groqErr.error && groqErr.error.message) || String(groqResp.status);
