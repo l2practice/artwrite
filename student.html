@@ -23,6 +23,51 @@
   .aw-mode-hw .aw-mode-ic{background:#FFF1C7;color:#7A5A00}
   .aw-mode-translate .aw-mode-ic{background:#FCE4F1;color:#9C2A68}
   .aw-mode-test .aw-mode-ic{background:var(--aw-primary-dk);color:#fff}
+  /* My Progress (see showProgress): tokens only, no gradients */
+  .sp{--ink:#1E2142;--muted:#585D80;--primary:#5661E0;--surface:#FFFFFF;--ground:#EEF0FD;color:var(--ink);display:flex;flex-direction:column;gap:16px}
+  .sp-stats{margin:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border-radius:16px;padding:4px 8px}
+  .sp-stats div{padding:12px 16px;border-left:1px solid var(--ground)}
+  .sp-stats div:first-child{border-left:0}
+  .sp-stats dd{margin:0;font-size:1.25rem;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+  .sp-stats dt{font-size:.75rem;font-weight:600;color:var(--muted);margin-top:4px}
+  .sp-stats .hl dd{color:var(--primary);font-size:1.75rem;line-height:1}
+  .sp-filters{display:flex;gap:8px;flex-wrap:wrap}
+  .sp-filters .aw-search{flex:1 1 220px}
+  .sp-list{display:flex;flex-direction:column;gap:8px}
+  .sp-head,.sp-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) 150px 96px;gap:16px;align-items:center}
+  .sp-head{padding:0 16px;font-size:.75rem;font-weight:600;color:var(--muted)}
+  .sp-row{background:var(--surface);border-radius:16px;padding:12px 16px}
+  .sp-main h3{margin:0;font-size:.94rem;font-weight:600;line-height:1.35}
+  .sp-main p{margin:4px 0 0;font-size:.8rem;color:var(--muted)}
+  .sp-tries{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .sp-try{min-width:76px;min-height:48px;padding:4px 12px;border:0;border-radius:12px;background:var(--ground);color:var(--ink);font-family:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;justify-content:center}
+  .sp-try b{font-size:1.25rem;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
+  .sp-try span{font-size:.72rem;color:var(--muted);white-space:nowrap}
+  .sp-try.best{background:var(--primary);color:#fff}.sp-try.best span{color:#fff}
+  .sp-try:hover{outline:2px solid var(--primary);outline-offset:1px}
+  .sp-left,.sp-closed{font-size:.8rem;color:var(--muted)}
+  .sp-side{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}
+  .sp-chg{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}.sp-chg small{font-weight:400;color:var(--muted);font-size:1em}
+  .sp-teacher b{color:var(--ink);font-size:.94rem}
+  .sp-acts{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .sp .res-ib{width:44px;height:44px;background:var(--ground);box-shadow:none;color:var(--primary)}
+  .sp-note{grid-column:1/-1;background:var(--ground);border-radius:12px;padding:12px;font-size:.88rem;line-height:1.5}
+  .sp-hint{margin:8px 4px 0;font-size:.8rem;color:var(--muted)}
+  @media(max-width:767.98px){
+    .sp{gap:12px}
+    .sp-stats{grid-template-columns:repeat(2,minmax(0,1fr));padding:4px}
+    .sp-stats div{padding:8px 12px;border-left:0}
+    .sp-stats div:nth-child(even){border-left:1px solid var(--ground)}
+    .sp-stats div:nth-child(n+3){border-top:1px solid var(--ground)}
+    .sp-stats .hl dd{font-size:1.5rem}
+    .sp-filters .aw-search{flex:1 1 100%}.sp-filters .aw-select{flex:1 1 0;min-width:0}
+    .sp-head{display:none}
+    .sp-row{grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:12px}
+    .sp-main{grid-column:1}.sp-acts{grid-column:2;grid-row:1;align-self:start}
+    .sp-tries,.sp-side{grid-column:1/-1}
+    .sp-side{flex-direction:row;flex-wrap:wrap;gap:4px 16px}.sp-side:empty{display:none}
+    .sp-try{flex:0 1 calc((100% - 16px)/3);min-width:72px}
+  }
   /* Test Simulation page */
   .ts-hero{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--aw-surface);border-radius:var(--aw-r-lg);box-shadow:var(--aw-shadow);padding:22px 24px;margin-bottom:14px}
   .ts-hero-ic{width:56px;height:56px;border-radius:18px;background:var(--aw-primary-dk);color:#fff;display:grid;place-items:center;flex:0 0 auto}
@@ -56,7 +101,7 @@
   @media(max-width:540px){.aw-free-tasks{grid-template-columns:1fr}}
   .aw-free-task{border:2px solid transparent;border-radius:20px;padding:16px 18px;cursor:pointer;transition:all .18s;background:var(--aw-surface-2);text-align:left}
   .aw-free-task:hover{border-color:var(--aw-primary);background:var(--aw-primary-lt);transform:translateY(-2px);box-shadow:var(--aw-shadow)}
-  .aw-free-task.t1:hover{border-color:#16825B;background:#E6F5EE}
+  .aw-free-task.t1:hover{border-color:#14633F;background:#E6F5EE}
   .aw-free-task .ft-icon{font-size:1.6rem;margin-bottom:8px}
   .aw-free-task .ft-badge{display:inline-flex;align-items:center;gap:5px;font-size:.7rem;font-weight:800;padding:2px 9px;border-radius:12px;margin-bottom:6px;letter-spacing:.03em}
   .t2 .ft-badge{background:var(--aw-primary-lt);color:#3B44B8;border:none}
@@ -209,7 +254,7 @@ function showModes(){
 
 function modeCard(mode,ic,title,desc,cls){
   var locked = cls.indexOf('aw-mode-locked') !== -1;
-  return '<div class="aw-mode-card '+cls+'" data-mode="'+mode+'">' +
+  return '<div class="aw-mode-card '+cls+'" data-mode="'+mode+'" role="button" tabindex="0"'+(locked?' aria-disabled="true"':'')+'>' +
     '<div class="aw-mode-ic">'+ic+'</div><h3>'+title+(locked?' <span class="aw-lock-badge">Locked</span>':'')+'</h3><p>'+desc+'</p></div>';
 }
 
@@ -232,7 +277,7 @@ function showFreeTaskSelector(){
           '<h4>Data / Chart / Diagram</h4>'+
           '<p>Mô tả, tóm tắt hoặc so sánh thông tin từ biểu đồ, bảng, sơ đồ. Tối thiểu 150 từ.</p>'+
           '<div class="ft-crits">'+
-            '<span class="ft-crit" style="color:#16825B">TA</span>'+
+            '<span class="ft-crit" style="color:#14633F">TA</span>'+
             '<span class="ft-crit" style="color:#5661E0">CC</span>'+
             '<span class="ft-crit" style="color:#E0A32E">LR</span>'+
             '<span class="ft-crit" style="color:#E8730C">GRA</span>'+
@@ -449,8 +494,8 @@ function loadHistory(){
       var taskBadge = (h.mode==='test')
         ? '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-dk);color:#fff;margin-left:5px;vertical-align:middle">TEST</span>'
         : (h.taskType==='task1')
-        ? '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#16825B;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
-        : '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #C5CAF7;margin-left:5px;vertical-align:middle">T2</span>';
+        ? '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:#EAF7F0;color:#14633F;border:1px solid #9FDEC0;margin-left:5px;vertical-align:middle">T1</span>'
+        : '<span style="font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--aw-primary-lt);color:#3B44B8;border:1px solid #C5CAF7;margin-left:5px;vertical-align:middle">T2</span>';
       return '<div class="aw-hist"><div class="aw-hist-main">' +
         '<div class="aw-hist-topic">'+AW.esc(h.topic||'Untitled')+taskBadge+'</div>' +
         '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · Band '+AW.esc(String(band))+' · '+(h.latestTime?AW.fmtDate(h.latestTime):(h.timestamp?AW.fmtDate(h.timestamp):''))+'</div>' +
@@ -479,8 +524,8 @@ function loadAssignments(mode){
       var plain=AW.stripHtml(a.prompt||'').replace(/\s+/g,' ').trim();
       var isT1 = a.taskType === 'task1';
       var taskBadge = isT1
-        ? '<span class="aw-tag" style="background:#EAF7F0;color:#16825B;border:1px solid #9FDEC0;font-weight:700">Task 1</span>'
-        : '<span class="aw-tag" style="background:var(--aw-primary-lt);color:var(--aw-primary);border:1px solid #C5CAF7;font-weight:700">Task 2</span>';
+        ? '<span class="aw-tag" style="background:#EAF7F0;color:#14633F;border:1px solid #9FDEC0;font-weight:700">Task 1</span>'
+        : '<span class="aw-tag" style="background:var(--aw-primary-lt);color:#3B44B8;border:1px solid #C5CAF7;font-weight:700">Task 2</span>';
       var due = a.myDeadline || a.deadline;
       var deadlineHtml = due
         ? (a.isPastDeadline
@@ -492,11 +537,11 @@ function loadAssignments(mode){
       // Chart thumbnail for Task 1 — shown on hover via CSS tooltip
       var chartThumb = (isT1 && a.chartImageId)
         ? '<div class="aw-chart-thumb-wrap" title="Xem hình biểu đồ">'+
-            '<span style="font-size:.72rem;color:#16825B;cursor:pointer">📊 Chart</span>'+
+            '<span style="font-size:.72rem;color:#14633F;cursor:pointer">📊 Chart</span>'+
             '<img class="aw-chart-thumb-pop" src="https://drive.google.com/thumbnail?id='+AW.esc(a.chartImageId)+'&sz=w600" alt="chart">'+
           '</div>'
         : '';
-      return '<div class="aw-lib-card" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
+      return '<div class="aw-lib-card" role="button" tabindex="0" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
         '<div style="display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin-bottom:6px">'+
           '<h3 class="aw-lib-title" style="margin:0;flex:1">'+AW.esc(a.topic)+'</h3>'+
           chartThumb+
@@ -539,6 +584,10 @@ function loadAssignments(mode){
 }
 
 var _progressSort='latest';
+/* My Progress — one design system for the page:
+   spacing 4·8·12·16·24 · type 20/800 numerals, 15/600 titles, 13 meta, 12/600 labels
+   colours (5): ink, muted, primary, surface, ground · no gradients.
+   Order of importance: the bands of each task → the summary → filters.   */
 function showProgress(){
   document.getElementById('awPageTitle').textContent='My Progress';
   content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
@@ -549,13 +598,14 @@ function showProgress(){
     }
     window._myGroups = rows;
     content.innerHTML=
-      '<h2 class="aw-sec-title">My Scores</h2>'+
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
-        '<select class="aw-select" id="pMode"><option value="">All modes</option><option value="inclass">In-class</option><option value="homework">Homework</option><option value="free">Free Writing</option><option value="test">Test Simulation</option></select>'+
-        '<div class="aw-search" style="flex:1;min-width:180px">'+AW.icon('search')+'<input id="pSearch" placeholder="Search topic…"></div>'+
-        '<select class="aw-select" id="pSort"><option value="latest">Sort: Latest</option><option value="best">Sort: Best band</option><option value="topic">Sort: Topic</option></select>'+
+      '<div class="sp">'+
+      '<dl class="sp-stats" id="spStats"></dl>'+
+      '<div class="sp-filters">'+
+        '<div class="aw-search">'+AW.icon('search')+'<input id="pSearch" placeholder="Search topic…" aria-label="Search topic"></div>'+
+        '<select class="aw-select" id="pMode" aria-label="Mode"><option value="">All modes</option><option value="inclass">In-class</option><option value="homework">Homework</option><option value="free">Free Writing</option><option value="test">Test Simulation</option></select>'+
+        '<select class="aw-select" id="pSort" aria-label="Sort"><option value="latest">Sort: Latest</option><option value="best">Sort: Best band</option><option value="topic">Sort: Topic</option></select>'+
       '</div>'+
-      '<div id="progressBox"></div>';
+      '<div id="progressBox"></div></div>';
     document.getElementById('pSearch').oninput=renderProgress;
     document.getElementById('pMode').onchange=renderProgress;
     document.getElementById('pSort').onchange=function(){_progressSort=this.value;renderProgress();};
@@ -576,8 +626,6 @@ function renderProgress(){
   else if(_progressSort==='topic') rows.sort(function(a,b){return (a.topic||'').localeCompare(b.topic||'');});
   else rows.sort(function(a,b){return new Date(b.latestTime)-new Date(a.latestTime);});
 
-  if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No matching submissions.</p></div>';return;}
-
   function dur(sec){ sec=parseInt(sec,10); if(isNaN(sec)||!sec) return ''; var m=Math.round(sec/60); return m>=60?(Math.floor(m/60)+'h '+(m%60)+'m'):(m+' min'); }
   var st={done:0,bestSum:0,bestN:0,improved:0,scored:0};
   var body=rows.map(function(g){
@@ -590,57 +638,50 @@ function renderProgress(){
     if(best!==null){ st.bestSum+=best; st.bestN++; }
     if(change>0) st.improved++;
     if(ts.overall) st.scored++;
-    var slots=Math.max(g.mode==='free'?1:3, w.length), chips='';
-    for(var i=0;i<slots;i++){
-      var x=w[i];
-      if(!x){ chips+='<span class="res-try none"><b>–</b><span>Not yet</span></span>'; continue; }
-      var tip='Attempt '+(i+1)+(g.mode==='test'?' · Part 1 '+(x.t1||'—')+' · Part 2 '+(x.t2||'—'):' · TR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—'));
-      chips+='<button type="button" class="res-try'+(i===bestI?' best':'')+'" data-gi="'+gi+'" data-wi="'+i+'" title="'+AW.esc(tip)+'">'+
-             '<b>'+AW.esc(String(x.overall||x.teacher||'—'))+'</b><span>'+(dur(x.duration)||'&nbsp;')+'</span></button>';
-    }
-    var chg = change===null ? '<span class="res-chg" style="color:var(--aw-ink-3)">–</span>'
-      : '<span class="res-chg" style="color:'+(change>0?'#16825B':change<0?'#C2410C':'var(--aw-ink-2)')+'">'+(change>0?'+':change<0?'−':'')+Math.abs(change).toFixed(1)+'</span>';
-    var t1=g.taskType==='task1';
-    function sc(lbl,v,oa){ return '<span class="'+(oa?'oa':'')+(v?'':' none')+'"><small>'+lbl+'</small>'+(v?AW.esc(String(v)):'–')+'</span>'; }
-    var score='<div class="res-score-ro" title="'+(ts.overall?'Your teacher\'s score':'Not scored by your teacher yet')+'">'+
-      sc(t1?'TA':'TR',ts.tr)+sc('CC',ts.cc)+sc('LR',ts.lr)+sc('GR',ts.gra)+sc('All',ts.overall,true)+'</div>';
+    var t1=g.taskType==='task1', isTest=g.mode==='test';
+    var chips=w.map(function(x,i){
+      var band=String(x.overall||x.teacher||'—');
+      var detail=isTest ? 'Part 1 '+(x.t1||'—')+', Part 2 '+(x.t2||'—') : 'TR '+(x.tr||'—')+', CC '+(x.cc||'—')+', LR '+(x.lr||'—')+', GRA '+(x.gra||'—');
+      return '<button type="button" class="sp-try'+(i===bestI?' best':'')+'" data-gi="'+gi+'" data-wi="'+i+'" title="'+AW.esc(detail)+'" '+
+             'aria-label="Attempt '+(i+1)+', band '+AW.esc(band)+(i===bestI?', your best':'')+'. Open the feedback">'+
+             '<b>'+AW.esc(band)+'</b><span>#'+(i+1)+(dur(x.duration)?' · '+dur(x.duration):'')+'</span></button>';
+    }).join('');
+    var left = g.mode==='free'||g.cleared ? 0 : Math.max(0, 3-w.length);
+    var side='';
+    if(change!==null) side+='<span class="sp-chg" title="Change from the first to the last attempt">'+(change ? (change>0?'▲ +':'▼ −')+Math.abs(change).toFixed(1) : 'No change')+'<small> since #1</small></span>';
+    if(ts.overall) side+='<span class="sp-teacher" title="'+(t1?'TA':'TR')+' '+AW.esc(String(ts.tr||'—'))+' · CC '+AW.esc(String(ts.cc||'—'))+' · LR '+AW.esc(String(ts.lr||'—'))+' · GR '+AW.esc(String(ts.gra||'—'))+'">Teacher <b>'+AW.esc(String(ts.overall))+'</b></span>';
     var when = g.latestTime ? AW.fmtDate(g.latestTime) : (g.assignedDate?AW.fmtDate(g.assignedDate):'');
     var sub = (modeLabel[g.mode]||g.mode)+(when?' · '+when:'')+(g.deadline?' · due '+AW.fmtDate(g.deadline):'');
     var action = g.cleared
-      ? '<span class="res-sub" title="Your teacher archived this task">Closed</span>'
-      : '<button type="button" class="res-ib" title="Write again" aria-label="Write again" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">'+RES_RETRY+'</button>';
-    return '<div class="res-row" data-gi="'+gi+'">'+
-      '<div class="res-who" style="min-width:0"><span style="min-width:0">'+
-        '<span class="res-nm">'+AW.esc(g.topic||'')+'<span class="res-tag'+(t1?' t1':'')+'">'+(g.mode==='test'?'Test':t1?'T1':'T2')+'</span></span>'+
-        '<span class="res-sub">'+AW.esc(sub)+'</span></span><span class="res-full" style="left:0">'+AW.esc(g.topic||'')+'</span></div>'+
-      '<div class="res-tries">'+chips+'</div>'+chg+score+
-      '<div class="res-acts">'+
-        (ts.privateNote?'<button type="button" class="res-ib has res-tn-btn" title="Teacher note" aria-label="Teacher note">'+AW.icon('chat')+'</button>':'')+
+      ? '<span class="sp-closed" title="Your teacher archived this task">Closed</span>'
+      : '<button type="button" class="res-ib" title="Write again" aria-label="Write again: '+AW.esc(g.topic||'')+'" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\',\''+AW.esc(g.taskType||'task2')+'\')">'+RES_RETRY+'</button>';
+    return '<article class="sp-row">'+
+      '<div class="sp-main"><h3>'+AW.esc(g.topic||'')+' <span class="res-tag">'+(isTest?'Test':t1?'T1':'T2')+'</span></h3>'+
+        '<p>'+AW.esc(sub)+'</p></div>'+
+      '<div class="sp-tries">'+chips+(left?'<span class="sp-left">'+left+' attempt'+(left>1?'s':'')+' left</span>':'')+'</div>'+
+      '<div class="sp-side">'+side+'</div>'+
+      '<div class="sp-acts">'+
+        (ts.privateNote?'<button type="button" class="res-ib sp-note-btn" title="Teacher note" aria-label="Show your teacher\'s note" aria-expanded="false">'+AW.icon('chat')+'</button>':'')+
         action+
       '</div>'+
-      (ts.privateNote?'<div class="res-tnote"><b style="color:var(--aw-accent)">Your teacher</b><br>'+AW.esc(ts.privateNote)+'</div>':'')+
-    '</div>';
+      (ts.privateNote?'<div class="sp-note" hidden><b>Your teacher</b><br>'+AW.esc(ts.privateNote)+'</div>':'')+
+    '</article>';
   }).join('');
-  function tile(ic,bg,fg,label,val,hl){
-    return '<div class="res-tile'+(hl?' hl':'')+'"><span class="ic" style="background:'+bg+';color:'+fg+'">'+ic+'</span><span><span class="lb">'+label+'</span><span class="vl">'+val+'</span></span></div>';
-  }
-  box.innerHTML='<div class="res-tiles" style="margin-bottom:16px">'+
-      tile('✓','#DDF3EA','#1D6B4F','Tasks done',st.done)+
-      tile('B','#E3E6FD','#3B44B8','Average best band',st.bestN?(st.bestSum/st.bestN).toFixed(1):'–',true)+
-      tile('▲','#FFF1C7','#7A5A00','Improved',st.improved)+
-      tile('T','#FDE7D6','#9A3B0A','Scored by teacher',st.scored)+
-    '</div>'+
-    '<div class="res-list"><div class="res-grid stu">'+
-      '<div class="res-head"><span>Task</span><span>Attempts, best in color</span><span title="Change from the first to the last attempt">+/−</span>'+
-        '<span>Teacher score</span><span></span></div>'+
-      body+
-    '</div></div>'+
-    '<p style="font-size:.8rem;color:var(--aw-ink-3);margin:10px 4px 0">Click a score to see that attempt with its feedback. The boxes on the right are your teacher\'s score.</p>';
-  AW.markTruncated(box);
-  AW.els('.res-try[data-gi]').forEach(function(c){
+  function stat(val,label,hl){ return '<div'+(hl?' class="hl"':'')+'><dd>'+val+'</dd><dt>'+label+'</dt></div>'; }
+  document.getElementById('spStats').innerHTML=
+    stat(st.bestN?(st.bestSum/st.bestN).toFixed(1):'–','Average best band',true)+
+    stat(st.done,'Tasks done')+stat(st.improved,'Improved')+stat(st.scored,'Scored by teacher');
+  if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No matching submissions.</p></div>';return;}
+  box.innerHTML='<div class="sp-list">'+
+      '<div class="sp-head" aria-hidden="true"><span>Task</span><span>Attempts — best one filled</span><span>Progress</span><span></span></div>'+
+      body+'</div>'+
+    '<p class="sp-hint">Click a band to see that attempt with its feedback.</p>';
+  AW.els('.sp-try').forEach(function(c){
     c.onclick=function(){ reviewGroupWrite(+c.dataset.gi,+c.dataset.wi); };
   });
-  AW.els('.res-tn-btn').forEach(function(b){ b.onclick=function(){ b.closest('.res-row').classList.toggle('open'); }; });
+  AW.els('.sp-note-btn').forEach(function(b){ b.onclick=function(){
+    var n=b.closest('.sp-row').querySelector('.sp-note'); n.hidden=!n.hidden; b.setAttribute('aria-expanded', String(!n.hidden));
+  }; });
 }
 var RES_RETRY='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
 window.reviewGroupWrite=function(gi,wi){
@@ -956,7 +997,7 @@ function showSettings(){
         '<div class="aw-pass-wrap" style="flex:1;margin:0">'+
           '<input class="aw-input" id="keyIn" type="password" autocomplete="off" '+
             'placeholder="'+(gKey?'•••••••• (đã lưu)':'AIza… hoặc AQ…')+'" style="padding-right:40px">'+
-          '<button id="skGemShowHide" type="button" title="Show/hide" '+
+          '<button id="skGemShowHide" type="button" title="Show/hide" aria-label="Show or hide the key" class="aw-eye" '+
             'style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px">👁</button>'+
         '</div>'+
         '<button class="aw-btn aw-btn-primary" id="keyBtn" style="padding:9px 18px">Save</button>'+
@@ -982,7 +1023,7 @@ function showSettings(){
         '<div class="aw-pass-wrap" style="flex:1;margin:0">'+
           '<input class="aw-input" id="gqIn" type="password" autocomplete="off" '+
             'placeholder="'+(qKey?'•••••••• (đã lưu)':'gsk_…')+'" style="padding-right:40px">'+
-          '<button id="skGroqShowHide" type="button" title="Show/hide" '+
+          '<button id="skGroqShowHide" type="button" title="Show/hide" aria-label="Show or hide the key" class="aw-eye" '+
             'style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px">👁</button>'+
         '</div>'+
         '<button class="aw-btn aw-btn-primary" id="gqBtn" style="padding:9px 18px">Save</button>'+
@@ -997,9 +1038,9 @@ function showSettings(){
     keyCards +
     '<div class="aw-card" style="padding:24px;max-width:520px">'+
       '<h3 style="margin:0 0 14px">Change Password</h3>'+
-      '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="pwOld" type="password"></div>'+
-      '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="pwNew" type="password"></div>'+
-      '<div class="aw-field"><label class="aw-label">Confirm new password</label><input class="aw-input" id="pwNew2" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label" for="pwOld">Current password</label><input class="aw-input" id="pwOld" type="password" autocomplete="current-password"></div>'+
+      '<div class="aw-field"><label class="aw-label" for="pwNew">New password</label><input class="aw-input" id="pwNew" type="password" autocomplete="new-password"></div>'+
+      '<div class="aw-field"><label class="aw-label" for="pwNew2">Confirm new password</label><input class="aw-input" id="pwNew2" type="password" autocomplete="new-password"></div>'+
       '<button class="aw-btn aw-btn-primary" id="pwBtn">Update password</button>'+
     '</div>';
 

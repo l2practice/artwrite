@@ -24,7 +24,7 @@
   .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:none;border-radius:16px;background:var(--aw-surface-2);flex-wrap:wrap;margin-bottom:6px}
   .aw-tb-btn{width:36px;height:36px;border:none;background:none;border-radius:10px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
   .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
-  .aw-hl-btn{width:24px;height:24px;border:1.5px solid rgba(0,0,0,.12);border-radius:6px;cursor:pointer;margin:0 2px;padding:0;transition:transform .1s}
+  .aw-hl-btn{width:24px;height:24px;flex:0 0 auto;border:1.5px solid rgba(0,0,0,.12);border-radius:6px;cursor:pointer;margin:0 2px;padding:0;transition:transform .1s}
   .aw-hl-btn:hover{transform:scale(1.15)}
   .aw-hl-clear{background:#fff !important;color:var(--aw-ink-3);font-size:.7rem;display:grid;place-items:center}
   .aw-grade-ov{position:fixed;inset:0;background:rgba(30,33,66,.45);backdrop-filter:blur(3px);z-index:700;display:none;align-items:center;justify-content:center}
@@ -54,7 +54,9 @@
   .aw-actions .aw-btn{flex:0 1 auto;min-width:min(200px,45%);min-height:48px}
   .aw-actions svg,.aw-mini svg{width:18px;height:18px;flex:0 0 auto}
   .aw-timer{display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;min-height:48px;padding:0 20px;border-radius:999px;font:800 1.2rem var(--aw-font-display);color:#1E2142;background:#FFB020;font-variant-numeric:tabular-nums}
-  .aw-timer.float{position:fixed;top:14px;right:18px;z-index:900;border:3px solid #fff;box-shadow:0 8px 26px rgba(30,33,66,.35)}
+  .aw-timer.float{position:fixed;top:14px;right:18px;z-index:900;border:3px solid #fff;box-shadow:0 8px 26px rgba(30,33,66,.35);cursor:grab;touch-action:none;user-select:none}
+  .aw-timer.float.drag{cursor:grabbing}
+  @media(max-width:768px){.aw-timer.float{top:12px;right:10px;min-height:40px;padding:0 12px;font-size:1rem;border-width:2px}}
   .aw-timer.low{background:#D93025;color:#fff}
   .aw-timer.last{background:#B42318;color:#fff;animation:awTimerPulse 1s ease-in-out infinite}
   @keyframes awTimerPulse{50%{transform:scale(1.06)}}
@@ -305,21 +307,21 @@ content.innerHTML =
           '<div class="aw-prompt-text">'+AW.esc(AW.stripHtml(PROMPT))+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +
-        '<button class="aw-tb-btn" data-cmd="bold"><b>B</b></button>' +
-        '<button class="aw-tb-btn" data-cmd="italic"><i>I</i></button>' +
-        '<button class="aw-tb-btn" data-cmd="underline"><u>U</u></button>' +
-        '<button class="aw-tb-btn" data-cmd="insertUnorderedList">•</button>' +
+        '<button class="aw-tb-btn" data-cmd="bold" aria-label="Bold"><b>B</b></button>' +
+        '<button class="aw-tb-btn" data-cmd="italic" aria-label="Italic"><i>I</i></button>' +
+        '<button class="aw-tb-btn" data-cmd="underline" aria-label="Underline"><u>U</u></button>' +
+        '<button class="aw-tb-btn" data-cmd="insertUnorderedList" aria-label="Bullet list">•</button>' +
         '<span style="width:1px;height:20px;background:var(--aw-border);margin:0 6px"></span>' +
         '<button class="aw-tb-btn" id="fontDown" title="Smaller font">A−</button>' +
         '<button class="aw-tb-btn" id="fontUp" title="Larger font (up to 120px)" style="font-size:1.05rem">A+</button>' +
         '<button class="aw-tb-btn" id="clearFmt" title="Clear formatting" style="font-size:.78rem;width:auto;padding:0 8px">✕ Clear</button>' +
         '<span style="width:1px;height:20px;background:var(--aw-border);margin:0 6px"></span>' +
         '<span style="font-size:.75rem;color:var(--aw-ink-3);align-self:center;margin-right:4px">Highlight:</span>' +
-        '<button class="aw-hl-btn" data-hl="#FFF3A3" style="background:#FFF3A3" title="Yellow"></button>' +
-        '<button class="aw-hl-btn" data-hl="#B6F0C2" style="background:#B6F0C2" title="Green"></button>' +
-        '<button class="aw-hl-btn" data-hl="#BFE0FF" style="background:#BFE0FF" title="Blue"></button>' +
-        '<button class="aw-hl-btn" data-hl="#FFC9D6" style="background:#FFC9D6" title="Pink"></button>' +
-        '<button class="aw-hl-btn" data-hl="#E0C9FF" style="background:#E0C9FF" title="Purple"></button>' +
+        '<button class="aw-hl-btn" data-hl="#FFF3A3" style="background:#FFF3A3" title="Yellow" aria-label="Highlight yellow"></button>' +
+        '<button class="aw-hl-btn" data-hl="#B6F0C2" style="background:#B6F0C2" title="Green" aria-label="Highlight green"></button>' +
+        '<button class="aw-hl-btn" data-hl="#BFE0FF" style="background:#BFE0FF" title="Blue" aria-label="Highlight blue"></button>' +
+        '<button class="aw-hl-btn" data-hl="#FFC9D6" style="background:#FFC9D6" title="Pink" aria-label="Highlight pink"></button>' +
+        '<button class="aw-hl-btn" data-hl="#E0C9FF" style="background:#E0C9FF" title="Purple" aria-label="Highlight purple"></button>' +
         '<button class="aw-hl-btn aw-hl-clear" data-hl="clear" title="Remove highlight">✕</button>' +
       '</div>' +
       '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
@@ -652,6 +654,29 @@ if (DURATION_MIN) {
   var tEl = document.getElementById('timer'), tTxt = document.getElementById('timerTxt');
   if (tEl && window.IntersectionObserver)
     new IntersectionObserver(function(en){ tEl.classList.toggle('float', en[0].intersectionRatio < 0.9); }, { threshold: 0.9 }).observe(tEl.parentNode);
+  // The floating clock can be dragged out of the way (it sat on the Board's
+  // Close button); the spot is remembered on this device.
+  if (tEl) (function(){
+    function place(x, y){
+      tEl.style.left = Math.max(4, Math.min(window.innerWidth - tEl.offsetWidth - 4, x)) + 'px';
+      tEl.style.top  = Math.max(4, Math.min(window.innerHeight - tEl.offsetHeight - 4, y)) + 'px';
+      tEl.style.right = 'auto';
+    }
+    try { var pos = JSON.parse(localStorage.getItem('aw_timer_pos') || 'null'); if (pos) place(pos[0], pos[1]); } catch(e){}
+    tEl.addEventListener('pointerdown', function(e){
+      if (!tEl.classList.contains('float')) return;
+      var r = tEl.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+      tEl.setPointerCapture(e.pointerId); tEl.classList.add('drag');
+      function mv(ev){ place(ev.clientX - dx, ev.clientY - dy); }
+      function up(){
+        tEl.classList.remove('drag'); tEl.removeEventListener('pointermove', mv); tEl.removeEventListener('pointerup', up);
+        var b = tEl.getBoundingClientRect();
+        try { localStorage.setItem('aw_timer_pos', JSON.stringify([Math.round(b.left), Math.round(b.top)])); } catch(e){}
+      }
+      tEl.addEventListener('pointermove', mv); tEl.addEventListener('pointerup', up);
+    });
+    window.addEventListener('resize', function(){ if (tEl.style.left) place(parseFloat(tEl.style.left), parseFloat(tEl.style.top)); });
+  })();
   _cdTick = setInterval(function(){
     remain--;
     try { localStorage.setItem(TIMER_KEY, Math.max(remain, 1)); } catch(e){}
@@ -1244,7 +1269,7 @@ function renderChartViewer(fileId){
   box.className = 'aw-chart-viewer';
   box.innerHTML =
     '<div class="aw-chart-viewer-head">'+
-      '<span style="font-size:.78rem;font-weight:700;text-transform:uppercase;color:#16825B;letter-spacing:.04em">📊 Chart / Diagram</span>'+
+      '<span style="font-size:.78rem;font-weight:700;text-transform:uppercase;color:#14633F;letter-spacing:.04em">📊 Chart / Diagram</span>'+
       '<span style="font-size:.72rem;color:var(--aw-ink-3);font-weight:400;margin-left:6px">— refer to this while writing</span>'+
       '<div style="margin-left:auto;display:flex;align-items:center;gap:4px">'+
         '<button id="chartZoomOut" style="width:28px;height:28px;border:1px solid var(--aw-border);border-radius:6px;background:#fff;cursor:pointer;font-weight:700">−</button>'+

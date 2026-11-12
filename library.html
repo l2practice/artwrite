@@ -138,7 +138,7 @@ function render(list){
     var lockBadge = isTeacher
       ? '<span class="aw-lock-badge '+(q.outlineUnlocked?'aw-lock-open':'aw-lock-closed')+'">'+(q.outlineUnlocked?'Outline: Open':'Outline: Locked')+'</span>'
       : '';
-    return '<div class="aw-lib-card" data-i="'+i+'">' +
+    return '<div class="aw-lib-card" role="button" tabindex="0" data-i="'+i+'">' +
       '<h3 class="aw-lib-title">'+AW.esc(q.question||q.topic)+'</h3>' +
       (q.taskType?'<span class="aw-tag aw-tag-type">'+AW.esc(q.taskType)+'</span> ':'') +
       lockBadge +

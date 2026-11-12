@@ -18,7 +18,9 @@
   .aw-loading-overlay p{color:#fff;font-size:1rem;font-weight:600;margin:0}
   /* Field error highlight */
   .aw-input.field-error{border-color:var(--aw-danger)!important;background:#fff5f5}
-  .aw-field-err{font-size:.76rem;color:var(--aw-danger);margin-top:4px;display:none}
+  .aw-input:disabled{opacity:.6;cursor:not-allowed}
+  .aw-field-err{font-size:.8rem;line-height:1.4;color:#B42318;margin-top:6px;display:none}
+  .aw-btn.loading{pointer-events:none}
   .aw-field-err.show{display:block}
 </style>
 </head>
@@ -55,58 +57,52 @@
 
       <!-- Full name -->
       <div class="aw-field">
-        <label class="aw-label">Họ và tên <span style="color:var(--aw-danger)">*</span></label>
-        <input class="aw-input" id="name" placeholder="Nguyễn Văn A" autocomplete="name">
-        <div class="aw-field-err" id="err-name"></div>
+        <label class="aw-label" for="name">Họ và tên <span style="color:var(--aw-danger)">*</span></label>
+        <input class="aw-input" id="name" required aria-describedby="err-name" placeholder="Nguyễn Văn A" autocomplete="name">
+        <div class="aw-field-err" id="err-name" role="alert"></div>
       </div>
-
-      <div class="aw-row">
         <!-- Student ID -->
         <div class="aw-field">
-          <label class="aw-label">Student ID <span style="color:var(--aw-danger)">*</span></label>
-          <input class="aw-input" id="studentId" placeholder="1234567" autocomplete="username">
-          <div class="aw-field-err" id="err-studentId"></div>
+          <label class="aw-label" for="studentId">Student ID <span style="color:var(--aw-danger)">*</span></label>
+          <input class="aw-input" id="studentId" required aria-describedby="err-studentId" placeholder="1234567" autocomplete="username">
+          <div class="aw-field-err" id="err-studentId" role="alert"></div>
         </div>
         <!-- Class code -->
         <div class="aw-field">
-          <label class="aw-label">Mã lớp <span style="color:var(--aw-danger)">*</span></label>
-          <input class="aw-input" id="class" placeholder="AW-XXXXX" style="text-transform:uppercase" autocomplete="off">
-          <div class="aw-field-err" id="err-class"></div>
+          <label class="aw-label" for="class">Mã lớp <span style="color:var(--aw-danger)">*</span></label>
+          <input class="aw-input" id="class" required aria-describedby="err-class" placeholder="AW-XXXXX" style="text-transform:uppercase" autocomplete="off">
+          <div class="aw-field-err" id="err-class" role="alert"></div>
         </div>
-      </div>
 
       <!-- Email -->
       <div class="aw-field">
-        <label class="aw-label">Email <span style="color:var(--aw-danger)">*</span></label>
-        <input class="aw-input" id="email" type="email" placeholder="ban@email.com" autocomplete="email">
-        <div class="aw-field-err" id="err-email"></div>
+        <label class="aw-label" for="email">Email <span style="color:var(--aw-danger)">*</span></label>
+        <input class="aw-input" id="email" required aria-describedby="err-email" type="email" placeholder="ban@email.com" autocomplete="email">
+        <div class="aw-field-err" id="err-email" role="alert"></div>
       </div>
-
-      <div class="aw-row">
         <!-- Birthdate -->
         <div class="aw-field">
-          <label class="aw-label">Ngày sinh <span style="color:var(--aw-danger)">*</span></label>
-          <input class="aw-input" id="birthdate" type="date" autocomplete="bday">
-          <div class="aw-field-err" id="err-birthdate"></div>
+          <label class="aw-label" for="birthdate">Ngày sinh <span style="color:var(--aw-danger)">*</span></label>
+          <input class="aw-input" id="birthdate" required aria-describedby="err-birthdate" type="date" autocomplete="bday">
+          <div class="aw-field-err" id="err-birthdate" role="alert"></div>
         </div>
         <!-- Phone -->
         <div class="aw-field">
-          <label class="aw-label">Số điện thoại <span style="color:var(--aw-danger)">*</span></label>
-          <input class="aw-input" id="phone" placeholder="09xx xxx xxx" autocomplete="tel" type="tel">
-          <div class="aw-field-err" id="err-phone"></div>
+          <label class="aw-label" for="phone">Số điện thoại <span style="color:var(--aw-danger)">*</span></label>
+          <input class="aw-input" id="phone" required aria-describedby="err-phone" placeholder="09xx xxx xxx" autocomplete="tel" type="tel">
+          <div class="aw-field-err" id="err-phone" role="alert"></div>
         </div>
-      </div>
 
       <!-- Password -->
       <div class="aw-field">
-        <label class="aw-label">Mật khẩu <span style="color:var(--aw-danger)">*</span></label>
+        <label class="aw-label" for="pw">Mật khẩu <span style="color:var(--aw-danger)">*</span></label>
         <div class="aw-pass-wrap">
-          <input class="aw-input" id="pw" type="password" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" style="padding-right:42px">
-          <button type="button" class="aw-pass-toggle" id="pwToggle" title="Hiện/ẩn mật khẩu" style="font-size:1rem;display:flex;align-items:center">
+          <input class="aw-input" id="pw" required aria-describedby="err-pw" type="password" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" style="padding-right:42px">
+          <button type="button" class="aw-pass-toggle" id="pwToggle" title="Hiện/ẩn mật khẩu" aria-label="Hiện hoặc ẩn mật khẩu" style="font-size:1rem;display:flex;align-items:center">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
-        <div class="aw-field-err" id="err-pw"></div>
+        <div class="aw-field-err" id="err-pw" role="alert"></div>
       </div>
 
       <p style="font-size:.76rem;color:var(--aw-ink-3);margin:0 0 10px">
@@ -133,36 +129,34 @@
       <h1 class="aw-auth-title" style="font-size:1.4rem">Teacher account</h1>
     </div>
     <div class="aw-field">
-      <label class="aw-label">Họ và tên <span style="color:var(--aw-danger)">*</span></label>
-      <input class="aw-input" id="tName" placeholder="ThS. Nguyễn Văn A">
-      <div class="aw-field-err" id="err-tName"></div>
+      <label class="aw-label" for="tName">Họ và tên <span style="color:var(--aw-danger)">*</span></label>
+      <input class="aw-input" id="tName" required aria-describedby="err-tName" placeholder="ThS. Nguyễn Văn A">
+      <div class="aw-field-err" id="err-tName" role="alert"></div>
     </div>
     <div class="aw-field">
-      <label class="aw-label">Email <span style="color:var(--aw-danger)">*</span></label>
-      <input class="aw-input" id="tEmail" type="email" placeholder="ban@dnpu.edu.vn">
-      <div class="aw-field-err" id="err-tEmail"></div>
+      <label class="aw-label" for="tEmail">Email <span style="color:var(--aw-danger)">*</span></label>
+      <input class="aw-input" id="tEmail" required aria-describedby="err-tEmail" type="email" placeholder="ban@dnpu.edu.vn">
+      <div class="aw-field-err" id="err-tEmail" role="alert"></div>
     </div>
-    <div class="aw-row">
       <div class="aw-field">
-        <label class="aw-label">Ngày sinh <span style="color:var(--aw-danger)">*</span></label>
-        <input class="aw-input" id="tBirth" type="date">
-        <div class="aw-field-err" id="err-tBirth"></div>
+        <label class="aw-label" for="tBirth">Ngày sinh <span style="color:var(--aw-danger)">*</span></label>
+        <input class="aw-input" id="tBirth" required aria-describedby="err-tBirth" type="date">
+        <div class="aw-field-err" id="err-tBirth" role="alert"></div>
       </div>
       <div class="aw-field">
-        <label class="aw-label">Số điện thoại <span style="color:var(--aw-danger)">*</span></label>
-        <input class="aw-input" id="tPhone" placeholder="09xx" type="tel">
-        <div class="aw-field-err" id="err-tPhone"></div>
+        <label class="aw-label" for="tPhone">Số điện thoại <span style="color:var(--aw-danger)">*</span></label>
+        <input class="aw-input" id="tPhone" required aria-describedby="err-tPhone" placeholder="09xx" type="tel">
+        <div class="aw-field-err" id="err-tPhone" role="alert"></div>
       </div>
-    </div>
     <div class="aw-field">
-      <label class="aw-label">Mật khẩu <span style="color:var(--aw-danger)">*</span></label>
+      <label class="aw-label" for="tPw">Mật khẩu <span style="color:var(--aw-danger)">*</span></label>
       <div class="aw-pass-wrap">
-        <input class="aw-input" id="tPw" type="password" placeholder="Tối thiểu 6 ký tự" style="padding-right:42px">
-        <button type="button" class="aw-pass-toggle" id="tPwToggle" title="Hiện/ẩn mật khẩu" style="font-size:1rem;display:flex;align-items:center">
+        <input class="aw-input" id="tPw" required aria-describedby="err-tPw" type="password" placeholder="Tối thiểu 6 ký tự" style="padding-right:42px">
+        <button type="button" class="aw-pass-toggle" id="tPwToggle" title="Hiện/ẩn mật khẩu" aria-label="Hiện hoặc ẩn mật khẩu" style="font-size:1rem;display:flex;align-items:center">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
-      <div class="aw-field-err" id="err-tPw"></div>
+      <div class="aw-field-err" id="err-tPw" role="alert"></div>
     </div>
     <button class="aw-btn aw-btn-primary aw-btn-block" id="tSubmit" style="margin-top:6px">
       Create teacher account
@@ -188,11 +182,8 @@ function trim(id){ return (val(id)||'').trim(); }
 function setErr(fieldId, msg){
   var inp = document.getElementById(fieldId);
   var err = document.getElementById('err-'+fieldId);
-  if (inp) inp.classList.toggle('field-error', !!msg);
+  if (inp) { inp.classList.toggle('field-error', !!msg); inp.setAttribute('aria-invalid', String(!!msg)); }
   if (err) { err.textContent = msg||''; err.classList.toggle('show', !!msg); }
-}
-function clearErrs(ids){
-  ids.forEach(function(id){ setErr(id,''); });
 }
 
 function showLoading(msg){
@@ -218,39 +209,67 @@ function togglePw(inputId, btn){
 togglePw('pw',  document.getElementById('pwToggle'));
 togglePw('tPw', document.getElementById('tPwToggle'));
 
+/*── Validation ───────────────────────────────────────────────
+   One rule per field → '' or a message that says how to fix it. A field is
+   checked when the student leaves it (blur) and all of them on submit —
+   never while typing; typing only clears the message already shown.      */
+var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function emailRule(v){
+  if (!v) return 'Nhập email bạn đang dùng — cần để lấy lại mật khẩu.';
+  if (v.indexOf('@') < 0) return 'Email thiếu ký tự @ — ví dụ: ten@gmail.com.';
+  return EMAIL_RE.test(v) ? '' : 'Email thiếu phần sau @ — ví dụ: ten@gmail.com.';
+}
+function pwRule(v){
+  if (!v.trim()) return 'Tạo mật khẩu có ít nhất 6 ký tự.';
+  return v.trim().length < 6 ? 'Mật khẩu mới có ' + v.trim().length + ' ký tự — thêm cho đủ 6.' : '';
+}
+var RULES = {
+  name:      function(v){ return v ? '' : 'Nhập họ và tên đầy đủ, ví dụ: Nguyễn Văn A.'; },
+  studentId: function(v){ return v ? '' : 'Nhập mã số sinh viên của bạn (in trên thẻ sinh viên).'; },
+  'class':   function(v){ return v ? '' : 'Nhập mã lớp giáo viên đã gửi, dạng AW-XXXXX.'; },
+  email:     emailRule,
+  birthdate: function(v){ return v ? '' : 'Chọn ngày sinh của bạn.'; },
+  phone:     function(v){ return v ? '' : 'Nhập số điện thoại, ví dụ: 0912345678.'; },
+  pw:        pwRule,
+  tName:     function(v){ return v ? '' : 'Nhập họ và tên của thầy/cô.'; },
+  tEmail:    emailRule,
+  tBirth:    function(v){ return v ? '' : 'Chọn ngày sinh.'; },
+  tPhone:    function(v){ return v ? '' : 'Nhập số điện thoại, ví dụ: 0912345678.'; },
+  tPw:       pwRule
+};
+function check(id){
+  var raw = val(id) || '', msg = RULES[id](/pw$/i.test(id) ? raw : raw.trim());
+  setErr(id, msg);
+  return !msg;
+}
+function checkAll(ids){
+  var bad = ids.filter(function(id){ return !check(id); });
+  if (bad.length) document.getElementById(bad[0]).focus();   // straight to the first field to fix
+  return !bad.length;
+}
+function wire(ids){
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    el.addEventListener('blur',  function(){ check(id); });
+    el.addEventListener('input', function(){ setErr(id, ''); });
+  });
+}
+// submitting: the button shows it and cannot be pressed twice
+function busy(btn, on){
+  if (on) { btn.dataset.label = btn.innerHTML; btn.innerHTML = '<span class="aw-spin"></span> Đang gửi…'; }
+  else if (btn.dataset.label) btn.innerHTML = btn.dataset.label;
+  btn.disabled = on; btn.classList.toggle('loading', on); btn.setAttribute('aria-busy', String(on));
+}
+
 /*── Student signup ───────────────────────────────────────────*/
 var STUDENT_FIELDS = ['name','studentId','class','email','birthdate','phone','pw'];
-
-function validateStudent(){
-  clearErrs(STUDENT_FIELDS);
-  var ok = true;
-  function req(id, label){
-    if (!trim(id)){ setErr(id, label+' là bắt buộc.'); ok=false; }
-  }
-  req('name',      'Họ và tên');
-  req('studentId', 'Student ID');
-  req('class',     'Mã lớp');
-  req('email',     'Email');
-  req('birthdate', 'Ngày sinh');
-  req('phone',     'Số điện thoại');
-  // Password
-  var pw = val('pw')||'';
-  if (!pw.trim()){
-    setErr('pw','Mật khẩu là bắt buộc.'); ok=false;
-  } else if (pw.trim().length < 6){
-    setErr('pw','Mật khẩu phải có ít nhất 6 ký tự.'); ok=false;
-  }
-  // Email format
-  if (trim('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trim('email'))){
-    setErr('email','Email không hợp lệ.'); ok=false;
-  }
-  return ok;
-}
+wire(STUDENT_FIELDS);
 
 document.getElementById('form').onsubmit = function(e){
   e.preventDefault();
-  if (!validateStudent()) return;
-
+  if (!checkAll(STUDENT_FIELDS)) return;
+  var btn = document.getElementById('submit');
+  busy(btn, true);
   showLoading('Đang kiểm tra thông tin…');
 
   AW.api('auth.studentSignup',{
@@ -262,7 +281,7 @@ document.getElementById('form').onsubmit = function(e){
     phone:     trim('phone'),
     email:     trim('email')
   }).then(function(res){
-    hideLoading();
+    hideLoading(); busy(btn, false);
     if (res && res.success){
       AW.session.set(Object.assign({role:'student'}, res.data), {remember:false});
       if (res.data && res.data.otherClasses) {
@@ -288,16 +307,10 @@ document.getElementById('form').onsubmit = function(e){
       else AW.toast(msg,'err',5000);
     }
   }).catch(function(){
-    hideLoading();
-    AW.toast('Không kết nối được máy chủ. Thử lại sau.','err');
+    hideLoading(); busy(btn, false);
+    AW.toast('Không kết nối được máy chủ. Kiểm tra mạng rồi bấm Create account lại — thông tin bạn nhập vẫn còn.','err',6000);
   });
 };
-
-// Clear error on field input
-STUDENT_FIELDS.forEach(function(id){
-  var el = document.getElementById(id==='pw'?'pw':id);
-  if (el) el.addEventListener('input', function(){ setErr(id,''); });
-});
 
 /*── Teacher signup ───────────────────────────────────────────*/
 var tm = document.getElementById('teacherModal');
@@ -308,30 +321,12 @@ document.getElementById('tClose').onclick = function(e){
 
 var TEACHER_FIELDS = ['tName','tEmail','tBirth','tPhone','tPw'];
 
-function validateTeacher(){
-  clearErrs(TEACHER_FIELDS);
-  var ok = true;
-  function req(id, label){
-    if (!trim(id)){ setErr(id, label+' là bắt buộc.'); ok=false; }
-  }
-  req('tName',  'Họ và tên');
-  req('tEmail', 'Email');
-  req('tBirth', 'Ngày sinh');
-  req('tPhone', 'Số điện thoại');
-  var tpw = val('tPw')||'';
-  if (!tpw.trim()){
-    setErr('tPw','Mật khẩu là bắt buộc.'); ok=false;
-  } else if (tpw.trim().length < 6){
-    setErr('tPw','Mật khẩu phải có ít nhất 6 ký tự.'); ok=false;
-  }
-  if (trim('tEmail') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trim('tEmail'))){
-    setErr('tEmail','Email không hợp lệ.'); ok=false;
-  }
-  return ok;
-}
+wire(TEACHER_FIELDS);
 
 document.getElementById('tSubmit').onclick = function(){
-  if (!validateTeacher()) return;
+  if (!checkAll(TEACHER_FIELDS)) return;
+  var tBtn = this;
+  busy(tBtn, true);
   showLoading('Đang tạo tài khoản giáo viên…');
 
   AW.api('auth.teacherSignup',{
@@ -342,7 +337,7 @@ document.getElementById('tSubmit').onclick = function(){
     phone:     trim('tPhone'),
     class:     ''
   }).then(function(res){
-    hideLoading();
+    hideLoading(); busy(tBtn, false);
     if (res && res.success){
       AW.session.set(Object.assign({role:'teacher'}, res.data), {remember:false});
       AW.toast('Tạo tài khoản thành công!','ok');
@@ -353,15 +348,10 @@ document.getElementById('tSubmit').onclick = function(){
       else AW.toast(msg,'err',5000);
     }
   }).catch(function(){
-    hideLoading();
-    AW.toast('Không kết nối được máy chủ.','err');
+    hideLoading(); busy(tBtn, false);
+    AW.toast('Không kết nối được máy chủ. Kiểm tra mạng rồi bấm lại.','err',6000);
   });
 };
-
-TEACHER_FIELDS.forEach(function(id){
-  var el = document.getElementById(id);
-  if (el) el.addEventListener('input', function(){ setErr(id,''); });
-});
 </script>
 </body>
 </html>

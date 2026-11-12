@@ -45,7 +45,7 @@
   .aw-ai-toggle.on{background:#DDF3EA;color:#1D6B4F}
   .aw-ai-toggle .aw-ai-dot{width:8px;height:8px;border-radius:50%;background:#E0A32E}
   .aw-ai-toggle.on .aw-ai-dot{background:#16825B}
-  .aw-ai-toggle .aw-ai-sub{font-weight:500;opacity:.8;font-size:.72rem;padding-left:6px;border-left:1px solid currentColor}
+  .aw-ai-toggle .aw-ai-sub{font-weight:500;font-size:.72rem;padding-left:6px;border-left:1px solid currentColor}
   .aw-ai-toggle:hover{filter:brightness(.97)}
   .aw-notifs{position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:340px}
   .aw-notif{background:var(--aw-primary-dk,#1E2142);color:#fff;border-radius:18px;padding:14px 16px;box-shadow:var(--aw-shadow-lg);display:flex;gap:10px;align-items:flex-start;font-size:.88rem;line-height:1.4;cursor:pointer;animation:awNotifIn .25s ease}
@@ -216,7 +216,7 @@
   .aw-task-card{border:2px solid transparent;border-radius:18px;padding:14px 16px;cursor:pointer;transition:all .18s;background:var(--aw-surface-2);user-select:none}
   .aw-task-card:hover{border-color:var(--aw-primary);background:var(--aw-primary-lt)}
   .aw-task-card.active{border-color:var(--aw-primary);background:var(--aw-primary-lt)}
-  .aw-task-card.active.t1{border-color:#16825B;background:#E6F5EE}
+  .aw-task-card.active.t1{border-color:#14633F;background:#E6F5EE}
   .aw-task-card .tc-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--aw-font-display);font-weight:800;font-size:1.1rem;margin-bottom:6px}
   .aw-task-card .tc-badge .tc-num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:.85rem;color:#fff}
   .t2 .tc-num{background:var(--aw-primary)}
@@ -227,13 +227,13 @@
   .aw-task-card .tc-criteria{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
   .aw-task-card .tc-crit{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid currentColor}
   .t2.active .tc-crit{background:rgba(10,110,189,.1);color:var(--aw-primary)}
-  .t1.active .tc-crit{background:rgba(26,158,92,.1);color:#16825B}
+  .t1.active .tc-crit{background:rgba(26,158,92,.1);color:#14633F}
   .aw-task-card:not(.active) .tc-crit{background:#f0f2f4;color:var(--aw-ink-3)}
   /* ── Chart Upload (Task 1) ── */
   .aw-chart-field{display:none}
   .aw-chart-field.show{display:block}
   .aw-chart-drop{border:2px dashed var(--aw-border);border-radius:var(--aw-r);padding:22px;text-align:center;cursor:pointer;transition:all .18s;background:var(--aw-surface-2);color:var(--aw-ink-3);font-size:.88rem}
-  .aw-chart-drop:hover,.aw-chart-drop.drag-over{border-color:#16825B;background:#EAF7F0;color:#16825B}
+  .aw-chart-drop:hover,.aw-chart-drop.drag-over{border-color:#14633F;background:#EAF7F0;color:#14633F}
   .aw-chart-drop .cd-icon{font-size:1.8rem;display:block;margin-bottom:6px}
   .aw-chart-preview-wrap{position:relative;margin-top:10px;display:none}
   .aw-chart-preview-wrap.show{display:block}
@@ -245,7 +245,7 @@
   /* ── Chart type chips ── */
   .aw-chart-type-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .aw-ct-chip{padding:4px 12px;border:1.5px solid var(--aw-border);border-radius:var(--aw-r-pill);font-size:.76rem;font-weight:600;cursor:pointer;background:#fff;color:var(--aw-ink-2);transition:all .15s}
-  .aw-ct-chip.active{background:#EAF7F0;border-color:#16825B;color:#16825B}
+  .aw-ct-chip.active{background:#EAF7F0;border-color:#14633F;color:#14633F}
   .aw-ct-chip:hover:not(.active){border-color:var(--aw-primary);color:var(--aw-primary)}
   /* ── Assignment detail modal (click row → banner) ── */
   .aw-assign-detail-bg{position:fixed;inset:0;background:rgba(30,33,66,.45);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
@@ -755,7 +755,7 @@ function showClasses(){
     return;
   }
   content.innerHTML='<div class="aw-grid">'+myClasses.map(function(c){
-    return '<div class="aw-lib-card" onclick="pickClass(\''+c.classId+'\')">'+
+    return '<div class="aw-lib-card" role="button" tabindex="0" onclick="pickClass(\''+c.classId+'\')">'+
       '<h3 class="aw-lib-title">'+AW.esc(c.className)+'</h3>'+
       '<span class="aw-tag aw-tag-type">'+AW.esc(c.classId)+'</span> '+
       '<span class="aw-tag aw-tag-medium">'+AW.esc(c.year||'')+(c.semester?' · HK'+AW.esc(c.semester):'')+'</span>'+
@@ -2463,7 +2463,7 @@ function renderResults(){
   var g0=rows[0], p0=g0.prompt ? (AW.stripHtml?AW.stripHtml(g0.prompt):g0.prompt.replace(/<[^>]*>/g,' ')) : '';
   function sortHd(label, key){
     var on = resultsSort.key===key;
-    return '<span class="res-sortable'+(on?' on':'')+'" data-sortkey="'+key+'" title="Sort by '+label+'">'+label+
+    return '<span class="res-sortable'+(on?' on':'')+'" role="button" tabindex="0" data-sortkey="'+key+'" title="Sort by '+label+'">'+label+
            '<span class="res-caret">'+(on?(resultsSort.dir===1?' ▲':' ▼'):'')+'</span></span>';
   }
   function dur(sec){ sec=parseInt(sec,10); if(isNaN(sec)||!sec) return ''; var m=Math.round(sec/60); return m>=60?(Math.floor(m/60)+'h '+(m%60)+'m'):(m+' min'); }
@@ -2894,8 +2894,8 @@ function loadAssignmentList(mode){
         var taskBadge = a.taskType==='task1'
           ? '<span class="aw-task-badge t1">Task 1</span>'
           : '<span class="aw-task-badge t2">Task 2</span>';
-        var chartIcon = (a.taskType==='task1' && a.chartImageId) ? ' <span style="color:#16825B;font-size:.85rem" title="Has chart image">📊</span>' : '';
-        return '<tr class="aw-assign-row" style="cursor:pointer'+(a.dataStatus?';opacity:.72':'')+'" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
+        var chartIcon = (a.taskType==='task1' && a.chartImageId) ? ' <span style="color:#14633F;font-size:.85rem" title="Has chart image">📊</span>' : '';
+        return '<tr class="aw-assign-row" role="button" tabindex="0" style="cursor:pointer'+(a.dataStatus?';opacity:.72':'')+'" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
           '<td style="max-width:200px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b>'+taskBadge+chartIcon+dataStatusBadge(a.dataStatus)+'</td>'+
           '<td style="font-size:.82rem;color:var(--aw-ink-2);max-width:320px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
@@ -2931,7 +2931,7 @@ function loadTestList(){
         var t=a.test||{}, missing=!t.t1||!t.t2;
         var state = a.isClosed ? ' <span class="aw-tag" style="background:#F2F4F7;color:#475467;font-size:.7rem;font-weight:700">Closed</span>'
                   : a.isLate ? ' <span class="aw-tag" style="background:#FFF1C7;color:#7A5A00;font-size:.7rem;font-weight:700">Late window</span>' : '';
-        return '<tr class="aw-test-row" style="cursor:pointer" data-i="'+i+'">'+
+        return '<tr class="aw-test-row" role="button" tabindex="0" style="cursor:pointer" data-i="'+i+'">'+
           '<td style="max-width:200px;white-space:normal"><b>'+AW.esc(a.topic||'Test')+'</b>'+state+'</td>'+
           (missing
             ? '<td colspan="2" style="color:#B42318;font-size:.84rem;white-space:normal">⚠ Bài này chưa có đề (tạo bằng bản cũ của app) — bấm để nhập lại đề, sinh viên mới thấy được.</td>'
@@ -3670,7 +3670,7 @@ function showSettings(){
         '<div class="aw-pass-wrap" style="flex:1;margin:0">'+
           '<input class="aw-input" id="tkIn" type="password" autocomplete="off" '+
             'placeholder="'+(gKey?'•••••••• (đã lưu)':'AIza… hoặc AQ…')+'" style="padding-right:40px">'+
-          '<button id="tkShowHide" type="button" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px" title="Show/hide">👁</button>'+
+          '<button id="tkShowHide" type="button" aria-label="Show or hide the key" class="aw-eye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--aw-ink-3);font-size:.85rem;padding:2px 4px" title="Show/hide">👁</button>'+
         '</div>'+
         '<button class="aw-btn aw-btn-primary" id="tkSave" style="padding:9px 18px">Save</button>'+
         (gKey?'<button class="aw-btn aw-btn-ghost" id="tkClear" style="padding:9px 14px">Remove</button>':'')+
@@ -3702,9 +3702,9 @@ function showSettings(){
     '</div>'+
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
       '<h3 style="margin:0 0 14px">Change Password</h3>'+
-      '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="tpwOld" type="password"></div>'+
-      '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="tpwNew" type="password"></div>'+
-      '<div class="aw-field"><label class="aw-label">Confirm</label><input class="aw-input" id="tpwNew2" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label" for="tpwOld">Current password</label><input class="aw-input" id="tpwOld" type="password" autocomplete="current-password"></div>'+
+      '<div class="aw-field"><label class="aw-label" for="tpwNew">New password</label><input class="aw-input" id="tpwNew" type="password" autocomplete="new-password"></div>'+
+      '<div class="aw-field"><label class="aw-label" for="tpwNew2">Confirm</label><input class="aw-input" id="tpwNew2" type="password" autocomplete="new-password"></div>'+
       '<button class="aw-btn aw-btn-primary" id="tpwBtn">Update password</button>'+
     '</div>'+
     /* ── Reset Data panel ── */
