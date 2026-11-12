@@ -362,7 +362,7 @@ async function getAssignments(p) {
     : docs(await fs.collection('assignments').where('classId', '==', classId).get());
   rows = rows.filter(a => a.active !== false &&
     (!p.mode || a.mode === p.mode) && (!p.taskType || (a.taskType || 'task2') === p.taskType))
-    .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    .sort((a, b) => ms(a.createdAt) - ms(b.createdAt));   // oldest first, by time (not by the text of the date)
   return ok(rows.map(a => assignOut(a, u)));
 }
 async function getPrompt(p) {

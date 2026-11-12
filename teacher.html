@@ -2276,7 +2276,9 @@ function showResults(){
         sel.innerHTML = '<option value="">📋 Pick a topic…</option>'+
           _assignments.map(function(a){
             var badge = a.taskType==='task1' ? ' [T1]' : ' [T2]';
-            return '<option value="'+AW.esc(a.topicId)+'">'+AW.esc(a.topic)+badge+'</option>';
+            var d = a.createdAt ? new Date(a.createdAt) : null;   // the list is oldest → newest; the date shows it
+            var made = d && !isNaN(d) ? ' · '+d.getDate()+'/'+(d.getMonth()+1) : '';
+            return '<option value="'+AW.esc(a.topicId)+'">'+AW.esc(a.topic)+badge+made+'</option>';
           }).join('');
       }).catch(function(){
         sel.innerHTML='<option value="">⚠ Loading error — Retry</option>';
