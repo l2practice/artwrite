@@ -697,7 +697,7 @@ function gradePart(n){
   try { if (AW.lexisReady && AW.lexisReady()) vocab += '\n' + AW.lexisSummary(AW.lexisAnalyse(text, { prompt: prompt })); } catch(e){}
   var payload = { writing: text, question: prompt, attempt: st.attempt, aiNotes: '', vocabSummary: vocab,
                   taskType: n === 1 ? 'task1' : 'task2', minWords: n === 1 ? 150 : 250 };
-  function once(){ return withTimeout(AW.grade(payload, AW.geminiKey.get()), 120000); }
+  function once(){ return withTimeout(AW.grade(payload, AW.geminiKey.get()), 200000); }
   return once().catch(function(){ return new Promise(function(r){ setTimeout(r, 3000); }).then(once); });
 }
 function gradingScreen(){

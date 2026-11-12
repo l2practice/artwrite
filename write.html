@@ -47,7 +47,10 @@
   .aw-editor img,.aw-editor iframe,.aw-editor svg,.aw-editor video,.aw-editor object,.aw-editor embed,.aw-editor canvas,.aw-editor dialog,.aw-editor button,.aw-editor input{display:none!important}
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
-  .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:#fff;background:var(--aw-primary-dk);padding:6px 14px;border-radius:999px;font-variant-numeric:tabular-nums}
+  .aw-timer{position:fixed;top:14px;right:18px;z-index:900;box-shadow:var(--aw-shadow-lg);font-weight:700;font-family:var(--aw-font-display);color:#fff;background:var(--aw-primary-dk);padding:6px 14px;border-radius:999px;font-variant-numeric:tabular-nums}
+  .aw-mini{border:none;background:var(--aw-surface-2);color:var(--aw-ink-2);border-radius:999px;padding:6px 12px;font:600 .78rem var(--aw-font-body);cursor:pointer;white-space:nowrap}
+  .aw-mini:hover{background:var(--aw-primary-lt);color:var(--aw-primary-hv)}
+  .aw-notes-drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);z-index:950;background:var(--aw-surface);box-shadow:var(--aw-shadow-lg);padding:18px 18px 24px;overflow-y:auto;box-sizing:border-box}
   .aw-side-panel{background:var(--aw-surface);border-left:none;padding:18px;height:calc(100vh - 140px);overflow-y:auto;position:sticky;top:0;display:flex;flex-direction:column}
   .aw-side-panel h3{margin:0 0 10px;font-size:.95rem;font-weight:700;color:var(--aw-ink)}
 
@@ -286,7 +289,8 @@ content.innerHTML =
         var ttBadge = TASK_TYPE === 'task1'
           ? '<span class="aw-task1-badge" id="taskTypeBadge">Task 1</span>'
           : '<span class="aw-task2-badge" id="taskTypeBadge">Task 2</span>';
-        return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt '+ttBadge+'</h4>' +
+        return '<div class="aw-prompt-box"><h4>IELTS Writing Prompt '+ttBadge+
+          ' <button type="button" class="aw-mini" id="copyPrompt" style="float:right;margin-top:-4px">⧉ Copy prompt</button></h4>' +
           '<div class="aw-prompt-text">'+AW.esc(AW.stripHtml(PROMPT))+'</div></div>';
       })() +
       '<div class="aw-editor-toolbar">' +
@@ -309,6 +313,8 @@ content.innerHTML =
       '</div>' +
       '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
       '<div class="aw-write-meta"><span id="wc">0 words</span>' +
+        '<button type="button" class="aw-mini" id="copyEssay">⧉ Copy essay</button>' +
+        '<button type="button" class="aw-mini" id="openNotes">📒 My notes</button>' +
         (DURATION_MIN ? '<span class="aw-timer" id="timer">⏱ '+DURATION_MIN+':00</span>' : '') +
       '</div>' +
       '<div style="display:flex;gap:8px">' +
@@ -564,13 +570,39 @@ window.pauseWriting = function(){
 };
 // clear draft after successful submission
 window.clearDraft = function(){
-  try { localStorage.removeItem(DRAFT_KEY); } catch(e){}
+  try { localStorage.removeItem(DRAFT_KEY); localStorage.removeItem(TIMER_KEY); } catch(e){}
+};
+
+/*──────── leaving by mistake, copy, notes ────────*/
+window.addEventListener('beforeunload', function(e){
+  if (writePhase === 'editing' && AW.wordCount(editor.innerText) > 0) { e.preventDefault(); e.returnValue = ''; }
+});
+function copyText(text, what){
+  if (!String(text||'').trim()) { AW.toast('Chưa có nội dung để copy.','err'); return; }
+  navigator.clipboard.writeText(text).then(function(){ AW.toast('Đã copy '+what,'ok',2000); },
+    function(){ AW.toast('Trình duyệt không cho copy — hãy bôi đen rồi Ctrl+C.','err',4000); });
+}
+// after grading the editor shows the corrections, so the essay comes from the clean copy
+document.getElementById('copyEssay').onclick = function(){
+  copyText(writePhase === 'editing' ? editor.innerText : (lastPlainEssay || editor.innerText), 'bài viết');
+};
+if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt').onclick = function(){
+  copyText(document.querySelector('.aw-prompt-text').innerText, 'đề bài');
+};
+document.getElementById('openNotes').onclick = function(){
+  var d = document.getElementById('notesDrawer');
+  if (d) { d.hidden = !d.hidden; return; }
+  d = document.createElement('div'); d.id = 'notesDrawer'; d.className = 'aw-notes-drawer';
+  d.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:1.05rem">📒 My notes</b>'+
+    '<button type="button" class="aw-mini" onclick="document.getElementById(\'notesDrawer\').hidden=true">✕ Close</button></div><div id="notesDrawerBody"></div>';
+  document.body.appendChild(d);
+  AW.notesPanel(document.getElementById('notesDrawerBody'));
 };
 setTimeout(function(){ var pb=document.getElementById('pauseBtn'); if(pb) pb.onclick=pauseWriting; }, 0);
 
 /*──────── retry: start FRESH with an empty editor ────────*/
 if (RETRY) {
-  localStorage.removeItem(DRAFT_KEY);
+  localStorage.removeItem(DRAFT_KEY); localStorage.removeItem('aw_timer_' + MODE + '_' + TOPIC_ID);
   editor.innerText = '';
   wc.textContent = '0 words';
   AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE }).then(function(res){
@@ -602,11 +634,13 @@ function lockEditorFull(){
 /*──────── timer ────────*/
 var _cdTick = null;
 var _timeUp  = false;
+var TIMER_KEY = 'aw_timer_' + MODE + '_' + TOPIC_ID;   // seconds left, kept with the draft
 if (DURATION_MIN) {
-  var remain = DURATION_MIN * 60;
+  var remain = (!RETRY && parseInt(localStorage.getItem(TIMER_KEY), 10)) || DURATION_MIN * 60;
   var tEl = document.getElementById('timer');
   _cdTick = setInterval(function(){
     remain--;
+    try { localStorage.setItem(TIMER_KEY, Math.max(remain, 1)); } catch(e){}
     if (remain <= 0) {
       clearInterval(_cdTick); _cdTick = null;
       _timeUp = true;
@@ -657,7 +691,7 @@ function showTimeUpWarning() {
    Auto-confirms the hw/inclass submit dialog so no interaction needed.    */
 /*── Banner sau khi nộp bài ──*/
 function showTimeUpBanner(wordCount, result) {
-  var minWords = TASK_TYPE === 'task1' ? 150 : 250;
+  var minWords = MIN_WORDS;
   var isShort  = wordCount < minWords;
   var band     = result && result.overall ? parseFloat(result.overall) : null;
 
@@ -1082,13 +1116,13 @@ function gradeBtnHandler(){
   // Wrap AW.grade in a 90-second timeout so the spinner never hangs forever.
   // Gemini API occasionally stalls without rejecting; this ensures the student
   // always gets a recoverable error instead of an infinite spinner.
-  var GRADE_TIMEOUT_MS = 90000;
+  var GRADE_TIMEOUT_MS = 200000;   // up to three Gemini models (45 s each) + the Groq fallback
   var gradeTimeoutId;
   var gradeWithTimeout = Promise.race([
     AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE, minWords:MIN_WORDS }, key),
     new Promise(function(_, reject){
       gradeTimeoutId = setTimeout(function(){
-        reject(new Error('timeout: AI không phản hồi sau 90 giây. Vui lòng thử lại.'));
+        reject(new Error('timeout: AI không phản hồi. Vui lòng thử lại.'));
       }, GRADE_TIMEOUT_MS);
     })
   ]);
@@ -1462,13 +1496,13 @@ function renderFeedback(r){
         return textChunk.replace(new RegExp(esc,'g'), wrapOpen + AW.esc(phrase) + wrapClose);
       });
     }
-    if(r.gra_errors) r.gra_errors.slice(0,10).forEach(function(e){
+    if(r.gra_errors) r.gra_errors.forEach(function(e){
       if(e.wrong && e.correct){
         annotated = markPhrase(annotated, e.wrong,
           '<span class="err-mark">', '</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
       }
     });
-    if(r.lr_issues) r.lr_issues.slice(0,6).forEach(function(e){
+    if(r.lr_issues) r.lr_issues.forEach(function(e){
       if(e.original && e.better){
         annotated = markPhrase(annotated, e.original,
           '<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">',
@@ -1511,13 +1545,13 @@ function renderFeedback(r){
   }
   // Grammar — full detail always
   if((r.gra_errors||[]).length){
-    html+='<div class="aw-fb-block"><h4>Grammar ('+r.gra_errors.length+' issues)</h4>'+r.gra_errors.slice(0,8).map(function(e){
+    html+='<div class="aw-fb-block"><h4>Grammar ('+r.gra_errors.length+' issues)</h4>'+r.gra_errors.map(function(e){
       return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.wrong)+'</span> → <span class="fix-mark">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
     }).join('')+'</div>';
   }
   // Lexical — full detail always
   if((r.lr_issues||[]).length){
-    html+='<div class="aw-fb-block"><h4>Lexical Resource ('+r.lr_issues.length+' suggestions)</h4>'+r.lr_issues.slice(0,6).map(function(e){
+    html+='<div class="aw-fb-block"><h4>Lexical Resource ('+r.lr_issues.length+' suggestions)</h4>'+r.lr_issues.map(function(e){
       return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
     }).join('')+'</div>';
   }
