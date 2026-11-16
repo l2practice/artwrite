@@ -18,11 +18,13 @@
       // A half band ("5.5, borderline") goes DOWN: Math.round sent every 5.5 up to 6,
       // so the overall came out half a band above the one the AI had written in its
       // own description ("Overall đạt 5.5" next to a 6).
-      ['TR','CC','LR','GRA'].forEach(function(k){
+      var keys=['TR','CC','LR','GRA'].filter(function(k){ return r.scores[k]!==undefined && r.scores[k]!==null && r.scores[k]!==''; });
+      if(!keys.length) return r;
+      keys.forEach(function(k){
         var v = parseFloat(r.scores[k])||0;
         r.scores[k] = (v - Math.floor(v) === 0.5) ? Math.floor(v) : Math.round(v);
       });
-      var avg=(r.scores.TR+r.scores.CC+r.scores.LR+r.scores.GRA)/4;
+      var avg=keys.reduce(function(t,k){ return t+r.scores[k]; },0)/keys.length;
       var whole=Math.floor(avg), frac=avg-whole;
       r.overall = frac<0.25 ? whole : (frac<0.75 ? whole+0.5 : whole+1);
       // the AI's text must not quote a different overall than the one shown
@@ -73,20 +75,27 @@
       '1) LEXICAL RESOURCE — naturalness over complexity: do NOT "upgrade" vocabulary that is already natural, accurate and an appropriate academic collocation (accept "heavy financial burden"; do not force "significant financial burden"). Only correct vocabulary that is grammatically wrong, factually wrong, too informal/slang, or noticeably repetitive. Effective precise collocations deserve LR 7.0+; do NOT cap LR at 6.0 merely because the vocabulary is not "complex enough" in your view.\n'+
       '2) GRAMMAR — holistic: do NOT penalize clear pronoun referencing ("it/they/this/these") when the antecedent is logically clear; do not force noun repetition. If most sentences are error-free and meaning is clear, GRA MUST be 7.0+. A few minor slips (one missing article, one isolated subject-verb slip) do NOT drag a fundamentally strong essay down to 6.0.\n'+
       '3) COHERENCE & COHESION — reward implicit cohesion: do NOT penalize an essay for lacking mechanical transitions (First, Second, Moreover) when it cohering successfully through referencing ("this trend", "these drawbacks"), substitution, or logical sequencing. Flowing logically WITHOUT template transitions is a Band 7.0+ trait, not 6.0.\n'+
-      'VERIFICATION BEFORE ANY 6.0: before downgrading LR, GRA or CC to 6.0 on the basis of error frequency, confirm the errors are genuinely "frequent" or "cause difficulty for the reader" per the official IELTS band descriptors. If errors are only occasional and meaning comes through clearly, the score must be at least 7.0. (This check does not apply to the hard-cap rules above, which stand regardless.)\n'+
+      'SCORING CALIBRATION (IELTS public band descriptors — decide each criterion with these lines, then check the scores against them before returning):\n'+
+      '- GRA 5: limited range; errors are FREQUENT — the same basic error type (subject-verb agreement, tense, plural -s, articles) repeats across paragraphs — and may cause some difficulty. GRA 6: a mix of simple and complex forms; errors occur but rarely impede. GRA 7: a variety of complex structures; FREQUENT error-free sentences; good control. If most sentences contain an error, GRA is not 6+.\n'+
+      '- LR 5: limited range, mostly basic everyday words; noticeable errors in word choice or collocation. LR 6: adequate range; some less common words, used with some inaccuracy. LR 7: enough range for flexibility and precision; some less common items; only occasional collocation errors.\n'+
+      '- CC 5: some organisation but weak progression; cohesive devices inadequate, inaccurate or OVERUSED. CC 6: coherent arrangement, but cohesion is faulty or MECHANICAL (template linkers — Firstly, Secondly, On the one hand, Moreover — opening most sentences or paragraphs). CC 7: clear progression; a range of cohesive devices, including reference and substitution, used flexibly.\n'+
+      '- TR 5: addresses the task only partially; main ideas limited, not sufficiently developed, may be generalised or repetitive. TR 6: a relevant position, but some main ideas are inadequately developed or unclear. TR 7: a clear position throughout; main ideas extended and supported with specific reasons, examples or consequences.\n'+
+      '- If the evidence fits a lower band\'s line, give the lower band. Meaning that is still clear is NOT a reason to raise a score: clarity alone is band 5–6. The anti-over-correction protocol only stops downgrades the evidence does not support.\n'+
       '[FEEDBACK FORMAT]\n'+
       'When any rule triggers, quote the exact sentence containing the error, use an arrow "=>", and give a precise, constructive correction based ONLY on the rules above. Keep the tone professional, direct and academic. Apply caps to the numeric scores accordingly — caps set the MAXIMUM; genuine weaknesses may score lower.\n\n'+
-      'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {paragraph_role,assessment_vi,suggestion_en,quote}), gra_errors(array of {wrong,correct,explanation_vi}), lr_issues(array of {original,better,explanation_vi,alternatives}), cc_feedback({assessment_vi,issues,suggestions}), lexis_vi, corrected_text, repeated_errors_vi.\n'+
+      'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {paragraph_role,assessment_vi,suggestion_en,quote}), gra_errors(array of {wrong,correct,explanation_vi,severity,type}), lr_issues(array of {original,better,explanation_vi,alternatives,severity,type}), cc_feedback({assessment_vi,issues,suggestions}), criteria_notes(object with TR, CC, LR, GRA, each {why_not_higher_vi, strengths_vi:[1-2 items], improve_vi:[1-2 items]}), lexis_vi, repeated_errors_vi.\n'+
+      '"wrong" and "original" must be copied EXACTLY, character for character, from the student\'s text — the app finds and highlights them; a quote that is not in the text is shown as unlocated.\n'+
+      '"why_not_higher_vi" (Vietnamese): the specific evidence from THIS text that keeps the criterion from the next band up, named against that band\'s descriptor.\n'+
       '[MINIMUM DEPTH — a strong essay still gets detailed feedback]\n'+
       'A high band is NEVER a reason to return short or empty feedback. Band 7 is not perfect: it still contains imprecise word choice, slightly unnatural collocations, over-long sentences, weak or unsupported examples, and paragraphs that could be developed further. Praise alone is not useful feedback.\n'+
-      '- ALWAYS return at least 3 items in "lr_issues" and at least 2 in "gra_errors". If the essay has no outright errors, use these slots for PRECISION upgrades: quote the exact wording used and offer a more precise, more natural, or more academic alternative, explaining in Vietnamese why the alternative is better. Never invent an error that is not in the text — an upgrade suggestion is not an error, so word the explanation as an improvement, not a mistake.\n'+
+      '- Every gra_errors and lr_issues item has "severity": "error" (a real mistake — wrong grammar, word, collocation, spelling or punctuation) or "upgrade" (correct, but could be more precise, natural or academic), and "type", one of: subject_verb_agreement, verb_tense, verb_form, plural_noun, article, preposition, word_form, word_order, missing_word, sentence_structure, punctuation, capitalisation, spelling, word_choice, collocation, register, repetition. In each array list EVERY "error" first, in text order; then add 2–4 "upgrade" items. Never invent an error and never label an upgrade as an error. One mistake = one item: do not report the same words twice.\n'+
       '- ALWAYS return one tr_comments entry for EVERY paragraph of the response (Task 2: Opening, each Body, Conclusion. Task 1: Introduction, Overview, each Body — Task 1 has NO Conclusion), even when the paragraph is good: say specifically what works and what single change would strengthen it.\n'+
       '- "cc_feedback.assessment_vi" must name at least one concrete thing to improve, not only praise.\n'+
       '- "overall_feedback_vi" must state both what the student did well AND the single most important thing to work on next. Never end with praise only.\n'+
       '- "lexis_vi" (Vietnamese, 3–5 sentences): comment on the student\'s VOCABULARY LEVEL and COLLOCATIONS. Use the VOCABULARY DATA section (CEFR spread, dictionary-matched collocations, repeated basic words) as evidence and check it against the essay. Name 1–2 collocations the student used well (quote them), point out any unnatural word combination, and give 2–3 natural collocations the student could use for their OWN ideas in this essay (English collocation + Vietnamese meaning). Do not repeat items already listed in lr_issues.\n'+
       '\n[GRAMMAR & VOCABULARY DEPTH IN BODY PARAGRAPHS — HIGHEST PRIORITY]\n'+
       'The primary learning goal is improving GRAMMAR ACCURACY and VOCABULARY PRECISION sentence by sentence.\n'+
-      'For EVERY body paragraph, go through EACH sentence and:\n'+
+      'Go through EVERY sentence of the WHOLE response (opening and conclusion included, not only the body paragraphs) and:\n'+
       '  (a) GRAMMAR: identify subject-verb agreement errors, tense inconsistencies, article misuse (a/an/the), preposition errors, wrong word form (noun/verb/adj confusion), missing/extra words, run-on sentences, comma splices, dangling modifiers. Quote the exact wrong form → correct form → explain in Vietnamese WHY it is wrong.\n'+
       '  (b) VOCABULARY: identify unnatural collocations, imprecise word choice, informal words in formal context, repetitive nouns that should be replaced by pronouns or synonyms, words that are close but not the best fit. Quote the original word/phrase → suggest a more precise/natural/academic alternative → explain in Vietnamese what the difference is.\n'+
       'Do NOT summarise body paragraph grammar/vocab in one sentence. List individual errors and upgrades for each sentence that has room for improvement. A body paragraph with 4+ sentences should have at least 2–3 grammar items AND 2–3 vocabulary items reported.\n'+
@@ -163,6 +172,19 @@
       userMessage += '\n\n=== TEACHER\'S GRADING RULES (HIGHEST PRIORITY — these OVERRIDE the default IELTS strictness above) ===\n'+
         payload.aiNotes.trim()+
         '\n\nYou MUST follow these teacher rules. Do NOT flag, mark, or deduct points for anything the teacher has explicitly allowed or told you to ignore. Only report errors that remain genuine problems given these rules. This keeps feedback appropriate for the class context and avoids overwhelming the student with irrelevant corrections.';
+    }
+    var wt = payload.writingType || 'full_essay';
+    if (wt === 'paragraph') {
+      userMessage = userMessage.replace(wcInstruction, '\n\nWORD COUNT: ' + wc + ' words. Do not cap or penalise for length.') +
+        '\n\n=== TASK FORMAT: PARAGRAPH PRACTICE (overrides everything above about essay structure) ===\n'+
+        'The teacher set paragraph practice. The response is one or more STANDALONE paragraphs, not an essay. Do NOT label paragraphs Opening, Body or Conclusion, do NOT expect an introduction, thesis or conclusion, and do NOT assess Task Response or Task Achievement.\n'+
+        'Assess only: Coherence & Cohesion WITHIN each paragraph (topic sentence, development and support, logical order, linking), Lexical Resource, and Grammatical Range & Accuracy.\n'+
+        'Return "scores" with CC, LR and GRA only — no TR. "tr_comments": one entry per paragraph with "paragraph_role" = "Paragraph 1", "Paragraph 2"…, about how well that paragraph is built. "criteria_notes": CC, LR and GRA only.';
+    } else if (wt === 'sentences') {
+      userMessage = userMessage.replace(wcInstruction, '') +
+        '\n\n=== TASK FORMAT: SENTENCE PRACTICE (overrides everything above) ===\n'+
+        'The teacher set sentence practice. The response is a set of SEPARATE sentences, not a paragraph or an essay. Do NOT treat any sentence as an opening, a body or a conclusion; do NOT comment on structure, coherence, cohesion, task response or development; and do NOT give any band score.\n'+
+        'Check every sentence for grammar and vocabulary only. Return: "scores": {} (empty), "gra_errors", "lr_issues", "tr_comments": [] (empty), "cc_feedback": {} (empty), "criteria_notes" with LR and GRA only (leave why_not_higher_vi empty), "overall_feedback_vi" (2–3 sentences on the accuracy and range of the sentences), "lexis_vi", and "band_description": "Sentence practice".';
     }
     var prompt=systemInstruction+'\n\n'+userMessage;
     // ~30-token CEFR vocabulary summary (measured client-side) for reference
@@ -378,8 +400,32 @@
     throw new Error('Groq error: ' + lastErr);
   }
 
+  /* After the AI: the task format decides what is scored; one mistake is one
+     item; a quote that is not in the text is flagged (the app cannot mark it). */
+  function finish(r, payload) {
+    var wt = payload.writingType || 'full_essay';
+    r.writing_type = wt;
+    if (wt === 'sentences') { r.scores = null; r.overall = 'Done'; r.tr_comments = []; r.cc_feedback = {}; }
+    else if (wt === 'paragraph' && r.scores) { delete r.scores.TR; normaliseScores(r); }
+    var flat = function (t) { return String(t || '').toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim(); };
+    var text = flat(payload.writing);
+    [['gra_errors', 'wrong', 'correct'], ['lr_issues', 'original', 'better']].forEach(function (f) {
+      var seen = {};
+      r[f[0]] = (r[f[0]] || []).filter(function (e) {
+        if (!e || !e[f[1]]) return false;
+        var k = flat(e[f[1]]) + '→' + flat(e[f[2]]);
+        if (seen[k]) return false;
+        seen[k] = 1;
+        e.unlocated = text.indexOf(flat(e[f[1]])) < 0;
+        return true;
+      });
+    });
+    return r;
+  }
+  AW.gradeFinish = finish;   // used by tests/grader.check.js
+
   // Public API
-  AW.grade          = gradeWithGemini;   // main entry point (Gemini → Groq fallback)
+  AW.grade          = function (payload, key) { return gradeWithGemini(payload, key).then(function (r) { return finish(r, payload); }); };   // Gemini → Groq fallback
   AW.gradeGroq      = gradeWithGroq;     // direct Groq grading
   AW.gradeNormalise = normaliseScores;   // used by test.html
 
