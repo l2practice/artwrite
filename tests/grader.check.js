@@ -9,7 +9,7 @@ function run(handler, groqKey) {
     AbortController, setTimeout:(f,ms)=>setTimeout(f, Math.min(ms,5)), clearTimeout, console,
     fetch: async (url, opt) => { calls.push(url); return handler(url, opt, calls.length); } };
   ctx.window.window = win; vm.createContext(ctx); vm.runInContext(src, ctx);
-  return { grade: () => win.AW.grade({ writing:'one two three', question:'q', attempt:1, taskType:'task2' }, 'KEY'), calls };
+  return { grade: () => win.AW.grade({ writing:'one two three', question:'q', attempt:1, taskType:'task2' }, 'KEY'), gradeWith: (p) => win.AW.grade(p, 'KEY'), calls };
 }
 const ok = (text) => ({ ok:true, status:200, json: async () => ({ candidates:[{ content:{ parts:[{ text }] } }] }) });
 const bad = (status, message) => ({ ok:false, status, json: async () => ({ error:{ message } }) });
@@ -38,5 +38,20 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   // request asks for JSON and enough room
   t = run((u, o) => { const c = JSON.parse(o.body).generationConfig; assert.equal(c.responseMimeType, 'application/json'); assert(c.maxOutputTokens >= 16000); return ok(GOOD); });
   await t.grade();
+  // task formats + post-processing: paragraph drops TR, sentences get no score, duplicates go, quotes are checked
+  const essay = 'This trend have more disadvantages. In recent years smartphones become popular.';
+  t = run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5},
+    gra_errors:[{wrong:'trend have',correct:'trend has'},{wrong:'trend  have',correct:'trend has'},{wrong:'not in text',correct:'x'}], lr_issues:[] })));
+  let fin = await (async () => { const g = run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5}, gra_errors:[{wrong:'trend have',correct:'trend has'},{wrong:'Trend  have',correct:'trend has'},{wrong:'not in text',correct:'x'}] })));
+    return g.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'paragraph' }); })();
+  assert.equal(fin.scores.TR, undefined); assert.equal(fin.overall, 5.5);          // (6+6+5)/3 = 5.67 → 5.5
+  assert.equal(fin.gra_errors.length, 2); assert.equal(fin.gra_errors[0].unlocated, false); assert.equal(fin.gra_errors[1].unlocated, true);
+  fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5}, gra_errors:[] }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.equal(fin.overall, 'Done'); assert.equal(fin.scores, null);
+  fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5} }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+  assert.equal(fin.overall, 6); assert.equal(fin.writing_type, 'full_essay');
+  // the prompt names the format
+  t = run((u, o) => { const txt = JSON.parse(o.body).contents[0].parts[0].text; assert(/SENTENCE PRACTICE/.test(txt) && !/WORD COUNT: This response/.test(txt)); return ok(GOOD); });
+  await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
