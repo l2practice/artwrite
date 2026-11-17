@@ -53,5 +53,15 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   // the prompt names the format
   t = run((u, o) => { const txt = JSON.parse(o.body).contents[0].parts[0].text; assert(/SENTENCE PRACTICE/.test(txt) && !/WORD COUNT: This response/.test(txt)); return ok(GOOD); });
   await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  // mode-specific prompt: TR / CC rule blocks only for full essays; the always-kept parts survive
+  const seen = {};
+  for (const wt of ['full_essay','paragraph','sentences']) {
+    await run((u, o) => { seen[wt] = JSON.parse(o.body).contents[0].parts[0].text; return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType: wt });
+  }
+  assert(/2\) TASK RESPONSE/.test(seen.full_essay) && /3\) COHERENCE & COHESION:/.test(seen.full_essay));
+  assert(!/2\) TASK RESPONSE/.test(seen.paragraph) && /3\) COHERENCE & COHESION:/.test(seen.paragraph));
+  assert(!/2\) TASK RESPONSE/.test(seen.sentences) && !/3\) COHERENCE & COHESION:/.test(seen.sentences));
+  assert(/ANTI-OVER-CORRECTION/.test(seen.sentences) && /1\) LEXICAL RESOURCE & GRAMMAR/.test(seen.sentences) && /OUTPUT BUDGET/.test(seen.sentences));
+  assert(seen.sentences.length < seen.paragraph.length && seen.paragraph.length < seen.full_essay.length);
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
