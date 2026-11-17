@@ -244,6 +244,8 @@ var hasRealTopic = qp.get('topicId') && MODE !== 'free';
 // MIN_WORDS: default by task type, overridden by assignment's minWords field
 // GV có thể set minWords thấp hơn (VD: 80 nếu chỉ viết 1 đoạn thân bài)
 var MIN_WORDS = TASK_TYPE === 'task1' ? 150 : 250;
+// teacher's writing format: 'full_essay' | 'paragraph' | 'sentences' (changes what the AI grades)
+var WRITING_TYPE = 'full_essay';
 
 // If chart image was passed via URL (Task 1 assigned), render immediately
 if (TASK_TYPE === 'task1' && CHART_IMAGE_ID) {
@@ -266,10 +268,14 @@ if (hasRealTopic) {
         if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
       }
       AI_NOTES = res.data.aiNotes || '';
+      WRITING_TYPE = res.data.writingType || 'full_essay';
       // Override MIN_WORDS if teacher specified a custom limit for this task
       if (res.data.minWords && parseInt(res.data.minWords, 10) > 0) {
         MIN_WORDS = parseInt(res.data.minWords, 10);
         // Update the word counter label to reflect custom limit
+        updateWordCount();
+      } else if (WRITING_TYPE !== 'full_essay') {
+        MIN_WORDS = 20;   // sentence / paragraph practice: the essay word target does not apply
         updateWordCount();
       }
     }
@@ -1158,7 +1164,8 @@ function gradeBtnHandler(){
   var GRADE_TIMEOUT_MS = 200000;   // up to three Gemini models (45 s each) + the Groq fallback
   var gradeTimeoutId;
   var gradeWithTimeout = Promise.race([
-    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE, minWords:MIN_WORDS }, key),
+    AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE, minWords:MIN_WORDS, writingType:WRITING_TYPE }, key)
+      .then(function(r){ return (AW.lexisLoad ? AW.lexisLoad().then(function(){ return AW.lexisMarkDict(r); }, function(){ return r; }) : r); }),
     new Promise(function(_, reject){
       gradeTimeoutId = setTimeout(function(){
         reject(new Error('timeout: AI không phản hồi. Vui lòng thử lại.'));
@@ -1239,7 +1246,7 @@ function gradeBtnHandler(){
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
-        tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
+        tr:(result.scores||{}).TR||'', cc:(result.scores||{}).CC||'', lr:(result.scores||{}).LR||'', gra:(result.scores||{}).GRA||'',
         aiGrading:result.overall, teacherGrading:'', essay:lastPlainEssay, class:(sess.class||''),
         feedback: JSON.stringify(result)
       };
@@ -1521,7 +1528,7 @@ function lockEditor(msg){
 function renderFeedback(r){
   var s=r.scores||{};
   // Annotate essay on left (error marks inline) — always
-  if(r.corrected_text || (r.gra_errors && r.gra_errors.length) || (r.lr_issues && r.lr_issues.length)){
+  if((r.gra_errors && r.gra_errors.length) || (r.lr_issues && r.lr_issues.length)){
     // Keep the student's original paragraph structure. innerText flattens
     // paragraphs into one block, so start from the real HTML and only
     // wrap error phrases inside it (text nodes only, never inside tags).
@@ -1536,13 +1543,13 @@ function renderFeedback(r){
       });
     }
     if(r.gra_errors) r.gra_errors.forEach(function(e){
-      if(e.wrong && e.correct){
+      if(e.wrong && e.correct && !e.unlocated){
         annotated = markPhrase(annotated, e.wrong,
           '<span class="err-mark">', '</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
       }
     });
     if(r.lr_issues) r.lr_issues.forEach(function(e){
-      if(e.original && e.better){
+      if(e.original && e.better && !e.unlocated){
         annotated = markPhrase(annotated, e.original,
           '<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">',
           '<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
@@ -1554,10 +1561,10 @@ function renderFeedback(r){
     editor.style.whiteSpace='pre-wrap';   // keep line breaks even if the essay was plain text
   }
   var html =
-    '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">BAND</div></div>' +
+    '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">'+(r.scores?'BAND':'')+'</div></div>' +
       '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b><p style="margin:4px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+AW.esc((r.overall_feedback_vi||'').slice(0,90))+'</p></div></div>' +
-    crit('Task Response', s.TR) + crit('Coherence & Cohesion', s.CC) +
-    crit('Lexical Resource', s.LR) + crit('Grammar', s.GRA);
+    (s.TR!=null ? crit('Task Response', s.TR) : '') + (s.CC!=null ? crit('Coherence & Cohesion', s.CC) : '') +
+    (s.LR!=null ? crit('Lexical Resource', s.LR) : '') + (s.GRA!=null ? crit('Grammar', s.GRA) : '');
 
   // For attempt 2-3: highlight whether old mistakes were repeated
   if (attempt >= 2 && r.repeated_errors_vi) {
@@ -1570,7 +1577,7 @@ function renderFeedback(r){
   }
   // Task Response detail — show bold paragraph label; quote only a single flagged sentence
   if(r.tr_comments && r.tr_comments.length){
-    html += '<div class="aw-fb-block"><h4>Task Response</h4>'+r.tr_comments.slice(0,6).map(function(c){
+    html += '<div class="aw-fb-block"><h4>'+(r.writing_type==='paragraph'?'Paragraphs':'Task Response')+'</h4>'+r.tr_comments.slice(0,6).map(function(c){
       var label = c.paragraph_role ? '<b style="color:var(--aw-primary)">'+AW.esc(c.paragraph_role)+'</b><br>' : '';
       var quote = c.quote ? '<i style="color:var(--aw-ink-2)">"'+AW.esc(c.quote)+'"</i><br>' : '';
       return '<div class="aw-fb-item">'+label+quote+AW.esc(c.assessment_vi||'')+
@@ -1582,18 +1589,8 @@ function renderFeedback(r){
     html += '<div class="aw-fb-block"><h4>Coherence & Cohesion</h4><div class="aw-fb-item">'+AW.esc(r.cc_feedback.assessment_vi)+
       ((r.cc_feedback.suggestions&&r.cc_feedback.suggestions.length)?'<br><span style="font-size:.85rem;color:var(--aw-primary)">→ '+AW.esc([].concat(r.cc_feedback.suggestions).join('; '))+'</span>':'')+'</div></div>';
   }
-  // Grammar — full detail always
-  if((r.gra_errors||[]).length){
-    html+='<div class="aw-fb-block"><h4>Grammar ('+r.gra_errors.length+' issues)</h4>'+r.gra_errors.map(function(e){
-      return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.wrong)+'</span> → <span class="fix-mark">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
-    }).join('')+'</div>';
-  }
-  // Lexical — full detail always
-  if((r.lr_issues||[]).length){
-    html+='<div class="aw-fb-block"><h4>Lexical Resource ('+r.lr_issues.length+' suggestions)</h4>'+r.lr_issues.map(function(e){
-      return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
-    }).join('')+'</div>';
-  }
+  // Every grammar and vocabulary item, grouped, with type/severity tags (shared renderer)
+  html += AW.fbErrorsHtml(r);
   // Vocabulary Profile moved to side panel via renderVocabStats() above
   // After submit: hide notepad, show score + vocab stats + Google Doc button
   var notepad = document.getElementById('draftNote');
@@ -1611,15 +1608,15 @@ function renderFeedback(r){
     '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--aw-border-2)">'+
       '<div style="width:60px;height:60px;border-radius:50%;background:var(--aw-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 4px 12px rgba(10,110,189,.35)">'+
         '<div style="font-size:1.5rem;font-weight:900;color:#fff;line-height:1">'+(r.overall||'—')+'</div>'+
-        '<div style="font-size:.5rem;color:rgba(255,255,255,.85);letter-spacing:.05em;margin-top:1px">BAND</div>'+
+        (r.scores?'<div style="font-size:.5rem;color:rgba(255,255,255,.85);letter-spacing:.05em;margin-top:1px">BAND</div>':'')+
       '</div>'+
       '<div style="flex:1;min-width:0">'+
         '<div style="font-weight:700;font-size:.92rem;color:var(--aw-ink);margin-bottom:4px">'+AW.esc(r.band_description||'AI Grading Complete')+'</div>'+
         '<div style="font-size:.76rem;color:var(--aw-ink-3);display:flex;flex-wrap:wrap;gap:4px 10px">'+
-          '<span><b style="color:var(--aw-ink-2)">'+c1label+'</b> '+AW.esc(String(s.TR||'—'))+'</span>'+
-          '<span><b style="color:var(--aw-ink-2)">CC</b> '+AW.esc(String(s.CC||'—'))+'</span>'+
-          '<span><b style="color:var(--aw-ink-2)">LR</b> '+AW.esc(String(s.LR||'—'))+'</span>'+
-          '<span><b style="color:var(--aw-ink-2)">GRA</b> '+AW.esc(String(s.GRA||'—'))+'</span>'+
+          [[c1label,'TR'],['CC','CC'],['LR','LR'],['GRA','GRA']].filter(function(p){ return s[p[1]]!=null; }).map(function(p){
+            return '<span><b style="color:var(--aw-ink-2)">'+p[0]+'</b> '+AW.esc(String(s[p[1]]))+'</span>';
+          }).join('')+
+          (r.scores ? '' : '<span>Sentence practice: grammar &amp; vocabulary only, no band</span>')+
         '</div>'+
         (r.overall_feedback_vi
           ? '<div style="font-size:.78rem;color:var(--aw-ink-2);margin-top:5px;line-height:1.4">'+AW.esc(r.overall_feedback_vi.slice(0,120))+(r.overall_feedback_vi.length>120?'…':'')+'</div>'

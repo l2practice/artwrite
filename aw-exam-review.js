@@ -70,15 +70,8 @@
         return '<p>' + (c.paragraph_role ? '<b>' + esc(c.paragraph_role) + ':</b> ' : '') + esc(c.assessment_vi || '') +
           (c.suggestion_en ? '<br><span class="tsr-sug">→ ' + esc(c.suggestion_en) + '</span>' : '') + '</p>';
       }).join('') + '</div>';
-    if ((t.gra_errors || []).length) h += '<div class="tsr-blk"><h4>Grammar</h4>' + t.gra_errors.map(function (e) {
-      return '<p><s>' + esc(e.wrong) + '</s> → <ins>' + esc(e.correct) + '</ins>' +
-        (e.explanation_vi ? '<br><small>' + esc(e.explanation_vi) + '</small>' : '') + '</p>';
-    }).join('') + '</div>';
-    if ((t.lr_issues || []).length) h += '<div class="tsr-blk"><h4>Lexical Resource</h4>' + t.lr_issues.map(function (e) {
-      return '<p><s>' + esc(e.original) + '</s> → <ins>' + esc(e.better) + '</ins>' +
-        (e.explanation_vi ? '<br><small>' + esc(e.explanation_vi) + '</small>' : '') + '</p>';
-    }).join('') + '</div>';
     if (t.cc_feedback && t.cc_feedback.assessment_vi) h += '<div class="tsr-blk"><h4>Coherence &amp; Cohesion</h4><p>' + esc(t.cc_feedback.assessment_vi) + '</p></div>';
+    h += AW.fbErrorsHtml(t);
     if (t.essay && AW.lexisBlock && !opts.noLexis)
       h += '<div class="tsr-blk"><h4>📚 Vocabulary level &amp; Collocations</h4><div id="' + opts.prefix + '_lx' + n + '"><span class="aw-spin aw-spin-dark"></span></div></div>';
     h += '<div class="tsr-blk"><h4>Answer <span class="tsr-wc ' + (ok ? 'ok' : wc >= min * 0.8 ? 'mid' : 'low') + '">' + wc + ' words</span>' +

@@ -2757,9 +2757,8 @@ window.viewEssays=function(gkey, writeIdx){
           if(fb.repeated_errors_vi) out+='<p style="margin:0 0 8px;background:#FFF8EC;padding:8px;border-radius:6px"><b>⚠ Repeated errors:</b> '+AW.esc(fb.repeated_errors_vi)+'</p>';
           var c1label2 = (g.taskType==='task1') ? 'Task Achievement' : 'Task Response';
           if((fb.tr_comments||[]).length) out+='<p style="margin:0 0 8px"><b>'+c1label2+':</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';
-          if((fb.gra_errors||[]).length) out+='<p style="margin:0 0 8px"><b>Grammar:</b> '+fb.gra_errors.map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.correct)+'</span>';}).join('; ')+'</p>';
-          if((fb.lr_issues||[]).length) out+='<p style="margin:0 0 8px"><b>Vocabulary:</b> '+fb.lr_issues.map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.better)+'</span>';}).join('; ')+'</p>';
           if(fb.cc_feedback&&fb.cc_feedback.assessment_vi) out+='<p style="margin:0 0 8px"><b>Coherence:</b> '+AW.esc(fb.cc_feedback.assessment_vi)+'</p>';
+          out+=AW.fbErrorsHtml(fb);
         } else {
           out+='<p style="color:var(--aw-ink-3);font-size:.85rem;background:#FFF8EC;padding:8px;border-radius:6px">'+
             (d.essay ? 'No stored AI feedback for this attempt. ' : '')+
