@@ -588,7 +588,7 @@
         <option value="paragraph">Paragraph practice (one body paragraph)</option>
         <option value="sentences">Sentence practice (single sentences)</option>
       </select>
-      <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">💡 <b>Paragraph:</b> TR &amp; CC tối đa Band 5. <b>Sentences:</b> TR &amp; CC tối đa Band 4.</p>
+      <p style="margin:4px 0 0;font-size:.76rem;color:var(--aw-ink-3)">💡 <b>Full essay:</b> chấm đủ 4 tiêu chí. <b>Paragraph:</b> mỗi đoạn tính riêng, chỉ chấm CC, vocab, grammar (không TR). <b>Sentences:</b> chỉ nhận xét vocab &amp; grammar, không có band — hiện “Done”.</p>
     </div>
 
     <!-- ⑦ Attempts / Duration / Deadline -->
@@ -2468,7 +2468,7 @@ function renderResults(){
   }
   function dur(sec){ sec=parseInt(sec,10); if(isNaN(sec)||!sec) return ''; var m=Math.round(sec/60); return m>=60?(Math.floor(m/60)+'h '+(m%60)+'m'):(m+' min'); }
   function when(x){ var d=new Date(x); if(isNaN(d)) return ''; return d.getDate()+'/'+(d.getMonth()+1)+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }
-  var stats={ submitted:0, bestSum:0, bestN:0, improved:0, waiting:[], bands:[] };
+  var stats={ submitted:0, bestSum:0, bestN:0, improved:0, waiting:[], bands:[], agree:[] };
 
   var body=rows.map(function(g, ri){
     var gkey=resKey(g), w=g.writes||[], ts=g.teacherScore||{};
@@ -2479,10 +2479,14 @@ function renderResults(){
     if(w.length) stats.submitted++;
     if(best!==null){ stats.bestSum+=best; stats.bestN++; stats.bands.push(best); }
     if(change>0) stats.improved++;
+    // AI vs teacher: last AI band against the teacher's own overall
+    var tov=parseFloat(ts.overall), lastAi=vals.length?vals[vals.length-1]:NaN;
+    if(!isNaN(tov) && !isNaN(lastAi)) stats.agree.push(lastAi-tov);
     var docUrl = g.cleared && g.docUrl;
     // waiting = handed in but no AI band (control class, AI off or grading
     // failed) and not scored by the teacher yet — only the teacher can score it
-    if(w.length && best===null && !ts.overall) stats.waiting.push({ g:g, key:gkey, last:groupLastTs(g), best:best });
+    var isDone = w.some(function(x){ return x.overall==='Done'; });   // sentence practice: no band by design
+    if(w.length && best===null && !ts.overall && !isDone) stats.waiting.push({ g:g, key:gkey, last:groupLastTs(g), best:best });
 
     // attempt chips: at least three slots, the best one filled
     var slots=Math.max(3, w.length), chips='';
@@ -2565,6 +2569,14 @@ function renderResults(){
     hist='<div class="res-card"><h3>Best band</h3><p class="res-cap">'+stats.bands.length+' student'+(stats.bands.length>1?'s':'')+' with an AI band</p>'+
          '<div class="res-hist">'+bars+'</div><div class="res-hist-x">'+xs+'</div></div>';
   }
+  var agreeCard='';
+  if(stats.agree.length){
+    var n=stats.agree.length, w5=stats.agree.filter(function(d){return Math.abs(d)<=0.5;}).length, w10=stats.agree.filter(function(d){return Math.abs(d)<=1;}).length,
+        mean=stats.agree.reduce(function(t,d){return t+d;},0)/n;
+    agreeCard='<div class="res-card"><h3>AI vs your score</h3><p class="res-cap">'+n+' submission'+(n>1?'s':'')+' scored by both</p>'+
+      '<p style="margin:0;font-size:.9rem;line-height:1.6">Within 0.5 band: <b>'+Math.round(w5/n*100)+'%</b><br>Within 1.0 band: <b>'+Math.round(w10/n*100)+'%</b><br>'+
+      'Average difference: <b>'+(mean>0?'+':'')+mean.toFixed(2)+'</b> <span style="color:var(--aw-ink-3)">('+(Math.abs(mean)<0.25?'no clear bias':mean>0?'AI scores higher':'AI scores lower')+')</span></p></div>';
+  }
   stats.waiting.sort(function(a,b){ return b.last-a.last; });
   var wait='<div class="res-card"><h3>Waiting for your score</h3><p class="res-cap">'+(stats.waiting.length?'No AI band yet, newest first':'Every submission has a band')+'</p>'+
     stats.waiting.slice(0,12).map(function(x){
@@ -2591,7 +2603,7 @@ function renderResults(){
         body+
       '</div></div>'+
       '<p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 4px">Click a score to open that attempt. Your scores save as you type.</p>'+
-    '</div><div class="res-aside">'+hist+wait+'</div></div>';
+    '</div><div class="res-aside">'+hist+agreeCard+wait+'</div></div>';
 
   // how many students the class has, for "Submitted x of y" (once per class)
   if(nRoster===undefined && curClass()){
@@ -2757,9 +2769,8 @@ window.viewEssays=function(gkey, writeIdx){
           if(fb.repeated_errors_vi) out+='<p style="margin:0 0 8px;background:#FFF8EC;padding:8px;border-radius:6px"><b>⚠ Repeated errors:</b> '+AW.esc(fb.repeated_errors_vi)+'</p>';
           var c1label2 = (g.taskType==='task1') ? 'Task Achievement' : 'Task Response';
           if((fb.tr_comments||[]).length) out+='<p style="margin:0 0 8px"><b>'+c1label2+':</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';
-          if((fb.gra_errors||[]).length) out+='<p style="margin:0 0 8px"><b>Grammar:</b> '+fb.gra_errors.map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.correct)+'</span>';}).join('; ')+'</p>';
-          if((fb.lr_issues||[]).length) out+='<p style="margin:0 0 8px"><b>Vocabulary:</b> '+fb.lr_issues.map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.better)+'</span>';}).join('; ')+'</p>';
           if(fb.cc_feedback&&fb.cc_feedback.assessment_vi) out+='<p style="margin:0 0 8px"><b>Coherence:</b> '+AW.esc(fb.cc_feedback.assessment_vi)+'</p>';
+          out+=AW.fbErrorsHtml(fb);
         } else {
           out+='<p style="color:var(--aw-ink-3);font-size:.85rem;background:#FFF8EC;padding:8px;border-radius:6px">'+
             (d.essay ? 'No stored AI feedback for this attempt. ' : '')+

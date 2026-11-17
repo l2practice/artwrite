@@ -734,7 +734,59 @@
     }).catch(function () { cb(true); });
   };
 
-  /*── Keyboard: cards and rows marked role="button" tabindex="0" answer
+  /*── Grammar + vocabulary feedback, one renderer for every page.
+     Errors first, then upgrades; each item shows its type; a quote the app
+     could not find in the text is flagged; "Start here" groups the repeated
+     error types; each criterion says why it is not one band higher.        */
+  var FB_TYPE = { subject_verb_agreement:'Subject–verb agreement', verb_tense:'Verb tense', verb_form:'Verb form', plural_noun:'Plural noun',
+    article:'Article', preposition:'Preposition', word_form:'Word form', word_order:'Word order', missing_word:'Missing word',
+    sentence_structure:'Sentence structure', punctuation:'Punctuation', capitalisation:'Capitalisation', spelling:'Spelling',
+    word_choice:'Word choice', collocation:'Collocation', register:'Register', repetition:'Repetition' };
+  function fbType(t) { return FB_TYPE[t] || String(t || '').replace(/_/g, ' '); }
+  function fbItems(list, a, b) {
+    var errs = list.filter(function (e) { return e.severity !== 'upgrade'; }), ups = list.filter(function (e) { return e.severity === 'upgrade'; });
+    function row(e) {
+      return '<div class="aw-fb-item fbx-it"><span class="fbx-w">' + AW.esc(e[a]) + '</span> → <span class="fbx-c">' + AW.esc(e[b]) + '</span>' +
+        (e.type ? ' <span class="fbx-t">' + AW.esc(fbType(e.type)) + '</span>' : '') +
+        (e.dict ? ' <span class="fbx-t fbx-ok" title="Cụm gợi ý có trong từ điển collocation của lớp">✓ dictionary</span>' : '') +
+        (e.unlocated ? ' <span class="fbx-t fbx-un" title="Không tìm thấy đúng cụm này trong bài — hãy kiểm tra lại nhận xét này">not found in the text</span>' : '') +
+        (e.explanation_vi ? '<br><small>' + AW.esc(e.explanation_vi) + '</small>' : '') + '</div>';
+    }
+    return errs.map(row).join('') + (ups.length ? '<div class="fbx-sub">Could be stronger (not errors)</div>' + ups.map(row).join('') : '');
+  }
+  AW.fbErrorsHtml = function (fb) {
+    fb = fb || {};
+    var g = fb.gra_errors || [], l = fb.lr_issues || [], h = '';
+    var count = {}, real = g.concat(l).filter(function (e) { return e.severity !== 'upgrade' && e.type; });
+    real.forEach(function (e) { count[e.type] = (count[e.type] || 0) + 1; });
+    var top = Object.keys(count).filter(function (k) { return count[k] >= 2; }).sort(function (x, y) { return count[y] - count[x]; }).slice(0, 3);
+    if (top.length) h += '<div class="aw-fb-block rv-block fbx-start"><h4>Start here</h4>' + top.map(function (k) {
+      return '<div class="aw-fb-item">Fix the <b>' + AW.esc(fbType(k)) + '</b> errors — ' + count[k] + ' places in the text.</div>'; }).join('') + '</div>';
+    var notes = fb.criteria_notes || {}, names = { TR: 'Task Response', CC: 'Coherence & Cohesion', LR: 'Lexical Resource', GRA: 'Grammar' };
+    var nh = Object.keys(names).map(function (k) {
+      var n = notes[k]; if (!n) return '';
+      var li = function (arr, sign) { return [].concat(arr || []).filter(Boolean).map(function (x) { return '<div class="fbx-li">' + sign + ' ' + AW.esc(x) + '</div>'; }).join(''); };
+      var body = (n.why_not_higher_vi ? '<div class="fbx-why"><b>Not higher because:</b> ' + AW.esc(n.why_not_higher_vi) + '</div>' : '') + li(n.strengths_vi, '✓') + li(n.improve_vi, '→');
+      return body ? '<div class="aw-fb-item"><b>' + names[k] + (fb.scores && fb.scores[k] != null ? ' · ' + AW.esc(String(fb.scores[k])) : '') + '</b>' + body + '</div>' : '';
+    }).join('');
+    if (nh) h += '<div class="aw-fb-block rv-block"><h4>By criterion</h4>' + nh + '</div>';
+    var ne = function (x) { return x.filter(function (e) { return e.severity !== 'upgrade'; }).length; };
+    if (g.length) h += '<div class="aw-fb-block rv-block"><h4>Grammar (' + ne(g) + ' errors)</h4>' + fbItems(g, 'wrong', 'correct') + '</div>';
+    if (l.length) h += '<div class="aw-fb-block rv-block"><h4>Vocabulary (' + ne(l) + ' errors)</h4>' + fbItems(l, 'original', 'better') + '</div>';
+    return h;
+  };
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.fbx-w{color:#D2372F;text-decoration:line-through}.fbx-c{color:#16825B;font-weight:600}' +
+      '.fbx-t{display:inline-block;font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--aw-primary-lt);color:#3B44B8;vertical-align:1px}' +
+      '.fbx-ok{background:#DDF3EA;color:#14633F}.fbx-un{background:#FFF1C7;color:#7A5A00}' +
+      '.fbx-it small{color:var(--aw-ink-3);font-size:.8rem}.fbx-it{margin:0 0 8px;line-height:1.5}' +
+      '.fbx-sub{margin:12px 0 6px;font-size:.78rem;font-weight:700;color:var(--aw-ink-3)}' +
+      '.fbx-why{margin:4px 0;font-size:.86rem}.fbx-li{font-size:.86rem;color:var(--aw-ink-2)}.fbx-start{background:#FFF8EC;border-radius:12px;padding:10px 12px}';
+    document.head.appendChild(st);
+  })();
+
+  /*── Keyboard: cards and rows marked role="button\" tabindex="0" answer
      Enter and Space like real buttons.                                   */
   document.addEventListener('keydown', function (e) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][tabindex]')) { e.preventDefault(); e.target.click(); }

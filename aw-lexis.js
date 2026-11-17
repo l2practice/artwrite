@@ -32,6 +32,30 @@
   };
   AW.lexisReady = function () { return !!(COLL && IELTS); };
 
+  /* Proposal 6: is this phrase a collocation listed in collocations.json?
+     Used to badge AI vocabulary suggestions that the dictionary confirms. */
+  var _known = null;
+  function normP(p) { return String(p || '').toLowerCase().replace(/[^a-z' ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  AW.lexisKnows = function (phrase) {
+    if (!COLL) return false;
+    if (!_known) {
+      _known = {};
+      Object.keys(COLL).forEach(function (w) {
+        ((COLL[w] && COLL[w].c) || []).forEach(function (c) { if (c && c.e) _known[normP(c.e)] = 1; });
+      });
+    }
+    var p = normP(phrase);
+    if (!p) return false;
+    if (_known[p]) return true;
+    // the suggestion may be a longer rewrite: accept it if it contains a listed collocation of 2+ words
+    return Object.keys(_known).some(function (k) { return k.indexOf(' ') > 0 && (' ' + p + ' ').indexOf(' ' + k + ' ') >= 0; });
+  };
+  AW.lexisMarkDict = function (r) {
+    if (!r || !r.lr_issues || !COLL) return r;
+    r.lr_issues.forEach(function (e) { if (e && e.better && AW.lexisKnows(e.better)) e.dict = true; });
+    return r;
+  };
+
   var STOP = toSet('a an the and or but so of to in on at by for from with about into over after before than then that this these those it its is are was were be been being am do does did done have has had having will would can could should may might must shall not no yes as if when while which who whom whose what where why how all any each every some such very more most much many few less least own same other another there here their them they we our us you your he him his she her i me my mine one ones someone something sb sth');
   // regular forms are generated; these cover the common irregular verbs
   var IRREG = {
