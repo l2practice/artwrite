@@ -728,7 +728,7 @@ window.reviewFeedback=function(i){
    title, and the AI's one-line verdict in regular weight underneath. */
 function rvHead(overall, title, meta, desc){
   return '<div class="rv-head">'+
-    '<div class="rv-band"><b>'+AW.esc(String(overall||'—'))+'</b><span>BAND</span></div>'+
+    '<div class="rv-band"><b>'+AW.esc(String(overall||'—'))+'</b>'+(overall==='Done'?'':'<span>BAND</span>')+'</div>'+
     '<div class="rv-head-txt"><div class="rv-head-title">'+AW.esc(title)+'</div>'+
       '<div class="rv-head-meta">'+AW.esc(meta)+'</div>'+
       (desc?'<p class="rv-head-desc">'+AW.esc(desc)+'</p>':'')+
