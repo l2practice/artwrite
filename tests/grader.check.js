@@ -9,7 +9,7 @@ function run(handler, groqKey) {
     AbortController, setTimeout:(f,ms)=>setTimeout(f, Math.min(ms,5)), clearTimeout, console,
     fetch: async (url, opt) => { calls.push(url); return handler(url, opt, calls.length); } };
   ctx.window.window = win; vm.createContext(ctx); vm.runInContext(src, ctx);
-  return { grade: () => win.AW.grade({ writing:'one two three', question:'q', attempt:1, taskType:'task2' }, 'KEY'), gradeWith: (p) => win.AW.grade(p, 'KEY'), calls };
+  return { grade: () => win.AW.grade({ writing:'one two three', question:'q', attempt:1, taskType:'task2' }, 'KEY'), gradeWith: (p) => win.AW.grade(p, 'KEY'), calls, win };
 }
 const ok = (text) => ({ ok:true, status:200, json: async () => ({ candidates:[{ content:{ parts:[{ text }] } }] }) });
 const bad = (status, message) => ({ ok:false, status, json: async () => ({ error:{ message } }) });
@@ -67,6 +67,8 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   assert(/2\) TASK RESPONSE/.test(B('full_essay')) && /3\) COHERENCE & COHESION:/.test(B('full_essay')));
   assert(!/2\) TASK RESPONSE/.test(B('paragraph')) && /3\) COHERENCE & COHESION:/.test(B('paragraph')));
   { const spec = B('full_essay').split('Return ONLY a JSON object')[1].split('OUTPUT BUDGET')[0]; assert(spec.length > 50 && !/gra_errors|lr_issues/.test(spec) && /lexis_vi/.test(spec)); }   // step 2 returns no error lists
+  assert(/OFFICIAL IELTS BAND DESCRIPTORS/.test(B('full_essay')) && /BAND 7/.test(B('full_essay')) && /DESCRIPTOR RULE/.test(B('full_essay')) && !/__DESCRIPTORS__/.test(B('full_essay')));
+  assert(/Task Response: /.test(B('full_essay')) && !/Task Response: /.test(B('paragraph').split('OFFICIAL IELTS BAND DESCRIPTORS')[1].split('DESCRIPTOR RULE')[0]));   // paragraph practice has no TR descriptors
   assert(B('paragraph').length < B('full_essay').length);
   // the same text twice: step 1 is reused (same error list, no second call)
   t = run(() => ok(GOOD));
@@ -95,5 +97,31 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   t = run(() => ok(JSON.stringify({ gra_errors:[{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'},{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'},{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'}] })));
   fin = await t.gradeWith({ writing: 'It rains, which lead to floods. It snows, which lead to cold.', question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
   assert.equal(fin.gra_errors.length, 2);
+  // sentences cut by the app: list labels, e.g., decimals and paragraphs
+  {
+    const probe = run(() => ok(GOOD));
+    const sp = probe.win.AW.splitSentences('3. As cities grow, traffic rises (e.g., smog and noise). For example, jams get worse.\n\n4. Band 6.5 is common. Is it? Yes!');
+    assert.deepEqual(sp.map(x => x.text), ['3. As cities grow, traffic rises (e.g., smog and noise).', 'For example, jams get worse.', '4. Band 6.5 is common.', 'Is it?', 'Yes!']);
+    assert.deepEqual(sp.map(x => x.para), [0, 0, 1, 1, 1]);
+  }
+  // errors are tied to sentences (a wrong index is corrected); error-free share and types are measured
+  t = run(() => ok(JSON.stringify({ gra_errors:[{sentenceIndex:0,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'},{sentenceIndex:1,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'},{sentenceIndex:2,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'}],
+    sentences:[{index:0,type:'complex'},{index:1,type:'complex'},{index:2,type:'simple'},{index:3,type:'simple'},{index:3,type:'fragment'}] })));
+  fin = await t.gradeWith({ writing: 'It rains, which lead to floods. It snows, which lead to cold. The end is near. All is fine.', question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.deepEqual(fin.gra_errors.map(e => e.sentenceIndex), [0, 1]);           // the third copy and the wrong index 2 are dealt with
+  assert.equal(fin.sentence_stats.total, 4); assert.equal(fin.sentence_stats.errorFree, 2);
+  assert.equal(fin.sentence_stats.types.complex, 2); assert.equal(fin.sentence_stats.typed, 4); assert.equal(fin.sentences, undefined);
+  // structured output: both steps carry a response schema (step 1: errors + sentences, step 2: scores)
+  { const cfgs = [];
+    await run((u, o) => { cfgs.push(JSON.parse(o.body).generationConfig); return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+    assert.equal(cfgs.length, 2);
+    assert(cfgs[0].responseSchema && cfgs[0].responseSchema.properties.gra_errors && cfgs[0].responseSchema.properties.sentences);
+    assert(cfgs[1].responseSchema && cfgs[1].responseSchema.properties.scores && !cfgs[1].responseSchema.properties.gra_errors);
+    assert.deepEqual(cfgs[0].responseSchema.properties.gra_errors.items.properties.severity.enum, ['error', 'upgrade']); }
+  // a model that rejects the schema is asked again, in plain JSON mode, and the schema stays off afterwards
+  { const sent = [];
+    t = run((u, o) => { const c = JSON.parse(o.body).generationConfig; sent.push(!!c.responseSchema); return c.responseSchema ? bad(400, 'Invalid JSON payload received. Unknown name "responseSchema"') : ok(GOOD); });
+    r = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+    assert.equal(r.overall, 6); assert.deepEqual(sent, [true, false, false]); assert(!/groq/.test(t.calls.join(''))); }
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
