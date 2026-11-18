@@ -227,8 +227,18 @@
     }
   }
   async function callAIOnce(prompt, geminiKey) {
-    var g = await geminiPass(geminiKey, prompt);
-    if (g.raw) return parseAiJson(g.raw, 'AI');
+    // "Overloaded" / empty replies from Gemini usually clear within seconds: sweep all the models
+    // up to three times (now, +5 s, +12 s) before the student is sent to Groq or told to wait.
+    var g, waits = [0, 5000, 12000];
+    for (var sweep = 0; sweep < waits.length; sweep++) {
+      if (sweep) {
+        if (window.AW && AW.toast) AW.toast('⏳ Gemini đang bận — đang thử lại (' + (sweep + 1) + '/' + waits.length + ')…', 'err', 4000);
+        await new Promise(function (r) { setTimeout(r, waits[sweep]); });
+      }
+      g = await geminiPass(geminiKey, prompt);
+      if (g.raw) return parseAiJson(g.raw, 'AI');
+      if (!/^(overloaded|empty)/.test(g.err || '')) break;   // quota / retired model: waiting seconds will not help
+    }
 
     // -- Groq fallback: every Gemini model was busy, over quota or too slow --
     if (window.AW && AW.toast) AW.toast('⏳ Gemini đang bận — đang chuyển sang AI dự phòng…', 'err', 4000);

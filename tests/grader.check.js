@@ -28,7 +28,7 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   await assert.rejects(t.grade(), /network/); assert.equal(t.calls.length, 1);
   // all Gemini busy → Groq (stored key) answers
   t = run((u) => /groq/.test(u) ? { ok:true, status:200, json: async () => ({ choices:[{ message:{ content: GOOD } }] }) } : bad(503, 'x'), 'gsk_x');
-  r = await t.grade(); assert.equal(t.calls.length, 8); assert.equal(r.overall, 6);   // each step: 3 busy Gemini + Groq
+  r = await t.grade(); assert.equal(t.calls.length, 20); assert.equal(r.overall, 6);   // each step: 3 sweeps x 3 busy Gemini models, then Groq
   // Gemini busy, Groq 429 → second Gemini pass succeeds
   t = run((u, o, n) => /groq/.test(u) ? bad(429, 'rate') : (n <= 3 ? bad(503, 'x') : ok(GOOD)), 'gsk_x');
   r = await t.grade(); assert.equal(r.overall, 6);
@@ -87,5 +87,8 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   assert.equal(t.calls.length, 2); assert.equal(fin.overall, 'Done');
   t = run(() => ok('{"scores":{"TR":6,"CC":6,"LR":6,"GRA":6,},"gra_errors":[],}'));
   fin = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' }); assert.equal(fin.overall, 6);
+  // all three models overloaded once, fine on the second sweep: the student never meets Groq or an error
+  t = run((u, o, n) => n <= 3 ? bad(503, 'overloaded') : ok(GOOD));
+  r = await t.grade(); assert.equal(r.overall, 6); assert.equal(t.calls.length, 5); assert(!t.calls.some(u => /groq/.test(u)));
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
