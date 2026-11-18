@@ -830,10 +830,8 @@ function reviewFeedbackRec(r, refIdx){
   var body='<div id="reviewContent">'+
     rvHead(fb.overall, r.topic||'', 'Attempt '+(r.attempt||1), AW.syncOverall(fb.band_description||'', fb.overall))+
     (s.TR!=null?crit('Task Response',s.TR):'')+(s.CC!=null?crit('Coherence & Cohesion',s.CC):'')+(s.LR!=null?crit('Lexical Resource',s.LR):'')+(s.GRA!=null?crit('Grammar',s.GRA):'')+
-    (fb.overall_feedback_vi?'<div class="rv-block"><h4>Overall assessment</h4><p>'+AW.esc(AW.syncOverall(fb.overall_feedback_vi, fb.overall))+'</p></div>':'')+
     (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Repeated errors</h4><p>'+formatRepeated(fb.repeated_errors_vi)+'</p></div>':'')+
     AW.fbErrorsHtml(fb)+
-    (fb.cc_feedback&&fb.cc_feedback.assessment_vi?'<div class="rv-block"><h4>Coherence & Cohesion</h4><p>'+AW.esc(fb.cc_feedback.assessment_vi)+'</p></div>':'')+
     buildCefrBlock(r.essay)+
     (r.essay && AW.lexisBlock ? '<div class="rv-block"><h4>📚 Vocabulary level &amp; Collocations</h4><div id="rvLexis"><span class="aw-spin aw-spin-dark"></span></div></div>' : '')+
     (r.essay ? (function(){

@@ -1562,7 +1562,7 @@ function renderFeedback(r){
   }
   var html =
     '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">'+(r.scores?'BAND':'')+'</div></div>' +
-      '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b><p style="margin:4px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+AW.esc((r.overall_feedback_vi||'').slice(0,90))+'</p></div></div>' +
+      '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b></div></div>' +
     (s.TR!=null ? crit('Task Response', s.TR) : '') + (s.CC!=null ? crit('Coherence & Cohesion', s.CC) : '') +
     (s.LR!=null ? crit('Lexical Resource', s.LR) : '') + (s.GRA!=null ? crit('Grammar', s.GRA) : '');
 
@@ -1571,23 +1571,12 @@ function renderFeedback(r){
     html += '<div class="aw-fb-block" style="border-left:3px solid var(--aw-accent);background:#FFF8EC"><h4>⚠ Repeated errors from last attempt</h4><div class="aw-fb-item">'+AW.esc(r.repeated_errors_vi)+'</div></div>';
   }
 
-  // Overall feedback — always full
-  if(r.overall_feedback_vi){
-    html += '<div class="aw-fb-block"><h4>Overall Assessment</h4><div class="aw-fb-item">'+AW.esc(r.overall_feedback_vi)+'</div></div>';
-  }
   // Task Response detail — show bold paragraph label; quote only a single flagged sentence
   if(r.tr_comments && r.tr_comments.length){
     html += '<div class="aw-fb-block"><h4>'+(r.writing_type==='paragraph'?'Paragraphs':'Task Response')+'</h4>'+r.tr_comments.slice(0,6).map(function(c){
       var label = c.paragraph_role ? '<b style="color:var(--aw-primary)">'+AW.esc(c.paragraph_role)+'</b><br>' : '';
-      var quote = c.quote ? '<i style="color:var(--aw-ink-2)">"'+AW.esc(c.quote)+'"</i><br>' : '';
-      return '<div class="aw-fb-item">'+label+quote+AW.esc(c.assessment_vi||'')+
-        (c.suggestion_en?'<br><span style="color:var(--aw-primary);font-size:.85rem">→ '+AW.esc(c.suggestion_en)+'</span>':'')+'</div>';
+      return '<div class="aw-fb-item">'+label+AW.esc(c.assessment_vi||'')+'</div>';
     }).join('')+'</div>';
-  }
-  // Coherence
-  if(r.cc_feedback && r.cc_feedback.assessment_vi){
-    html += '<div class="aw-fb-block"><h4>Coherence & Cohesion</h4><div class="aw-fb-item">'+AW.esc(r.cc_feedback.assessment_vi)+
-      ((r.cc_feedback.suggestions&&r.cc_feedback.suggestions.length)?'<br><span style="font-size:.85rem;color:var(--aw-primary)">→ '+AW.esc([].concat(r.cc_feedback.suggestions).join('; '))+'</span>':'')+'</div></div>';
   }
   // Every grammar and vocabulary item, grouped, with type/severity tags (shared renderer)
   html += AW.fbErrorsHtml(r);
@@ -1618,9 +1607,6 @@ function renderFeedback(r){
           }).join('')+
           (r.scores ? '' : '<span>Sentence practice: grammar &amp; vocabulary only, no band</span>')+
         '</div>'+
-        (r.overall_feedback_vi
-          ? '<div style="font-size:.78rem;color:var(--aw-ink-2);margin-top:5px;line-height:1.4">'+AW.esc(r.overall_feedback_vi.slice(0,120))+(r.overall_feedback_vi.length>120?'…':'')+'</div>'
-          : '')+
       '</div>'+
     '</div>';
 

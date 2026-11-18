@@ -63,14 +63,12 @@
         bar('Coherence &amp; Cohesion', s.CC) + bar('Lexical Resource', s.LR) + bar('Grammar', s.GRA) + '</div>';
     }
     if (t.empty) h += '<p class="tsr-warn">Không có bài làm cho phần này — Band 0.</p>';
-    if (t.overall_feedback_vi) h += '<div class="tsr-blk"><h4>Overall assessment</h4><p>' + esc(AW.syncOverall(t.overall_feedback_vi, t.overall)) + '</p></div>';
     if (t.repeated_errors_vi) h += '<div class="tsr-blk tsr-amber"><h4>⚠ Repeated errors</h4><p>' + list(t.repeated_errors_vi) + '</p></div>';
     if ((t.tr_comments || []).length) h += '<div class="tsr-blk"><h4>' + (isT1 ? 'Task Achievement' : 'Task Response') + '</h4>' +
       t.tr_comments.slice(0, 5).map(function (c) {
         return '<p>' + (c.paragraph_role ? '<b>' + esc(c.paragraph_role) + ':</b> ' : '') + esc(c.assessment_vi || '') +
-          (c.suggestion_en ? '<br><span class="tsr-sug">→ ' + esc(c.suggestion_en) + '</span>' : '') + '</p>';
+          '</p>';
       }).join('') + '</div>';
-    if (t.cc_feedback && t.cc_feedback.assessment_vi) h += '<div class="tsr-blk"><h4>Coherence &amp; Cohesion</h4><p>' + esc(t.cc_feedback.assessment_vi) + '</p></div>';
     h += AW.fbErrorsHtml(t);
     if (t.essay && AW.lexisBlock && !opts.noLexis)
       h += '<div class="tsr-blk"><h4>📚 Vocabulary level &amp; Collocations</h4><div id="' + opts.prefix + '_lx' + n + '"><span class="aw-spin aw-spin-dark"></span></div></div>';

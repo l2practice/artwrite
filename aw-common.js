@@ -764,9 +764,14 @@
       return '<div class="aw-fb-item">Fix the <b>' + AW.esc(fbType(k)) + '</b> errors — ' + count[k] + ' places in the text.</div>'; }).join('') + '</div>';
     var notes = fb.criteria_notes || {}, names = { TR: 'Task Response', CC: 'Coherence & Cohesion', LR: 'Lexical Resource', GRA: 'Grammar' };
     var nh = Object.keys(names).map(function (k) {
-      var n = notes[k]; if (!n) return '';
+      var n = notes[k], cc = (k === 'CC' && fb.cc_feedback) || {};
+      if (k === 'CC' && !n && cc.assessment_vi) n = {};
+      if (!n) return '';
       var li = function (arr, sign) { return [].concat(arr || []).filter(Boolean).map(function (x) { return '<div class="fbx-li">' + sign + ' ' + AW.esc(x) + '</div>'; }).join(''); };
-      var body = (n.why_not_higher_vi ? '<div class="fbx-why"><b>Not higher because:</b> ' + AW.esc(n.why_not_higher_vi) + '</div>' : '') + li(n.strengths_vi, '✓') + li(n.improve_vi, '→');
+      var ev = k === 'CC' ? [].concat(cc.evidence || []).filter(function (x) { return x && x.quote; }) : [];
+      var body = (k === 'CC' && cc.assessment_vi ? '<div class="fbx-li">' + AW.esc(cc.assessment_vi) + '</div>' : '') +
+        (n.why_not_higher_vi ? '<div class="fbx-why"><b>Not higher because:</b> ' + AW.esc(n.why_not_higher_vi) + '</div>' : '') + li(n.strengths_vi, '✓') + li(n.improve_vi, '→') + (k === 'CC' && !(n.improve_vi || []).length ? li(cc.suggestions, '→') : '') +
+        (ev.length ? '<div class="fbx-ev"><b>Evidence (' + ev.length + ')</b>' + ev.map(function (x) { return '<div class="fbx-li">“' + AW.esc(x.quote) + '” ' + AW.esc(x.note_vi || '') + '</div>'; }).join('') + '</div>' : '');
       return body ? '<div class="aw-fb-item"><b>' + names[k] + (fb.scores && fb.scores[k] != null ? ' · ' + AW.esc(String(fb.scores[k])) : '') + '</b>' + body + '</div>' : '';
     }).join('');
     if (nh) h += '<div class="aw-fb-block rv-block"><h4>By criterion</h4>' + nh + '</div>';
