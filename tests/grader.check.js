@@ -123,5 +123,15 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
     t = run((u, o) => { const c = JSON.parse(o.body).generationConfig; sent.push(!!c.responseSchema); return c.responseSchema ? bad(400, 'Invalid JSON payload received. Unknown name "responseSchema"') : ok(GOOD); });
     r = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
     assert.equal(r.overall, 6); assert.deepEqual(sent, [true, false, false]); assert(!/groq/.test(t.calls.join(''))); }
+  // examiner checks and measured signals reach step 2; the learner-pattern checklist reaches step 1
+  { const seenP = [];
+    const long = 'Firstly, people like cities. People need jobs. People need homes. People need food. It is good. It is big. It is new. Moreover, this is important because people move. However, they stay. This shows that people matter in every modern society today.';
+    await run((u, o) => { seenP.push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: long, question:'q', attempt:1, taskType:'task2' });
+    assert(/FREQUENT LEARNER PATTERNS/.test(seenP[0]));
+    assert(/EXAMINER CHECKS/.test(seenP[1]) && /TASK RESPONSE\n- Position/.test(seenP[1]) && /COHERENCE & COHESION\n- Count identical/.test(seenP[1]) && !/__CHECKS__/.test(seenP[1]));
+    assert(/Signals \(re-check triggers/.test(seenP[1]) && /type-token ratio/.test(seenP[1]) && /runs of 3\+ short sentences/.test(seenP[1]) && /people ×\d/.test(seenP[1]) && /repeated sentence openers: .*it ×3/.test(seenP[1]));
+    const sp = [];
+    await run((u, o) => { sp.push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: long, question:'q', attempt:1, taskType:'task2', writingType:'paragraph' });
+    assert(/EXAMINER CHECKS/.test(sp[1]) && !/TASK RESPONSE\n- Position/.test(sp[1])); }
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
