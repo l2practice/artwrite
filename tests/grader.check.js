@@ -111,5 +111,17 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   assert.deepEqual(fin.gra_errors.map(e => e.sentenceIndex), [0, 1]);           // the third copy and the wrong index 2 are dealt with
   assert.equal(fin.sentence_stats.total, 4); assert.equal(fin.sentence_stats.errorFree, 2);
   assert.equal(fin.sentence_stats.types.complex, 2); assert.equal(fin.sentence_stats.typed, 4); assert.equal(fin.sentences, undefined);
+  // structured output: both steps carry a response schema (step 1: errors + sentences, step 2: scores)
+  { const cfgs = [];
+    await run((u, o) => { cfgs.push(JSON.parse(o.body).generationConfig); return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+    assert.equal(cfgs.length, 2);
+    assert(cfgs[0].responseSchema && cfgs[0].responseSchema.properties.gra_errors && cfgs[0].responseSchema.properties.sentences);
+    assert(cfgs[1].responseSchema && cfgs[1].responseSchema.properties.scores && !cfgs[1].responseSchema.properties.gra_errors);
+    assert.deepEqual(cfgs[0].responseSchema.properties.gra_errors.items.properties.severity.enum, ['error', 'upgrade']); }
+  // a model that rejects the schema is asked again, in plain JSON mode, and the schema stays off afterwards
+  { const sent = [];
+    t = run((u, o) => { const c = JSON.parse(o.body).generationConfig; sent.push(!!c.responseSchema); return c.responseSchema ? bad(400, 'Invalid JSON payload received. Unknown name "responseSchema"') : ok(GOOD); });
+    r = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+    assert.equal(r.overall, 6); assert.deepEqual(sent, [true, false, false]); assert(!/groq/.test(t.calls.join(''))); }
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });

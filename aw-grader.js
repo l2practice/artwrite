@@ -28,6 +28,37 @@
     return out;
   }
 
+  /* Structured output: Gemini is told the exact JSON shape, so the reply is valid JSON by construction
+     (the usual cause of "AI trả lời không đúng định dạng"). If a model rejects the schema we fall back to plain JSON mode. */
+  var _schemaOff = false;
+  var S_ = { type: 'STRING' }, I_ = { type: 'INTEGER' };
+  var ERR_TYPES = ['subject_verb_agreement', 'verb_tense', 'verb_form', 'plural_noun', 'article', 'preposition', 'word_form', 'word_order', 'missing_word', 'sentence_structure', 'punctuation', 'capitalisation', 'word_choice', 'collocation', 'register', 'repetition'];
+  function obj(props, req) { return { type: 'OBJECT', properties: props, required: req || [] }; }
+  function arr(items) { return { type: 'ARRAY', items: items }; }
+  function errItem(wk, ck) {
+    var p = { sentenceIndex: I_ }; p[wk] = S_; p[ck] = S_; p.explanation_vi = S_;
+    p.severity = { type: 'STRING', enum: ['error', 'upgrade'] }; p.type = { type: 'STRING', enum: ERR_TYPES };
+    return obj(p, ['sentenceIndex', wk, ck, 'severity', 'type']);
+  }
+  function schemaStep1(wt) {
+    var p = {
+      typo_count: I_, gra_errors: arr(errItem('wrong', 'correct')), lr_issues: arr(errItem('original', 'better')),
+      sentences: arr(obj({ index: I_, type: { type: 'STRING', enum: ['simple', 'compound', 'complex', 'compound_complex', 'fragment'] } }, ['index', 'type']))
+    };
+    if (wt === 'sentences') p.tr_comments = arr(obj({ paragraph_role: S_, quote: S_, assessment_vi: S_, suggestion_en: S_ }, ['paragraph_role', 'quote', 'assessment_vi', 'suggestion_en']));
+    return obj(p, ['gra_errors', 'lr_issues', 'sentences']);
+  }
+  function schemaStep2() {
+    var note = obj({ why_not_higher_vi: S_, strengths_vi: arr(S_), improve_vi: arr(S_) });
+    return obj({
+      scores: obj({ TR: I_, CC: I_, LR: I_, GRA: I_ }), band_description: S_,
+      tr_comments: arr(obj({ paragraph_role: S_, assessment_vi: S_ }, ['paragraph_role', 'assessment_vi'])),
+      cc_feedback: obj({ assessment_vi: S_, evidence: arr(obj({ quote: S_, note_vi: S_ }, ['quote', 'note_vi'])) }),
+      criteria_notes: obj({ TR: note, CC: note, LR: note, GRA: note }),
+      lexis_vi: S_, repeated_errors_vi: S_
+    });
+  }
+
   /* Official public IELTS Writing band descriptors, bands 9–4 (TA = Task 1, TR = Task 2).
      Text as published by the IELTS partners; collected in AhmedSobhy01/bandcheck (MIT licence, lib/rubric.ts). */
   var DESC = {"4": {"tr": "The prompt is tackled in a minimal way, or the answer is tangential, possibly due to some misunderstanding of the prompt. The format may be inappropriate. A position is discernible, but the reader has to read carefully to find it. Main ideas are difficult to identify and such ideas that are identifiable may lack relevance, clarity and/or support. Large parts of the response may be repetitive.", "ta": "The response is an attempt to address the task. (Academic) Few key features have been selected. (General Training) Not all bullet points are presented. (General Training) The purpose of the letter is not clearly explained and may be confused. The tone may be inappropriate. The format may be inappropriate. Key features/bullet points which are presented may be irrelevant, repetitive, inaccurate or inappropriate.", "cc": "Information and ideas are evident but not arranged coherently and there is no clear progression within the response. Relationships between ideas can be unclear and/or inadequately marked. There is some use of basic cohesive devices, which may be inaccurate or repetitive. There is inaccurate use or a lack of substitution or referencing. There may be no paragraphing and/or no clear main topic within paragraphs.", "lr": "The resource is limited and inadequate for or unrelated to the task. Vocabulary is basic and may be used repetitively. There may be inappropriate use of lexical chunks (e.g. memorised phrases, formulaic language and/or language from the input material). Inappropriate word choice and/or errors in word formation and/or in spelling may impede meaning.", "gra": "A very limited range of structures is used. Subordinate clauses are rare and simple sentences predominate. Some structures are produced accurately but grammatical errors are frequent and may impede meaning. Punctuation is often faulty or inadequate."}, "5": {"tr": "The main parts of the prompt are incompletely addressed. The format may be inappropriate in places. The writer expresses a position, but the development is not always clear. Some main ideas are put forward, but they are limited and are not sufficiently developed and/or there may be irrelevant detail. There may be some repetition.", "ta": "The response generally addresses the requirements of the task. The format may be inappropriate in places. (Academic) Key features which are selected are not adequately covered. The recounting of detail is mainly mechanical. There may be no data to support the description. (General Training) All bullet points are presented but one or more may not be adequately covered. The purpose may be unclear at times. The tone may be variable and sometimes inappropriate. There may be a tendency to focus on details (without referring to the bigger picture). The inclusion of irrelevant, inappropriate or inaccurate material in key areas detracts from the task achievement. There is limited detail when extending and illustrating the main points.", "cc": "Organisation is evident but is not wholly logical and there may be a lack of overall progression. Nevertheless, there is a sense of underlying coherence to the response. The relationship of ideas can be followed but the sentences are not fluently linked to each other. There may be limited/overuse of cohesive devices with some inaccuracy. The writing may be repetitive due to inadequate and/or inaccurate use of reference and substitution. Paragraphing may be inadequate or missing.", "lr": "The resource is limited but minimally adequate for the task. Simple vocabulary may be used accurately but the range does not permit much variation in expression. There may be frequent lapses in the appropriacy of word choice and a lack of flexibility is apparent in frequent simplifications and/or repetitions. Errors in spelling and/or word formation may be noticeable and may cause some difficulty for the reader.", "gra": "The range of structures is limited and rather repetitive. Although complex sentences are attempted, they tend to be faulty, and the greatest accuracy is achieved on simple sentences. Grammatical errors may be frequent and cause some difficulty for the reader. Punctuation may be faulty."}, "6": {"tr": "The main parts of the prompt are addressed (though some may be more fully covered than others). An appropriate format is used. A position is presented that is directly relevant to the prompt, although the conclusions drawn may be unclear, unjustified or repetitive. Main ideas are relevant, but some may be insufficiently developed or may lack clarity, while some supporting arguments and evidence may be less relevant or inadequate.", "ta": "The response focuses on the requirements of the task and an appropriate format is used. (Academic) Key features which are selected are covered and adequately highlighted. A relevant overview is attempted. Information is appropriately selected and supported using figures/data. (General Training) All bullet points are covered and adequately highlighted. The purpose is generally clear. There may be minor inconsistencies in tone. Some irrelevant, inappropriate or inaccurate information may occur in areas of detail or when illustrating or extending the main points. Some details may be missing (or excessive) and further extension or illustration may be needed.", "cc": "Information and ideas are generally arranged coherently and there is a clear overall progression. Cohesive devices are used to some good effect but cohesion within and/or between sentences may be faulty or mechanical due to misuse, overuse or omission. The use of reference and substitution may lack flexibility or clarity and result in some repetition or error. Paragraphing may not always be logical and/or the central topic may not always be clear.", "lr": "The resource is generally adequate and appropriate for the task. The meaning is generally clear in spite of a rather restricted range or a lack of precision in word choice. If the writer is a risk-taker, there will be a wider range of vocabulary used but higher degrees of inaccuracy or inappropriacy. There are some errors in spelling and/or word formation, but these do not impede communication.", "gra": "A mix of simple and complex sentence forms is used but flexibility is limited. Examples of more complex structures are not marked by the same level of accuracy as in simple structures. Errors in grammar and punctuation occur, but rarely impede communication."}, "7": {"tr": "The main parts of the prompt are appropriately addressed. A clear and developed position is presented. Main ideas are extended and supported but there may be a tendency to over-generalise or there may be a lack of focus and precision in supporting ideas/material.", "ta": "The response covers the requirements of the task. The content is relevant and accurate – there may be a few omissions or lapses. The format is appropriate. (Academic) Key features which are selected are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. (Academic) It presents a clear overview, the data are appropriately categorised, and main trends or differences are identified. (General Training) All bullet points are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. It presents a clear purpose. The tone is consistent and appropriate to the task. Any lapses are minimal.", "cc": "Information and ideas are logically organised, and there is a clear progression throughout the response. (A few lapses may occur, but these are minor.) A range of cohesive devices including reference and substitution is used flexibly but with some inaccuracies or some over/under use. Paragraphing is generally used effectively to support overall coherence, and the sequencing of ideas within a paragraph is generally logical.", "lr": "The resource is sufficient to allow some flexibility and precision. There is some ability to use less common and/or idiomatic items. An awareness of style and collocation is evident, though inappropriacies occur. There are only a few errors in spelling and/or word formation and they do not detract from overall clarity.", "gra": "A variety of complex structures is used with some flexibility and accuracy. Grammar and punctuation are generally well controlled, and error-free sentences are frequent. A few errors in grammar may persist, but these do not impede communication."}, "8": {"tr": "The prompt is appropriately and sufficiently addressed. A clear and well-developed position is presented in response to the question/s. Ideas are relevant, well extended and supported. There may be occasional omissions or lapses in content.", "ta": "The response covers all the requirements of the task appropriately, relevantly and sufficiently. (Academic) Key features are skilfully selected, and clearly presented, highlighted and illustrated. (General Training) All bullet points are clearly presented, and appropriately illustrated or extended. There may be occasional omissions or lapses in content.", "cc": "The message can be followed with ease. Information and ideas are logically sequenced, and cohesion is well managed. Occasional lapses in coherence or cohesion may occur. Paragraphing is used sufficiently and appropriately.", "lr": "A wide resource is fluently and flexibly used to convey precise meanings. There is skilful use of uncommon and/or idiomatic items when appropriate, despite occasional inaccuracies in word choice and collocation. Occasional errors in spelling and/or word formation may occur, but have minimal impact on communication.", "gra": "A wide range of structures is flexibly and accurately used. The majority of sentences are error-free, and punctuation is well managed. Occasional, non-systematic errors and inappropriacies occur, but have minimal impact on communication."}, "9": {"tr": "The prompt is appropriately addressed and explored in depth. A clear and fully developed position is presented which directly answers the question/s. Ideas are relevant, fully extended and well supported. Any lapses in content or support are extremely rare.", "ta": "All the requirements of the task are fully and appropriately satisfied. There may be extremely rare lapses in content.", "cc": "The message can be followed effortlessly. Cohesion is used in such a way that it very rarely attracts attention. Any lapses in coherence or cohesion are minimal. Paragraphing is skilfully managed.", "lr": "Full flexibility and precise use are widely evident. A wide range of vocabulary is used accurately and appropriately with very natural and sophisticated control of lexical features. Minor errors in spelling and word formation are extremely rare and have minimal impact on communication.", "gra": "A wide range of structures is used with full flexibility and control. Punctuation and grammar are used appropriately throughout. Minor errors are extremely rare and have minimal impact on communication."}};
@@ -239,7 +270,7 @@
         '\nDo NOT report anything the teacher has explicitly allowed or told you to ignore.\n';
     }
     var promptA = errorsSystem+'\n\n'+userA;
-    var a = await runStep1(promptA, geminiKey);
+    var a = await runStep1(promptA, geminiKey, schemaStep1(wt));
     cleanErrors(a, payload);
 
     // sentence practice: no band, so no scoring step at all
@@ -254,20 +285,20 @@
     if (payload.vocabSummary && payload.vocabSummary.trim()) {
       promptB += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
     }
-    var r = await callAI(promptB, geminiKey);
+    var r = await callAI(promptB, geminiKey, schemaStep2());
     r.gra_errors = a.gra_errors; r.lr_issues = a.lr_issues; r.typo_count = a.typo_count; r.sentences = a.sentences;
     return r;
   }
 
   /* One AI call with the whole fallback chain: Gemini models → Groq → Gemini again. */
-  async function callAI(prompt, geminiKey) {
-    try { return await callAIOnce(prompt, geminiKey); }
+  async function callAI(prompt, geminiKey, schema) {
+    try { return await callAIOnce(prompt, geminiKey, schema); }
     catch (e) {   // a garbled reply is usually a one-off: ask once more before bothering the student
-      if (/Lỗi định dạng|Lỗi đọc kết quả/.test((e && e.message) || '')) return await callAIOnce(prompt, geminiKey);
+      if (/Lỗi định dạng|Lỗi đọc kết quả/.test((e && e.message) || '')) return await callAIOnce(prompt, geminiKey, schema);
       throw e;
     }
   }
-  async function callAIOnce(prompt, geminiKey) {
+  async function callAIOnce(prompt, geminiKey, schema) {
     // "Overloaded" / empty replies from Gemini usually clear within seconds: sweep all the models
     // up to three times (now, +5 s, +12 s) before the student is sent to Groq or told to wait.
     var g, waits = [0, 5000, 12000];
@@ -276,7 +307,7 @@
         if (window.AW && AW.toast) AW.toast('⏳ Gemini đang bận — đang thử lại (' + (sweep + 1) + '/' + waits.length + ')…', 'err', 4000);
         await new Promise(function (r) { setTimeout(r, waits[sweep]); });
       }
-      g = await geminiPass(geminiKey, prompt);
+      g = await geminiPass(geminiKey, prompt, schema);
       if (g.raw) return parseAiJson(g.raw, 'AI');
       if (!/^(overloaded|empty)/.test(g.err || '')) break;   // quota / retired model: waiting seconds will not help
     }
@@ -290,7 +321,7 @@
     } catch (groqErr) {
       if (window.AW && AW.toast) AW.toast('⏳ Groq cũng gặp sự cố — đang thử lại Gemini lần cuối…', 'err', 3500);
       await new Promise(function (r) { setTimeout(r, 6000); });   // congestion is short-lived
-      var g2 = await geminiPass(geminiKey, prompt);
+      var g2 = await geminiPass(geminiKey, prompt, schema);
       if (g2.raw) return parseAiJson(g2.raw, 'AI');
       throw new Error('AI đang ngẽn: cả Gemini và Groq đều không phản hồi. ' +
         'Đây là sự cố tạm thời của dịch vụ AI — không phải lỗi ứng dụng. ' +
@@ -302,9 +333,9 @@
      or the same text is graded twice, the SAME error list is used (no second AI call,
      and no "new" errors appearing in an unchanged text). */
   var _step1 = { p: '', v: null };
-  async function runStep1(prompt, key) {
+  async function runStep1(prompt, key, schema) {
     if (_step1.p === prompt && _step1.v) return JSON.parse(JSON.stringify(_step1.v));
-    var a = await callAI(prompt, key);
+    var a = await callAI(prompt, key, schema);
     _step1 = { p: prompt, v: JSON.parse(JSON.stringify(a)) };
     return a;
   }
@@ -344,8 +375,9 @@
   var GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
   var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
   // Gemini 3.x: do NOT override temperature/topK/topP (causes empty responses)
-  function buildGenerationConfig(modelName) {
+  function buildGenerationConfig(modelName, schema) {
     var cfg = { candidateCount:1, maxOutputTokens:16000, responseMimeType:'application/json' };
+    if (schema) cfg.responseSchema = schema;
     if (modelName.indexOf('gemini-3') === 0) cfg.thinkingConfig = { thinkingLevel:'minimal' };
     else { cfg.temperature = 0.1; cfg.topK = 1; cfg.topP = 0.1; }
     return cfg;
@@ -356,15 +388,15 @@
      one is skipped — it used to end the pass, which sent whole classes to the
      Groq fallback while the other models were free. A wrong key or no network
      throws at once: no other model would fix that.                         */
-  async function geminiPass(geminiKey, prompt) {
+  async function geminiPass(geminiKey, prompt, schema) {
     var err = '';
     for (var mi = 0; mi < GEMINI_MODELS.length; mi++) {
-      var modelName = GEMINI_MODELS[mi], resp;
+      var modelName = GEMINI_MODELS[mi], resp, useSchema = !!schema && !_schemaOff;
       var ctrl = new AbortController(), timer = setTimeout(function () { ctrl.abort(); }, 60000);
       try {
         resp = await fetch(GEMINI_BASE + modelName + ':generateContent?key=' + geminiKey, {
           method:'POST', headers:{'Content-Type':'application/json'}, signal: ctrl.signal,
-          body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig: buildGenerationConfig(modelName) })
+          body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig: buildGenerationConfig(modelName, useSchema ? schema : null) })
         });
       } catch (e) {
         if (e && e.name === 'AbortError') { err = 'overloaded:timeout'; continue; }
@@ -380,6 +412,7 @@
       }
       var body = await resp.json().catch(function(){ return {}; });
       var msg = (body.error && body.error.message) || String(resp.status);
+      if (resp.status === 400 && useSchema && !/api[ _]key/i.test(msg)) { _schemaOff = true; mi--; continue; }   // schema not accepted: same model again in plain JSON mode
       if (resp.status === 401 || resp.status === 403 || /api[ _]key/i.test(msg)) throw new Error('Gemini error: API key — ' + msg);
       if (resp.status === 429 || /quota|RESOURCE_EXHAUSTED/i.test(msg)) { err = 'quota:' + resp.status; continue; }
       if (resp.status >= 500) { err = 'overloaded:' + resp.status; continue; }
