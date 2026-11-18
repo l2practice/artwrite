@@ -1571,8 +1571,10 @@ function renderFeedback(r){
     editor.style.whiteSpace='pre-wrap';   // keep line breaks even if the essay was plain text
   }
   var html =
-    '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">'+(r.scores?'BAND':'')+'</div></div>' +
-      '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b></div></div>' +
+    (r.scores
+      ? '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">BAND</div></div>' +
+          '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b></div></div>'
+      : '<div class="aw-band">'+AW.doneBadge(72)+'<div><b style="font-size:1.2rem;color:#16825B">Done</b><div style="font-size:.82rem;color:var(--aw-ink-3)">'+AW.esc(AW.doneSub(r))+'</div></div></div>') +
     (s.TR!=null ? crit('Task Response', s.TR) : '') + (s.CC!=null ? crit('Coherence & Cohesion', s.CC) : '') +
     (s.LR!=null ? crit('Lexical Resource', s.LR) : '') + (s.GRA!=null ? crit('Grammar', s.GRA) : '');
 
@@ -1606,17 +1608,21 @@ function renderFeedback(r){
   // Score summary — shown immediately
   var scoreSummaryHtml =
     '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--aw-border-2)">'+
-      '<div style="width:60px;height:60px;border-radius:50%;background:var(--aw-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 4px 12px rgba(10,110,189,.35)">'+
-        '<div style="font-size:1.5rem;font-weight:900;color:#fff;line-height:1">'+(r.overall||'—')+'</div>'+
-        (r.scores?'<div style="font-size:.5rem;color:rgba(255,255,255,.85);letter-spacing:.05em;margin-top:1px">BAND</div>':'')+
-      '</div>'+
+      (r.scores
+        ? '<div style="width:60px;height:60px;border-radius:50%;background:var(--aw-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 4px 12px rgba(10,110,189,.35)">'+
+            '<div style="font-size:1.5rem;font-weight:900;color:#fff;line-height:1">'+(r.overall||'—')+'</div>'+
+            '<div style="font-size:.5rem;color:rgba(255,255,255,.85);letter-spacing:.05em;margin-top:1px">BAND</div>'+
+          '</div>'
+        : AW.doneBadge(60))+
       '<div style="flex:1;min-width:0">'+
-        '<div style="font-weight:700;font-size:.92rem;color:var(--aw-ink);margin-bottom:4px">'+AW.esc(r.band_description||'AI Grading Complete')+'</div>'+
+        (r.scores
+          ? '<div style="font-weight:700;font-size:.92rem;color:var(--aw-ink);margin-bottom:4px">'+AW.esc(r.band_description||'AI Grading Complete')+'</div>'
+          : '<div style="font-weight:800;font-size:1.15rem;color:#16825B;line-height:1.1;margin-bottom:3px">Done</div>')+
         '<div style="font-size:.76rem;color:var(--aw-ink-3);display:flex;flex-wrap:wrap;gap:4px 10px">'+
           [[c1label,'TR'],['CC','CC'],['LR','LR'],['GRA','GRA']].filter(function(p){ return s[p[1]]!=null; }).map(function(p){
             return '<span><b style="color:var(--aw-ink-2)">'+p[0]+'</b> '+AW.esc(String(s[p[1]]))+'</span>';
           }).join('')+
-          (r.scores ? '' : '<span>Sentence practice: grammar &amp; vocabulary only, no band</span>')+
+          (r.scores ? '' : '<span>'+AW.esc(AW.doneSub(r))+'</span>')+
         '</div>'+
       '</div>'+
     '</div>';

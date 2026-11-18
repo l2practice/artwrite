@@ -754,6 +754,16 @@
     }
     return errs.map(row).join('') + (ups.length ? '<div class="fbx-sub">Could be stronger (not errors)</div>' + ups.map(row).join('') : '');
   }
+  /* "Done" badge for practice with no band: a green tile with a check mark (the word Done sits beside it). */
+  AW.doneBadge = function (px) {
+    px = px || 60;
+    return '<div class="aw-done-badge" style="width:' + px + 'px;height:' + px + 'px;border-radius:' + Math.round(px * 0.32) + 'px;background:linear-gradient(135deg,#1FA971,#16825B);display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 6px 16px rgba(22,130,91,.32)">' +
+      '<svg width="' + Math.round(px * 0.52) + '" height="' + Math.round(px * 0.52) + '" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>';
+  };
+  AW.doneSub = function (fb) {
+    return fb && fb.writing_type === 'paragraph' ? 'Paragraph practice · comments only, no band' : 'Sentence practice · grammar & vocabulary, no band';
+  };
+
   /* Sentence practice: one comment per sentence — the sentence, what is wrong, the corrected sentence. */
   AW.fbSentencesHtml = function (fb) {
     if (!fb || fb.writing_type !== 'sentences') return '';
