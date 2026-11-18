@@ -1772,24 +1772,28 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
 
     try {
       h1('💬 Feedback',BLUE);
+      var safe=function(name,fn){ try{ fn(); }catch(se){ note('⚠️ Phần "'+name+'" không hiển thị được ('+se.message+'). Dữ liệu gốc vẫn lưu trong hệ thống.',AMBER,9.5); } };
       if (fb.repeated_errors_vi){
         h2('⚠️ Lỗi lặp lại',AMBER);
         body.appendParagraph(S(fb.repeated_errors_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:AMBER,ITALIC:true,SPACING_AFTER:6});
       }
-      var trList=A(fb.tr_comments);
-      if (trList.length){
+      safe('Task Response',function(){
+        var trList=A(fb.tr_comments);
+        if (!trList.length) return;
         h2(fb.writing_type==='paragraph'?'🎯 Paragraphs':trLabel);
         trList.forEach(function(c){
           if (typeof c!=='object'||c===null){ c={assessment_vi:S(c)}; }
-          var li=body.appendListItem(''); var t=li.editAsText(); var lab=S(c.paragraph_role);
-          if (lab){ t.appendText(lab+': '); t.setBold(0,t.getText().length-1,true); t.setForegroundColor(0,t.getText().length-1,NAVY); }
-          var qs=t.getText().length;
-          if (c.quote){ t.appendText('"'+S(c.quote)+'"  '); t.setItalic(qs,t.getText().length-1,true); t.setForegroundColor(qs,t.getText().length-1,GREY); t.setBold(qs,t.getText().length-1,false); }
-          var as=t.getText().length; t.appendText(S(c.assessment_vi)); t.setBold(as,t.getText().length-1,false); t.setItalic(as,t.getText().length-1,false); t.setForegroundColor(as,t.getText().length-1,'#1F2933');
-          if (c.suggestion_en){ var ss=t.getText().length; t.appendText('\n→ '+S(c.suggestion_en)); t.setForegroundColor(ss,t.getText().length-1,GREEN); t.setItalic(ss,t.getText().length-1,true); }
+          var lab=S(c.paragraph_role), q=S(c.quote), as=S(c.assessment_vi), sg=S(c.suggestion_en);
+          if (!lab&&!q&&!as&&!sg) return;                       // an empty entry is skipped, not drawn
+          var li=body.appendListItem(''), t=li.editAsText();
+          var put=function(txt,color,bold,italic){ if (!txt) return; var st=t.getText().length; t.appendText(txt); var en=t.getText().length-1; if (en>=st){ t.setBold(st,en,!!bold); t.setItalic(st,en,!!italic); t.setForegroundColor(st,en,color); } };
+          put(lab?lab+': ':'',NAVY,true,false);
+          put(q?'"'+q+'"  ':'',GREY,false,true);
+          put(as,'#1F2933',false,false);
+          put(sg?'\n→ '+sg:'',GREEN,false,true);
           li.setAttributes({FONT_SIZE:10.5,SPACING_AFTER:6});
         });
-      }
+      });
       function corrList(title, list, wk, ck){
         list=list.filter(function(e){ return e&&typeof e==='object'&&!e.unlocated&&e[wk]&&e[ck]; });
         var errs=list.filter(function(e){ return e.severity!=='upgrade'; }), ups=list.filter(function(e){ return e.severity==='upgrade'; });
@@ -1798,13 +1802,16 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
         errs.forEach(function(e){ correction(e[wk],e[ck],e.explanation_vi); });
         if (ups.length){ note('Có thể nâng cấp (không phải lỗi):',GREY,10); ups.forEach(function(e){ correction(e[wk],e[ck],e.explanation_vi); }); }
       }
-      corrList('🔧 Grammar', A(fb.gra_errors), 'wrong', 'correct');
-      corrList('📚 Lexical Resource', A(fb.lr_issues), 'original', 'better');
+      safe('Grammar',function(){ corrList('🔧 Grammar', A(fb.gra_errors), 'wrong', 'correct'); });
+      safe('Lexical Resource',function(){ corrList('📚 Lexical Resource', A(fb.lr_issues), 'original', 'better'); });
+      safe('Vocabulary level',function(){
       if (fb.lexis_vi){
         h2('🧩 Vocabulary level & Collocations');
         body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:4});
         note('Xem kỹ hơn phân tích mức từ vựng (CEFR) và collocation trong ứng dụng ArticuWrite.',GREY,9.5);
       }
+      });
+      safe('Coherence & Cohesion',function(){
       var ccf=fb.cc_feedback||{}, ccn=(fb.criteria_notes||{}).CC||{};
       if (ccf.assessment_vi||ccn.why_not_higher_vi){
         h2('🔗 Coherence & Cohesion');
@@ -1818,6 +1825,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
           ccev.forEach(function(x){ body.appendListItem('“'+S(x.quote)+'” '+S(x.note_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',SPACING_AFTER:2}); });
         }
       }
+      });
     } catch(renderErr){
       note('⚠️ Một phần phản hồi không hiển thị được ('+renderErr.message+'). Dữ liệu gốc vẫn lưu trong hệ thống.',AMBER,9.5);
     }
