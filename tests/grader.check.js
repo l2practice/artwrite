@@ -45,7 +45,7 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   let fin = await (async () => { const g = run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5}, gra_errors:[{wrong:'trend have',correct:'trend has'},{wrong:'Trend  have',correct:'trend has'},{wrong:'not in text',correct:'x'}] })));
     return g.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'paragraph' }); })();
   assert.equal(fin.scores.TR, undefined); assert.equal(fin.overall, 5.5);          // (6+6+5)/3 = 5.67 → 5.5
-  assert.equal(fin.gra_errors.length, 2); assert.equal(fin.gra_errors[0].unlocated, false); assert.equal(fin.gra_errors[1].unlocated, true);
+  assert.equal(fin.gra_errors.length, 1); assert.equal(fin.gra_errors[0].unlocated, false);   // the quote that is not in the text is dropped
   fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5}, gra_errors:[] }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
   assert.equal(fin.overall, 'Done'); assert.equal(fin.scores, null);
   fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5} }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
