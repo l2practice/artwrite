@@ -198,7 +198,8 @@
         '- "paragraph_role": the label the student put in front of the sentence if there is one (e.g. "1a", "1b"), otherwise "Sentence 1", "Sentence 2"…\n'+
         '- "quote": the WHOLE sentence, copied exactly (without its label).\n'+
         '- "assessment_vi": at most 25 Vietnamese words — what is wrong and why (grammar, word choice, collocation), or what is good if nothing is wrong. Never mention typing slips.\n'+
-        '- "suggestion_en": the corrected, natural version of the WHOLE sentence; if the sentence is already correct, write "Correct as written."\n' : '');
+        '- "suggestion_en": the corrected, natural version of the WHOLE sentence; if the sentence is already correct, write "Correct as written."\n'+
+        'MINIMUM DETAIL does not apply to sentence practice: report every real error, plus at most ONE upgrade per sentence and only when a clearly better, natural wording exists (no rare or inflated words). If the sentences are correct, empty lists are the right answer.\n' : '');
     if (payload.aiNotes && payload.aiNotes.trim()) {
       userA += '\n=== TEACHER\'S RULES (HIGHEST PRIORITY) ===\n'+payload.aiNotes.trim()+
         '\nDo NOT report anything the teacher has explicitly allowed or told you to ignore.\n';
