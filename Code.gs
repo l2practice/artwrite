@@ -1727,7 +1727,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     var c1key = taskType==='task1' ? 'TA' : 'TR';
     var scoreP=body.appendParagraph(''); var st=scoreP.editAsText();
     st.appendText('Band '+band); st.setBold(0,st.getText().length-1,true); st.setForegroundColor(0,st.getText().length-1,BLUE); st.setFontSize(0,st.getText().length-1,15);
-    var rest='     '+c1key+' '+(S(r['TR'])||'—')+'  ·  CC '+(S(r['CC'])||'—')+'  ·  LR '+(S(r['LR'])||'—')+'  ·  GRA '+(S(r['GRA'])||'—');
+    var rest=band==='Done'?'':'     '+c1key+' '+(S(r['TR'])||'—')+'  ·  CC '+(S(r['CC'])||'—')+'  ·  LR '+(S(r['LR'])||'—')+'  ·  GRA '+(S(r['GRA'])||'—');
     var rs=st.getText().length; st.appendText(rest); st.setForegroundColor(rs,st.getText().length-1,GREY); st.setBold(rs,st.getText().length-1,false); st.setFontSize(rs,st.getText().length-1,11);
     scoreP.setAttributes({SPACING_AFTER:2});
     var subAt='—'; try{ if(r['Timestamp']) subAt=Utilities.formatDate(new Date(r['Timestamp']),Session.getScriptTimeZone(),'dd/MM/yyyy  HH:mm'); }catch(e){}
@@ -1782,7 +1782,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       }
       var trList=A(fb.tr_comments);
       if (trList.length){
-        h2(trLabel);
+        h2(fb.writing_type==='paragraph'?'🎯 Paragraphs':trLabel);
         trList.forEach(function(c){
           if (typeof c!=='object'||c===null){ c={assessment_vi:S(c)}; }
           var li=body.appendListItem(''); var t=li.editAsText(); var lab=S(c.paragraph_role);
