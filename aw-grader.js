@@ -178,7 +178,7 @@
         '\n\n=== TASK FORMAT: PARAGRAPH PRACTICE (overrides everything above about essay structure) ===\n'+
         'The teacher set paragraph practice. The response is one or more STANDALONE paragraphs, not an essay. Do NOT label paragraphs Opening, Body or Conclusion, do NOT expect an introduction, thesis or conclusion, and do NOT assess Task Response or Task Achievement.\n'+
         'Assess only: Coherence & Cohesion WITHIN each paragraph (topic sentence, development and support, logical order, linking), Lexical Resource, and Grammatical Range & Accuracy.\n'+
-        'Return "scores" with CC, LR and GRA only — no TR. "tr_comments": one entry per paragraph with "paragraph_role" = "Paragraph 1", "Paragraph 2"…, about how well that paragraph is built. "criteria_notes": CC, LR and GRA only.';
+        'NO band scores are given for paragraph practice: return "scores": {} (empty) and "band_description": "Paragraph practice". "tr_comments": one entry per paragraph with "paragraph_role" = "Paragraph 1", "Paragraph 2"…, about how well that paragraph is built (do NOT use Opening / Body / Conclusion). "criteria_notes": CC, LR and GRA only, with "why_not_higher_vi" empty (there is no band). Still return cc_feedback and lexis_vi.';
     } else if (wt === 'sentences') {
       userMessage = userMessage.replace(wcInstruction, '') +
         '\n\n=== TASK FORMAT: SENTENCE PRACTICE (overrides everything above) ===\n'+
@@ -514,7 +514,7 @@
     var wt = payload.writingType || 'full_essay';
     r.writing_type = wt;
     if (wt === 'sentences') { r.scores = null; r.overall = 'Done'; r.tr_comments = []; r.cc_feedback = {}; }
-    else if (wt === 'paragraph' && r.scores) { delete r.scores.TR; normaliseScores(r); }
+    else if (wt === 'paragraph') { r.scores = null; r.overall = 'Done'; r.band_description = r.band_description || 'Paragraph practice'; }   // comments only, no band
     cleanErrors(r, payload);
     // a quote that is not in the student's text is a misreading or an invention (e.g. "nowadays" taken from the task prompt): never shown
     ['gra_errors', 'lr_issues'].forEach(function (k) { r[k] = (r[k] || []).filter(function (e) { return !e.unlocated; }); });
