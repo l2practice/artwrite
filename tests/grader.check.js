@@ -63,5 +63,11 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   assert(!/2\) TASK RESPONSE/.test(seen.sentences) && !/3\) COHERENCE & COHESION:/.test(seen.sentences));
   assert(/ANTI-OVER-CORRECTION/.test(seen.sentences) && /1\) LEXICAL RESOURCE & GRAMMAR/.test(seen.sentences) && /OUTPUT BUDGET/.test(seen.sentences));
   assert(seen.sentences.length < seen.paragraph.length && seen.paragraph.length < seen.full_essay.length);
+  // typing slips are never listed; an item needs a real replacement; spacing-only items are dropped
+  fin = await run(() => ok(JSON.stringify({ scores:{TR:6,CC:6,LR:6,GRA:6}, gra_errors:[
+    {wrong:'trend have',correct:'trend has',type:'subject_verb_agreement'}, {wrong:'online meeting',correct:'online meetings',type:'spelling'},
+    {wrong:'this trend',correct:'',type:'article'}, {wrong:'meetingshave',correct:'meetings have',type:'word_order'} ],
+    lr_issues:[{original:'a lot of',better:'',type:'register'}] }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+  assert.equal(fin.gra_errors.length, 1); assert.equal(fin.lr_issues.length, 0);
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });

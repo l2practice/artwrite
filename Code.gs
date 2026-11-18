@@ -1727,7 +1727,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     var c1key = taskType==='task1' ? 'TA' : 'TR';
     var scoreP=body.appendParagraph(''); var st=scoreP.editAsText();
     st.appendText('Band '+band); st.setBold(0,st.getText().length-1,true); st.setForegroundColor(0,st.getText().length-1,BLUE); st.setFontSize(0,st.getText().length-1,15);
-    var rest='     '+c1key+' '+(S(r['TR'])||'—')+'  ·  CC '+(S(r['CC'])||'—')+'  ·  LR '+(S(r['LR'])||'—')+'  ·  GRA '+(S(r['GRA'])||'—');
+    var rest=band==='Done'?'':'     '+c1key+' '+(S(r['TR'])||'—')+'  ·  CC '+(S(r['CC'])||'—')+'  ·  LR '+(S(r['LR'])||'—')+'  ·  GRA '+(S(r['GRA'])||'—');
     var rs=st.getText().length; st.appendText(rest); st.setForegroundColor(rs,st.getText().length-1,GREY); st.setBold(rs,st.getText().length-1,false); st.setFontSize(rs,st.getText().length-1,11);
     scoreP.setAttributes({SPACING_AFTER:2});
     var subAt='—'; try{ if(r['Timestamp']) subAt=Utilities.formatDate(new Date(r['Timestamp']),Session.getScriptTimeZone(),'dd/MM/yyyy  HH:mm'); }catch(e){}
@@ -1772,14 +1772,27 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
 
     try {
       h1('💬 Feedback',BLUE);
-      if (fb.overall_feedback_vi){
-        h2('⭐ Nhận xét chung');
-        body.appendParagraph(S(fb.overall_feedback_vi)).setAttributes({FONT_SIZE:11,FOREGROUND_COLOR:'#1F2933',BOLD:true,LINE_SPACING:1.3,SPACING_AFTER:6});
-      }
       if (fb.repeated_errors_vi){
         h2('⚠️ Lỗi lặp lại',AMBER);
         body.appendParagraph(S(fb.repeated_errors_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:AMBER,ITALIC:true,SPACING_AFTER:6});
       }
+      var notes=fb.criteria_notes||{}, ccf=fb.cc_feedback||{}, scr=fb.scores||{}, critHead=false;
+      [['TR',trLabel],['CC','Coherence & Cohesion'],['LR','Lexical Resource'],['GRA','Grammar']].forEach(function(c){
+        var k=c[0], n=notes[k]; if (k==='CC' && !n && ccf.assessment_vi) n={}; if (!n||typeof n!=='object') return;
+        var ev=(k==='CC'?A(ccf.evidence):[]).filter(function(x){ return x&&typeof x==='object'&&x.quote; });
+        var st=A(n.strengths_vi), im=A(n.improve_vi);
+        if (!((k==='CC'&&ccf.assessment_vi)||n.why_not_higher_vi||st.length||im.length||ev.length)) return;
+        if (!critHead){ h2('📌 Nhận xét theo tiêu chí'); critHead=true; }
+        var hp=body.appendParagraph(c[1]+(scr[k]!=null&&scr[k]!==''?'  ·  '+scr[k]:'')); hp.setAttributes({FONT_SIZE:11.5,BOLD:true,FOREGROUND_COLOR:NAVY,SPACING_BEFORE:8,SPACING_AFTER:2});
+        if (k==='CC'&&ccf.assessment_vi) body.appendParagraph(S(ccf.assessment_vi)).setAttributes({FONT_SIZE:10.5,BOLD:false,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:3});
+        if (n.why_not_higher_vi) body.appendParagraph('Chưa lên mức trên vì: '+S(n.why_not_higher_vi)).setAttributes({FONT_SIZE:10.5,BOLD:false,FOREGROUND_COLOR:AMBER,LINE_SPACING:1.3,SPACING_AFTER:3});
+        st.forEach(function(x){ body.appendListItem('✓ '+S(x)).setAttributes({FONT_SIZE:10.5,BOLD:false,FOREGROUND_COLOR:GREEN,SPACING_AFTER:2}); });
+        im.forEach(function(x){ body.appendListItem('→ '+S(x)).setAttributes({FONT_SIZE:10.5,BOLD:false,FOREGROUND_COLOR:'#1F2933',SPACING_AFTER:2}); });
+        if (ev.length){
+          body.appendParagraph('Câu làm chứng ('+ev.length+')').setAttributes({FONT_SIZE:10.5,BOLD:true,FOREGROUND_COLOR:GREY,SPACING_BEFORE:3,SPACING_AFTER:1});
+          ev.forEach(function(x){ body.appendListItem('“'+S(x.quote)+'” '+S(x.note_vi)).setAttributes({FONT_SIZE:10.5,BOLD:false,FOREGROUND_COLOR:'#1F2933',SPACING_AFTER:2}); });
+        }
+      });
       var trList=A(fb.tr_comments);
       if (trList.length){
         h2(trLabel);
@@ -1787,33 +1800,23 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
           if (typeof c!=='object'||c===null){ c={assessment_vi:S(c)}; }
           var li=body.appendListItem(''); var t=li.editAsText(); var lab=S(c.paragraph_role);
           if (lab){ t.appendText(lab+': '); t.setBold(0,t.getText().length-1,true); t.setForegroundColor(0,t.getText().length-1,NAVY); }
-          var qs=t.getText().length;
-          if (c.quote){ t.appendText('"'+S(c.quote)+'"  '); t.setItalic(qs,t.getText().length-1,true); t.setForegroundColor(qs,t.getText().length-1,GREY); t.setBold(qs,t.getText().length-1,false); }
           var as=t.getText().length; t.appendText(S(c.assessment_vi)); t.setBold(as,t.getText().length-1,false); t.setItalic(as,t.getText().length-1,false); t.setForegroundColor(as,t.getText().length-1,'#1F2933');
-          if (c.suggestion_en){ var ss=t.getText().length; t.appendText('\n→ '+S(c.suggestion_en)); t.setForegroundColor(ss,t.getText().length-1,GREEN); t.setItalic(ss,t.getText().length-1,true); }
           li.setAttributes({FONT_SIZE:10.5,SPACING_AFTER:6});
         });
       }
-      var graList=A(fb.gra_errors);
-      if (graList.length){
-        h2('🔧 Grammar ('+graList.length+')');
-        graList.forEach(function(e){ if (typeof e!=='object'||e===null){ note('• '+S(e),'#1F2933',10.5); return; } correction(e.wrong,e.correct,e.explanation_vi); });
+      function corrList(title, list, wk, ck){
+        list=list.filter(function(e){ return e&&typeof e==='object'&&!e.unlocated&&e[wk]&&e[ck]; });
+        var errs=list.filter(function(e){ return e.severity!=='upgrade'; }), ups=list.filter(function(e){ return e.severity==='upgrade'; });
+        if (!list.length) return;
+        h2(title+' ('+errs.length+')');
+        errs.forEach(function(e){ correction(e[wk],e[ck],e.explanation_vi); });
+        if (ups.length){ note('Có thể nâng cấp (không phải lỗi):',GREY,10); ups.forEach(function(e){ correction(e[wk],e[ck],e.explanation_vi); }); }
       }
-      var lrList=A(fb.lr_issues);
-      if (lrList.length){
-        h2('📚 Lexical Resource ('+lrList.length+')');
-        lrList.forEach(function(e){ if (typeof e!=='object'||e===null){ note('• '+S(e),'#1F2933',10.5); return; } correction(e.original,e.better,e.explanation_vi); });
-      }
+      corrList('🔧 Grammar', A(fb.gra_errors), 'wrong', 'correct');
+      corrList('📚 Lexical Resource', A(fb.lr_issues), 'original', 'better');
       if (fb.lexis_vi){
         h2('🧩 Vocabulary level & Collocations');
         body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:6});
-      }
-      if (fb.cc_feedback&&fb.cc_feedback.assessment_vi){
-        h2('🔗 Coherence & Cohesion');
-        body.appendParagraph(S(fb.cc_feedback.assessment_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:4});
-        A(fb.cc_feedback.suggestions).forEach(function(sug){
-          body.appendListItem('→ '+S(sug)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:GREEN,ITALIC:true,SPACING_AFTER:3});
-        });
       }
     } catch(renderErr){
       note('⚠️ Một phần phản hồi không hiển thị được ('+renderErr.message+'). Dữ liệu gốc vẫn lưu trong hệ thống.',AMBER,9.5);

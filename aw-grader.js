@@ -29,7 +29,6 @@
       r.overall = frac<0.25 ? whole : (frac<0.75 ? whole+0.5 : whole+1);
       // the AI's text must not quote a different overall than the one shown
       r.band_description = AW.syncOverall(r.band_description, r.overall);
-      r.overall_feedback_vi = AW.syncOverall(r.overall_feedback_vi, r.overall);
     }
     return r;
   }
@@ -41,15 +40,15 @@
       'CC: Band 7=logical, varied cohesion, good paragraphing. Band 6=mostly coherent. Band 5=some org. Band 4=incoherent.\n'+
       'LR: Band 7=flexible range, minor errors. Band 6=adequate. Band 5=limited. Band 4=basic.\n'+
       'GRA: Band 7=complex structures, frequent error-free. Band 6=mix. Band 5=frequent errors. Band 4=many errors.\n\n'+
-      'SCORING RULES:\n- Components (TR, CC, LR, GRA): WHOLE numbers only, as in the official IELTS Writing marking — no X.5.\n- Overall = average of the 4, rounded the IELTS way (.25 → .5, .75 → next whole band). The app computes it from your components.\n- Do NOT write any numeric band score in band_description or overall_feedback_vi (the app shows the numbers next to your text).\n- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n- Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.\n\n'+
+      'SCORING RULES:\n- Components (TR, CC, LR, GRA): WHOLE numbers only, as in the official IELTS Writing marking — no X.5.\n- Overall = average of the 4, rounded the IELTS way (.25 → .5, .75 → next whole band). The app computes it from your components.\n- Do NOT write any numeric band score in band_description (the app shows the numbers next to your text).\n- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n- Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.\n\n'+
       '[CONDITIONAL RULES — enforce strictly, do not overlook any]\n'+
       '1) LEXICAL RESOURCE & GRAMMAR — HARD LIMITS:\n'+
-      '- Spelling: count the spelling mistakes. IF more than 5 (i.e. frequent, causing difficulty for the reader) THEN cap LR at Band 5 and warn in Vietnamese: "Sai chính tả trên 5 lỗi không thể đạt Band 6 tiêu chí Vocab". IF 1-5 (occasional slips) THEN cap LR at Band 6 and list every error found.\n'+
+      '- Spelling: count the spelling mistakes. IF more than 5 (i.e. frequent, causing difficulty for the reader) THEN cap LR at Band 5 and warn in Vietnamese: "Sai chính tả trên 5 lỗi không thể đạt Band 6 tiêu chí Vocab". IF 1-5 (occasional slips) THEN cap LR at Band 6. TYPING SLIPS (misspellings, doubled letters or words such as "this this", words run together, missing or double spaces) are NEVER listed in gra_errors or lr_issues and never mentioned in any comment: only count them, return the count in "typo_count", and let them lower the scores as the rules say.\n'+
       '- IF there are basic punctuation errors or failure to capitalize proper nouns (e.g. "zoom" instead of "Zoom", "google meet" instead of "Google Meet") THEN cap GRA at Band 6.\n'+
       '- IF the student uses contractions (it\'s, don\'t) or informal vocabulary (e.g. "costly mistakes", "thanks to" instead of "due to") THEN penalize and require formal academic alternatives.\n'+
       '- IF a body paragraph consists entirely of simple sentences without subordinating conjunctions (although, whereas, provided that) or relative clauses (which, who, that) THEN flag as "Lack of Grammatical Variety" and warn that Band 7 in GRA requires a mix of complex sentence structures.\n'+
       '- Repetition: IF a topic-specific keyword (e.g. "online meetings") appears more than 2 times in one body paragraph, OR more than once in the Intro/Conclusion, THEN flag it as a repetition error and suggest pronouns or contextual synonyms — BUT only when the repetition shows a lack of vocabulary. ACCEPT the repetition if replacing it with a synonym would distort the meaning (e.g. fixed technical terms).\n'+
-      '- IF the word "nowadays" is used THEN flag it as a cliché and demand removal or replacement.\n'+
+      '- IF the word "nowadays" appears in the STUDENT\'S text (not merely in the task prompt) THEN flag it as a cliché and demand removal or replacement.\n'+
       '- IF the student uses an unnatural word combination (e.g. "do a mistake" instead of "make a mistake", "heavy traffic jam" instead of "heavy traffic") THEN quote the phrase, label it "Unnatural Collocation", and give the correct academic alternative.\n'+
       '- IF the student uses informal phrasal verbs ("look into", "come up with", "get rid of") in an academic context THEN penalize the tone and suggest formal single-word equivalents ("investigate", "develop/invent", "eliminate").\n'+
       '2) TASK RESPONSE (CONTENT & LOGIC):\n'+
@@ -83,16 +82,15 @@
       '- If the evidence fits a lower band\'s line, give the lower band. Meaning that is still clear is NOT a reason to raise a score: clarity alone is band 5–6. The anti-over-correction protocol only stops downgrades the evidence does not support.\n'+
       '[FEEDBACK FORMAT]\n'+
       'When any rule triggers, quote the exact sentence containing the error, use an arrow "=>", and give a precise, constructive correction based ONLY on the rules above. Keep the tone professional, direct and academic. Apply caps to the numeric scores accordingly — caps set the MAXIMUM; genuine weaknesses may score lower.\n\n'+
-      'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {paragraph_role,assessment_vi,suggestion_en,quote}), gra_errors(array of {wrong,correct,explanation_vi,severity,type}), lr_issues(array of {original,better,explanation_vi,severity,type}), cc_feedback({assessment_vi,suggestions}), criteria_notes(object with TR, CC, LR, GRA, each {why_not_higher_vi, strengths_vi:[1 item], improve_vi:[1 item]}), lexis_vi, repeated_errors_vi.\n'+
+      'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, typo_count(number), tr_comments(array of {paragraph_role,assessment_vi}), gra_errors(array of {wrong,correct,explanation_vi,severity,type}), lr_issues(array of {original,better,explanation_vi,severity,type}), cc_feedback({assessment_vi, evidence:[{quote,note_vi}]}), criteria_notes(object with TR, CC, LR, GRA, each {why_not_higher_vi, strengths_vi:[1 item; CC: up to 2], improve_vi:[1 item; CC: up to 2]}), lexis_vi, repeated_errors_vi.\n'+
       '"wrong" and "original" must be copied EXACTLY, character for character, from the student\'s text — the app finds and highlights them; a quote that is not in the text is shown as unlocated.\n'+
       '"why_not_higher_vi" (Vietnamese): the specific evidence from THIS text that keeps the criterion from the next band up, named against that band\'s descriptor. Maximum 2 short sentences.\n'+
-      'OUTPUT BUDGET (the error lists are the priority; everything else stays short): "explanation_vi" on each error = at most 12 Vietnamese words, and "" for spelling, capitalisation and punctuation; tr_comments "assessment_vi" = 1 sentence; "suggestion_en" only when a rewrite is truly needed, otherwise ""; cc_feedback "assessment_vi" = 1–2 sentences; "overall_feedback_vi" = 2–3 sentences; do not repeat in one field what another field already says.\n'+
+      'OUTPUT BUDGET (the error lists are the priority; everything else stays short): "explanation_vi" on each error = at most 25 Vietnamese words, saying WHY it is wrong; "wrong" / "original" = the SMALLEST span that contains the error (usually 2–6 words, never a whole sentence) and "correct" / "better" is ALWAYS a concrete replacement (an item without one is not reported); tr_comments "assessment_vi" = 1–2 sentences and NO quotation of the student\'s text and no English suggestion; do not write any general overall comment — the per-criterion notes are the only summary; do not repeat in one field what another field already says.\n'+
+      'COHERENCE & COHESION report (cc_feedback + criteria_notes.CC): "cc_feedback.assessment_vi" = 2 sentences in the style of an IELTS band descriptor, describing THIS text: how logically information and ideas are organised and progress; the range of cohesive devices, including reference and substitution, and whether they are used flexibly, accurately, mechanically or over/under-used; whether paragraphing and the sequencing of ideas inside paragraphs work. "why_not_higher_vi" says what keeps CC from the next band. "evidence" = 3–4 items, each {quote: an exact SHORT quote (1–5 words, e.g. a linker or a reference phrase) from the text, note_vi: at most 15 Vietnamese words on what it does well or badly}. Do not list a linker twice.\n'+
       '[MINIMUM DEPTH — a strong essay still gets detailed feedback]\n'+
       'A high band is NEVER a reason to return short or empty feedback. Band 7 is not perfect: it still contains imprecise word choice, slightly unnatural collocations, over-long sentences, weak or unsupported examples, and paragraphs that could be developed further. Praise alone is not useful feedback.\n'+
-      '- Every gra_errors and lr_issues item has "severity": "error" (a real mistake — wrong grammar, word, collocation, spelling or punctuation) or "upgrade" (correct, but could be more precise, natural or academic), and "type", one of: subject_verb_agreement, verb_tense, verb_form, plural_noun, article, preposition, word_form, word_order, missing_word, sentence_structure, punctuation, capitalisation, spelling, word_choice, collocation, register, repetition. In each array list EVERY "error" first, in text order; then add at most 3 "upgrade" items in total across the whole response (the best ones only). Never invent an error and never label an upgrade as an error. One mistake = one item: do not report the same words twice.\n'+
+      '- Every gra_errors and lr_issues item has "severity": "error" (a real mistake — wrong grammar, word, collocation or punctuation; never a typing slip) or "upgrade" (correct, but could be more precise, natural or academic), and "type", one of: subject_verb_agreement, verb_tense, verb_form, plural_noun, article, preposition, word_form, word_order, missing_word, sentence_structure, punctuation, capitalisation, word_choice, collocation, register, repetition. In each array list EVERY "error" first, in text order; then add at most 3 "upgrade" items in total across the whole response (the best ones only). Never invent an error and never label an upgrade as an error. One mistake = one item: do not report the same words twice.\n'+
       '- ALWAYS return one tr_comments entry for EVERY paragraph of the response (Task 2: Opening, each Body, Conclusion. Task 1: Introduction, Overview, each Body — Task 1 has NO Conclusion), even when the paragraph is good: say specifically what works and what single change would strengthen it.\n'+
-      '- "cc_feedback.assessment_vi" must name at least one concrete thing to improve, not only praise.\n'+
-      '- "overall_feedback_vi" must state both what the student did well AND the single most important thing to work on next. Never end with praise only.\n'+
       '- "lexis_vi" (Vietnamese, 2–3 sentences): comment on the student\'s VOCABULARY LEVEL and COLLOCATIONS. Use the VOCABULARY DATA section (CEFR spread, dictionary-matched collocations, repeated basic words) as evidence and check it against the essay. Name 1–2 collocations the student used well (quote them), point out any unnatural word combination, and give 2–3 natural collocations the student could use for their OWN ideas in this essay (English collocation + Vietnamese meaning). Do not repeat items already listed in lr_issues.\n'+
       '\n[GRAMMAR & VOCABULARY DEPTH IN BODY PARAGRAPHS — HIGHEST PRIORITY]\n'+
       'The primary learning goal is improving GRAMMAR ACCURACY and VOCABULARY PRECISION sentence by sentence.\n'+
@@ -104,8 +102,7 @@
       'COMPLETENESS: report EVERY grammar error and EVERY vocabulary problem in the whole response, in the order they appear — no upper limit, never stop at a fixed number, never keep some back for a later attempt. The student corrects the essay from this ONE report: an error that is in the text but missing here must not turn up as a "new" error when the same text is graded again.\n'+
       'TOKEN RULES for tr_comments — follow strictly to keep output short:\n'+
       '- Do NOT quote whole paragraphs. For each comment set "paragraph_role" to the paragraph label ONLY. Task 2: "Opening", "Body 1", "Body 2", "Body 3"... , or "Conclusion" (a 4-paragraph essay = Opening, Body 1, Body 2, Conclusion; a 5-paragraph essay = Opening, Body 1, Body 2, Body 3, Conclusion). Task 1: "Introduction", "Overview", "Body 1", "Body 2" (never "Conclusion" — see the Task 1 rules).\n'+
-      '- Leave "quote" EMPTY unless you must point to ONE specific problematic sentence — then put ONLY that single sentence in "quote" (never the whole paragraph).\n'+
-      '- "assessment_vi" is your comment on that paragraph. Keep it concise.';
+      '- "assessment_vi" is your comment on that paragraph: what works and the one thing to change. Do not quote the paragraph.';
 
     // Strip HTML tags from question (may contain <b>,<i> from rich text editor)
     var tmp=document.createElement('div'); tmp.innerHTML=question;
@@ -129,7 +126,7 @@
           (wc < Math.floor(minWords*0.6)
             ? 'Cap TR/TA at Band 4 (severely underlength — below 60% of minimum).'
             : 'Cap TR/TA at Band 5 (underlength — between 60–99% of minimum).')+
-          ' Mention in overall_feedback_vi that the response is too short ('+wc+'/'+minWords+' words).');
+          ' Mention in the Task Response note (criteria_notes.TR) that the response is too short ('+wc+'/'+minWords+' words).');
 
     var attemptNote = payload.attempt >= 2
       ? '\n\nThis is revision attempt '+payload.attempt+'. In "repeated_errors_vi" (Vietnamese), note whether the student repeated the same TYPES of mistakes as a typical earlier draft (grammar/vocab/coherence) and encourage improvement. For attempt 1, leave repeated_errors_vi empty.'
@@ -185,7 +182,7 @@
       userMessage = userMessage.replace(wcInstruction, '') +
         '\n\n=== TASK FORMAT: SENTENCE PRACTICE (overrides everything above) ===\n'+
         'The teacher set sentence practice. The response is a set of SEPARATE sentences, not a paragraph or an essay. Do NOT treat any sentence as an opening, a body or a conclusion; do NOT comment on structure, coherence, cohesion, task response or development; and do NOT give any band score.\n'+
-        'Check every sentence for grammar and vocabulary only. Return: "scores": {} (empty), "gra_errors", "lr_issues", "tr_comments": [] (empty), "cc_feedback": {} (empty), "criteria_notes" with LR and GRA only (leave why_not_higher_vi empty), "overall_feedback_vi" (2–3 sentences on the accuracy and range of the sentences), "lexis_vi", and "band_description": "Sentence practice".';
+        'Check every sentence for grammar and vocabulary only. Return: "scores": {} (empty), "gra_errors", "lr_issues", "tr_comments": [] (empty), "cc_feedback": {} (empty), "criteria_notes" with LR and GRA only (leave why_not_higher_vi empty), "lexis_vi", and "band_description": "Sentence practice".';
     }
     // rules about task response / coherence only add input tokens (and confusion) when those criteria are not graded
     if (wt !== 'full_essay') {
@@ -419,7 +416,9 @@
     [['gra_errors', 'wrong', 'correct'], ['lr_issues', 'original', 'better']].forEach(function (f) {
       var seen = {};
       r[f[0]] = (r[f[0]] || []).filter(function (e) {
-        if (!e || !e[f[1]]) return false;
+        if (!e || !e[f[1]] || !e[f[2]]) return false;            // no concrete replacement = nothing to teach
+        if (e.type === 'spelling') return false;                  // typing slips are counted, never listed
+        if (flat(e[f[1]]).replace(/ /g, '') === flat(e[f[2]]).replace(/ /g, '')) return false;   // spacing-only "errors"
         var k = flat(e[f[1]]) + '→' + flat(e[f[2]]);
         if (seen[k]) return false;
         seen[k] = 1;
