@@ -1797,11 +1797,13 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       }
       var cnt=function(l){ var up=l.filter(function(e){ return e&&typeof e==='object'&&e.severity==='upgrade'; }).length; return (l.length-up)+' lỗi'+(up?' · '+up+' gợi ý nâng cấp':''); };
       var graList=A(fb.gra_errors);
+      if (!graList.length){ h2('🔧 Grammar (0 lỗi)'); note('Không phát hiện lỗi ngữ pháp trong bài này.',GREY,10); }
       if (graList.length){
         h2('🔧 Grammar ('+cnt(graList)+')');
         graList.forEach(function(e){ if (typeof e!=='object'||e===null){ note('• '+S(e),'#1F2933',10.5); return; } correction(e.wrong,e.correct,e.explanation_vi); });
       }
       var lrList=A(fb.lr_issues);
+      if (!lrList.length){ h2('📚 Lexical Resource (0 lỗi)'); note('Không phát hiện lỗi từ vựng trong bài này.',GREY,10); }
       if (lrList.length){
         h2('📚 Lexical Resource ('+cnt(lrList)+')');
         lrList.forEach(function(e){ if (typeof e!=='object'||e===null){ note('• '+S(e),'#1F2933',10.5); return; } correction(e.original,e.better,e.explanation_vi); });

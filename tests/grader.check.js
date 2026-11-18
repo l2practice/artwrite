@@ -52,7 +52,7 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5} }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
   assert.equal(fin.overall, 6); assert.equal(fin.writing_type, 'full_essay');
   // the prompt names the format
-  t = run((u, o) => { const txt = JSON.parse(o.body).contents[0].parts[0].text; assert(/SEPARATE practice sentences/.test(txt) && !/WORD COUNT: This response/.test(txt)); return ok(GOOD); });
+  t = run((u, o) => { const txt = JSON.parse(o.body).contents[0].parts[0].text; assert(/SEPARATE practice sentences/.test(txt) && /at most ONE upgrade per sentence/.test(txt) && !/WORD COUNT: This response/.test(txt)); return ok(GOOD); });
   await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
   assert.equal(t.calls.length, 1);   // sentence practice has no scoring step
   // mode-specific prompt: TR / CC rule blocks only for full essays; the always-kept parts survive
