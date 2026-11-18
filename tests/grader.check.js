@@ -91,5 +91,9 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   // all three models overloaded once, fine on the second sweep: the student never meets Groq or an error
   t = run((u, o, n) => n <= 3 ? bad(503, 'overloaded') : ok(GOOD));
   r = await t.grade(); assert.equal(r.overall, 6); assert.equal(t.calls.length, 5); assert(!t.calls.some(u => /groq/.test(u)));
+  // the same wrong→correct pair in two places is two mistakes; a third copy is the AI repeating itself
+  t = run(() => ok(JSON.stringify({ gra_errors:[{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'},{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'},{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'}] })));
+  fin = await t.gradeWith({ writing: 'It rains, which lead to floods. It snows, which lead to cold.', question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.equal(fin.gra_errors.length, 2);
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
