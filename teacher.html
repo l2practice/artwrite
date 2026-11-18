@@ -1584,14 +1584,17 @@ function openAnnotation(s){
           var esc = target.replace(/[.*+?^${}()|[\]\\]/g,'\$&');
           return text.replace(new RegExp(esc,'i'), function(m){ return open+AW.esc(m)+close; });
         }
+        var seenW={};
         (fb.gra_errors||[]).forEach(function(e){
-          if(!e.wrong||!e.correct) return;
+          if(!e.wrong||!e.correct||seenW['g'+e.wrong]) return;
+          seenW['g'+e.wrong]=1;
           html=markFirst(html,e.wrong,
             '<span style="color:#D93025;text-decoration:line-through;text-decoration-color:#D93025">',
             '</span><span style="color:#1E7E42"> \u2192'+AW.esc(e.correct)+'</span>');
         });
         (fb.lr_issues||[]).forEach(function(e){
-          if(!e.original||!e.better) return;
+          if(!e.original||!e.better||seenW['l'+e.original]) return;
+          seenW['l'+e.original]=1;
           html=markFirst(html,e.original,
             '<span style="color:#D93025;text-decoration:underline;text-decoration-color:#D93025">',
             '</span><span style="color:#1E7E42"> \u2192'+AW.esc(e.better)+'</span>');

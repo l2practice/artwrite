@@ -99,11 +99,12 @@
       'Return ONLY a JSON object: {"typo_count": number, "gra_errors": [{"wrong","correct","explanation_vi","severity","type"}], "lr_issues": [{"original","better","explanation_vi","severity","type"}]}.\n'+
       '- "wrong" and "original" must be copied EXACTLY, character for character, from the student\'s text, and must be the SMALLEST span that contains the error (usually 2–6 words, never a whole sentence): the app finds and highlights them, and a quote that is not in the text is discarded.\n'+
       '- "correct" and "better" is ALWAYS a concrete replacement; an item without one is not reported.\n'+
+      '- The SAME mistake in several places is one item PER PLACE (three sentences with "which lead" = three items). When the same wrong words occur more than once, add one word of context to each quote so every item points to its own place (e.g. "which lead to a sedentary", "which lead to mental").\n'+
       '- "explanation_vi": at most 25 Vietnamese words, saying why it is wrong or what is better.\n'+
       '- "severity": "error" (a real mistake — wrong grammar, word, collocation, register or punctuation; never a typing slip) or "upgrade" (correct, but could be more precise, natural or academic). "type", one of: subject_verb_agreement, verb_tense, verb_form, plural_noun, article, preposition, word_form, word_order, missing_word, sentence_structure, punctuation, capitalisation, word_choice, collocation, register, repetition.\n'+
       '- In each array list EVERY "error" first, in text order; then add "upgrade" items. Never invent an error and never label an upgrade as an error. One mistake = one item: do not report the same words twice, and do not report the same mistake in both arrays.\n'+
       '- Put grammar items in "gra_errors" and vocabulary items in "lr_issues".\n'+
-      'MINIMUM DETAIL (the student learns from these two lists, so they must never come back empty): every paragraph of 4 or more sentences must end up with at least 3 grammar items AND at least 3 vocabulary items in total (errors first, then upgrades), at most 5 upgrades per paragraph per list. Upgrades are CORRECT text that can still be improved: GRAMMAR — a more varied or complex structure (combine simple sentences, a relative or participle clause, a passive, inversion, a conditional, nominalisation), a more precise tense or modal, better punctuation; VOCABULARY — a more precise or less common word, a stronger collocation, a less repetitive or less general phrase (e.g. "a lot of", "thing", "good"). A text with no errors still gets these upgrades. An upgrade must be a real improvement, not a synonym swap, and must be wording a band-7 IELTS writer would genuinely use: no inflated, rare or unnatural words (do NOT turn "browse social media" into "indulge in social networking sites", or "technical issues" into "technological glitches"). Before you answer, count the items per paragraph: grammar AND vocabulary must each reach 3 — grammar upgrades are the ones most often forgotten.\n'+
+      'MINIMUM DETAIL (the student learns from these two lists, so they must never come back empty): every paragraph of 4 or more sentences must end up with at least 3 grammar items AND at least 3 vocabulary items in total (errors first, then upgrades), at most 5 upgrades per paragraph per list. Upgrades are CORRECT text that can still be improved: GRAMMAR — a more varied or complex structure (combine simple sentences, a relative or participle clause, a passive, inversion, a conditional, nominalisation), a more precise tense or modal, better punctuation; VOCABULARY — a more precise or less common word, a stronger collocation, a less repetitive or less general phrase (e.g. "a lot of", "thing", "good"). A text with no errors still gets these upgrades. An upgrade must keep the student\'s meaning (do NOT turn "mental health problems" into "psychological disorders", or "degradation" into "depletion"), must be a real improvement, not a synonym swap, and must be wording a band-7 IELTS writer would genuinely use: no inflated, rare or unnatural words (do NOT turn "browse social media" into "indulge in social networking sites", or "technical issues" into "technological glitches"). Before you answer, count the items per paragraph: grammar AND vocabulary must each reach 3 — grammar upgrades are the ones most often forgotten.\n'+
       'COMPLETENESS: report EVERY grammar error and EVERY vocabulary problem in the whole text, in the order they appear — no upper limit, never stop at a fixed number, never keep some back for a later attempt. The student corrects the text from this ONE report: an error that is in the text but missing here must not turn up as a "new" error when the same text is checked again. Never invent an ERROR to fill the minimum: fill it with genuine upgrades.';
 
     // Strip HTML tags from question (may contain <b>,<i> from rich text editor)
@@ -532,13 +533,16 @@
     r.typo_count = parseInt(r.typo_count, 10) || 0;
     [['gra_errors', 'wrong', 'correct'], ['lr_issues', 'original', 'better']].forEach(function (f) {
       var seen = {};
+      var occ = function (h, n) { var c = 0, i = n ? h.indexOf(n) : -1; while (i >= 0) { c++; i = h.indexOf(n, i + n.length); } return c; };
       r[f[0]] = (r[f[0]] || []).filter(function (e) {
         if (!e || !e[f[1]] || !e[f[2]]) return false;            // no concrete replacement = nothing to teach
         if (e.type === 'spelling') return false;                  // typing slips are counted, never listed
         if (flat(e[f[1]]).replace(/ /g, '') === flat(e[f[2]]).replace(/ /g, '')) return false;   // spacing-only "errors"
         var k = flat(e[f[1]]) + '→' + flat(e[f[2]]);
-        if (seen[k]) return false;
-        seen[k] = 1;
+        // the same wrong→correct pair may appear once per place it occurs in the text (e.g. "which lead" in three
+        // sentences is three mistakes); more copies than occurrences are the AI repeating itself
+        seen[k] = (seen[k] || 0) + 1;
+        if (seen[k] > Math.max(1, occ(text, flat(e[f[1]])))) return false;
         e.unlocated = text.indexOf(flat(e[f[1]])) < 0;
         return true;
       });

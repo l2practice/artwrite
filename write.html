@@ -1552,14 +1552,17 @@ function renderFeedback(r){
         return textChunk.replace(new RegExp(esc,'g'), wrapOpen + AW.esc(phrase) + wrapClose);
       });
     }
+    var _marked = {};   // a repeated phrase is marked once: markPhrase already covers every occurrence
     if(r.gra_errors) r.gra_errors.forEach(function(e){
-      if(e.wrong && e.correct && !e.unlocated){
+      if(e.wrong && e.correct && !e.unlocated && !_marked['g'+e.wrong]){
+        _marked['g'+e.wrong] = 1;
         annotated = markPhrase(annotated, e.wrong,
           '<span class="err-mark">', '</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
       }
     });
     if(r.lr_issues) r.lr_issues.forEach(function(e){
-      if(e.original && e.better && !e.unlocated){
+      if(e.original && e.better && !e.unlocated && !_marked['l'+e.original]){
+        _marked['l'+e.original] = 1;
         annotated = markPhrase(annotated, e.original,
           '<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">',
           '<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
