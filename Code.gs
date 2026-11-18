@@ -1726,9 +1726,10 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     var band=S(r['AI Grading'])||'—';
     var c1key = taskType==='task1' ? 'TA' : 'TR';
     var scoreP=body.appendParagraph(''); var st=scoreP.editAsText();
-    st.appendText('Band '+band); st.setBold(0,st.getText().length-1,true); st.setForegroundColor(0,st.getText().length-1,BLUE); st.setFontSize(0,st.getText().length-1,15);
+    st.appendText(band==='Done'?'✓ Done':'Band '+band); st.setBold(0,st.getText().length-1,true); st.setForegroundColor(0,st.getText().length-1,band==='Done'?GREEN:BLUE); st.setFontSize(0,st.getText().length-1,15);
     var rest=band==='Done'?'':'     '+c1key+' '+(S(r['TR'])||'—')+'  ·  CC '+(S(r['CC'])||'—')+'  ·  LR '+(S(r['LR'])||'—')+'  ·  GRA '+(S(r['GRA'])||'—');
-    var rs=st.getText().length; st.appendText(rest); st.setForegroundColor(rs,st.getText().length-1,GREY); st.setBold(rs,st.getText().length-1,false); st.setFontSize(rs,st.getText().length-1,11);
+    var rs=st.getText().length;
+    if (rest){ st.appendText(rest); st.setForegroundColor(rs,st.getText().length-1,GREY); st.setBold(rs,st.getText().length-1,false); st.setFontSize(rs,st.getText().length-1,11); }   // an empty run made the whole Doc fail
     scoreP.setAttributes({SPACING_AFTER:2});
     var subAt='—'; try{ if(r['Timestamp']) subAt=Utilities.formatDate(new Date(r['Timestamp']),Session.getScriptTimeZone(),'dd/MM/yyyy  HH:mm'); }catch(e){}
     note('🗓 Nộp lúc: '+subAt+'     ⏱ Thời gian làm bài: '+(r['Duration']?Math.round(parseInt(r['Duration'],10)/60)+' phút':'—'),LIGHT,9.5);
