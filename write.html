@@ -1161,7 +1161,7 @@ function gradeBtnHandler(){
   // Wrap AW.grade in a 90-second timeout so the spinner never hangs forever.
   // Gemini API occasionally stalls without rejecting; this ensures the student
   // always gets a recoverable error instead of an infinite spinner.
-  var GRADE_TIMEOUT_MS = 200000;   // up to three Gemini models (45 s each) + the Groq fallback
+  var GRADE_TIMEOUT_MS = 330000;   // two AI steps; each may try up to three Gemini models (60 s each) + the Groq fallback
   var gradeTimeoutId;
   var gradeWithTimeout = Promise.race([
     AW.grade({ writing:lastPlainEssay, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary, taskType:TASK_TYPE, minWords:MIN_WORDS, writingType:WRITING_TYPE }, key)
@@ -1236,6 +1236,7 @@ function gradeBtnHandler(){
   gradeWithTimeout.then(function(result){
       clearTimeout(gradeTimeoutId);
       lastResult = result;
+      try { var ld = AW.lexisDocData && AW.lexisDocData(lastPlainEssay, { prompt: PROMPT }); if (ld) result.lexis_data = ld; } catch(e) {}   // printed in the Google Doc without AI
       if (MODE === 'free') {
         editor.innerHTML = '';
         editor.style.whiteSpace = 'pre-wrap';
