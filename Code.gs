@@ -1814,31 +1814,10 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       }
       corrList('🔧 Grammar', A(fb.gra_errors), 'wrong', 'correct');
       corrList('📚 Lexical Resource', A(fb.lr_issues), 'original', 'better');
-      var ld=fb.lexis_data;
-      if (ld && typeof ld==='object'){
-        // the same dictionary analysis as the app screen, saved at grading time (no AI)
+      if (fb.lexis_vi){
         h2('🧩 Vocabulary level & Collocations');
-        if (fb.lexis_vi) body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:6});
-        var cf=ld.cefr||{};
-        body.appendParagraph('A1–A2 '+cf.a+'%  ·  B1 '+cf.b1+'%  ·  B2 '+cf.b2+'%  ·  C1 '+cf.c1+'%  ·  C2 '+cf.c2+'%').setAttributes({FONT_SIZE:11,BOLD:true,FOREGROUND_COLOR:NAVY,SPACING_AFTER:2});
-        note('C1 trở lên '+cf.c1p+'%  ·  B2 trở lên '+cf.b2p+'%  ·  Độ đa dạng '+cf.div+'%  ·  '+cf.uniq+' từ khác nhau  ('+cf.listed+'/'+cf.total+' từ nằm trong thang CEFR)',GREY,9.5);
-        var labeled=function(label,items,sep){
-          items=A(items).map(S).filter(Boolean); if (!items.length) return;
-          var p=body.appendParagraph(''), t=p.editAsText(); t.appendText(label+'  ');
-          t.setBold(0,t.getText().length-1,true); t.setForegroundColor(0,t.getText().length-1,NAVY);
-          var st=t.getText().length; t.appendText(items.join(sep||', ')); t.setBold(st,t.getText().length-1,false); t.setForegroundColor(st,t.getText().length-1,'#1F2933');
-          p.setAttributes({FONT_SIZE:10.5,LINE_SPACING:1.3,SPACING_AFTER:4});
-        };
-        ['C2','C1','B2','B1'].forEach(function(lv){ var w=A(ld.words&&ld.words[lv]); if (w.length) labeled(lv+' ('+w.length+')',w); });
-        labeled('✅ Collocation đã dùng ('+A(ld.colloc).length+')',ld.colloc);
-        labeled('⭐ IELTS 6.5+ đã dùng',ld.ielts);
-        if (A(ld.suggest).length){ note('💡 Collocation cho những từ đã dùng',NAVY,10.5); A(ld.suggest).forEach(function(x){ body.appendListItem(S(x)).setAttributes({FONT_SIZE:10.5,SPACING_AFTER:2}); }); }
-        if (A(ld.basic).length){ note('🔁 Từ cơ bản lặp lại — thử thay bằng',NAVY,10.5); A(ld.basic).forEach(function(x){ body.appendListItem(S(x)).setAttributes({FONT_SIZE:10.5,SPACING_AFTER:2}); }); }
-        if (ld.topic&&A(ld.topic.phrases).length){ note('📌 Cụm từ chủ đề “'+S(ld.topic.name)+'” nên dùng',NAVY,10.5); A(ld.topic.phrases).forEach(function(x){ body.appendListItem(S(x)).setAttributes({FONT_SIZE:10.5,SPACING_AFTER:2}); }); }
-      } else {
-        h2('🧩 Vocabulary level & Collocations');
-        if (fb.lexis_vi) body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:6});
-        note('Xem phần nhận xét chi tiết về collocation và mức từ vựng (CEFR) trong ứng dụng ArticuWrite.',GREY,10);
+        body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:4});
+        note('Xem kỹ hơn phân tích mức từ vựng (CEFR) và collocation trong ứng dụng ArticuWrite.',GREY,9.5);
       }
     } catch(renderErr){
       note('⚠️ Một phần phản hồi không hiển thị được ('+renderErr.message+'). Dữ liệu gốc vẫn lưu trong hệ thống.',AMBER,9.5);
