@@ -11,6 +11,23 @@
 (function (AW) {
   'use strict';
 
+  /* The app, not the AI, cuts the text into sentences: every error then points at a numbered sentence. */
+  function splitSentences(text) {
+    var out = [];
+    String(text || '').replace(/\r\n?/g, '\n').split(/\n+/).forEach(function (line, pi) {
+      var s = line.replace(/\s+/g, ' ').trim();
+      if (!s) return;
+      s = s.replace(/^(\(?\d+[a-z]?[.)])(?=\s)/i, function (m) { return m.replace(/\./g, '\u0001'); })                       // list label "3."
+           .replace(/\b(e\.g|i\.e|vs|Mr|Mrs|Ms|Dr|Prof|U\.S|U\.K|a\.m|p\.m)\./gi, function (m) { return m.replace(/\./g, '\u0001'); })
+           .replace(/(\d)\.(?=\d)/g, '$1\u0001');                                                                       // 6.5
+      (s.match(/[^.!?]+(?:[.!?]+["'\u201d\u2019)\]]*)(?=\s|$)|[^.!?]+$/g) || [s]).forEach(function (p) {
+        p = p.replace(/\u0001/g, '.').trim();
+        if (p) out.push({ index: out.length, para: pi, text: p });
+      });
+    });
+    return out;
+  }
+
   /* Official public IELTS Writing band descriptors, bands 9–4 (TA = Task 1, TR = Task 2).
      Text as published by the IELTS partners; collected in AhmedSobhy01/bandcheck (MIT licence, lib/rubric.ts). */
   var DESC = {"4": {"tr": "The prompt is tackled in a minimal way, or the answer is tangential, possibly due to some misunderstanding of the prompt. The format may be inappropriate. A position is discernible, but the reader has to read carefully to find it. Main ideas are difficult to identify and such ideas that are identifiable may lack relevance, clarity and/or support. Large parts of the response may be repetitive.", "ta": "The response is an attempt to address the task. (Academic) Few key features have been selected. (General Training) Not all bullet points are presented. (General Training) The purpose of the letter is not clearly explained and may be confused. The tone may be inappropriate. The format may be inappropriate. Key features/bullet points which are presented may be irrelevant, repetitive, inaccurate or inappropriate.", "cc": "Information and ideas are evident but not arranged coherently and there is no clear progression within the response. Relationships between ideas can be unclear and/or inadequately marked. There is some use of basic cohesive devices, which may be inaccurate or repetitive. There is inaccurate use or a lack of substitution or referencing. There may be no paragraphing and/or no clear main topic within paragraphs.", "lr": "The resource is limited and inadequate for or unrelated to the task. Vocabulary is basic and may be used repetitively. There may be inappropriate use of lexical chunks (e.g. memorised phrases, formulaic language and/or language from the input material). Inappropriate word choice and/or errors in word formation and/or in spelling may impede meaning.", "gra": "A very limited range of structures is used. Subordinate clauses are rare and simple sentences predominate. Some structures are produced accurately but grammatical errors are frequent and may impede meaning. Punctuation is often faulty or inadequate."}, "5": {"tr": "The main parts of the prompt are incompletely addressed. The format may be inappropriate in places. The writer expresses a position, but the development is not always clear. Some main ideas are put forward, but they are limited and are not sufficiently developed and/or there may be irrelevant detail. There may be some repetition.", "ta": "The response generally addresses the requirements of the task. The format may be inappropriate in places. (Academic) Key features which are selected are not adequately covered. The recounting of detail is mainly mechanical. There may be no data to support the description. (General Training) All bullet points are presented but one or more may not be adequately covered. The purpose may be unclear at times. The tone may be variable and sometimes inappropriate. There may be a tendency to focus on details (without referring to the bigger picture). The inclusion of irrelevant, inappropriate or inaccurate material in key areas detracts from the task achievement. There is limited detail when extending and illustrating the main points.", "cc": "Organisation is evident but is not wholly logical and there may be a lack of overall progression. Nevertheless, there is a sense of underlying coherence to the response. The relationship of ideas can be followed but the sentences are not fluently linked to each other. There may be limited/overuse of cohesive devices with some inaccuracy. The writing may be repetitive due to inadequate and/or inaccurate use of reference and substitution. Paragraphing may be inadequate or missing.", "lr": "The resource is limited but minimally adequate for the task. Simple vocabulary may be used accurately but the range does not permit much variation in expression. There may be frequent lapses in the appropriacy of word choice and a lack of flexibility is apparent in frequent simplifications and/or repetitions. Errors in spelling and/or word formation may be noticeable and may cause some difficulty for the reader.", "gra": "The range of structures is limited and rather repetitive. Although complex sentences are attempted, they tend to be faulty, and the greatest accuracy is achieved on simple sentences. Grammatical errors may be frequent and cause some difficulty for the reader. Punctuation may be faulty."}, "6": {"tr": "The main parts of the prompt are addressed (though some may be more fully covered than others). An appropriate format is used. A position is presented that is directly relevant to the prompt, although the conclusions drawn may be unclear, unjustified or repetitive. Main ideas are relevant, but some may be insufficiently developed or may lack clarity, while some supporting arguments and evidence may be less relevant or inadequate.", "ta": "The response focuses on the requirements of the task and an appropriate format is used. (Academic) Key features which are selected are covered and adequately highlighted. A relevant overview is attempted. Information is appropriately selected and supported using figures/data. (General Training) All bullet points are covered and adequately highlighted. The purpose is generally clear. There may be minor inconsistencies in tone. Some irrelevant, inappropriate or inaccurate information may occur in areas of detail or when illustrating or extending the main points. Some details may be missing (or excessive) and further extension or illustration may be needed.", "cc": "Information and ideas are generally arranged coherently and there is a clear overall progression. Cohesive devices are used to some good effect but cohesion within and/or between sentences may be faulty or mechanical due to misuse, overuse or omission. The use of reference and substitution may lack flexibility or clarity and result in some repetition or error. Paragraphing may not always be logical and/or the central topic may not always be clear.", "lr": "The resource is generally adequate and appropriate for the task. The meaning is generally clear in spite of a rather restricted range or a lack of precision in word choice. If the writer is a risk-taker, there will be a wider range of vocabulary used but higher degrees of inaccuracy or inappropriacy. There are some errors in spelling and/or word formation, but these do not impede communication.", "gra": "A mix of simple and complex sentence forms is used but flexibility is limited. Examples of more complex structures are not marked by the same level of accuracy as in simple structures. Errors in grammar and punctuation occur, but rarely impede communication."}, "7": {"tr": "The main parts of the prompt are appropriately addressed. A clear and developed position is presented. Main ideas are extended and supported but there may be a tendency to over-generalise or there may be a lack of focus and precision in supporting ideas/material.", "ta": "The response covers the requirements of the task. The content is relevant and accurate – there may be a few omissions or lapses. The format is appropriate. (Academic) Key features which are selected are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. (Academic) It presents a clear overview, the data are appropriately categorised, and main trends or differences are identified. (General Training) All bullet points are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. It presents a clear purpose. The tone is consistent and appropriate to the task. Any lapses are minimal.", "cc": "Information and ideas are logically organised, and there is a clear progression throughout the response. (A few lapses may occur, but these are minor.) A range of cohesive devices including reference and substitution is used flexibly but with some inaccuracies or some over/under use. Paragraphing is generally used effectively to support overall coherence, and the sequencing of ideas within a paragraph is generally logical.", "lr": "The resource is sufficient to allow some flexibility and precision. There is some ability to use less common and/or idiomatic items. An awareness of style and collocation is evident, though inappropriacies occur. There are only a few errors in spelling and/or word formation and they do not detract from overall clarity.", "gra": "A variety of complex structures is used with some flexibility and accuracy. Grammar and punctuation are generally well controlled, and error-free sentences are frequent. A few errors in grammar may persist, but these do not impede communication."}, "8": {"tr": "The prompt is appropriately and sufficiently addressed. A clear and well-developed position is presented in response to the question/s. Ideas are relevant, well extended and supported. There may be occasional omissions or lapses in content.", "ta": "The response covers all the requirements of the task appropriately, relevantly and sufficiently. (Academic) Key features are skilfully selected, and clearly presented, highlighted and illustrated. (General Training) All bullet points are clearly presented, and appropriately illustrated or extended. There may be occasional omissions or lapses in content.", "cc": "The message can be followed with ease. Information and ideas are logically sequenced, and cohesion is well managed. Occasional lapses in coherence or cohesion may occur. Paragraphing is used sufficiently and appropriately.", "lr": "A wide resource is fluently and flexibly used to convey precise meanings. There is skilful use of uncommon and/or idiomatic items when appropriate, despite occasional inaccuracies in word choice and collocation. Occasional errors in spelling and/or word formation may occur, but have minimal impact on communication.", "gra": "A wide range of structures is flexibly and accurately used. The majority of sentences are error-free, and punctuation is well managed. Occasional, non-systematic errors and inappropriacies occur, but have minimal impact on communication."}, "9": {"tr": "The prompt is appropriately addressed and explored in depth. A clear and fully developed position is presented which directly answers the question/s. Ideas are relevant, fully extended and well supported. Any lapses in content or support are extremely rare.", "ta": "All the requirements of the task are fully and appropriately satisfied. There may be extremely rare lapses in content.", "cc": "The message can be followed effortlessly. Cohesion is used in such a way that it very rarely attracts attention. Any lapses in coherence or cohesion are minimal. Paragraphing is skilfully managed.", "lr": "Full flexibility and precise use are widely evident. A wide range of vocabulary is used accurately and appropriately with very natural and sophisticated control of lexical features. Minor errors in spelling and word formation are extremely rare and have minimal impact on communication.", "gra": "A wide range of structures is used with full flexibility and control. Punctuation and grammar are used appropriately throughout. Minor errors are extremely rare and have minimal impact on communication."}};
@@ -107,10 +124,13 @@
       '  (b) VOCABULARY: unnatural collocations (e.g. "do a mistake" for "make a mistake"; label type "collocation"), imprecise word choice, informal words or contractions (it\'s, don\'t) in formal writing, informal phrasal verbs ("look into", "get rid of"), the cliché "nowadays" when it is in the STUDENT\'S text (not merely in the task prompt), repetitive keywords that should be replaced by pronouns or synonyms (only when the repetition shows a lack of vocabulary; accept fixed technical terms), words that are close but not the best fit. Quote the original, suggest a more precise/natural/academic alternative, and explain in Vietnamese what the difference is.\n'+
       'NATURALNESS: never report natural, accurate vocabulary as an ERROR (accept "heavy financial burden"); it may appear only as an upgrade when a clearly stronger choice exists.\n'+
       'TYPING SLIPS (misspellings, doubled letters or words such as "this this", words run together, missing or double spaces) are NEVER listed. Only count them and return the count in "typo_count".\n\n'+
-      'Return ONLY a JSON object: {"typo_count": number, "gra_errors": [{"wrong","correct","explanation_vi","severity","type"}], "lr_issues": [{"original","better","explanation_vi","severity","type"}]}.\n'+
-      '- "wrong" and "original" must be copied EXACTLY, character for character, from the student\'s text, and must be the SMALLEST span that contains the error (usually 2–6 words, never a whole sentence): the app finds and highlights them, and a quote that is not in the text is discarded.\n'+
+      'The text is given to you already cut into numbered sentences [S0], [S1]… by the app (a blank line = a new paragraph).\n'+
+      'Return ONLY a JSON object: {"typo_count": number, "gra_errors": [{"sentenceIndex","wrong","correct","explanation_vi","severity","type"}], "lr_issues": [{"sentenceIndex","original","better","explanation_vi","severity","type"}], "sentences": [{"index","type"}]}.\n'+
+      '- "sentenceIndex": the number of the [S#] sentence that contains the error. "wrong" / "original" is copied from THAT sentence.\n'+
+      '- "sentences": ONE entry for EVERY numbered sentence, in order: "index" and "type" = simple, compound, complex, compound_complex or fragment (a complex sentence has a subordinate or relative clause; compound = coordinated main clauses).\n'+
+      '- "wrong" and "original" must be copied EXACTLY, character for character, from the student\'s text, and must be the SMALLEST span that contains the error (usually 2–6 words, never a whole sentence): the app finds and highlights them, and a quote that is not in that sentence is discarded.\n'+
       '- "correct" and "better" is ALWAYS a concrete replacement; an item without one is not reported.\n'+
-      '- The SAME mistake in several places is one item PER PLACE (three sentences with "which lead" = three items). When the same wrong words occur more than once, add one word of context to each quote so every item points to its own place (e.g. "which lead to a sedentary", "which lead to mental").\n'+
+      '- The SAME mistake in several places is one item PER PLACE (three sentences with "which lead" = three items, each with its own sentenceIndex).\n'+
       '- "explanation_vi": at most 25 Vietnamese words, saying why it is wrong or what is better.\n'+
       '- "severity": "error" (a real mistake — wrong grammar, word, collocation, register or punctuation; never a typing slip) or "upgrade" (correct, but could be more precise, natural or academic). "type", one of: subject_verb_agreement, verb_tense, verb_form, plural_noun, article, preposition, word_form, word_order, missing_word, sentence_structure, punctuation, capitalisation, word_choice, collocation, register, repetition.\n'+
       '- In each array list EVERY "error" first, in text order; then add "upgrade" items. Never invent an error and never label an upgrade as an error. One mistake = one item: do not report the same words twice, and do not report the same mistake in both arrays.\n'+
@@ -204,7 +224,9 @@
       if (a2 > 0 && a3 > a2 && a4 > a3) systemInstruction = systemInstruction.slice(0, a2) + (wt === 'paragraph' ? systemInstruction.slice(a3) : systemInstruction.slice(a4));
     }
     // ---- STEP 1: Gemini lists every grammar / vocabulary error (nothing else) ----
-    var userA = 'TASK PROMPT: '+cleanQ+'\n\nSTUDENT TEXT TO CHECK:\n---\n'+text+'\n---\n'+
+    var sents = splitSentences(text);
+    var numbered = sents.map(function (x, i) { return (i && x.para !== sents[i - 1].para ? '\n' : '') + '[S' + x.index + '] ' + x.text; }).join('\n');
+    var userA = 'TASK PROMPT: '+cleanQ+'\n\nSTUDENT TEXT TO CHECK, CUT INTO NUMBERED SENTENCES BY THE APP:\n---\n'+numbered+'\n---\n'+
       (wt === 'sentences' ?
         '\nThe text is a set of SEPARATE practice sentences: check every sentence. In addition to the three fields above, add a fourth field "tr_comments": ONE entry for EVERY sentence the student wrote, in order, each {"paragraph_role", "quote", "assessment_vi", "suggestion_en"}:\n'+
         '- "paragraph_role": the label the student put in front of the sentence if there is one (e.g. "1a", "1b"), otherwise "Sentence 1", "Sentence 2"…\n'+
@@ -223,7 +245,7 @@
     // sentence practice: no band, so no scoring step at all
     if (wt === 'sentences') {
       return { scores:{}, band_description:'Sentence practice', tr_comments:(a.tr_comments || []).filter(function (c) { return c && c.quote; }), cc_feedback:{}, criteria_notes:{},
-               typo_count:a.typo_count, gra_errors:a.gra_errors, lr_issues:a.lr_issues };
+               typo_count:a.typo_count, gra_errors:a.gra_errors, lr_issues:a.lr_issues, sentences:a.sentences };
     }
 
     // ---- STEP 2: Gemini scores, with the measured error report as evidence ----
@@ -233,7 +255,7 @@
       promptB += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
     }
     var r = await callAI(promptB, geminiKey);
-    r.gra_errors = a.gra_errors; r.lr_issues = a.lr_issues; r.typo_count = a.typo_count;
+    r.gra_errors = a.gra_errors; r.lr_issues = a.lr_issues; r.typo_count = a.typo_count; r.sentences = a.sentences;
     return r;
   }
 
@@ -288,6 +310,14 @@
   }
 
   /* The error list as numbers the scorer can use: counts, density, types, examples. */
+  function sentenceLine(st) {
+    if (!st || !st.total) return '';
+    var t = st.types || {}, c = (t.complex || 0) + (t.compound_complex || 0);
+    return 'Sentences: ' + st.total + '. Error-free sentences: ' + st.errorFree + ' (' + Math.round(st.errorFree / st.total * 100) + '%).' +
+      (st.typed ? ' Types: simple ' + (t.simple || 0) + ', compound ' + (t.compound || 0) + ', complex ' + (t.complex || 0) + ', compound-complex ' + (t.compound_complex || 0) +
+        ', fragments ' + (t.fragment || 0) + ' (complex + compound-complex = ' + Math.round(c / st.typed * 100) + '% of the typed sentences).' : '') +
+      ' The GRA descriptors speak of the PROPORTION of error-free sentences (band 7: "frequent"; band 8: "the majority") and of the range of structures: use these figures as evidence for GRA.\n';
+  }
   function errorReport(a, wc) {
     var real = function (arr) { return (arr || []).filter(function (e) { return e.severity !== 'upgrade' && !e.unlocated; }); };
     var g = real(a.gra_errors), l = real(a.lr_issues), per = function (n) { return (n / Math.max(wc, 1) * 100).toFixed(1); };
@@ -304,6 +334,7 @@
     };
     return '=== ERROR REPORT (step 1, measured by the app — do not list these errors again) ===\n' +
       'Words: ' + wc + '. Typing slips: ' + (a.typo_count || 0) + '.\n' +
+      sentenceLine(a.sentence_stats) +
       'Grammar errors: ' + g.length + ' (' + per(g.length) + ' per 100 words). By type: ' + tg.txt + '.\n' +
       'Vocabulary errors: ' + l.length + ' (' + per(l.length) + ' per 100 words). By type: ' + tl.txt + '.\n' +
       (g.length || l.length ? 'Examples of the most frequent types:\n' + [ex(g, tg), ex(l, tl)].filter(Boolean).join('\n') + '\n' : '') +
@@ -535,32 +566,60 @@
     if (wt === 'sentences') { r.scores = null; r.overall = 'Done'; r.tr_comments = (r.tr_comments || []).filter(function (c) { return c && c.quote; }); r.cc_feedback = {}; }   // per-sentence comments stay
     else if (wt === 'paragraph') { r.scores = null; r.overall = 'Done'; r.band_description = r.band_description || 'Paragraph practice'; }   // comments only, no band
     cleanErrors(r, payload);
+    delete r.sentences;   // only the statistics are kept
     // a quote that is not in the student's text is a misreading or an invention (e.g. "nowadays" taken from the task prompt): never shown
     ['gra_errors', 'lr_issues'].forEach(function (k) { r[k] = (r[k] || []).filter(function (e) { return !e.unlocated; }); });
     return r;
   }
   function cleanErrors(r, payload) {
     var flat = function (t) { return String(t || '').toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim(); };
+    var sents = splitSentences(payload.writing), fsents = sents.map(function (x) { return flat(x.text); });
     var text = flat(payload.writing);
+    var occ = function (h, n) { var c = 0, i = n ? h.indexOf(n) : -1; while (i >= 0) { c++; i = h.indexOf(n, i + n.length); } return c; };
     r.typo_count = parseInt(r.typo_count, 10) || 0;
     [['gra_errors', 'wrong', 'correct'], ['lr_issues', 'original', 'better']].forEach(function (f) {
       var seen = {};
-      var occ = function (h, n) { var c = 0, i = n ? h.indexOf(n) : -1; while (i >= 0) { c++; i = h.indexOf(n, i + n.length); } return c; };
       r[f[0]] = (r[f[0]] || []).filter(function (e) {
         if (!e || !e[f[1]] || !e[f[2]]) return false;            // no concrete replacement = nothing to teach
         if (e.type === 'spelling') return false;                  // typing slips are counted, never listed
-        if (flat(e[f[1]]).replace(/ /g, '') === flat(e[f[2]]).replace(/ /g, '')) return false;   // spacing-only "errors"
-        var k = flat(e[f[1]]) + '→' + flat(e[f[2]]);
-        // the same wrong→correct pair may appear once per place it occurs in the text (e.g. "which lead" in three
-        // sentences is three mistakes); more copies than occurrences are the AI repeating itself
+        var w = flat(e[f[1]]), c = flat(e[f[2]]);
+        if (w.replace(/ /g, '') === c.replace(/ /g, '')) return false;   // spacing-only "errors"
+        // Which sentence? The one the AI named if the words are in it, else the nearest sentence that has them.
+        // The same wrong→correct pair may be reported once per sentence (and once per occurrence inside it);
+        // more copies than places are the AI repeating itself.
+        var si = parseInt(e.sentenceIndex, 10), hits = [];
+        fsents.forEach(function (t, i) { if (t.indexOf(w) >= 0) hits.push(i); });
+        hits.sort(function (x, y) { return isNaN(si) ? x - y : (Math.abs(x - si) - Math.abs(y - si)) || (x - y); });
+        var idx = -1, k;
+        for (var j = 0; j < hits.length; j++) {
+          var k2 = hits[j] + '|' + w + '→' + c;
+          if ((seen[k2] || 0) < Math.max(1, occ(fsents[hits[j]], w))) { idx = hits[j]; k = k2; break; }
+        }
+        if (hits.length && idx < 0) return false;                 // every place already reported
+        if (!hits.length) { k = '-1|' + w + '→' + c; if ((seen[k] || 0) >= Math.max(1, occ(text, w))) return false; }
         seen[k] = (seen[k] || 0) + 1;
-        if (seen[k] > Math.max(1, occ(text, flat(e[f[1]])))) return false;
-        e.unlocated = text.indexOf(flat(e[f[1]])) < 0;
+        e.sentenceIndex = idx;
+        e.unlocated = !hits.length && text.indexOf(w) < 0;
         return true;
       });
     });
+    sentenceStats(r, sents);
     return r;
   }
+  /* error-free = no real error is attached to the sentence (upgrades and typing slips do not count) */
+  function sentenceStats(r, sents) {
+    var n = sents.length; if (!n) return;
+    var bad = {}, t = { simple: 0, compound: 0, complex: 0, compound_complex: 0, fragment: 0 }, typed = 0, seenIdx = {};
+    ['gra_errors', 'lr_issues'].forEach(function (k) {
+      (r[k] || []).forEach(function (e) { if (e.severity !== 'upgrade' && !e.unlocated && e.sentenceIndex >= 0) bad[e.sentenceIndex] = 1; });
+    });
+    (r.sentences || []).forEach(function (x) {
+      var i = parseInt(x && x.index, 10);
+      if (i >= 0 && i < n && !seenIdx[i] && t[x.type] !== undefined) { seenIdx[i] = 1; t[x.type]++; typed++; }
+    });
+    r.sentence_stats = { total: n, errorFree: n - Object.keys(bad).length, types: t, typed: typed };
+  }
+  AW.splitSentences = splitSentences;
   AW.gradeFinish = finish;   // used by tests/grader.check.js
 
   // Public API

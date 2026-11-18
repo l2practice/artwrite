@@ -9,7 +9,7 @@ function run(handler, groqKey) {
     AbortController, setTimeout:(f,ms)=>setTimeout(f, Math.min(ms,5)), clearTimeout, console,
     fetch: async (url, opt) => { calls.push(url); return handler(url, opt, calls.length); } };
   ctx.window.window = win; vm.createContext(ctx); vm.runInContext(src, ctx);
-  return { grade: () => win.AW.grade({ writing:'one two three', question:'q', attempt:1, taskType:'task2' }, 'KEY'), gradeWith: (p) => win.AW.grade(p, 'KEY'), calls };
+  return { grade: () => win.AW.grade({ writing:'one two three', question:'q', attempt:1, taskType:'task2' }, 'KEY'), gradeWith: (p) => win.AW.grade(p, 'KEY'), calls, win };
 }
 const ok = (text) => ({ ok:true, status:200, json: async () => ({ candidates:[{ content:{ parts:[{ text }] } }] }) });
 const bad = (status, message) => ({ ok:false, status, json: async () => ({ error:{ message } }) });
@@ -97,5 +97,19 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   t = run(() => ok(JSON.stringify({ gra_errors:[{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'},{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'},{wrong:'which lead',correct:'which leads',type:'subject_verb_agreement'}] })));
   fin = await t.gradeWith({ writing: 'It rains, which lead to floods. It snows, which lead to cold.', question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
   assert.equal(fin.gra_errors.length, 2);
+  // sentences cut by the app: list labels, e.g., decimals and paragraphs
+  {
+    const probe = run(() => ok(GOOD));
+    const sp = probe.win.AW.splitSentences('3. As cities grow, traffic rises (e.g., smog and noise). For example, jams get worse.\n\n4. Band 6.5 is common. Is it? Yes!');
+    assert.deepEqual(sp.map(x => x.text), ['3. As cities grow, traffic rises (e.g., smog and noise).', 'For example, jams get worse.', '4. Band 6.5 is common.', 'Is it?', 'Yes!']);
+    assert.deepEqual(sp.map(x => x.para), [0, 0, 1, 1, 1]);
+  }
+  // errors are tied to sentences (a wrong index is corrected); error-free share and types are measured
+  t = run(() => ok(JSON.stringify({ gra_errors:[{sentenceIndex:0,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'},{sentenceIndex:1,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'},{sentenceIndex:2,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'}],
+    sentences:[{index:0,type:'complex'},{index:1,type:'complex'},{index:2,type:'simple'},{index:3,type:'simple'},{index:3,type:'fragment'}] })));
+  fin = await t.gradeWith({ writing: 'It rains, which lead to floods. It snows, which lead to cold. The end is near. All is fine.', question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.deepEqual(fin.gra_errors.map(e => e.sentenceIndex), [0, 1]);           // the third copy and the wrong index 2 are dealt with
+  assert.equal(fin.sentence_stats.total, 4); assert.equal(fin.sentence_stats.errorFree, 2);
+  assert.equal(fin.sentence_stats.types.complex, 2); assert.equal(fin.sentence_stats.typed, 4); assert.equal(fin.sentences, undefined);
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
