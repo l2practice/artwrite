@@ -1236,7 +1236,6 @@ function gradeBtnHandler(){
   gradeWithTimeout.then(function(result){
       clearTimeout(gradeTimeoutId);
       lastResult = result;
-      try { var ld = AW.lexisDocData && AW.lexisDocData(lastPlainEssay, { prompt: PROMPT }); if (ld) result.lexis_data = ld; } catch(e) {}   // printed in the Google Doc without AI
       if (MODE === 'free') {
         editor.innerHTML = '';
         editor.style.whiteSpace = 'pre-wrap';

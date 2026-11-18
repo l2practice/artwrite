@@ -359,26 +359,6 @@
     return msg;
   }
 
-  /* The same analysis as the on-screen block, as plain data the Google Doc can print
-     (Apps Script cannot run this code). Saved inside the feedback JSON at grading time. */
-  AW.lexisDocData = function (text, opts) {
-    if (!AW.lexisReady || !AW.lexisReady() || !text) return null;
-    try {
-      var r = AW.lexisAnalyse(text, opts), p = r.profile || {}, L = p.levels || {}, n = p.listed || 1, wl = p.wordsByLevel || {};
-      var pc = function (k) { return Math.round((L[k] || 0) / n * 100); };
-      return {
-        cefr: { a: Math.round(((L.A1 || 0) + (L.A2 || 0)) / n * 100), b1: pc('B1'), b2: pc('B2'), c1: pc('C1'), c2: pc('C2'),
-                c1p: p.pctAdvanced || 0, b2p: p.pctUpperMid || 0, div: p.diversity || 0, uniq: p.uniqueLemmas || 0, listed: p.listed || 0, total: p.totalWords || 0 },
-        words: { C2: wl.C2 || [], C1: wl.C1 || [], B2: wl.B2 || [], B1: wl.B1 || [] },
-        colloc: r.collocations.slice(0, 12).map(function (c) { return c.text; }),
-        ielts: r.ielts.map(function (x) { return x.phrase + ' (' + String(x.cefr || '').toUpperCase() + ')'; }),
-        basic: r.basic.map(function (b) { return b.word + ' ×' + b.count + ' → ' + b.options.map(function (o) { return o.w; }).join(', '); }),
-        suggest: r.suggest.map(function (s) { return s.word + ' (' + s.level + ') → ' + s.items.map(function (c) { return c.e + (c.v ? ' (' + c.v + ')' : ''); }).join('; '); }),
-        topic: { name: r.topic || '', phrases: (r.topicPhrases || []).map(function (t) { return t.phrase + (t.vi ? ' — ' + t.vi : ''); }) }
-      };
-    } catch (e) { return null; }
-  };
-
   AW.lexisHtml = function (r, aiNote) {
     if (!r) return '';
     var h = '<div class="lx">';
