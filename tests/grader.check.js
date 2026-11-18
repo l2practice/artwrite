@@ -64,11 +64,23 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   const B = (wt) => seen[wt][1];
   assert(/ONLY find the grammar errors/.test(seen.full_essay[0]) && !/ERROR REPORT \(step 1/.test(seen.full_essay[0]));   // step 1 sees no scoring rules
   assert(/ERROR REPORT \(step 1/.test(B('full_essay')) && /Grammar errors: 1/.test(B('full_essay')) && /Typing slips: 0/.test(B('full_essay')));
-  assert(/2\) TASK RESPONSE/.test(B('full_essay')) && /3\) COHERENCE & COHESION:/.test(B('full_essay')));
-  assert(!/2\) TASK RESPONSE/.test(B('paragraph')) && /3\) COHERENCE & COHESION:/.test(B('paragraph')));
+  // one self-contained block per criterion: full essay = TR, CC, LR, GRA; paragraph practice has no TR block
+  const blocks = (txt) => (txt.match(/=== CRITERION: [A-Z &]+ ===/g) || []).map(x => x.replace(/=== CRITERION: | ===/g, ''));
+  assert.deepEqual(blocks(B('full_essay')), ['TASK RESPONSE', 'COHERENCE & COHESION', 'LEXICAL RESOURCE', 'GRAMMATICAL RANGE & ACCURACY']);
+  assert.deepEqual(blocks(B('paragraph')), ['COHERENCE & COHESION', 'LEXICAL RESOURCE', 'GRAMMATICAL RANGE & ACCURACY']);
+  // every teacher rule sits in its own block (and nowhere else): the TR logic rules only in TR, the typing-slip cap only in LR, the punctuation cap only in GRA
+  { const part = (txt, name) => txt.split('=== CRITERION: ' + name + ' ===')[1].split('=== CRITERION:')[0];
+    const full = B('full_essay');
+    assert(/THESIS–TOPIC ALIGNMENT/.test(part(full, 'TASK RESPONSE')) && !/THESIS–TOPIC ALIGNMENT/.test(part(full, 'COHERENCE & COHESION')));
+    assert(/TYPING SLIPS/.test(part(full, 'LEXICAL RESOURCE')) && !/TYPING SLIPS/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')));
+    assert(/capitalize proper nouns/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')) && !/capitalize proper nouns/.test(part(full, 'LEXICAL RESOURCE')));
+    assert(/Mechanical Cohesion/.test(part(full, 'COHERENCE & COHESION')));
+    assert(/Fairness/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')) && /at least 7/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')));
+    assert(/Band 9: /.test(part(full, 'TASK RESPONSE')) && /Band 4: /.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')));
+    assert(!/Grammar errors → GRA/.test(full) && !/SCORING CALIBRATION/.test(full) && !/ANTI-OVER-CORRECTION/.test(full)); }
   { const spec = B('full_essay').split('Return ONLY a JSON object')[1].split('OUTPUT BUDGET')[0]; assert(spec.length > 50 && !/gra_errors|lr_issues/.test(spec) && /lexis_vi/.test(spec)); }   // step 2 returns no error lists
-  assert(/OFFICIAL IELTS BAND DESCRIPTORS/.test(B('full_essay')) && /BAND 7/.test(B('full_essay')) && /DESCRIPTOR RULE/.test(B('full_essay')) && !/__DESCRIPTORS__/.test(B('full_essay')));
-  assert(/Task Response: /.test(B('full_essay')) && !/Task Response: /.test(B('paragraph').split('OFFICIAL IELTS BAND DESCRIPTORS')[1].split('DESCRIPTOR RULE')[0]));   // paragraph practice has no TR descriptors
+  assert(/Official descriptors:/.test(B('full_essay')) && /DESCRIPTOR RULE/.test(B('full_essay')) && /HOW TO SCORE/.test(B('full_essay')) && !/__DESCRIPTORS__|__CHECKS__/.test(B('full_essay')));
+  assert(!/TASK RESPONSE ===/.test(B('paragraph')));   // paragraph practice has no TR descriptors
   assert(B('paragraph').length < B('full_essay').length);
   // the same text twice: step 1 is reused (same error list, no second call)
   t = run(() => ok(GOOD));
@@ -128,10 +140,10 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
     const long = 'Firstly, people like cities. People need jobs. People need homes. People need food. It is good. It is big. It is new. Moreover, this is important because people move. However, they stay. This shows that people matter in every modern society today.';
     await run((u, o) => { seenP.push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: long, question:'q', attempt:1, taskType:'task2' });
     assert(/FREQUENT LEARNER PATTERNS/.test(seenP[0]));
-    assert(/EXAMINER CHECKS/.test(seenP[1]) && /TASK RESPONSE\n- Position/.test(seenP[1]) && /COHERENCE & COHESION\n- Count identical/.test(seenP[1]) && !/__CHECKS__/.test(seenP[1]));
+    assert(/Examiner checks/.test(seenP[1]) && /- Position: it must be visible/.test(seenP[1]) && /- Count identical mechanical openers/.test(seenP[1]) && !/__CHECKS__/.test(seenP[1]));
     assert(/Signals \(re-check triggers/.test(seenP[1]) && /type-token ratio/.test(seenP[1]) && /runs of 3\+ short sentences/.test(seenP[1]) && /people ×\d/.test(seenP[1]) && /repeated sentence openers: .*it ×3/.test(seenP[1]));
     const sp = [];
     await run((u, o) => { sp.push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: long, question:'q', attempt:1, taskType:'task2', writingType:'paragraph' });
-    assert(/EXAMINER CHECKS/.test(sp[1]) && !/TASK RESPONSE\n- Position/.test(sp[1])); }
+    assert(/Examiner checks/.test(sp[1]) && !/- Position: it must be visible/.test(sp[1])); }
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });
