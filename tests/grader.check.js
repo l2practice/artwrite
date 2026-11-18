@@ -67,6 +67,8 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   assert(/2\) TASK RESPONSE/.test(B('full_essay')) && /3\) COHERENCE & COHESION:/.test(B('full_essay')));
   assert(!/2\) TASK RESPONSE/.test(B('paragraph')) && /3\) COHERENCE & COHESION:/.test(B('paragraph')));
   { const spec = B('full_essay').split('Return ONLY a JSON object')[1].split('OUTPUT BUDGET')[0]; assert(spec.length > 50 && !/gra_errors|lr_issues/.test(spec) && /lexis_vi/.test(spec)); }   // step 2 returns no error lists
+  assert(/OFFICIAL IELTS BAND DESCRIPTORS/.test(B('full_essay')) && /BAND 7/.test(B('full_essay')) && /DESCRIPTOR RULE/.test(B('full_essay')) && !/__DESCRIPTORS__/.test(B('full_essay')));
+  assert(/Task Response: /.test(B('full_essay')) && !/Task Response: /.test(B('paragraph').split('OFFICIAL IELTS BAND DESCRIPTORS')[1].split('DESCRIPTOR RULE')[0]));   // paragraph practice has no TR descriptors
   assert(B('paragraph').length < B('full_essay').length);
   // the same text twice: step 1 is reused (same error list, no second call)
   t = run(() => ok(GOOD));
