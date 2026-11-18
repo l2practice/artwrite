@@ -626,12 +626,22 @@ if (RETRY) {
   editor.innerText = '';
   wc.textContent = '0 words';
   AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE }).then(function(res){
+    if (res && res.success && res.data && res.data.count > 0) attempt = Math.max(attempt, res.data.count + 1);
     if (res && res.success && res.data.count >= 3 && MODE !== 'free') {
       lockEditorFull();
     } else {
       AW.toast('New attempt — write a fresh essay','ok');
     }
   });
+}
+/* Coming back to a task (not only via Retry): the attempt number must start from what the
+   server already holds — an earlier save, even one the teacher is grading by hand, counts. */
+if (!RETRY && MODE !== 'free' && qp.get('topicId')) {
+  AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE }).then(function(res){
+    if (!res || !res.success || !res.data) return;
+    if (res.data.count > 0) attempt = Math.max(attempt, res.data.count + 1);
+    if (res.data.count >= 3) lockEditorFull();
+  }).catch(function(){});
 }
 function lockEditorFull(){
   editor.setAttribute('contenteditable','false');

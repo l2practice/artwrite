@@ -776,8 +776,11 @@
     }).join('');
     if (nh) h += '<div class="aw-fb-block rv-block"><h4>By criterion</h4>' + nh + '</div>';
     var ne = function (x) { return x.filter(function (e) { return e.severity !== 'upgrade'; }).length; };
-    if (g.length) h += '<div class="aw-fb-block rv-block"><h4>Grammar (' + ne(g) + ' errors)</h4>' + fbItems(g, 'wrong', 'correct') + '</div>';
-    if (l.length) h += '<div class="aw-fb-block rv-block"><h4>Vocabulary (' + ne(l) + ' errors)</h4>' + fbItems(l, 'original', 'better') + '</div>';
+    var none = '<div class="aw-fb-item">No clear errors found.</div>';
+    if (fb.gra_errors || fb.lr_issues || fb.scores !== undefined) {
+      h += '<div class="aw-fb-block rv-block"><h4>Grammar (' + ne(g) + ' errors)</h4>' + (g.length ? fbItems(g, 'wrong', 'correct') : none) + '</div>';
+      h += '<div class="aw-fb-block rv-block"><h4>Vocabulary (' + ne(l) + ' errors)</h4>' + (l.length ? fbItems(l, 'original', 'better') : none) + '</div>';
+    }
     return h;
   };
   (function () {
