@@ -2767,8 +2767,8 @@ window.viewEssays=function(gkey, writeIdx){
           out+='<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">AI Feedback</h4>';
           if(fb.repeated_errors_vi) out+='<p style="margin:0 0 8px;background:#FFF8EC;padding:8px;border-radius:6px"><b>⚠ Repeated errors:</b> '+AW.esc(fb.repeated_errors_vi)+'</p>';
           var c1label2 = (g.taskType==='task1') ? 'Task Achievement' : 'Task Response';
-          if((fb.tr_comments||[]).length) out+='<p style="margin:0 0 8px"><b>'+c1label2+':</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';
-          out+=AW.fbErrorsHtml(fb);
+          if((fb.tr_comments||[]).length && fb.writing_type!=='sentences') out+='<p style="margin:0 0 8px"><b>'+c1label2+':</b> '+fb.tr_comments.slice(0,3).map(function(c){return AW.esc(c.assessment_vi||'');}).join(' ')+'</p>';
+          out+=AW.fbSentencesHtml(fb)+AW.fbErrorsHtml(fb);
         } else {
           out+='<p style="color:var(--aw-ink-3);font-size:.85rem;background:#FFF8EC;padding:8px;border-radius:6px">'+
             (d.essay ? 'No stored AI feedback for this attempt. ' : '')+

@@ -193,7 +193,12 @@
     }
     // ---- STEP 1: Gemini lists every grammar / vocabulary error (nothing else) ----
     var userA = 'TASK PROMPT: '+cleanQ+'\n\nSTUDENT TEXT TO CHECK:\n---\n'+text+'\n---\n'+
-      (wt === 'sentences' ? '\nThe text is a set of SEPARATE practice sentences: check every sentence.\n' : '');
+      (wt === 'sentences' ?
+        '\nThe text is a set of SEPARATE practice sentences: check every sentence. In addition to the three fields above, add a fourth field "tr_comments": ONE entry for EVERY sentence the student wrote, in order, each {"paragraph_role", "quote", "assessment_vi", "suggestion_en"}:\n'+
+        '- "paragraph_role": the label the student put in front of the sentence if there is one (e.g. "1a", "1b"), otherwise "Sentence 1", "Sentence 2"…\n'+
+        '- "quote": the WHOLE sentence, copied exactly (without its label).\n'+
+        '- "assessment_vi": at most 25 Vietnamese words — what is wrong and why (grammar, word choice, collocation), or what is good if nothing is wrong. Never mention typing slips.\n'+
+        '- "suggestion_en": the corrected, natural version of the WHOLE sentence; if the sentence is already correct, write "Correct as written."\n' : '');
     if (payload.aiNotes && payload.aiNotes.trim()) {
       userA += '\n=== TEACHER\'S RULES (HIGHEST PRIORITY) ===\n'+payload.aiNotes.trim()+
         '\nDo NOT report anything the teacher has explicitly allowed or told you to ignore.\n';
@@ -204,7 +209,7 @@
 
     // sentence practice: no band, so no scoring step at all
     if (wt === 'sentences') {
-      return { scores:{}, band_description:'Sentence practice', tr_comments:[], cc_feedback:{}, criteria_notes:{},
+      return { scores:{}, band_description:'Sentence practice', tr_comments:(a.tr_comments || []).filter(function (c) { return c && c.quote; }), cc_feedback:{}, criteria_notes:{},
                typo_count:a.typo_count, gra_errors:a.gra_errors, lr_issues:a.lr_issues };
     }
 
@@ -513,7 +518,7 @@
   function finish(r, payload) {
     var wt = payload.writingType || 'full_essay';
     r.writing_type = wt;
-    if (wt === 'sentences') { r.scores = null; r.overall = 'Done'; r.tr_comments = []; r.cc_feedback = {}; }
+    if (wt === 'sentences') { r.scores = null; r.overall = 'Done'; r.tr_comments = (r.tr_comments || []).filter(function (c) { return c && c.quote; }); r.cc_feedback = {}; }   // per-sentence comments stay
     else if (wt === 'paragraph') { r.scores = null; r.overall = 'Done'; r.band_description = r.band_description || 'Paragraph practice'; }   // comments only, no band
     cleanErrors(r, payload);
     // a quote that is not in the student's text is a misreading or an invention (e.g. "nowadays" taken from the task prompt): never shown

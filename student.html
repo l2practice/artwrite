@@ -831,7 +831,7 @@ function reviewFeedbackRec(r, refIdx){
     rvHead(fb.overall, r.topic||'', 'Attempt '+(r.attempt||1), AW.syncOverall(fb.band_description||'', fb.overall))+
     (s.TR!=null?crit('Task Response',s.TR):'')+(s.CC!=null?crit('Coherence & Cohesion',s.CC):'')+(s.LR!=null?crit('Lexical Resource',s.LR):'')+(s.GRA!=null?crit('Grammar',s.GRA):'')+
     (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Repeated errors</h4><p>'+formatRepeated(fb.repeated_errors_vi)+'</p></div>':'')+
-    AW.fbErrorsHtml(fb)+
+    AW.fbSentencesHtml(fb)+AW.fbErrorsHtml(fb)+
     buildCefrBlock(r.essay)+
     (r.essay && AW.lexisBlock ? '<div class="rv-block"><h4>📚 Vocabulary level &amp; Collocations</h4><div id="rvLexis"><span class="aw-spin aw-spin-dark"></span></div></div>' : '')+
     (r.essay ? (function(){
