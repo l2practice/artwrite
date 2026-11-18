@@ -130,9 +130,8 @@
             : 'Cap TR/TA at Band 5 (underlength — between 60–99% of minimum).')+
           ' Mention in the Task Response note (criteria_notes.TR) that the response is too short ('+wc+'/'+minWords+' words).');
 
-    var attemptNote = payload.attempt >= 2
-      ? '\n\nThis is revision attempt '+payload.attempt+'. In "repeated_errors_vi" (Vietnamese), note whether the student repeated the same TYPES of mistakes as a typical earlier draft (grammar/vocab/coherence) and encourage improvement. For attempt 1, leave repeated_errors_vi empty.'
-      : '\n\nThis is the first attempt. Leave repeated_errors_vi empty. Give COMPLETE feedback on all 4 criteria so the student learns from the start.';
+    // The AI never sees the earlier drafts, so it cannot say what was "repeated": it only invented it.
+    var attemptNote = '\n\nLeave repeated_errors_vi empty. Give COMPLETE feedback on all the criteria so the student learns from this attempt.';
 
     // FIX: userMessage must match task type so AI doesn't confuse Task 1 with Task 2
     var userMessage;
