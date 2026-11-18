@@ -16,10 +16,10 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
 (async () => {
   // 503 on the first model → the second answers, no Groq
   let t = run((u, o, n) => n === 1 ? bad(503, 'overloaded') : ok(GOOD));
-  let r = await t.grade(); assert.equal(r.overall, 6); assert.equal(t.calls.length, 2); assert(/flash-lite/.test(t.calls[1]));
+  let r = await t.grade(); assert.equal(r.overall, 6); assert.equal(t.calls.length, 3); assert(/flash-lite/.test(t.calls[1]));   // step 1: 503 then flash-lite; step 2: first model
   // 429 then empty then good
   t = run((u, o, n) => n === 1 ? bad(429, 'quota') : n === 2 ? ok('') : ok('```json\n' + GOOD + '\n```'));
-  r = await t.grade(); assert.equal(t.calls.length, 3); assert.equal(r.scores.GRA, 5);
+  r = await t.grade(); assert.equal(t.calls.length, 4); assert.equal(r.scores.GRA, 5);   // step 1 takes 3 calls, step 2 one
   // invalid key (400) → error at once, not the Groq popup
   t = run(() => bad(400, 'API key not valid. Please pass a valid API key.'));
   await assert.rejects(t.grade(), /API key/); assert.equal(t.calls.length, 1);
@@ -28,7 +28,7 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   await assert.rejects(t.grade(), /network/); assert.equal(t.calls.length, 1);
   // all Gemini busy → Groq (stored key) answers
   t = run((u) => /groq/.test(u) ? { ok:true, status:200, json: async () => ({ choices:[{ message:{ content: GOOD } }] }) } : bad(503, 'x'), 'gsk_x');
-  r = await t.grade(); assert.equal(t.calls.length, 4); assert.equal(r.overall, 6);
+  r = await t.grade(); assert.equal(t.calls.length, 8); assert.equal(r.overall, 6);   // each step: 3 busy Gemini + Groq
   // Gemini busy, Groq 429 → second Gemini pass succeeds
   t = run((u, o, n) => /groq/.test(u) ? bad(429, 'rate') : (n <= 3 ? bad(503, 'x') : ok(GOOD)), 'gsk_x');
   r = await t.grade(); assert.equal(r.overall, 6);
@@ -51,18 +51,26 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5} }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
   assert.equal(fin.overall, 6); assert.equal(fin.writing_type, 'full_essay');
   // the prompt names the format
-  t = run((u, o) => { const txt = JSON.parse(o.body).contents[0].parts[0].text; assert(/SENTENCE PRACTICE/.test(txt) && !/WORD COUNT: This response/.test(txt)); return ok(GOOD); });
+  t = run((u, o) => { const txt = JSON.parse(o.body).contents[0].parts[0].text; assert(/SEPARATE practice sentences/.test(txt) && !/WORD COUNT: This response/.test(txt)); return ok(GOOD); });
   await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.equal(t.calls.length, 1);   // sentence practice has no scoring step
   // mode-specific prompt: TR / CC rule blocks only for full essays; the always-kept parts survive
   const seen = {};
   for (const wt of ['full_essay','paragraph','sentences']) {
-    await run((u, o) => { seen[wt] = JSON.parse(o.body).contents[0].parts[0].text; return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType: wt });
+    await run((u, o) => { (seen[wt] = seen[wt] || []).push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType: wt });
   }
-  assert(/2\) TASK RESPONSE/.test(seen.full_essay) && /3\) COHERENCE & COHESION:/.test(seen.full_essay));
-  assert(!/2\) TASK RESPONSE/.test(seen.paragraph) && /3\) COHERENCE & COHESION:/.test(seen.paragraph));
-  assert(!/2\) TASK RESPONSE/.test(seen.sentences) && !/3\) COHERENCE & COHESION:/.test(seen.sentences));
-  assert(/ANTI-OVER-CORRECTION/.test(seen.sentences) && /1\) LEXICAL RESOURCE & GRAMMAR/.test(seen.sentences) && /OUTPUT BUDGET/.test(seen.sentences));
-  assert(seen.sentences.length < seen.paragraph.length && seen.paragraph.length < seen.full_essay.length);
+  assert.equal(seen.full_essay.length, 2); assert.equal(seen.paragraph.length, 2); assert.equal(seen.sentences.length, 1);
+  const B = (wt) => seen[wt][1];
+  assert(/ONLY find the grammar errors/.test(seen.full_essay[0]) && !/ERROR REPORT \(step 1/.test(seen.full_essay[0]));   // step 1 sees no scoring rules
+  assert(/ERROR REPORT \(step 1/.test(B('full_essay')) && /Grammar errors: 1/.test(B('full_essay')) && /Typing slips: 0/.test(B('full_essay')));
+  assert(/2\) TASK RESPONSE/.test(B('full_essay')) && /3\) COHERENCE & COHESION:/.test(B('full_essay')));
+  assert(!/2\) TASK RESPONSE/.test(B('paragraph')) && /3\) COHERENCE & COHESION:/.test(B('paragraph')));
+  { const spec = B('full_essay').split('Return ONLY a JSON object')[1].split('OUTPUT BUDGET')[0]; assert(spec.length > 50 && !/gra_errors|lr_issues/.test(spec) && /lexis_vi/.test(spec)); }   // step 2 returns no error lists
+  assert(B('paragraph').length < B('full_essay').length);
+  // the same text twice: step 1 is reused (same error list, no second call)
+  t = run(() => ok(GOOD));
+  await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' }); assert.equal(t.calls.length, 2);
+  await t.gradeWith({ writing: essay, question:'q', attempt:2, taskType:'task2' }); assert.equal(t.calls.length, 3);
   // typing slips are never listed; an item needs a real replacement; spacing-only items are dropped
   fin = await run(() => ok(JSON.stringify({ scores:{TR:6,CC:6,LR:6,GRA:6}, gra_errors:[
     {wrong:'trend have',correct:'trend has',type:'subject_verb_agreement'}, {wrong:'online meeting',correct:'online meetings',type:'spelling'},

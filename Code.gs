@@ -1818,6 +1818,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       if (ld && typeof ld==='object'){
         // the same dictionary analysis as the app screen, saved at grading time (no AI)
         h2('🧩 Vocabulary level & Collocations');
+        if (fb.lexis_vi) body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:6});
         var cf=ld.cefr||{};
         body.appendParagraph('A1–A2 '+cf.a+'%  ·  B1 '+cf.b1+'%  ·  B2 '+cf.b2+'%  ·  C1 '+cf.c1+'%  ·  C2 '+cf.c2+'%').setAttributes({FONT_SIZE:11,BOLD:true,FOREGROUND_COLOR:NAVY,SPACING_AFTER:2});
         note('C1 trở lên '+cf.c1p+'%  ·  B2 trở lên '+cf.b2p+'%  ·  Độ đa dạng '+cf.div+'%  ·  '+cf.uniq+' từ khác nhau  ('+cf.listed+'/'+cf.total+' từ nằm trong thang CEFR)',GREY,9.5);
@@ -1836,6 +1837,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
         if (ld.topic&&A(ld.topic.phrases).length){ note('📌 Cụm từ chủ đề “'+S(ld.topic.name)+'” nên dùng',NAVY,10.5); A(ld.topic.phrases).forEach(function(x){ body.appendListItem(S(x)).setAttributes({FONT_SIZE:10.5,SPACING_AFTER:2}); }); }
       } else {
         h2('🧩 Vocabulary level & Collocations');
+        if (fb.lexis_vi) body.appendParagraph(S(fb.lexis_vi)).setAttributes({FONT_SIZE:10.5,FOREGROUND_COLOR:'#1F2933',LINE_SPACING:1.3,SPACING_AFTER:6});
         note('Xem phần nhận xét chi tiết về collocation và mức từ vựng (CEFR) trong ứng dụng ArticuWrite.',GREY,10);
       }
     } catch(renderErr){

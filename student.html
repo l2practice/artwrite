@@ -856,7 +856,7 @@ function reviewFeedbackRec(r, refIdx){
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeReview()">Close</button></div>'+
     '</div>'+body;
   document.getElementById('reviewModal').classList.add('show');
-  if (r.essay && AW.lexisBlock) AW.lexisBlock(r.essay, { prompt: r.prompt || '' }).then(function(h){
+  if (r.essay && AW.lexisBlock) AW.lexisBlock(r.essay, { prompt: r.prompt || '', aiNote: fb.lexis_vi }).then(function(h){
     var el = document.getElementById('rvLexis');
     if (el && window._reviewRec === r) { if (h) el.innerHTML = h; else el.parentNode.remove(); }
   });

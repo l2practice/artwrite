@@ -341,7 +341,7 @@
     if (r.ielts.length) out.push('IELTS band 6.5+ vocabulary used: ' + r.ielts.slice(0, 8).map(function (x) { return x.phrase + ' (' + x.cefr + ')'; }).join(', ') + '.');
     if (r.basic.length) out.push('Basic words repeated: ' + r.basic.map(function (b) { return b.word + ' x' + b.count; }).join(', ') + '.');
     if (r.suggest.length) out.push('Content words used without a typical collocation: ' + r.suggest.map(function (s) { return s.word; }).join(', ') + '.');
-    out.push('Use these measurements as evidence for the Lexical Resource score; verify each item against the essay yourself.');
+    out.push('Use these measurements as evidence when you write "lexis_vi" and score Lexical Resource; verify each item against the essay yourself.');
     return out.join(' ');
   };
 
