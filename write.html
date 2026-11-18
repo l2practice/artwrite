@@ -1236,6 +1236,7 @@ function gradeBtnHandler(){
   gradeWithTimeout.then(function(result){
       clearTimeout(gradeTimeoutId);
       lastResult = result;
+      try { var ld = AW.lexisDocData && AW.lexisDocData(lastPlainEssay, { prompt: PROMPT }); if (ld) result.lexis_data = ld; } catch(e) {}   // printed in the Google Doc without AI
       if (MODE === 'free') {
         editor.innerHTML = '';
         editor.style.whiteSpace = 'pre-wrap';
@@ -1635,7 +1636,7 @@ function renderFeedback(r){
   var sideBodyEl = document.getElementById('sideBody');
   sideBodyEl.style.display = '';
   sideBodyEl.innerHTML = sideHtml;
-  if (AW_AI_ON && AW.lexisBlock) AW.lexisBlock(lastPlainEssay, { prompt: PROMPT, aiNote: r.lexis_vi }).then(function(h){
+  if (AW_AI_ON && AW.lexisBlock) AW.lexisBlock(lastPlainEssay, { prompt: PROMPT }).then(function(h){
     var el = document.getElementById('lexisSide'); if (el) { if (h) el.innerHTML = h; else el.remove(); }
   });
   setTimeout(function(){

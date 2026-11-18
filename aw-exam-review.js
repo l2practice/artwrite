@@ -108,7 +108,7 @@
     [[1, fb.task1], [2, fb.task2]].forEach(function (p) {
       var t = p[1] || {}, id = prefix + '_lx' + p[0];
       if (!t.essay) return;
-      AW.lexisBlock(t.essay, { prompt: t.prompt || '', aiNote: t.lexis_vi }).then(function (h) {
+      AW.lexisBlock(t.essay, { prompt: t.prompt || '' }).then(function (h) {
         var el = document.getElementById(id);
         if (!el || !alive()) return;
         if (h) el.innerHTML = h; else el.parentNode.remove();

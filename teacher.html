@@ -2775,7 +2775,7 @@ window.viewEssays=function(gkey, writeIdx){
             'New submissions include full feedback.</p>';
         }
         el.innerHTML = out;
-        if(d.essay && AW.lexisBlock) AW.lexisBlock(d.essay, { prompt: g.prompt||'', aiNote: fb && fb.lexis_vi }).then(function(h){
+        if(d.essay && AW.lexisBlock) AW.lexisBlock(d.essay, { prompt: g.prompt||'' }).then(function(h){
           var lx=document.getElementById('lexis_'+i); if(lx && rvTok === window._rvTok){ if(h) lx.innerHTML=h; else lx.remove(); }
         });
       });
