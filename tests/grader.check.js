@@ -77,5 +77,15 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
     {wrong:'this trend',correct:'',type:'article'}, {wrong:'meetingshave',correct:'meetings have',type:'word_order'} ],
     lr_issues:[{original:'a lot of',better:'',type:'register'}] }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
   assert.equal(fin.gra_errors.length, 1); assert.equal(fin.lr_issues.length, 0);
+  // garbled replies: a cut-off reply is repaired, a trailing comma is forgiven, a hopeless one is retried once
+  const cut = '{"typo_count":1,"gra_errors":[{"wrong":"trend have","correct":"trend has","type":"verb_form","explanation_vi":"x"},{"wrong":"smartphones become","correct":"smartph';
+  t = run((u, o, n) => n === 1 ? ok(cut) : ok(GOOD));
+  fin = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.equal(t.calls.length, 1); assert.equal(fin.gra_errors.length, 1); assert.equal(fin.gra_errors[0].wrong, 'trend have');
+  t = run((u, o, n) => ok(n === 1 ? 'no json here' : GOOD));
+  fin = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.equal(t.calls.length, 2); assert.equal(fin.overall, 'Done');
+  t = run(() => ok('{"scores":{"TR":6,"CC":6,"LR":6,"GRA":6,},"gra_errors":[],}'));
+  fin = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' }); assert.equal(fin.overall, 6);
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });

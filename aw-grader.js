@@ -220,6 +220,13 @@
 
   /* One AI call with the whole fallback chain: Gemini models → Groq → Gemini again. */
   async function callAI(prompt, geminiKey) {
+    try { return await callAIOnce(prompt, geminiKey); }
+    catch (e) {   // a garbled reply is usually a one-off: ask once more before bothering the student
+      if (/Lỗi định dạng|Lỗi đọc kết quả/.test((e && e.message) || '')) return await callAIOnce(prompt, geminiKey);
+      throw e;
+    }
+  }
+  async function callAIOnce(prompt, geminiKey) {
     var g = await geminiPass(geminiKey, prompt);
     if (g.raw) return parseAiJson(g.raw, 'AI');
 
@@ -328,8 +335,37 @@
                    .replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
     var si = clean.indexOf('{'), ei = clean.lastIndexOf('}');
     if (si === -1 || ei <= si) throw new Error('Lỗi định dạng: ' + who + ' không trả về JSON hoàn chỉnh. Vui lòng thử lại.');
-    try { return normaliseScores(JSON.parse(clean.substring(si, ei+1))); }
-    catch (parseErr) { throw new Error('Lỗi đọc kết quả từ ' + who + ' (JSON sai cú pháp). Vui lòng thử lại.'); }
+    var obj = parseLoose(clean.substring(si));
+    if (!obj) {
+      // keep the evidence: what the AI really sent (the student only sees "format error")
+      try { console.warn('[grader] unreadable AI JSON — length', clean.length, '\nSTART:', clean.slice(0, 400), '\nEND:', clean.slice(-400)); } catch (e) {}
+      throw new Error('Lỗi đọc kết quả từ ' + who + ' (JSON sai cú pháp). Vui lòng thử lại.');
+    }
+    return normaliseScores(obj);
+  }
+
+  /* JSON.parse, then two repairs for the usual AI slips: trailing commas, and a reply cut off
+     in the middle (keep everything up to the last complete item and close the brackets). */
+  function parseLoose(t) {
+    var ei = t.lastIndexOf('}');
+    if (ei < 0) return null;
+    var whole = t.substring(0, ei + 1);
+    try { return JSON.parse(whole); } catch (e) {}
+    try { return JSON.parse(whole.replace(/,\s*([}\]])/g, '$1')); } catch (e) {}
+    var stack = [], inStr = false, esc = false, cuts = [];
+    for (var i = 0; i < t.length; i++) {
+      var c = t[i];
+      if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
+      if (c === '"') inStr = true;
+      else if (c === '{') stack.push('}');
+      else if (c === '[') stack.push(']');
+      else if (c === '}' || c === ']') { stack.pop(); if (stack.length) cuts.push([i, stack.slice()]); }
+    }
+    for (var k = cuts.length - 1, n = 0; k >= 0 && n < 60; k--, n++) {
+      var head = t.substring(0, cuts[k][0] + 1) + cuts[k][1].slice().reverse().join('');
+      try { return JSON.parse(head.replace(/,\s*([}\]])/g, '$1')); } catch (e) {}
+    }
+    return null;
   }
 
   // requestGroqKey: shows popup asking student to enter their Groq key.
