@@ -1582,7 +1582,8 @@ function renderFeedback(r){
   }
 
   // Task Response detail — show bold paragraph label; quote only a single flagged sentence
-  if(r.tr_comments && r.tr_comments.length){
+  html += AW.fbSentencesHtml(r);
+  if(r.tr_comments && r.tr_comments.length && r.writing_type!=='sentences'){
     html += '<div class="aw-fb-block"><h4>'+(r.writing_type==='paragraph'?'Paragraphs':'Task Response')+'</h4>'+r.tr_comments.slice(0,6).map(function(c){
       var label = c.paragraph_role ? '<b style="color:var(--aw-primary)">'+AW.esc(c.paragraph_role)+'</b><br>' : '';
       return '<div class="aw-fb-item">'+label+AW.esc(c.assessment_vi||'')+'</div>';

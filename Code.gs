@@ -1782,7 +1782,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       }
       var trList=A(fb.tr_comments);
       if (trList.length){
-        h2(fb.writing_type==='paragraph'?'🎯 Paragraphs':trLabel);
+        h2(fb.writing_type==='paragraph'?'🎯 Paragraphs':fb.writing_type==='sentences'?'🎯 Sentences':trLabel);
         trList.forEach(function(c){
           if (typeof c!=='object'||c===null){ c={assessment_vi:S(c)}; }
           var li=body.appendListItem(''); var t=li.editAsText(); var lab=S(c.paragraph_role);

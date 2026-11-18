@@ -754,6 +754,18 @@
     }
     return errs.map(row).join('') + (ups.length ? '<div class="fbx-sub">Could be stronger (not errors)</div>' + ups.map(row).join('') : '');
   }
+  /* Sentence practice: one comment per sentence — the sentence, what is wrong, the corrected sentence. */
+  AW.fbSentencesHtml = function (fb) {
+    if (!fb || fb.writing_type !== 'sentences') return '';
+    var list = (fb.tr_comments || []).filter(function (c) { return c && c.quote; });
+    if (!list.length) return '';
+    return '<div class="aw-fb-block rv-block"><h4>Sentences</h4>' + list.map(function (c) {
+      return '<div class="aw-fb-item">' + (c.paragraph_role ? '<b>' + AW.esc(c.paragraph_role) + ':</b> ' : '') +
+        '<i style="color:var(--aw-ink-3)">“' + AW.esc(c.quote) + '”</i> ' + AW.esc(c.assessment_vi || '') +
+        (c.suggestion_en ? '<br><span style="color:#1E7E42;font-size:.88rem">→ ' + AW.esc(c.suggestion_en) + '</span>' : '') + '</div>';
+    }).join('') + '</div>';
+  };
+
   AW.fbErrorsHtml = function (fb) {
     fb = fb || {};
     var g = fb.gra_errors || [], l = fb.lr_issues || [], h = '';

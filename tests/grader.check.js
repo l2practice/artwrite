@@ -46,8 +46,9 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
     return g.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'paragraph' }); })();
   assert.equal(fin.scores, null); assert.equal(fin.overall, 'Done');          // paragraph practice: comments only, no band
   assert.equal(fin.gra_errors.length, 1); assert.equal(fin.gra_errors[0].unlocated, false);   // the quote that is not in the text is dropped
-  fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5}, gra_errors:[] }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5}, gra_errors:[], tr_comments:[{paragraph_role:'1a',quote:'This trend have more disadvantages.',assessment_vi:'Sai chia động từ.',suggestion_en:'This trend has more disadvantages.'},{paragraph_role:'1b',quote:'',assessment_vi:'x'}] }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
   assert.equal(fin.overall, 'Done'); assert.equal(fin.scores, null);
+  assert.equal(fin.tr_comments.length, 1); assert.equal(fin.tr_comments[0].paragraph_role, '1a');   // per-sentence comments kept, empty entry dropped
   fin = await run(() => ok(JSON.stringify({ scores:{TR:7,CC:6,LR:6,GRA:5} }))).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
   assert.equal(fin.overall, 6); assert.equal(fin.writing_type, 'full_essay');
   // the prompt names the format
