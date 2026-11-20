@@ -64,23 +64,16 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
   const B = (wt) => seen[wt][1];
   assert(/ONLY find the grammar errors/.test(seen.full_essay[0]) && !/ERROR REPORT \(step 1/.test(seen.full_essay[0]));   // step 1 sees no scoring rules
   assert(/ERROR REPORT \(step 1/.test(B('full_essay')) && /Grammar errors: 1/.test(B('full_essay')) && /Typing slips: 0/.test(B('full_essay')));
-  // one self-contained block per criterion: full essay = TR, CC, LR, GRA; paragraph practice has no TR block
-  const blocks = (txt) => (txt.match(/=== CRITERION: [A-Z &]+ ===/g) || []).map(x => x.replace(/=== CRITERION: | ===/g, ''));
-  assert.deepEqual(blocks(B('full_essay')), ['TASK RESPONSE', 'COHERENCE & COHESION', 'LEXICAL RESOURCE', 'GRAMMATICAL RANGE & ACCURACY']);
-  assert.deepEqual(blocks(B('paragraph')), ['COHERENCE & COHESION', 'LEXICAL RESOURCE', 'GRAMMATICAL RANGE & ACCURACY']);
-  // every teacher rule sits in its own block (and nowhere else): the TR logic rules only in TR, the typing-slip cap only in LR, the punctuation cap only in GRA
-  { const part = (txt, name) => txt.split('=== CRITERION: ' + name + ' ===')[1].split('=== CRITERION:')[0];
-    const full = B('full_essay');
-    assert(/THESIS–TOPIC ALIGNMENT/.test(part(full, 'TASK RESPONSE')) && !/THESIS–TOPIC ALIGNMENT/.test(part(full, 'COHERENCE & COHESION')));
-    assert(/TYPING SLIPS/.test(part(full, 'LEXICAL RESOURCE')) && !/TYPING SLIPS/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')));
-    assert(/capitalize proper nouns/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')) && !/capitalize proper nouns/.test(part(full, 'LEXICAL RESOURCE')));
-    assert(/Mechanical Cohesion/.test(part(full, 'COHERENCE & COHESION')));
-    assert(/Fairness/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')) && /at least 7/.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')));
-    assert(/Band 9: /.test(part(full, 'TASK RESPONSE')) && /Band 4: /.test(part(full, 'GRAMMATICAL RANGE & ACCURACY')));
-    assert(!/Grammar errors → GRA/.test(full) && !/SCORING CALIBRATION/.test(full) && !/ANTI-OVER-CORRECTION/.test(full)); }
+  // the scoring logic is the teacher's original: short descriptors, scoring rules, conditional rules (LR+GRA, TR, CC), anti-over-correction, verification before any 6.0
+  { const full = B('full_essay'), par = B('paragraph');
+    for (const m of ['IELTS BAND DESCRIPTORS', 'TR/TA: Band 7', 'SCORING RULES', '[CONDITIONAL RULES', '1) LEXICAL RESOURCE & GRAMMAR', '2) TASK RESPONSE (CONTENT & LOGIC)', 'THESIS–TOPIC ALIGNMENT', '3) COHERENCE & COHESION:', 'Mechanical Cohesion', '[ANTI-OVER-CORRECTION PROTOCOL', 'VERIFICATION BEFORE ANY 6.0', 'Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.', 'TYPING SLIPS', 'capitalize proper nouns'])
+      assert(full.includes(m), 'missing in full essay: ' + m);
+    // paragraph practice: no Task Response rules and no TR descriptor line, everything else the same
+    assert(!par.includes('2) TASK RESPONSE') && !par.includes('TR/TA: Band 7') && !par.includes('THESIS–TOPIC') && par.includes('3) COHERENCE & COHESION:') && par.includes('VERIFICATION BEFORE ANY 6.0'));
+    // nothing from the other repositories or from the SkillCheck analysis is in the prompt
+    for (const m of ['OFFICIAL IELTS BAND DESCRIPTORS', 'Official descriptors', 'DESCRIPTOR RULE', 'EXAMINER CHECKS', 'Examiner checks', 'Signals (re-check', 'type-token', 'SCORING CALIBRATION', '=== CRITERION', 'HOW TO SCORE', 'Approximate guide', 'Error-free sentences', 'FREQUENT LEARNER'])
+      assert(!full.includes(m) && !seen.full_essay[0].includes(m) && !par.includes(m), 'should not be in the prompt: ' + m); }
   { const spec = B('full_essay').split('Return ONLY a JSON object')[1].split('OUTPUT BUDGET')[0]; assert(spec.length > 50 && !/gra_errors|lr_issues/.test(spec) && /lexis_vi/.test(spec)); }   // step 2 returns no error lists
-  assert(/Official descriptors:/.test(B('full_essay')) && /DESCRIPTOR RULE/.test(B('full_essay')) && /HOW TO SCORE/.test(B('full_essay')) && !/__DESCRIPTORS__|__CHECKS__/.test(B('full_essay')));
-  assert(!/TASK RESPONSE ===/.test(B('paragraph')));   // paragraph practice has no TR descriptors
   assert(B('paragraph').length < B('full_essay').length);
   // the same text twice: step 1 is reused (same error list, no second call)
   t = run(() => ok(GOOD));
@@ -116,18 +109,17 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
     assert.deepEqual(sp.map(x => x.text), ['3. As cities grow, traffic rises (e.g., smog and noise).', 'For example, jams get worse.', '4. Band 6.5 is common.', 'Is it?', 'Yes!']);
     assert.deepEqual(sp.map(x => x.para), [0, 0, 1, 1, 1]);
   }
-  // errors are tied to sentences (a wrong index is corrected); error-free share and types are measured
+  // errors are tied to sentences (a wrong index is corrected)
   t = run(() => ok(JSON.stringify({ gra_errors:[{sentenceIndex:0,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'},{sentenceIndex:1,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'},{sentenceIndex:2,wrong:'which lead',correct:'which leads',severity:'error',type:'subject_verb_agreement'}],
     sentences:[{index:0,type:'complex'},{index:1,type:'complex'},{index:2,type:'simple'},{index:3,type:'simple'},{index:3,type:'fragment'}] })));
   fin = await t.gradeWith({ writing: 'It rains, which lead to floods. It snows, which lead to cold. The end is near. All is fine.', question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
   assert.deepEqual(fin.gra_errors.map(e => e.sentenceIndex), [0, 1]);           // the third copy and the wrong index 2 are dealt with
-  assert.equal(fin.sentence_stats.total, 4); assert.equal(fin.sentence_stats.errorFree, 2);
-  assert.equal(fin.sentence_stats.types.complex, 2); assert.equal(fin.sentence_stats.typed, 4); assert.equal(fin.sentences, undefined);
+  assert.equal(fin.sentence_stats, undefined); assert.equal(fin.sentences, undefined);   // no sentence statistics any more
   // structured output: both steps carry a response schema (step 1: errors + sentences, step 2: scores)
   { const cfgs = [];
     await run((u, o) => { cfgs.push(JSON.parse(o.body).generationConfig); return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
     assert.equal(cfgs.length, 2);
-    assert(cfgs[0].responseSchema && cfgs[0].responseSchema.properties.gra_errors && cfgs[0].responseSchema.properties.sentences);
+    assert(cfgs[0].responseSchema && cfgs[0].responseSchema.properties.gra_errors && !cfgs[0].responseSchema.properties.sentences);
     assert(cfgs[1].responseSchema && cfgs[1].responseSchema.properties.scores && !cfgs[1].responseSchema.properties.gra_errors);
     assert.deepEqual(cfgs[0].responseSchema.properties.gra_errors.items.properties.severity.enum, ['error', 'upgrade']); }
   // a model that rejects the schema is asked again, in plain JSON mode, and the schema stays off afterwards
@@ -135,16 +127,6 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
     t = run((u, o) => { const c = JSON.parse(o.body).generationConfig; sent.push(!!c.responseSchema); return c.responseSchema ? bad(400, 'Invalid JSON payload received. Unknown name "responseSchema"') : ok(GOOD); });
     r = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
     assert.equal(r.overall, 6); assert.deepEqual(sent, [true, false, false]); assert(!/groq/.test(t.calls.join(''))); }
-  // examiner checks and measured signals reach step 2; the learner-pattern checklist reaches step 1
-  { const seenP = [];
-    const long = 'Firstly, people like cities. People need jobs. People need homes. People need food. It is good. It is big. It is new. Moreover, this is important because people move. However, they stay. This shows that people matter in every modern society today.';
-    await run((u, o) => { seenP.push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: long, question:'q', attempt:1, taskType:'task2' });
-    assert(/FREQUENT LEARNER PATTERNS/.test(seenP[0]));
-    assert(/Examiner checks/.test(seenP[1]) && /- Position: it must be visible/.test(seenP[1]) && /- Count identical mechanical openers/.test(seenP[1]) && !/__CHECKS__/.test(seenP[1]));
-    assert(/Signals \(re-check triggers/.test(seenP[1]) && /type-token ratio/.test(seenP[1]) && /runs of 3\+ short sentences/.test(seenP[1]) && /people ×\d/.test(seenP[1]) && /repeated sentence openers: .*it ×3/.test(seenP[1]));
-    const sp = [];
-    await run((u, o) => { sp.push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: long, question:'q', attempt:1, taskType:'task2', writingType:'paragraph' });
-    assert(/Examiner checks/.test(sp[1]) && !/- Position: it must be visible/.test(sp[1])); }
   // the schema carries no integer types and scores are a bounded enum (an unbounded integer once ran on to "8e+199")
   { const cfgs = [];
     await run((u, o) => { cfgs.push(JSON.parse(o.body).generationConfig); return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });

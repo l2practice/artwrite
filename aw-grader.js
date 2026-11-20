@@ -46,10 +46,9 @@
   function schemaStep1(wt) {
     var p = {
       typo_count: I_, gra_errors: arr(errItem('wrong', 'correct')), lr_issues: arr(errItem('original', 'better')),
-      sentences: arr(obj({ index: I_, type: { type: 'STRING', enum: ['simple', 'compound', 'complex', 'compound_complex', 'fragment'] } }, ['index', 'type']))
     };
     if (wt === 'sentences') p.tr_comments = arr(obj({ paragraph_role: S_, quote: S_, assessment_vi: S_, suggestion_en: S_ }, ['paragraph_role', 'quote', 'assessment_vi', 'suggestion_en']));
-    return obj(p, ['gra_errors', 'lr_issues', 'sentences']);
+    return obj(p, ['gra_errors', 'lr_issues']);
   }
   function schemaStep2() {
     var note = obj({ why_not_higher_vi: S_, strengths_vi: arr(S_), improve_vi: arr(S_) });
@@ -62,139 +61,68 @@
     });
   }
 
-  /* Operational examiner checks per criterion (Band 6 -> 7 -> 8), distilled and rewritten in English from the
-     calibration rules of 18905470418/ielts-writing-skill (built from 1,490 annotated IELTS essays), used with
-     the author's permission. See CREDITS.md. */
-  var CHECKS = {
-    tr: 'TASK RESPONSE\n' +
-      '- Position: it must be visible in the introduction and echoed in the conclusion, with no reversal. An introduction that only promises to "discuss both sides" without a direction caps TR at 6.\n' +
-      '- For every body paragraph find the sentence that goes BEYOND the example (a cause, condition, contrast or concession). Band 6 = claim + example + restatement; band 7 = every body paragraph has such an explanation sentence (over-generalising is still allowed).\n' +
-      '- Discussion questions: BOTH sides need their own development (an explanation and an example). One side developed and the other dismissed in a sentence caps TR at 6.\n' +
-      '- Count the parts of the question; a part answered in fewer than 2 sentences is uneven coverage (6 at most).\n' +
-      '- Judge by the WEAKEST body paragraph, not the average. Band 8 needs every example to be specific, relevant AND explained, with the qualifiers of the question (only / best / most / young people…) handled explicitly.\n',
-    cc: 'COHERENCE & COHESION\n' +
-      '- Count identical mechanical openers (Firstly / Secondly / On the one hand…): two or more is the band-6 profile. More linkers do NOT mean a higher band: in annotated essays linker density falls as the score rises.\n' +
-      '- Three or more consecutive short sentences (12 words or fewer) pile up ideas without showing how they relate.\n' +
-      '- "this / they / it" opening a sentence with no clear noun in the previous sentence is vague reference; twice in one paragraph lowers the band.\n' +
-      '- Band 7: cohesion comes from reference and substitution as well as linkers, each paragraph has its own function that can be summed up in one sentence, and at least two reference chains (this/these/they) reach back across sentences clearly.\n' +
-      '- Band 8: relations between sentences are also carried by sentence structure (participles, fronted clauses); if cohesion still rests mainly on a stock of linkers, cap at 7.\n',
-    lr: 'LEXICAL RESOURCE\n' +
-      '- The same content word (people / important / problem…) four or more times without substitution is the band-6 profile. The difference between 6 and 7 is lower repetition and a few natural, context-fitting less common items, NOT a pile of difficult words.\n' +
-      '- Two or more first-language-transfer collocation or word-form errors (learn knowledge, make crime, informations, equipments, one of the reason) fit band 6.\n' +
-      '- Informal items (a lot of, kids, stuff, very + adjective) twice or more lower the register.\n' +
-      '- Band 7: synonym chains that keep the meaning (global brands → international giants → multinationals), occasional collocation errors only. The SAME collocation error repeated caps LR at 6 even if the vocabulary looks advanced.\n' +
-      '- Band 8: precise enough to tell near-synonym concepts apart, collocation and register natural throughout. Two or more imprecise word choices drop it to 7; never reward showy words that sacrifice accuracy.\n',
-    gra: 'GRAMMATICAL RANGE & ACCURACY\n' +
-      '- Band 6: simple and some complex sentences, errors predictable (agreement, plurals, articles, tense) and not blocking meaning; the "complex" structures are mostly basic because / although / which clauses with roughly 70% accuracy. About 3 or more structural errors per 100 words fits band 6 or below.\n' +
-      '- Band 7: most sentences accurate, errors occasional and not systematic, and concession / conditional / relative clauses each appear at least once; sentence length varies on purpose. Two or more comma splices or dangling relatives cap at 6. Do NOT set the band by counting complex sentences: their share hardly correlates with the score.\n' +
-      '- Band 8: very few slight errors across a wide range, none repeated; punctuation serves the structure. One error that changes the meaning (dangling modifier, run-on) caps at 7.\n' +
-      '- The same error type three or more times, or in several paragraphs, is systematic: that criterion does not reach a high band.\n'
-  };
+  /* The teacher's own scoring logic, exactly as it was before the writing-type work (text taken from the original prompt).
+     Only two things differ: the spelling rule counts typing slips silently (as the teacher asked), and the rules that need the
+     essay's errors read them from step 1's ERROR REPORT instead of finding them again. */
   var HEAD = 'You are a strict IELTS Writing examiner. Grade only the essay provided by the student. Every piece of feedback must quote directly from that essay. Never invent examples or use content from other essays.\n\nThis is STEP 2 of 2. Step 1 already found every grammar error and vocabulary problem; the ERROR REPORT at the end of the message is that result, measured by the app. Use it as the evidence for GRA and LR. Do NOT list or repeat individual grammar/vocabulary errors yourself.\n\n';
+  var O_DESC = [
+    'IELTS BAND DESCRIPTORS:\n',
+    'TR/TA: Band 7=covers all parts, clear position, ideas developed. Band 6=addresses parts but some inadequately. Band 5=partial, limited. Band 4=minimal.\n',
+    'CC: Band 7=logical, varied cohesion, good paragraphing. Band 6=mostly coherent. Band 5=some org. Band 4=incoherent.\n',
+    'LR: Band 7=flexible range, minor errors. Band 6=adequate. Band 5=limited. Band 4=basic.\n',
+    'GRA: Band 7=complex structures, frequent error-free. Band 6=mix. Band 5=frequent errors. Band 4=many errors.\n\n'
+  ];
+  var O_RULES = 'SCORING RULES:\n- Components (TR, CC, LR, GRA): WHOLE numbers only, as in the official IELTS Writing marking — no X.5.\n- Overall = average of the 4, rounded the IELTS way (.25 → .5, .75 → next whole band). The app computes it from your components.\n- Do NOT write any numeric band score in band_description (the app shows the numbers next to your text).\n- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n- Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.\n\n';
+  var O_LRGRA = [
+    '- TYPING SLIPS (counted in the ERROR REPORT as "typing slips"): IF more than 5 THEN cap LR at Band 5 and write in Vietnamese in criteria_notes.LR.why_not_higher_vi: "Sai chính tả trên 5 lỗi không thể đạt Band 6 tiêu chí Vocab". IF 1-5 THEN cap LR at Band 6. Never mention an individual typing slip.\n',,
+    '- IF there are basic punctuation errors or failure to capitalize proper nouns (e.g. "zoom" instead of "Zoom", "google meet" instead of "Google Meet") THEN cap GRA at Band 6.\n',
+    '- IF the student uses contractions (it\'s, don\'t) or informal vocabulary (e.g. "costly mistakes", "thanks to" instead of "due to") THEN penalize and require formal academic alternatives.\n',
+    '- IF a body paragraph consists entirely of simple sentences without subordinating conjunctions (although, whereas, provided that) or relative clauses (which, who, that) THEN flag as "Lack of Grammatical Variety" and warn that Band 7 in GRA requires a mix of complex sentence structures.\n',
+    '- Repetition: IF a topic-specific keyword (e.g. "online meetings") appears more than 2 times in one body paragraph, OR more than once in the Intro/Conclusion, THEN flag it as a repetition error and suggest pronouns or contextual synonyms — BUT only when the repetition shows a lack of vocabulary. ACCEPT the repetition if replacing it with a synonym would distort the meaning (e.g. fixed technical terms).\n',
+    '- IF the word "nowadays" is used THEN flag it as a cliché and demand removal or replacement.\n',
+    '- IF the student uses an unnatural word combination (e.g. "do a mistake" instead of "make a mistake", "heavy traffic jam" instead of "heavy traffic") THEN quote the phrase, label it "Unnatural Collocation", and give the correct academic alternative.\n',
+    '- IF the student uses informal phrasal verbs ("look into", "come up with", "get rid of") in an academic context THEN penalize the tone and suggest formal single-word equivalents ("investigate", "develop/invent", "eliminate").\n'
+  ];
+  var O_TR = [
+    '2) TASK RESPONSE (CONTENT & LOGIC):\n',
+    '- IF an example or argument shifts context away from the prompt (prompt about "business" but student writes about "education"/"students") THEN flag as "Sai bối cảnh / Off-topic".\n',
+    '- IF an argument lacks real-world logic (e.g. "traffic noise" distracting someone "working from home", or "absent-mindedness" as a professional excuse) THEN counter-argue with a critical question exposing the logical flaw.\n',
+    '- IF the student introduces a new idea (especially at the end of a paragraph) without a supporting sentence THEN flag as "Lỗi liệt kê" (Listing error): the idea lacks development.\n',
+    '- IF the prompt does NOT ask to discuss "benefits and drawbacks" BUT the student includes them in the introductory paraphrase THEN flag as an inaccurate paraphrase.\n',
+    '- IF the opinion in the Conclusion contradicts or shifts away from the thesis statement in the Introduction THEN flag as "Inconsistent Position" and cap Task Response at Band 6.\n',
+    '- THESIS–TOPIC ALIGNMENT & SEMANTIC TARGET CHECK (high-priority, affects BOTH TR and CC). Do it in steps: (1) Extract the thesis statement — the explicit position/map usually at the end of the Introduction. (2) Identify its SEMANTIC TARGETS: the exact objects/policies/trends being evaluated (e.g. is the thesis promising to discuss drawbacks of "alternative energy" or of "fossil fuels"?). (3) Extract each Body paragraph\'s topic sentence (its opening sentence). (4) Check that the topic sentences evaluate the SAME semantic targets the thesis mapped.\n',
+    '  • FATAL ERROR 1 — Target Shift / Misaligned Focus: thesis maps arguments about Target A but a topic sentence discusses Target B (e.g. thesis = drawbacks of renewable energy, but Body 1 discusses drawbacks of fossil fuels). THEN cap TR at 6.0 (writer drifted off the promised topic — position not maintained) AND cap CC at 6.0 (broken progression, faulty referencing between Intro and Body). You MUST state exactly which semantic target was shifted (from what, to what) and quote the offending topic sentence.\n',
+    '  • FATAL ERROR 2 — Contradiction: a topic sentence takes a stance that contradicts the thesis. THEN cap BOTH TR and CC at 6.0.\n',
+    '  • SAFE EXCEPTION — Concession: if the thesis maps a concession about Target A ("While Target A has drawbacks, its benefits are greater") AND Body 1 covers drawbacks of Target A AND Body 2 covers benefits of Target A, this is PERFECT alignment — do NOT penalize; reward TR and CC for clear progression and note it as a strength.\n'
+  ];
+  var O_CC = [
+    '3) COHERENCE & COHESION:\n',
+    '- IF an example merely rewrites the previous sentence with different vocabulary without adding specific concrete details THEN flag as "Invalid Example": an example must be more specific than the claim it supports.\n',
+    '- IF a Topic Sentence lists the specific main ideas to be discussed THEN advise keeping it broader with clear directional words (e.g. skeptical, advocate).\n',
+    '- IF a sentence states a result ("As a result, businesses reduce expenses") BUT the preceding sentence did not mention the corresponding cause (money/costs) THEN flag as a logical disconnect.\n',
+    '- IF transition words are combined redundantly ("Consequently, this...") THEN correct to a single cohesive device.\n',
+    '- Conclusion: IF it introduces new ideas THEN penalize. IF it copies body sentences word-for-word THEN advise paraphrasing. Concisely summarizing the main points IS acceptable and must NOT be penalized.\n',
+    '- IF the student starts almost every sentence with a basic transition ("Firstly,", "Secondly,", "Moreover,", "Furthermore,") THEN flag as "Mechanical Cohesion" and suggest referencing pronouns (this, these, such) or advanced cohesive structures ("Not only..., but...", "Another compelling reason is...").\n',
+    '- IF a body paragraph has fewer than 3 sentences OR discusses two completely unrelated main ideas THEN flag as "Paragraphing Error" and advise ONE central idea per paragraph with sufficient development.\n'
+  ];
+  var O_ANTI = [
+    '[ANTI-OVER-CORRECTION PROTOCOL — evaluate the writer\'s real language, do not rewrite it in your own preferred style; do not unfairly downgrade]\n',
+    'PRECEDENCE: The specific hard-cap rules ABOVE always win. If a hard cap applies (e.g. spelling count, proper-noun capitalization, thesis/target misalignment, inconsistent position), keep the cap even if this protocol would otherwise raise the score. This protocol only PREVENTS unjustified downgrades where NO hard cap has triggered — it never lifts a cap.\n',
+    '1) LEXICAL RESOURCE — naturalness over complexity: do NOT "upgrade" vocabulary that is already natural, accurate and an appropriate academic collocation (accept "heavy financial burden"; do not force "significant financial burden"). Only correct vocabulary that is grammatically wrong, factually wrong, too informal/slang, or noticeably repetitive. Effective precise collocations deserve LR 7.0+; do NOT cap LR at 6.0 merely because the vocabulary is not "complex enough" in your view.\n',
+    '2) GRAMMAR — holistic: do NOT penalize clear pronoun referencing ("it/they/this/these") when the antecedent is logically clear; do not force noun repetition. If most sentences are error-free and meaning is clear, GRA MUST be 7.0+. A few minor slips (one missing article, one isolated subject-verb slip) do NOT drag a fundamentally strong essay down to 6.0.\n',
+    '3) COHERENCE & COHESION — reward implicit cohesion: do NOT penalize an essay for lacking mechanical transitions (First, Second, Moreover) when it cohering successfully through referencing ("this trend", "these drawbacks"), substitution, or logical sequencing. Flowing logically WITHOUT template transitions is a Band 7.0+ trait, not 6.0.\n',
+    'VERIFICATION BEFORE ANY 6.0: before downgrading LR, GRA or CC to 6.0 on the basis of error frequency, confirm the errors are genuinely "frequent" or "cause difficulty for the reader" per the official IELTS band descriptors. If errors are only occasional and meaning comes through clearly, the score must be at least 7.0. (This check does not apply to the hard-cap rules above, which stand regardless.)\n'
+  ];
 
-  /* The teacher's own rules (hard limits, content logic) and fairness rules, kept as they were,
-     now filed under the criterion they belong to so each criterion block of the prompt is self-contained. */
-  var RULES = {
-    tr: [
-      '- IF an example or argument shifts context away from the prompt (prompt about "business" but student writes about "education"/"students") THEN flag as "Sai bối cảnh / Off-topic".\n',
-      '- IF an argument lacks real-world logic (e.g. "traffic noise" distracting someone "working from home", or "absent-mindedness" as a professional excuse) THEN counter-argue with a critical question exposing the logical flaw.\n',
-      '- IF the student introduces a new idea (especially at the end of a paragraph) without a supporting sentence THEN flag as "Lỗi liệt kê" (Listing error): the idea lacks development.\n',
-      '- IF the prompt does NOT ask to discuss "benefits and drawbacks" BUT the student includes them in the introductory paraphrase THEN flag as an inaccurate paraphrase.\n',
-      '- IF the opinion in the Conclusion contradicts or shifts away from the thesis statement in the Introduction THEN flag as "Inconsistent Position" and cap Task Response at Band 6.\n',
-      '- THESIS–TOPIC ALIGNMENT & SEMANTIC TARGET CHECK (high-priority, affects BOTH TR and CC). Do it in steps: (1) Extract the thesis statement — the explicit position/map usually at the end of the Introduction. (2) Identify its SEMANTIC TARGETS: the exact objects/policies/trends being evaluated (e.g. is the thesis promising to discuss drawbacks of "alternative energy" or of "fossil fuels"?). (3) Extract each Body paragraph\'s topic sentence (its opening sentence). (4) Check that the topic sentences evaluate the SAME semantic targets the thesis mapped.\n',
-      '  • FATAL ERROR 1 — Target Shift / Misaligned Focus: thesis maps arguments about Target A but a topic sentence discusses Target B (e.g. thesis = drawbacks of renewable energy, but Body 1 discusses drawbacks of fossil fuels). THEN cap TR at 6.0 (writer drifted off the promised topic — position not maintained) AND cap CC at 6.0 (broken progression, faulty referencing between Intro and Body). You MUST state exactly which semantic target was shifted (from what, to what) and quote the offending topic sentence.\n',
-      '  • FATAL ERROR 2 — Contradiction: a topic sentence takes a stance that contradicts the thesis. THEN cap BOTH TR and CC at 6.0.\n',
-      '  • SAFE EXCEPTION — Concession: if the thesis maps a concession about Target A ("While Target A has drawbacks, its benefits are greater") AND Body 1 covers drawbacks of Target A AND Body 2 covers benefits of Target A, this is PERFECT alignment — do NOT penalize; reward TR and CC for clear progression and note it as a strength.\n'
-    ],
-    cc: [
-      '- IF an example merely rewrites the previous sentence with different vocabulary without adding specific concrete details THEN flag as "Invalid Example": an example must be more specific than the claim it supports.\n',
-      '- IF a Topic Sentence lists the specific main ideas to be discussed THEN advise keeping it broader with clear directional words (e.g. skeptical, advocate).\n',
-      '- IF a sentence states a result ("As a result, businesses reduce expenses") BUT the preceding sentence did not mention the corresponding cause (money/costs) THEN flag as a logical disconnect.\n',
-      '- IF transition words are combined redundantly ("Consequently, this...") THEN correct to a single cohesive device.\n',
-      '- Conclusion: IF it introduces new ideas THEN penalize. IF it copies body sentences word-for-word THEN advise paraphrasing. Concisely summarizing the main points IS acceptable and must NOT be penalized.\n',
-      '- IF the student starts almost every sentence with a basic transition ("Firstly,", "Secondly,", "Moreover,", "Furthermore,") THEN flag as "Mechanical Cohesion" and suggest referencing pronouns (this, these, such) or advanced cohesive structures ("Not only..., but...", "Another compelling reason is...").\n',
-      '- IF a body paragraph has fewer than 3 sentences OR discusses two completely unrelated main ideas THEN flag as "Paragraphing Error" and advise ONE central idea per paragraph with sufficient development.\n'
-    ],
-    lr: [
-      '- TYPING SLIPS (counted in the ERROR REPORT as "typing slips"): IF more than 5 THEN cap LR at Band 5 and write in Vietnamese in criteria_notes.LR.why_not_higher_vi: "Sai chính tả trên 5 lỗi không thể đạt Band 6 tiêu chí Vocab". IF 1-5 THEN cap LR at Band 6. Never mention an individual typing slip.\n',
-      '- Informal register, contractions, clichés (e.g. "nowadays"), informal phrasal verbs, repetition and unnatural collocations are already in the ERROR REPORT: let them lower LR according to the descriptors.\n'
-    ],
-    gra: [
-      '- IF there are basic punctuation errors or failure to capitalize proper nouns (e.g. "zoom" instead of "Zoom", "google meet" instead of "Google Meet") THEN cap GRA at Band 6.\n',
-      '- IF a body paragraph consists entirely of simple sentences without subordinating conjunctions (although, whereas, provided that) or relative clauses (which, who, that) THEN flag as "Lack of Grammatical Variety" and warn that Band 7 in GRA requires a mix of complex sentence structures.\n'
-    ]
-  };
-  var FAIR = {
-    cc: '- Reward implicit cohesion: do NOT penalize an essay for lacking mechanical transitions (First, Second, Moreover) when it cohering successfully through referencing ("this trend", "these drawbacks"), substitution, or logical sequencing. Flowing logically WITHOUT template transitions is a Band 7.0+ trait, not 6.0.\n',
-    lr: '- Naturalness over complexity: do NOT "upgrade" vocabulary that is already natural, accurate and an appropriate academic collocation (accept "heavy financial burden"; do not force "significant financial burden"). Only correct vocabulary that is grammatically wrong, factually wrong, too informal/slang, or noticeably repetitive. Effective precise collocations deserve LR 7.0+; do NOT cap LR at 6.0 merely because the vocabulary is not "complex enough" in your view.\n',
-    gra: '- Holistic: do NOT penalize clear pronoun referencing ("it/they/this/these") when the antecedent is logically clear; do not force noun repetition. If most sentences are error-free, meaning is clear AND the structures are varied, GRA MUST be at least 7. A few minor slips (one missing article, one isolated subject-verb slip) do NOT drag a fundamentally strong essay down to 6.0.\n'
-  };
-  var EVIDENCE = {
-    tr: 'the essay itself and the word-count line in the task message.',
-    cc: 'the essay itself and the Signals line of the ERROR REPORT (linkers, repeated openers, runs of short sentences).',
-    lr: 'the vocabulary errors, typing slips and Signals (repeated words, type-token ratio) in the ERROR REPORT, and the VOCABULARY DATA.',
-    gra: 'the grammar errors and the Sentences line (error-free share, sentence types) in the ERROR REPORT. If most sentences contain an error, GRA is not 6 or higher.'
-  };
-  function critDescriptors(key, isTask1) {
-    var k = key === 'tr' ? (isTask1 ? 'ta' : 'tr') : key, out = [];
-    [9, 8, 7, 6, 5, 4].forEach(function (b) { out.push('Band ' + b + ': ' + DESC[b][k]); });
-    return out.join('\n');
-  }
-  function criterionBlock(key, isTask1) {
-    var title = { tr: isTask1 ? 'TASK ACHIEVEMENT' : 'TASK RESPONSE', cc: 'COHERENCE & COHESION', lr: 'LEXICAL RESOURCE', gra: 'GRAMMATICAL RANGE & ACCURACY' }[key];
-    var out = '=== CRITERION: ' + title + ' ===\n' + 'Official descriptors:\n' + critDescriptors(key, isTask1) + '\n\n';
-    if (key === 'tr' && isTask1) return out + 'Use the Task 1 structure rules in the task message; the essay rules about thesis, position and conclusion do not apply.\nEvidence: ' + EVIDENCE.tr + '\n';
-    out += CHECKS[key].replace(/^[^\n]+\n/, 'Examiner checks (operational tests for deciding between neighbouring bands):\n') + '\n';
-    if ((RULES[key] || []).length) out += 'Teacher rules and hard limits (a "cap" is a maximum):\n' + RULES[key].join('') + '\n';
-    if (FAIR[key]) out += 'Fairness (do not downgrade for these):\n' + FAIR[key] + '\n';
-    return out + 'Evidence: ' + EVIDENCE[key] + '\n';
-  }
   function buildScoringPrompt(isTask1, wt) {
-    var keys = (wt === 'full_essay' ? ['tr'] : []).concat(['cc', 'lr', 'gra']);
-    return HEAD + 'HOW TO SCORE\n' +
-      '- Score the criteria INDEPENDENTLY. Each criterion block below is self-contained: use only its own descriptors, checks and rules. A weakness that belongs to one criterion never lowers another.\n' +
-      '- Components (TR/TA, CC, LR, GRA): WHOLE numbers only, as in the official IELTS Writing marking — no X.5.\n' +
-      '- Overall = average of the 4, rounded the IELTS way (.25 → .5, .75 → next whole band). The app computes it from your components.\n' +
-      '- Do NOT write any numeric band score in band_description (the app shows the numbers next to your text).\n' +
-      '- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n' +
-      '- DESCRIPTOR RULE: a band is awarded only when the response fits the WHOLE descriptor for that band. If a key feature of the band is missing, award the band below. If the evidence fits a lower band\'s line, give the lower band. Meaning that is still clear is NOT a reason to raise a score: clarity alone is band 5–6. Quote the descriptor wording that decides each score in why_not_higher_vi.\n' +
-      '- PRECEDENCE: a hard limit ("cap") in a block always wins over that block\'s fairness rules. Fairness rules only prevent downgrades the evidence does not support; they never lift a cap.\n\n' +
-      keys.map(function (k) { return criterionBlock(k, isTask1); }).join('\n') + '\n';
+    var full = wt === 'full_essay';
+    return HEAD +
+      O_DESC.filter(function (l) { return full || l.indexOf('TR/TA: Band 7') < 0; }).join('') +      // paragraph practice: no Task Response line
+      O_RULES + '[CONDITIONAL RULES — enforce strictly, do not overlook any]\n' +
+      '1) LEXICAL RESOURCE & GRAMMAR — HARD LIMITS (the errors themselves were found in step 1 and are in the ERROR REPORT: apply the caps and penalties, do not list them again):\n' + O_LRGRA.join('') +
+      (full ? O_TR.join('') : '') + O_CC.join('') + O_ANTI.join('');
   }
 
-  /* Measured, not guessed: signals the examiner would otherwise eyeball. They only trigger a re-check. */
-  function textSignals(text, sents) {
-    var words = String(text || '').toLowerCase().match(/[a-z']+/g) || [];
-    if (words.length < 30 || !sents.length) return '';
-    var first = words.slice(0, 250), seen = {};
-    first.forEach(function (w) { seen[w] = 1; });
-    var ttr = Math.round(Object.keys(seen).length / first.length * 100);
-    var lens = sents.map(function (x) { return (x.text.match(/[A-Za-z']+/g) || []).length; });
-    var mean = lens.reduce(function (a, b) { return a + b; }, 0) / lens.length;
-    var sd = Math.sqrt(lens.reduce(function (a, l) { return a + (l - mean) * (l - mean); }, 0) / lens.length);
-    var runs = 0, cur = 0;
-    lens.forEach(function (l) { if (l <= 12) { cur++; if (cur === 3) runs++; } else cur = 0; });
-    var hay = ' ' + words.join(' ') + ' ', links = 0, openers = {};
-    ['firstly', 'secondly', 'thirdly', 'moreover', 'furthermore', 'in addition', 'additionally', 'besides', 'on the one hand', 'on the other hand', 'however', 'therefore', 'consequently', 'thus', 'in conclusion', 'to sum up', 'for example', 'for instance', 'as a result']
-      .forEach(function (l) { links += hay.split(' ' + l + ' ').length - 1; });
-    sents.forEach(function (x) {
-      var w = (x.text.toLowerCase().replace(/^\(?\d+[a-z]?[.)]\s+/, '').match(/[a-z']+/) || [''])[0];
-      if (w) openers[w] = (openers[w] || 0) + 1;
-    });
-    var rep = Object.keys(openers).filter(function (k) { return openers[k] >= 3 && /^(firstly|secondly|thirdly|moreover|furthermore|however|besides|additionally|therefore|thus|consequently|this|it|they)$/.test(k); })
-      .map(function (k) { return k + ' ×' + openers[k]; });
-    var STOP = /^(which|their|there|these|those|would|could|should|about|other|because|while|where|being|having|between|through|also|however|therefore|moreover|furthermore|always|often|never|every|another|since|after|before|might|among|within|without)$/;
-    var freq = {};
-    words.forEach(function (w) { if (w.length >= 5 && !STOP.test(w)) freq[w] = (freq[w] || 0) + 1; });
-    var top = Object.keys(freq).filter(function (k) { return freq[k] >= 4; }).sort(function (a, b) { return freq[b] - freq[a]; }).slice(0, 4).map(function (k) { return k + ' ×' + freq[k]; });
-    return 'Signals (re-check triggers, not scores): type-token ratio of the first 250 words ' + ttr + '%; sentence length mean ' + mean.toFixed(1) + ' words, SD ' + sd.toFixed(1) +
-      '; runs of 3+ short sentences (12 words or fewer): ' + runs + '; explicit linkers ' + links + ' (' + (links / words.length * 100).toFixed(1) + ' per 100 words)' +
-      (rep.length ? '; repeated sentence openers: ' + rep.join(', ') : '') + (top.length ? '; most repeated content words: ' + top.join(', ') : '') + '.\n';
-  }
-
-  /* Official public IELTS Writing band descriptors, bands 9–4 (TA = Task 1, TR = Task 2).
-     Text as published by the IELTS partners; collected in AhmedSobhy01/bandcheck (MIT licence, lib/rubric.ts). */
-  var DESC = {"4": {"tr": "The prompt is tackled in a minimal way, or the answer is tangential, possibly due to some misunderstanding of the prompt. The format may be inappropriate. A position is discernible, but the reader has to read carefully to find it. Main ideas are difficult to identify and such ideas that are identifiable may lack relevance, clarity and/or support. Large parts of the response may be repetitive.", "ta": "The response is an attempt to address the task. (Academic) Few key features have been selected. (General Training) Not all bullet points are presented. (General Training) The purpose of the letter is not clearly explained and may be confused. The tone may be inappropriate. The format may be inappropriate. Key features/bullet points which are presented may be irrelevant, repetitive, inaccurate or inappropriate.", "cc": "Information and ideas are evident but not arranged coherently and there is no clear progression within the response. Relationships between ideas can be unclear and/or inadequately marked. There is some use of basic cohesive devices, which may be inaccurate or repetitive. There is inaccurate use or a lack of substitution or referencing. There may be no paragraphing and/or no clear main topic within paragraphs.", "lr": "The resource is limited and inadequate for or unrelated to the task. Vocabulary is basic and may be used repetitively. There may be inappropriate use of lexical chunks (e.g. memorised phrases, formulaic language and/or language from the input material). Inappropriate word choice and/or errors in word formation and/or in spelling may impede meaning.", "gra": "A very limited range of structures is used. Subordinate clauses are rare and simple sentences predominate. Some structures are produced accurately but grammatical errors are frequent and may impede meaning. Punctuation is often faulty or inadequate."}, "5": {"tr": "The main parts of the prompt are incompletely addressed. The format may be inappropriate in places. The writer expresses a position, but the development is not always clear. Some main ideas are put forward, but they are limited and are not sufficiently developed and/or there may be irrelevant detail. There may be some repetition.", "ta": "The response generally addresses the requirements of the task. The format may be inappropriate in places. (Academic) Key features which are selected are not adequately covered. The recounting of detail is mainly mechanical. There may be no data to support the description. (General Training) All bullet points are presented but one or more may not be adequately covered. The purpose may be unclear at times. The tone may be variable and sometimes inappropriate. There may be a tendency to focus on details (without referring to the bigger picture). The inclusion of irrelevant, inappropriate or inaccurate material in key areas detracts from the task achievement. There is limited detail when extending and illustrating the main points.", "cc": "Organisation is evident but is not wholly logical and there may be a lack of overall progression. Nevertheless, there is a sense of underlying coherence to the response. The relationship of ideas can be followed but the sentences are not fluently linked to each other. There may be limited/overuse of cohesive devices with some inaccuracy. The writing may be repetitive due to inadequate and/or inaccurate use of reference and substitution. Paragraphing may be inadequate or missing.", "lr": "The resource is limited but minimally adequate for the task. Simple vocabulary may be used accurately but the range does not permit much variation in expression. There may be frequent lapses in the appropriacy of word choice and a lack of flexibility is apparent in frequent simplifications and/or repetitions. Errors in spelling and/or word formation may be noticeable and may cause some difficulty for the reader.", "gra": "The range of structures is limited and rather repetitive. Although complex sentences are attempted, they tend to be faulty, and the greatest accuracy is achieved on simple sentences. Grammatical errors may be frequent and cause some difficulty for the reader. Punctuation may be faulty."}, "6": {"tr": "The main parts of the prompt are addressed (though some may be more fully covered than others). An appropriate format is used. A position is presented that is directly relevant to the prompt, although the conclusions drawn may be unclear, unjustified or repetitive. Main ideas are relevant, but some may be insufficiently developed or may lack clarity, while some supporting arguments and evidence may be less relevant or inadequate.", "ta": "The response focuses on the requirements of the task and an appropriate format is used. (Academic) Key features which are selected are covered and adequately highlighted. A relevant overview is attempted. Information is appropriately selected and supported using figures/data. (General Training) All bullet points are covered and adequately highlighted. The purpose is generally clear. There may be minor inconsistencies in tone. Some irrelevant, inappropriate or inaccurate information may occur in areas of detail or when illustrating or extending the main points. Some details may be missing (or excessive) and further extension or illustration may be needed.", "cc": "Information and ideas are generally arranged coherently and there is a clear overall progression. Cohesive devices are used to some good effect but cohesion within and/or between sentences may be faulty or mechanical due to misuse, overuse or omission. The use of reference and substitution may lack flexibility or clarity and result in some repetition or error. Paragraphing may not always be logical and/or the central topic may not always be clear.", "lr": "The resource is generally adequate and appropriate for the task. The meaning is generally clear in spite of a rather restricted range or a lack of precision in word choice. If the writer is a risk-taker, there will be a wider range of vocabulary used but higher degrees of inaccuracy or inappropriacy. There are some errors in spelling and/or word formation, but these do not impede communication.", "gra": "A mix of simple and complex sentence forms is used but flexibility is limited. Examples of more complex structures are not marked by the same level of accuracy as in simple structures. Errors in grammar and punctuation occur, but rarely impede communication."}, "7": {"tr": "The main parts of the prompt are appropriately addressed. A clear and developed position is presented. Main ideas are extended and supported but there may be a tendency to over-generalise or there may be a lack of focus and precision in supporting ideas/material.", "ta": "The response covers the requirements of the task. The content is relevant and accurate – there may be a few omissions or lapses. The format is appropriate. (Academic) Key features which are selected are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. (Academic) It presents a clear overview, the data are appropriately categorised, and main trends or differences are identified. (General Training) All bullet points are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. It presents a clear purpose. The tone is consistent and appropriate to the task. Any lapses are minimal.", "cc": "Information and ideas are logically organised, and there is a clear progression throughout the response. (A few lapses may occur, but these are minor.) A range of cohesive devices including reference and substitution is used flexibly but with some inaccuracies or some over/under use. Paragraphing is generally used effectively to support overall coherence, and the sequencing of ideas within a paragraph is generally logical.", "lr": "The resource is sufficient to allow some flexibility and precision. There is some ability to use less common and/or idiomatic items. An awareness of style and collocation is evident, though inappropriacies occur. There are only a few errors in spelling and/or word formation and they do not detract from overall clarity.", "gra": "A variety of complex structures is used with some flexibility and accuracy. Grammar and punctuation are generally well controlled, and error-free sentences are frequent. A few errors in grammar may persist, but these do not impede communication."}, "8": {"tr": "The prompt is appropriately and sufficiently addressed. A clear and well-developed position is presented in response to the question/s. Ideas are relevant, well extended and supported. There may be occasional omissions or lapses in content.", "ta": "The response covers all the requirements of the task appropriately, relevantly and sufficiently. (Academic) Key features are skilfully selected, and clearly presented, highlighted and illustrated. (General Training) All bullet points are clearly presented, and appropriately illustrated or extended. There may be occasional omissions or lapses in content.", "cc": "The message can be followed with ease. Information and ideas are logically sequenced, and cohesion is well managed. Occasional lapses in coherence or cohesion may occur. Paragraphing is used sufficiently and appropriately.", "lr": "A wide resource is fluently and flexibly used to convey precise meanings. There is skilful use of uncommon and/or idiomatic items when appropriate, despite occasional inaccuracies in word choice and collocation. Occasional errors in spelling and/or word formation may occur, but have minimal impact on communication.", "gra": "A wide range of structures is flexibly and accurately used. The majority of sentences are error-free, and punctuation is well managed. Occasional, non-systematic errors and inappropriacies occur, but have minimal impact on communication."}, "9": {"tr": "The prompt is appropriately addressed and explored in depth. A clear and fully developed position is presented which directly answers the question/s. Ideas are relevant, fully extended and well supported. Any lapses in content or support are extremely rare.", "ta": "All the requirements of the task are fully and appropriately satisfied. There may be extremely rare lapses in content.", "cc": "The message can be followed effortlessly. Cohesion is used in such a way that it very rarely attracts attention. Any lapses in coherence or cohesion are minimal. Paragraphing is skilfully managed.", "lr": "Full flexibility and precise use are widely evident. A wide range of vocabulary is used accurately and appropriately with very natural and sophisticated control of lexical features. Minor errors in spelling and word formation are extremely rare and have minimal impact on communication.", "gra": "A wide range of structures is used with full flexibility and control. Punctuation and grammar are used appropriately throughout. Minor errors are extremely rare and have minimal impact on communication."}};
   function normaliseScores(r){
     if(r.scores){
       // Round each component to whole number (IELTS: only overall can be X.5).
@@ -239,13 +167,11 @@
       'The primary learning goal is improving GRAMMAR ACCURACY and VOCABULARY PRECISION sentence by sentence. Go through EVERY sentence of the WHOLE text (opening and conclusion included) and:\n'+
       '  (a) GRAMMAR: subject-verb agreement, tense inconsistency, article misuse (a/an/the), preposition errors, wrong word form (noun/verb/adjective confusion), missing or extra words, run-on sentences, comma splices, dangling modifiers, basic punctuation errors, failure to capitalise proper nouns (e.g. "zoom" for "Zoom"). Quote the wrong form, give the correct form, and explain in Vietnamese WHY it is wrong.\n'+
       '  (b) VOCABULARY: unnatural collocations (e.g. "do a mistake" for "make a mistake"; label type "collocation"), imprecise word choice, informal words or contractions (it\'s, don\'t) in formal writing, informal phrasal verbs ("look into", "get rid of"), the cliché "nowadays" when it is in the STUDENT\'S text (not merely in the task prompt), repetitive keywords that should be replaced by pronouns or synonyms (only when the repetition shows a lack of vocabulary; accept fixed technical terms), words that are close but not the best fit. Quote the original, suggest a more precise/natural/academic alternative, and explain in Vietnamese what the difference is.\n'+
-      'FREQUENT LEARNER PATTERNS to look for deliberately (they are easy to read past): subject-verb agreement after long noun phrases or after "which"/"who"; plural -s on countable nouns and a plural on uncountable ones (informations, equipments); "one of the" + singular; "although … but" in one sentence; missing or wrong articles; tense that drifts inside a paragraph; fragments and run-ons / comma splices; dangling modifiers; word-for-word translations of collocations (learn knowledge, make crime, do a mistake); wrong word form (noun/adjective/adverb).\n'+
       'NATURALNESS: never report natural, accurate vocabulary as an ERROR (accept "heavy financial burden"); it may appear only as an upgrade when a clearly stronger choice exists.\n'+
       'TYPING SLIPS (misspellings, doubled letters or words such as "this this", words run together, missing or double spaces) are NEVER listed. Only count them and return the count in "typo_count".\n\n'+
       'The text is given to you already cut into numbered sentences [S0], [S1]… by the app (a blank line = a new paragraph).\n'+
-      'Return ONLY a JSON object: {"typo_count": number, "gra_errors": [{"sentenceIndex","wrong","correct","explanation_vi","severity","type"}], "lr_issues": [{"sentenceIndex","original","better","explanation_vi","severity","type"}], "sentences": [{"index","type"}]}.\n'+
+      'Return ONLY a JSON object: {"typo_count": number, "gra_errors": [{"sentenceIndex","wrong","correct","explanation_vi","severity","type"}], "lr_issues": [{"sentenceIndex","original","better","explanation_vi","severity","type"}]}.\n'+
       '- "sentenceIndex": the number of the [S#] sentence that contains the error. "wrong" / "original" is copied from THAT sentence.\n'+
-      '- "sentences": ONE entry for EVERY numbered sentence, in order: "index" and "type" = simple, compound, complex, compound_complex or fragment (a complex sentence has a subordinate or relative clause; compound = coordinated main clauses).\n'+
       '- "wrong" and "original" must be copied EXACTLY, character for character, from the student\'s text, and must be the SMALLEST span that contains the error (usually 2–6 words, never a whole sentence): the app finds and highlights them, and a quote that is not in that sentence is discarded.\n'+
       '- "correct" and "better" is ALWAYS a concrete replacement; an item without one is not reported.\n'+
       '- The SAME mistake in several places is one item PER PLACE (three sentences with "which lead" = three items, each with its own sentenceIndex).\n'+
@@ -357,11 +283,11 @@
     // sentence practice: no band, so no scoring step at all
     if (wt === 'sentences') {
       return { scores:{}, band_description:'Sentence practice', tr_comments:(a.tr_comments || []).filter(function (c) { return c && c.quote; }), cc_feedback:{}, criteria_notes:{},
-               typo_count:a.typo_count, gra_errors:a.gra_errors, lr_issues:a.lr_issues, sentences:a.sentences };
+               typo_count:a.typo_count, gra_errors:a.gra_errors, lr_issues:a.lr_issues };
     }
 
     // ---- STEP 2: Gemini scores, with the measured error report as evidence ----
-    var promptB = buildScoringPrompt(isTask1, wt)+scoringTail+'\n\n'+userMessage+'\n\n'+errorReport(a, wc, textSignals(text, sents));
+    var promptB = buildScoringPrompt(isTask1, wt)+scoringTail+'\n\n'+userMessage+'\n\n'+errorReport(a, wc);
     if (payload.vocabSummary && payload.vocabSummary.trim()) {
       promptB += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
     }
@@ -369,7 +295,7 @@
     // A damaged reply (scores missing or absurd, no Coherence note, no vocabulary note) is asked for once more in plain JSON mode
     if (!step2Complete(r, wt)) r = await callAI(promptB, geminiKey, null);
     if (wt === 'full_essay' && !scoresOk(r, wt)) throw new Error('Lỗi định dạng: AI trả điểm không hợp lệ. Vui lòng thử lại.');
-    r.gra_errors = a.gra_errors; r.lr_issues = a.lr_issues; r.typo_count = a.typo_count; r.sentences = a.sentences;
+    r.gra_errors = a.gra_errors; r.lr_issues = a.lr_issues; r.typo_count = a.typo_count;
     return r;
   }
 
@@ -432,15 +358,7 @@
   }
 
   /* The error list as numbers the scorer can use: counts, density, types, examples. */
-  function sentenceLine(st) {
-    if (!st || !st.total) return '';
-    var t = st.types || {}, c = (t.complex || 0) + (t.compound_complex || 0);
-    return 'Sentences: ' + st.total + '. Error-free sentences: ' + st.errorFree + ' (' + Math.round(st.errorFree / st.total * 100) + '%).' +
-      (st.typed ? ' Types: simple ' + (t.simple || 0) + ', compound ' + (t.compound || 0) + ', complex ' + (t.complex || 0) + ', compound-complex ' + (t.compound_complex || 0) +
-        ', fragments ' + (t.fragment || 0) + ' (complex + compound-complex = ' + Math.round(c / st.typed * 100) + '% of the typed sentences).' : '') +
-      ' The GRA descriptors speak of the PROPORTION of error-free sentences (band 7: "frequent"; band 8: "the majority") and of the range of structures: use these figures as evidence for GRA.\n';
-  }
-  function errorReport(a, wc, signals) {
+  function errorReport(a, wc) {
     var real = function (arr) { return (arr || []).filter(function (e) { return e.severity !== 'upgrade' && !e.unlocated; }); };
     var g = real(a.gra_errors), l = real(a.lr_issues), per = function (n) { return (n / Math.max(wc, 1) * 100).toFixed(1); };
     var byType = function (arr) {
@@ -456,11 +374,9 @@
     };
     return '=== ERROR REPORT (step 1, measured by the app — do not list these errors again) ===\n' +
       'Words: ' + wc + '. Typing slips: ' + (a.typo_count || 0) + '.\n' +
-      sentenceLine(a.sentence_stats) + (signals || '') +
       'Grammar errors: ' + g.length + ' (' + per(g.length) + ' per 100 words). By type: ' + tg.txt + '.\n' +
       'Vocabulary errors: ' + l.length + ' (' + per(l.length) + ' per 100 words). By type: ' + tl.txt + '.\n' +
-      (g.length || l.length ? 'Examples of the most frequent types:\n' + [ex(g, tg), ex(l, tl)].filter(Boolean).join('\n') + '\n' : '') +
-      'Approximate guide (your judgement and the band descriptors decide): GRA — about 6 or more grammar errors per 100 words, or the same basic error type repeated across paragraphs, points to band 5 or below; about 3–6 points to 5–6; under about 3 together with varied complex sentences allows 6–7. LR — about 4 or more vocabulary errors per 100 words points to band 5 or below; about 2–4 points to 5–6; under 2 with a good range allows 6–7. Judge the RANGE of vocabulary and grammar yourself; the report measures accuracy only.';
+      (g.length || l.length ? 'Examples of the most frequent types:\n' + [ex(g, tg), ex(l, tl)].filter(Boolean).join('\n') + '\n' : '');
   }
 
   var GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
@@ -690,7 +606,6 @@
     if (wt === 'sentences') { r.scores = null; r.overall = 'Done'; r.tr_comments = (r.tr_comments || []).filter(function (c) { return c && c.quote; }); r.cc_feedback = {}; }   // per-sentence comments stay
     else if (wt === 'paragraph') { r.scores = null; r.overall = 'Done'; r.band_description = r.band_description || 'Paragraph practice'; }   // comments only, no band
     cleanErrors(r, payload);
-    delete r.sentences;   // only the statistics are kept
     // a quote that is not in the student's text is a misreading or an invention (e.g. "nowadays" taken from the task prompt): never shown
     ['gra_errors', 'lr_issues'].forEach(function (k) { r[k] = (r[k] || []).filter(function (e) { return !e.unlocated; }); });
     return r;
@@ -736,21 +651,7 @@
         return true;
       });
     });
-    sentenceStats(r, sents);
     return r;
-  }
-  /* error-free = no real error is attached to the sentence (upgrades and typing slips do not count) */
-  function sentenceStats(r, sents) {
-    var n = sents.length; if (!n) return;
-    var bad = {}, t = { simple: 0, compound: 0, complex: 0, compound_complex: 0, fragment: 0 }, typed = 0, seenIdx = {};
-    ['gra_errors', 'lr_issues'].forEach(function (k) {
-      (r[k] || []).forEach(function (e) { if (e.severity !== 'upgrade' && !e.unlocated && e.sentenceIndex >= 0) bad[e.sentenceIndex] = 1; });
-    });
-    (r.sentences || []).forEach(function (x) {
-      var i = parseInt(x && x.index, 10);
-      if (i >= 0 && i < n && !seenIdx[i] && t[x.type] !== undefined) { seenIdx[i] = 1; t[x.type]++; typed++; }
-    });
-    r.sentence_stats = { total: n, errorFree: n - Object.keys(bad).length, types: t, typed: typed };
   }
   AW.splitSentences = splitSentences;
   AW.gradeFinish = finish;   // used by tests/grader.check.js
