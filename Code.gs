@@ -1723,11 +1723,12 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     body.appendPageBreak();
     h1('✍️ Attempt '+(i+1),NAVY);
 
-    var band=S(r['AI Grading'])||'—';
+    var bandOf=function(v){ var x=S(v); if (!x||x==='Done') return x; var n=parseFloat(x); return (isNaN(n)||!isFinite(n)||n<0||n>9)?'':x; };   // "Infinity" / 8e+199 from a damaged AI reply
+    var band=bandOf(r['AI Grading'])||'—';
     var c1key = taskType==='task1' ? 'TA' : 'TR';
     var scoreP=body.appendParagraph(''); var st=scoreP.editAsText();
     st.appendText(band==='Done'?'✓ Done':'Band '+band); st.setBold(0,st.getText().length-1,true); st.setForegroundColor(0,st.getText().length-1,band==='Done'?GREEN:BLUE); st.setFontSize(0,st.getText().length-1,15);
-    var rest=band==='Done'?'':'     '+c1key+' '+(S(r['TR'])||'—')+'  ·  CC '+(S(r['CC'])||'—')+'  ·  LR '+(S(r['LR'])||'—')+'  ·  GRA '+(S(r['GRA'])||'—');
+    var rest=band==='Done'?'':'     '+c1key+' '+(bandOf(r['TR'])||'—')+'  ·  CC '+(bandOf(r['CC'])||'—')+'  ·  LR '+(bandOf(r['LR'])||'—')+'  ·  GRA '+(bandOf(r['GRA'])||'—');
     var rs=st.getText().length;
     if (rest){ st.appendText(rest); st.setForegroundColor(rs,st.getText().length-1,GREY); st.setBold(rs,st.getText().length-1,false); st.setFontSize(rs,st.getText().length-1,11); }   // an empty run made the whole Doc fail
     scoreP.setAttributes({SPACING_AFTER:2});
@@ -1836,7 +1837,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
     rows.forEach(function(r,i){
       var when='—'; try{ if(r['Timestamp']) when=Utilities.formatDate(new Date(r['Timestamp']),Session.getScriptTimeZone(),'dd/MM/yy HH:mm'); }catch(e){}
       var dur='—'; if(r['Duration']){ var mm=Math.round(parseInt(r['Duration'],10)/60); if(!isNaN(mm)) dur=mm+' phút'; }
-      sumRows.push([String(i+1),when,dur,S(r['AI Grading'])||'—',S(r['TR'])||'—',S(r['CC'])||'—',S(r['LR'])||'—',S(r['GRA'])||'—']);
+      sumRows.push([String(i+1),when,dur,bandOf(r['AI Grading'])||'—',bandOf(r['TR'])||'—',bandOf(r['CC'])||'—',bandOf(r['LR'])||'—',bandOf(r['GRA'])||'—']);
     });
     var stbl=body.appendTable(sumRows);
     stbl.getRow(0).setAttributes({BOLD:true,FOREGROUND_COLOR:'#FFFFFF',BACKGROUND_COLOR:NAVY,FONT_SIZE:10});
@@ -1844,7 +1845,7 @@ function renderFeedbackDoc_(p, rows, asg, className, saveMeta) {
       stbl.getRow(sr).setAttributes({FONT_SIZE:10,FOREGROUND_COLOR:'#1F2933'});
       stbl.getRow(sr).getCell(3).setAttributes({BOLD:true,FOREGROUND_COLOR:BLUE,FONT_SIZE:11});
     }
-    var bands=rows.map(function(r){ return parseFloat(r['AI Grading']); }).filter(function(v){ return !isNaN(v); });
+    var bands=rows.map(function(r){ return parseFloat(r['AI Grading']); }).filter(function(v){ return !isNaN(v)&&isFinite(v)&&v>=0&&v<=9; });
     if (bands.length){
       var best=Math.max.apply(null,bands), first=bands[0], last=bands[bands.length-1];
       var trend=last>first?'tiến bộ +'+(Math.round((last-first)*10)/10)+' band so với lần đầu':last<first?'giảm '+(Math.round((first-last)*10)/10)+' band so với lần đầu':'giữ nguyên so với lần đầu';

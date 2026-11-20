@@ -539,9 +539,15 @@ async function getEssay(p) {
 }
 
 function groupKey(r) { return r.mode + '||' + str(r.topicId); }
+/* a damaged AI reply once saved "Infinity" / 8e+199 as a band: show those as empty */
+function cleanBand(v) {
+  if (v == null || v === '' || v === 'Done') return v == null ? '' : v;
+  const n = parseFloat(v);
+  return (isNaN(n) || !isFinite(n) || n < 0 || n > 9) ? '' : v;
+}
 function writeOut(r) {
   return { attempt: Number(r.attempt) || '', timestamp: r.timestamp, startTime: r.startTime, finishTime: r.finishTime, duration: r.duration,
-           overall: r.aiGrading, teacher: r.teacherGrading, tr: r.tr || '', cc: r.cc || '', lr: r.lr || '', gra: r.gra || '',
+           overall: cleanBand(r.aiGrading), teacher: r.teacherGrading, tr: cleanBand(r.tr), cc: cleanBand(r.cc), lr: cleanBand(r.lr), gra: cleanBand(r.gra),
            t1: r.t1Band != null ? r.t1Band : '', t2: r.t2Band != null ? r.t2Band : '', late: !!r.late };
 }
 function bestOf(writes) {

@@ -31,7 +31,10 @@
   /* Structured output: Gemini is told the exact JSON shape, so the reply is valid JSON by construction
      (the usual cause of "AI trả lời không đúng định dạng"). If a model rejects the schema we fall back to plain JSON mode. */
   var _schemaOff = false;
-  var S_ = { type: 'STRING' }, I_ = { type: 'INTEGER' };
+  /* NO integer types here: with a schema Gemini can emit an unbounded integer, hundreds of digits long (scores of "8e+199"),
+     and lose the rest of the reply. Numbers travel as short strings; scores are a bounded enum. */
+  var S_ = { type: 'STRING' }, I_ = { type: 'STRING' };
+  var SCORE_ = { type: 'STRING', enum: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] };
   var ERR_TYPES = ['subject_verb_agreement', 'verb_tense', 'verb_form', 'plural_noun', 'article', 'preposition', 'word_form', 'word_order', 'missing_word', 'sentence_structure', 'punctuation', 'capitalisation', 'word_choice', 'collocation', 'register', 'repetition'];
   function obj(props, req) { return { type: 'OBJECT', properties: props, required: req || [] }; }
   function arr(items) { return { type: 'ARRAY', items: items }; }
@@ -51,7 +54,7 @@
   function schemaStep2() {
     var note = obj({ why_not_higher_vi: S_, strengths_vi: arr(S_), improve_vi: arr(S_) });
     return obj({
-      scores: obj({ TR: I_, CC: I_, LR: I_, GRA: I_ }), band_description: S_,
+      scores: obj({ TR: SCORE_, CC: SCORE_, LR: SCORE_, GRA: SCORE_ }), band_description: S_,
       tr_comments: arr(obj({ paragraph_role: S_, assessment_vi: S_ }, ['paragraph_role', 'assessment_vi'])),
       cc_feedback: obj({ assessment_vi: S_, evidence: arr(obj({ quote: S_, note_vi: S_ }, ['quote', 'note_vi'])) }),
       criteria_notes: obj({ TR: note, CC: note, LR: note, GRA: note }),
@@ -199,12 +202,14 @@
       // A half band ("5.5, borderline") goes DOWN: Math.round sent every 5.5 up to 6,
       // so the overall came out half a band above the one the AI had written in its
       // own description ("Overall đạt 5.5" next to a 6).
-      var keys=['TR','CC','LR','GRA'].filter(function(k){ return r.scores[k]!==undefined && r.scores[k]!==null && r.scores[k]!==''; });
-      if(!keys.length) return r;
-      keys.forEach(function(k){
-        var v = parseFloat(r.scores[k])||0;
+      ['TR','CC','LR','GRA'].forEach(function(k){
+        if(r.scores[k]===undefined || r.scores[k]===null || r.scores[k]==='') return;
+        var v = parseFloat(r.scores[k]);
+        if(!isFinite(v) || v < 0 || v > 9) { delete r.scores[k]; return; }       // garbage ("Infinity", "8e+199") is never kept
         r.scores[k] = (v - Math.floor(v) === 0.5) ? Math.floor(v) : Math.round(v);
       });
+      var keys=['TR','CC','LR','GRA'].filter(function(k){ return typeof r.scores[k]==='number'; });
+      if(!keys.length) return r;
       var avg=keys.reduce(function(t,k){ return t+r.scores[k]; },0)/keys.length;
       var whole=Math.floor(avg), frac=avg-whole;
       r.overall = frac<0.25 ? whole : (frac<0.75 ? whole+0.5 : whole+1);
@@ -361,8 +366,19 @@
       promptB += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
     }
     var r = await callAI(promptB, geminiKey, schemaStep2());
+    // A damaged reply (scores missing or absurd, no Coherence note, no vocabulary note) is asked for once more in plain JSON mode
+    if (!step2Complete(r, wt)) r = await callAI(promptB, geminiKey, null);
+    if (wt === 'full_essay' && !scoresOk(r, wt)) throw new Error('Lỗi định dạng: AI trả điểm không hợp lệ. Vui lòng thử lại.');
     r.gra_errors = a.gra_errors; r.lr_issues = a.lr_issues; r.typo_count = a.typo_count; r.sentences = a.sentences;
     return r;
+  }
+
+  function scoresOk(r, wt) {
+    var need = wt === 'full_essay' ? ['TR', 'CC', 'LR', 'GRA'] : [];
+    return need.every(function (k) { return r && r.scores && typeof r.scores[k] === 'number' && isFinite(r.scores[k]); });
+  }
+  function step2Complete(r, wt) {
+    return scoresOk(r, wt) && !!r.cc_feedback && !!String(r.cc_feedback.assessment_vi || '').trim() && !!String(r.lexis_vi || '').trim();
   }
 
   /* One AI call with the whole fallback chain: Gemini models → Groq → Gemini again. */
@@ -684,7 +700,14 @@
     var sents = splitSentences(payload.writing), fsents = sents.map(function (x) { return flat(x.text); });
     var text = flat(payload.writing);
     var occ = function (h, n) { var c = 0, i = n ? h.indexOf(n) : -1; while (i >= 0) { c++; i = h.indexOf(n, i + n.length); } return c; };
-    r.typo_count = parseInt(r.typo_count, 10) || 0;
+    r.typo_count = Math.min(500, Math.max(0, parseInt(r.typo_count, 10) || 0));
+    var lev = function (a, b) {
+      var d = [], i, j;
+      for (i = 0; i <= a.length; i++) { d[i] = [i]; }
+      for (j = 1; j <= b.length; j++) { d[0][j] = j; }
+      for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      return d[a.length][b.length];
+    };
     [['gra_errors', 'wrong', 'correct'], ['lr_issues', 'original', 'better']].forEach(function (f) {
       var seen = {};
       r[f[0]] = (r[f[0]] || []).filter(function (e) {
@@ -692,6 +715,8 @@
         if (e.type === 'spelling') return false;                  // typing slips are counted, never listed
         var w = flat(e[f[1]]), c = flat(e[f[2]]);
         if (w.replace(/ /g, '') === c.replace(/ /g, '')) return false;   // spacing-only "errors"
+        // a misspelt single word is a typing slip even when the AI filed it under another type: count it, do not list it
+        if (/^[a-z']+$/.test(w) && /^[a-z']+$/.test(c) && lev(w, c) <= 2 && /chính tả|spelling|typo|đánh máy/i.test(e.explanation_vi || '')) { r.typo_count = Math.min(500, r.typo_count + 1); return false; }
         // Which sentence? The one the AI named if the words are in it, else the nearest sentence that has them.
         // The same wrong→correct pair may be reported once per sentence (and once per occurrence inside it);
         // more copies than places are the AI repeating itself.

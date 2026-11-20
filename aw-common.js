@@ -82,7 +82,7 @@
         .then(function () { return Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-firestore-compat.js'),
                                                 loadScript(FB_SDK + 'firebase-database-compat.js')]); })
-        .then(function () { return loadScript('fbdata.js?v=11'); })
+        .then(function () { return loadScript('fbdata.js?v=12'); })
         .then(function () { return global.FB; });
       _fbLoad.catch(function () { _fbLoad = null; });   // allow a retry after a network error
     }
@@ -754,6 +754,15 @@
     }
     return errs.map(row).join('') + (ups.length ? '<div class="fbx-sub">Could be stronger (not errors)</div>' + ups.map(row).join('') : '');
   }
+  /* Feedback saved from a damaged AI reply may hold scores like Infinity / 8e+199: drop them before they are drawn. */
+  AW.sanitizeFb = function (fb) {
+    if (!fb || typeof fb !== 'object') return fb;
+    var bad = function (v) { var n = parseFloat(v); return isNaN(n) || !isFinite(n) || n < 0 || n > 9; };
+    if (fb.scores && typeof fb.scores === 'object') ['TR', 'CC', 'LR', 'GRA'].forEach(function (k) { if (fb.scores[k] != null && bad(fb.scores[k])) delete fb.scores[k]; });
+    if (fb.overall != null && fb.overall !== 'Done' && bad(fb.overall)) fb.overall = '';
+    return fb;
+  };
+
   /* "Done" badge for practice with no band: a green tile with a check mark (the word Done sits beside it). */
   AW.doneBadge = function (px) {
     px = px || 60;

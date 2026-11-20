@@ -1574,7 +1574,7 @@ function openAnnotation(s){
         var latest = res.data[res.data.length-1];
         var essay  = latest.essay || snapshot;
         var fb = null;
-        try { fb = latest.feedback ? JSON.parse(latest.feedback) : null; } catch(e){}
+        try { fb = latest.feedback ? AW.sanitizeFb(JSON.parse(latest.feedback)) : null; } catch(e){}
         if(!fb || (!fb.gra_errors && !fb.lr_issues)) {
           mText.textContent = essay; return;
         }
@@ -2736,7 +2736,7 @@ window.viewEssays=function(gkey, writeIdx){
         if (writeIdx!=null && writeIdx>=0 && i!==writeIdx) return;
         var el = document.getElementById('detail_'+i);
         if (!el) return;
-        var fb=null; try{ fb=d.feedback?JSON.parse(d.feedback):null; }catch(e){}
+        var fb=null; try{ fb=d.feedback?AW.sanitizeFb(JSON.parse(d.feedback)):null; }catch(e){}
         if (fb && fb.test){
           el.innerHTML = AW.testReviewHtml(fb, { prefix:'tvt'+i, teacher:true });
           AW.testReviewLexis(fb, { prefix:'tvt'+i, alive:function(){ return rvTok === window._rvTok; } });
