@@ -809,13 +809,7 @@
     var ne = function (x) { return x.filter(function (e) { return e.severity !== 'upgrade'; }).length; };
     var none = '<div class="aw-fb-item">No clear errors found.</div>';
     if (fb.gra_errors || fb.lr_issues || fb.scores !== undefined) {
-      var ss = fb.sentence_stats, stLine = '';
-      if (ss && ss.total) {
-        var cx = ss.types ? (ss.types.complex || 0) + (ss.types.compound_complex || 0) : 0;
-        stLine = '<div class="aw-fb-item" style="color:var(--aw-ink-3);font-size:.84rem">Error-free sentences: <b>' + ss.errorFree + '/' + ss.total + '</b> (' + Math.round(ss.errorFree / ss.total * 100) + '%)' +
-          (ss.typed ? ' · Complex sentences: <b>' + cx + '/' + ss.typed + '</b> (' + Math.round(cx / ss.typed * 100) + '%)' : '') + '</div>';
-      }
-      h += '<div class="aw-fb-block rv-block"><h4>Grammar (' + ne(g) + ' errors)</h4>' + stLine + (g.length ? fbItems(g, 'wrong', 'correct') : none) + '</div>';
+      h += '<div class="aw-fb-block rv-block"><h4>Grammar (' + ne(g) + ' errors)</h4>' + (g.length ? fbItems(g, 'wrong', 'correct') : none) + '</div>';
       h += '<div class="aw-fb-block rv-block"><h4>Vocabulary (' + ne(l) + ' errors)</h4>' + (l.length ? fbItems(l, 'original', 'better') : none) + '</div>';
     }
     return h;

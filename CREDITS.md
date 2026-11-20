@@ -1,11 +1,8 @@
 # Credits
 
-The grading prompt in `aw-grader.js` builds on the work of others.
+The scoring logic of `aw-grader.js` is the teacher's own (the original ArticuWrite prompt: band one-liners, scoring rules, conditional rules for LR/GRA, TR and CC, the anti-over-correction protocol and the verification before any 6.0). Nothing from other grading repositories or services is part of it.
 
-## AhmedSobhy01/bandcheck — MIT licence
-https://github.com/AhmedSobhy01/bandcheck
-
-Used for: the collection of the official public IELTS Writing band descriptors (bands 9 to 4, `lib/rubric.ts`), and the ideas of cutting the text into numbered sentences before marking, tying every error to a sentence, classifying sentence types, and requesting structured (schema) output.
+Two technical ideas in the grading pipeline came from **AhmedSobhy01/bandcheck** (MIT licence, https://github.com/AhmedSobhy01/bandcheck): cutting the text into numbered sentences before marking so that every error points at a sentence, and asking the model for structured (schema) output. No text or code was copied.
 
 ```
 MIT License
@@ -30,11 +27,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
-## 18905470418/ielts-writing-skill — used with the author's permission
-https://github.com/18905470418/ielts-writing-skill
-
-The repository has no licence file; the author agreed to its use by e-mail (November 2026). Used for: the operational examiner checks per criterion (Band 6 to 7 to 8) and the measured text signals (type-token ratio, linker density, sentence-length spread, repeated words), rewritten and condensed in English in `aw-grader.js`; and the list of frequent learner error patterns given to the error-finding step. No essays or anchor texts from that repository are included.
-
-## IELTS band descriptors
-The band descriptors are public documents published by the IELTS partners (British Council, IDP, Cambridge University Press & Assessment).
