@@ -1,7 +1,7 @@
 // node tests/grader.check.js — self-check for aw-grader.js: model skipping, bad key, network, fallback, parse
 const fs = require('fs'), vm = require('vm'), assert = require('assert');
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'aw-grader.js'), 'utf8');
-const GOOD = JSON.stringify({ scores:{TR:6,CC:6,LR:6,GRA:5}, gra_errors:[{wrong:'a',correct:'b'}] });
+const GOOD = JSON.stringify({ scores:{TR:6,CC:6,LR:6,GRA:5}, gra_errors:[{wrong:'a',correct:'b'}], cc_feedback:{assessment_vi:'ok'}, lexis_vi:'ok' });
 function run(handler, groqKey) {
   const calls = [];
   const win = { AW: { syncOverall:(t)=>t, wordCount:(t)=>t.split(/\s+/).length, toast(){}, groqKey:{ get:()=>groqKey||'' } } };
@@ -145,5 +145,28 @@ const bad = (status, message) => ({ ok:false, status, json: async () => ({ error
     const sp = [];
     await run((u, o) => { sp.push(JSON.parse(o.body).contents[0].parts[0].text); return ok(GOOD); }).gradeWith({ writing: long, question:'q', attempt:1, taskType:'task2', writingType:'paragraph' });
     assert(/Examiner checks/.test(sp[1]) && !/- Position: it must be visible/.test(sp[1])); }
+  // the schema carries no integer types and scores are a bounded enum (an unbounded integer once ran on to "8e+199")
+  { const cfgs = [];
+    await run((u, o) => { cfgs.push(JSON.parse(o.body).generationConfig); return ok(GOOD); }).gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+    const hasInt = (x) => JSON.stringify(x).includes('"INTEGER"') || JSON.stringify(x).includes('"NUMBER"');
+    assert(!hasInt(cfgs[0].responseSchema) && !hasInt(cfgs[1].responseSchema));
+    assert.deepEqual(cfgs[1].responseSchema.properties.scores.properties.TR.enum, ['1','2','3','4','5','6','7','8','9']); }
+  // absurd scores never survive: "Infinity" / 8e199 are dropped; the reply is asked for once more, and if it is still wrong the student gets an error, not a saved "Infinity"
+  { const huge = '8' + '0'.repeat(199);
+    // call 1 = step 1 (GOOD), call 2 = step 2 with garbage scores, call 3 = the plain-JSON retry
+    t = run((u, o, n) => n === 2 ? ok(JSON.stringify({ scores:{TR:huge, CC:'Infinity', LR:6, GRA:5}, cc_feedback:{assessment_vi:'x'}, lexis_vi:'y' })) : ok(GOOD));
+    r = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+    assert.equal(t.calls.length, 3); assert.equal(r.overall, 6); assert.deepEqual(r.scores, { TR:6, CC:6, LR:6, GRA:5 });
+    t = run((u, o, n) => n === 1 ? ok(GOOD) : ok(JSON.stringify({ scores:{TR:huge, CC:6, LR:6, GRA:5}, cc_feedback:{assessment_vi:'x'}, lexis_vi:'y' })));
+    await assert.rejects(t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' }), /không đúng|định dạng/); }
+  // a reply with scores but no Coherence note / vocabulary note is asked for again
+  { const seenN = [];
+    t = run((u, o, n) => { seenN.push(n); return n === 2 ? ok(JSON.stringify({ scores:{TR:6,CC:6,LR:6,GRA:5} })) : ok(GOOD); });
+    r = await t.gradeWith({ writing: essay, question:'q', attempt:1, taskType:'task2' });
+    assert.equal(t.calls.length, 3); assert(r.cc_feedback && r.lexis_vi); }
+  // misspellings the AI listed anyway (one word, "chính tả", 1-2 letters apart) are counted, not listed
+  t = run(() => ok(JSON.stringify({ typo_count: 1, gra_errors:[{sentenceIndex:0,wrong:'succesful',correct:'successful',explanation_vi:'Lỗi chính tả của từ.',severity:'error',type:'word_form'},{sentenceIndex:0,wrong:'trend have',correct:'trend has',explanation_vi:'Chia động từ.',severity:'error',type:'subject_verb_agreement'}] })));
+  fin = await t.gradeWith({ writing: 'The succesful trend have more disadvantages.', question:'q', attempt:1, taskType:'task2', writingType:'sentences' });
+  assert.deepEqual(fin.gra_errors.map(e => e.wrong), ['trend have']); assert.equal(fin.typo_count, 2);
   console.log('grader self-check: all passed');
 })().catch(e => { console.error('FAILED', e); process.exit(1); });

@@ -738,7 +738,7 @@ function reviewFeedbackRec(r, refIdx){
   var i=refIdx;
   var fb=null, parseError=false;
   if(r.feedback && String(r.feedback).trim()){
-    try{ fb=JSON.parse(r.feedback); }
+    try{ fb=AW.sanitizeFb(JSON.parse(r.feedback)); }
     catch(e){ fb=null; parseError=true; console.warn('Feedback parse failed:',e,r.feedback&&r.feedback.slice(0,120)); }
   }
   window._reviewRec=r;
