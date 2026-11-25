@@ -342,7 +342,7 @@ content.innerHTML =
         '<button class="aw-hl-btn" data-hl="#FFC9D6" style="background:#FFC9D6" title="Pink" aria-label="Highlight pink"></button>' +
         '<button class="aw-hl-btn" data-hl="#E0C9FF" style="background:#E0C9FF" title="Purple" aria-label="Highlight purple"></button>' +
         '<button class="aw-hl-btn aw-hl-clear" data-hl="clear" title="Remove highlight">✕</button>' +
-        (AW_AI_ON ? '<button type="button" class="aw-tb-btn aw-sp-btn" id="spellBtn" data-n="" title="Check spelling &amp; grammar" aria-label="Check spelling and grammar">'+SPELL_ICON+'</button>' : '') +
+        (AW_AI_ON ? '<button type="button" class="aw-tb-btn aw-sp-btn" id="spellBtn" data-n="" title="Spelling &amp; grammar check: On" aria-label="Check spelling and grammar">'+SPELL_ICON+'</button>' : '') +
       '</div>' +
       '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
       '<div class="aw-write-meta"><span id="wc">0 words</span>' +
@@ -623,11 +623,11 @@ document.getElementById('copyEssay').onclick = function(){
 if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt').onclick = function(){
   copyText(document.querySelector('.aw-prompt-text').innerText, 'đề bài');
 };
-/*──────── Spelling & grammar check (live, LanguageTool) ────────
+/*──────── Spelling & grammar check ────────
    On by default every time the page opens; the ABC✓ icon switches it off / on.
-   While on, the essay is re-checked a moment after the student stops typing and each
-   problem is underlined (red wavy = spelling, blue wavy = grammar) with the CSS Custom
-   Highlight API, so the editor's HTML is never touched. Click an underlined word for the
+   Spelling: the browser's own checker (red wavy, set to English). Grammar: LanguageTool,
+   re-checked a moment after the student stops typing and underlined in blue with the CSS
+   Custom Highlight API (the editor's HTML is never touched). Click a blue word for the
    suggestion. Not shown to classes without AI (control group). */
 (function(){
   var btn = document.getElementById('spellBtn');
@@ -635,6 +635,8 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
   var URL_LT = 'https://api.languagetool.org/v2/check';
   var hasHL = !!(window.CSS && CSS.highlights && window.Highlight);
   var on = true;                       // always starts On
+  function native(v){ editor.setAttribute('lang', 'en-US'); editor.spellcheck = v; }   // browser spelling, English dictionary
+  native(true);
   var issues = [], pop = null, busy = false, timer = null, lastRun = 0, pausedUntil = 0, warned = false, ignored = {};
 
   function collect(){
@@ -725,7 +727,7 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
     fetch(URL_LT, {
       method:'POST', signal:ctl.signal,
       headers:{ 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
-      body:'language=en-US&text=' + encodeURIComponent(c.text.slice(0, 19000))
+      body:'language=en-US&disabledCategories=TYPOS&text=' + encodeURIComponent(c.text.slice(0, 19000))
     }).then(function(r){
       if (r.status === 429) throw new Error('busy');
       if (!r.ok) throw new Error('http ' + r.status);
@@ -737,7 +739,7 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
       clear();
       (j.matches || []).forEach(function(m){
         var it = (m.rule && m.rule.issueType) || '', cat = (m.rule && m.rule.category && m.rule.category.id) || '';
-        var kind = it === 'misspelling' ? 'spell' : (it === 'grammar' || cat === 'GRAMMAR' || cat === 'CONFUSED_WORDS') ? 'gram' : '';
+        var kind = (it === 'grammar' || cat === 'GRAMMAR' || cat === 'CONFUSED_WORDS') && it !== 'misspelling' ? 'gram' : '';   // spelling is the browser's job
         if (!kind) return;
         var word = c.text.substr(m.offset, m.length);
         if (!word.trim() || ignored[word.toLowerCase()]) return;
@@ -759,6 +761,7 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
   // On / Off
   function syncBtn(){
     btn.classList.toggle('off', !on);
+    native(on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.title = on ? 'Spelling & grammar check: On (click to turn off)' : 'Spelling & grammar check: Off (click to turn on)';
   }
