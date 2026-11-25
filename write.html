@@ -24,6 +24,18 @@
   .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:none;border-radius:16px;background:var(--aw-surface-2);flex-wrap:wrap;margin-bottom:6px}
   .aw-tb-btn{width:36px;height:36px;border:none;background:none;border-radius:10px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
   .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-sp-btn{margin-left:auto;width:42px;height:36px;position:relative}
+  .aw-sp-btn.off{opacity:.45;filter:grayscale(1)}
+  .aw-sp-btn.off::before{content:'';position:absolute;left:8px;right:8px;top:50%;height:2px;background:var(--aw-ink-3);transform:rotate(-35deg)}
+  .aw-sp-btn:not([data-n=""])::after{content:attr(data-n);position:absolute;top:0;right:0;min-width:16px;height:16px;border-radius:8px;background:#d93025;color:#fff;font-size:.65rem;line-height:16px;text-align:center;padding:0 3px}
+  ::highlight(aw-spell){text-decoration:underline wavy #d93025;text-decoration-thickness:1.5px}
+  ::highlight(aw-gram){text-decoration:underline wavy #1a73e8;text-decoration-thickness:1.5px}
+  .aw-sp-pop{position:fixed;z-index:800;max-width:290px;background:var(--aw-surface);color:var(--aw-ink);border:1px solid var(--aw-border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:10px 12px;font-size:.85rem}
+  .aw-sp-kind{font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+  .aw-sp-msg{line-height:1.4;margin-bottom:8px}
+  .aw-sp-opts{display:flex;flex-wrap:wrap;gap:6px}
+  .aw-sp-opt{border:none;border-radius:8px;padding:5px 10px;background:var(--aw-primary-lt);color:var(--aw-primary);font-weight:700;cursor:pointer;font-size:.85rem}
+  .aw-sp-ign{background:var(--aw-surface-2);color:var(--aw-ink-3);font-weight:600}
   .aw-hl-btn{width:24px;height:24px;flex:0 0 auto;border:1.5px solid rgba(0,0,0,.12);border-radius:6px;cursor:pointer;margin:0 2px;padding:0;transition:transform .1s}
   .aw-hl-btn:hover{transform:scale(1.15)}
   .aw-hl-clear{background:#fff !important;color:var(--aw-ink-3);font-size:.7rem;display:grid;place-items:center}
@@ -285,6 +297,7 @@ if (hasRealTopic) {
 /* Experimental class (AI on) vs control class (AI off). Read the cached value
    synchronously so the correct buttons render on the first paint; the async
    check below corrects it if this device has never looked the class up. */
+var SPELL_ICON = '<svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><text x="14" y="13" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="11" fill="currentColor">ABC</text><path d="M8 18.5l5 5L24 12" fill="none" stroke="#9BC23C" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var AW_AI_ON = AW.classAICached(sess.class);
 if (AW_AI_ON === null) AW_AI_ON = true;
 // dictionary data for the vocabulary/collocation feedback: fetched while the student writes
@@ -329,6 +342,7 @@ content.innerHTML =
         '<button class="aw-hl-btn" data-hl="#FFC9D6" style="background:#FFC9D6" title="Pink" aria-label="Highlight pink"></button>' +
         '<button class="aw-hl-btn" data-hl="#E0C9FF" style="background:#E0C9FF" title="Purple" aria-label="Highlight purple"></button>' +
         '<button class="aw-hl-btn aw-hl-clear" data-hl="clear" title="Remove highlight">✕</button>' +
+        (AW_AI_ON ? '<button type="button" class="aw-tb-btn aw-sp-btn" id="spellBtn" data-n="" title="Check spelling &amp; grammar" aria-label="Check spelling and grammar">'+SPELL_ICON+'</button>' : '') +
       '</div>' +
       '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
       '<div class="aw-write-meta"><span id="wc">0 words</span>' +
@@ -609,6 +623,175 @@ document.getElementById('copyEssay').onclick = function(){
 if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt').onclick = function(){
   copyText(document.querySelector('.aw-prompt-text').innerText, 'đề bài');
 };
+/*──────── Spelling & grammar check (live, LanguageTool) ────────
+   On by default every time the page opens; the ABC✓ icon switches it off / on.
+   While on, the essay is re-checked a moment after the student stops typing and each
+   problem is underlined (red wavy = spelling, blue wavy = grammar) with the CSS Custom
+   Highlight API, so the editor's HTML is never touched. Click an underlined word for the
+   suggestion. Not shown to classes without AI (control group). */
+(function(){
+  var btn = document.getElementById('spellBtn');
+  if (!btn) return;
+  var URL_LT = 'https://api.languagetool.org/v2/check';
+  var hasHL = !!(window.CSS && CSS.highlights && window.Highlight);
+  var on = true;                       // always starts On
+  var issues = [], pop = null, busy = false, timer = null, lastRun = 0, pausedUntil = 0, warned = false, ignored = {};
+
+  function collect(){
+    var segs = [], text = '';
+    (function walk(n){
+      Array.prototype.forEach.call(n.childNodes, function(c){
+        if (c.nodeType === 3) { segs.push({ n:c, s:text.length }); text += c.data; return; }
+        if (c.nodeType !== 1) return;
+        if (c.tagName === 'BR') { text += '\n'; return; }
+        var blk = /^(DIV|P|LI|UL|OL)$/.test(c.tagName);
+        if (blk && text && text.slice(-1) !== '\n') text += '\n';
+        walk(c);
+        if (blk && text && text.slice(-1) !== '\n') text += '\n';
+      });
+    })(editor);
+    return { text:text, segs:segs };
+  }
+  function pos(segs, off, isEnd){
+    for (var i = 0; i < segs.length; i++) {
+      var g = segs[i], l = g.n.data.length;
+      if (isEnd ? (off > g.s && off <= g.s + l) : (off >= g.s && off < g.s + l)) return [g.n, off - g.s];
+    }
+    return null;
+  }
+  function mk(ranges){ var h = new Highlight(); ranges.forEach(function(r){ h.add(r); }); return h; }
+  function paint(){
+    if (!hasHL) return;
+    var sp = [], gr = [];
+    issues.forEach(function(i){ (i.kind === 'spell' ? sp : gr).push(i.range); });
+    CSS.highlights.delete('aw-spell'); CSS.highlights.delete('aw-gram');
+    if (sp.length) CSS.highlights.set('aw-spell', mk(sp));
+    if (gr.length) CSS.highlights.set('aw-gram', mk(gr));
+    btn.setAttribute('data-n', on && issues.length ? String(issues.length) : '');
+  }
+  function hidePop(){ if (pop) { pop.remove(); pop = null; } }
+  function clear(){
+    issues = []; hidePop();
+    if (hasHL) { CSS.highlights.delete('aw-spell'); CSS.highlights.delete('aw-gram'); }
+    btn.setAttribute('data-n', '');
+  }
+  window.awSpellClear = function(){ clear(); clearTimeout(timer); };
+
+  function apply(iss, rep){
+    hidePop();
+    var sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(iss.range.cloneRange());
+    editor.focus();
+    if (!document.execCommand('insertText', false, rep)) { iss.range.deleteContents(); iss.range.insertNode(document.createTextNode(rep)); editor.dispatchEvent(new Event('input')); }
+  }
+  function showPop(iss){
+    hidePop();
+    var r = iss.range.getBoundingClientRect();
+    pop = document.createElement('div');
+    pop.className = 'aw-sp-pop';
+    pop.innerHTML = '<div class="aw-sp-kind" style="color:' + (iss.kind === 'spell' ? '#d93025' : '#1a73e8') + '">' + (iss.kind === 'spell' ? 'Spelling' : 'Grammar') + '</div>' +
+                    '<div class="aw-sp-msg"></div><div class="aw-sp-opts"></div>';
+    pop.querySelector('.aw-sp-msg').textContent = iss.msg;
+    var opts = pop.querySelector('.aw-sp-opts');
+    iss.repl.forEach(function(rep){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'aw-sp-opt'; b.textContent = rep || '(delete)';
+      b.onmousedown = function(e){ e.preventDefault(); };
+      b.onclick = function(){ apply(iss, rep); };
+      opts.appendChild(b);
+    });
+    var ig = document.createElement('button'); ig.type = 'button'; ig.className = 'aw-sp-opt aw-sp-ign'; ig.textContent = 'Ignore';
+    ig.onmousedown = function(e){ e.preventDefault(); };
+    ig.onclick = function(){ ignored[iss.word.toLowerCase()] = 1; issues = issues.filter(function(x){ return x !== iss; }); paint(); hidePop(); };
+    opts.appendChild(ig);
+    document.body.appendChild(pop);
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8) + 'px';
+  }
+
+  function canRun(){ return on && hasHL && editor.getAttribute('contenteditable') === 'true' && writePhase === 'editing'; }
+  function schedule(ms){
+    clearTimeout(timer);
+    if (!canRun()) return;
+    timer = setTimeout(run, ms);
+  }
+  function run(){
+    if (!canRun()) return;
+    var wait = Math.max(pausedUntil - Date.now(), 3000 - (Date.now() - lastRun), 0);
+    if (busy || wait > 0) { timer = setTimeout(run, wait || 800); return; }
+    var c = collect();
+    if (c.text.trim().length < 3) { clear(); return; }
+    busy = true;
+    var ctl = new AbortController(), t0 = setTimeout(function(){ ctl.abort(); }, 20000);
+    fetch(URL_LT, {
+      method:'POST', signal:ctl.signal,
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
+      body:'language=en-US&text=' + encodeURIComponent(c.text.slice(0, 19000))
+    }).then(function(r){
+      if (r.status === 429) throw new Error('busy');
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    }).then(function(j){
+      if (!on || !canRun()) return;
+      var now = collect();
+      if (now.text !== c.text) return;            // edited meanwhile: the next check covers it
+      clear();
+      (j.matches || []).forEach(function(m){
+        var it = (m.rule && m.rule.issueType) || '', cat = (m.rule && m.rule.category && m.rule.category.id) || '';
+        var kind = it === 'misspelling' ? 'spell' : (it === 'grammar' || cat === 'GRAMMAR' || cat === 'CONFUSED_WORDS') ? 'gram' : '';
+        if (!kind) return;
+        var word = c.text.substr(m.offset, m.length);
+        if (!word.trim() || ignored[word.toLowerCase()]) return;
+        var a = pos(c.segs, m.offset, false), b = pos(c.segs, m.offset + m.length, true);
+        if (!a || !b) return;
+        var rg = document.createRange(); rg.setStart(a[0], a[1]); rg.setEnd(b[0], b[1]);
+        issues.push({ range:rg, word:word, kind:kind, msg:m.message || '', repl:(m.replacements || []).slice(0, 4).map(function(x){ return x.value; }) });
+      });
+      paint();
+    }).catch(function(e){
+      if (e && e.message === 'busy') {
+        pausedUntil = Date.now() + 30000;
+        if (!warned) { warned = true; AW.toast('Công cụ kiểm tra đang bận, tạm nghỉ ít giây rồi tự kiểm tra lại.', 'err', 4000); }
+        timer = setTimeout(run, 30000);
+      }
+    }).then(function(){ clearTimeout(t0); busy = false; lastRun = Date.now(); if (pausedUntil <= Date.now()) warned = false; });
+  }
+
+  // On / Off
+  function syncBtn(){
+    btn.classList.toggle('off', !on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Spelling & grammar check: On (click to turn off)' : 'Spelling & grammar check: Off (click to turn on)';
+  }
+  syncBtn();
+  btn.onclick = function(){
+    on = !on; syncBtn();
+    if (!on) { clearTimeout(timer); clear(); AW.toast('Spelling & grammar check: Off', 'info', 1800); return; }
+    if (!hasHL) { AW.toast('Trình duyệt chưa hỗ trợ gạch chân. Hãy dùng Chrome, Edge hoặc Safari bản mới.', 'err', 5000); return; }
+    AW.toast('Spelling & grammar check: On', 'ok', 1800);
+    schedule(100);
+  };
+
+  // click on an underlined word → suggestion popup
+  editor.addEventListener('mouseup', function(){
+    if (!issues.length) return;
+    setTimeout(function(){
+      var sel = window.getSelection();
+      if (!sel.rangeCount || !sel.isCollapsed) return;
+      var hit = issues.filter(function(i){ try { return i.range.isPointInRange(sel.anchorNode, sel.anchorOffset); } catch(e){ return false; } })[0];
+      if (hit) showPop(hit); else hidePop();
+    }, 0);
+  });
+  document.addEventListener('mousedown', function(e){ if (pop && !pop.contains(e.target)) hidePop(); });
+  window.addEventListener('scroll', hidePop, true);
+  // typing: drop underlines whose word was edited, re-check once typing pauses
+  editor.addEventListener('input', function(){
+    hidePop();
+    if (issues.length) { issues = issues.filter(function(i){ return !i.range.collapsed && i.range.toString() === i.word; }); paint(); }
+    schedule(2500);
+  });
+  if (editor.textContent.trim()) schedule(1500);   // a restored draft
+})();
+
 document.getElementById('openNotes').onclick = function(){
   var d = document.getElementById('notesDrawer');
   if (d) { d.hidden = !d.hidden; return; }
@@ -885,6 +1068,7 @@ function submitWithoutAI(btn, text){
   btn.disabled=true;
   btn.innerHTML='<span class="aw-spin"></span> Submitting…';
   writePhase = 'grading';
+  if (window.awSpellClear) window.awSpellClear();
 
   saveResultSafe({
     studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
@@ -1002,6 +1186,7 @@ var _autoSubmitActive = false; // true when fired by timer timeout
 /* resetForRetry — clears everything and returns to editing state.
    This is the ONLY way back from 'graded'. */
 function resetForRetry(){
+  if (window.awSpellClear) window.awSpellClear();
   editor.innerHTML = '';
   editor.setAttribute('contenteditable','true');
   editor.style.background = '';
@@ -1152,6 +1337,7 @@ function gradeBtnHandler(){
   // ── Enter GRADING phase ─────────────────────────────────────────────
   lastPlainEssay = text;
   writePhase = 'grading';
+  if (window.awSpellClear) window.awSpellClear();
   // isGrading already true from top
   if (btn) btn.innerHTML = '<span class="aw-spin"></span> Grading…';
   showGradingOverlay();
@@ -2080,6 +2266,7 @@ AW.loadClassAI(sess.class, function(on){
   if (!on) {
     // downgrade to control mode without a reload
     var kb = document.querySelector('.aw-keybar'); if (kb) kb.remove();
+    var sb = document.getElementById('spellBtn'); if (sb) sb.remove(); if (window.awSpellClear) window.awSpellClear();
     var tf = document.getElementById('tutorFab'); if (tf) tf.remove();
     var tp = document.getElementById('tutorPanel'); if (tp) tp.remove();
     var gb = document.getElementById('gradeBtn');
