@@ -25,6 +25,8 @@
   .aw-tb-btn{width:36px;height:36px;border:none;background:none;border-radius:10px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
   .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
   .aw-sp-btn{margin-left:auto;width:42px;height:36px;position:relative}
+  .aw-sp-btn.busy svg{animation:awspPulse .8s ease-in-out infinite alternate}
+  @keyframes awspPulse{from{opacity:1}to{opacity:.35}}
   .aw-sp-btn.off{opacity:.45;filter:grayscale(1)}
   .aw-sp-btn.off::before{content:'';position:absolute;left:8px;right:8px;top:50%;height:2px;background:var(--aw-ink-3);transform:rotate(-35deg)}
   .aw-sp-btn:not([data-n=""])::after{content:attr(data-n);position:absolute;top:0;right:0;min-width:16px;height:16px;border-radius:8px;background:#d93025;color:#fff;font-size:.65rem;line-height:16px;text-align:center;padding:0 3px}
@@ -718,16 +720,16 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
   }
   function run(){
     if (!canRun()) return;
-    var wait = Math.max(pausedUntil - Date.now(), 3000 - (Date.now() - lastRun), 0);
+    var wait = Math.max(pausedUntil - Date.now(), 1500 - (Date.now() - lastRun), 0);
     if (busy || wait > 0) { timer = setTimeout(run, wait || 800); return; }
     var c = collect();
     if (c.text.trim().length < 3) { clear(); return; }
-    busy = true;
+    busy = true; btn.classList.add('busy');
     var ctl = new AbortController(), t0 = setTimeout(function(){ ctl.abort(); }, 20000);
     fetch(URL_LT, {
       method:'POST', signal:ctl.signal,
       headers:{ 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
-      body:'language=en-US&disabledCategories=TYPOS&text=' + encodeURIComponent(c.text.slice(0, 19000))
+      body:'language=en-US&level=picky&disabledCategories=TYPOS&text=' + encodeURIComponent(c.text.slice(0, 19000))
     }).then(function(r){
       if (r.status === 429) throw new Error('busy');
       if (!r.ok) throw new Error('http ' + r.status);
@@ -739,7 +741,8 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
       clear();
       (j.matches || []).forEach(function(m){
         var it = (m.rule && m.rule.issueType) || '', cat = (m.rule && m.rule.category && m.rule.category.id) || '';
-        var kind = (it === 'grammar' || cat === 'GRAMMAR' || cat === 'CONFUSED_WORDS') && it !== 'misspelling' ? 'gram' : '';   // spelling is the browser's job
+        // everything except spelling (the browser's job) and pure typography / style noise
+        var kind = (it === 'misspelling' || cat === 'TYPOS' || /^(whitespace|typographical|style|locale-violation)$/.test(it)) ? '' : 'gram';
         if (!kind) return;
         var word = c.text.substr(m.offset, m.length);
         if (!word.trim() || ignored[word.toLowerCase()]) return;
@@ -755,7 +758,7 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
         if (!warned) { warned = true; AW.toast('Công cụ kiểm tra đang bận, tạm nghỉ ít giây rồi tự kiểm tra lại.', 'err', 4000); }
         timer = setTimeout(run, 30000);
       }
-    }).then(function(){ clearTimeout(t0); busy = false; lastRun = Date.now(); if (pausedUntil <= Date.now()) warned = false; });
+    }).then(function(){ clearTimeout(t0); busy = false; btn.classList.remove('busy'); lastRun = Date.now(); if (pausedUntil <= Date.now()) warned = false; });
   }
 
   // On / Off
@@ -790,7 +793,7 @@ if (document.getElementById('copyPrompt')) document.getElementById('copyPrompt')
   editor.addEventListener('input', function(){
     hidePop();
     if (issues.length) { issues = issues.filter(function(i){ return !i.range.collapsed && i.range.toString() === i.word; }); paint(); }
-    schedule(2500);
+    schedule(1200);
   });
   if (editor.textContent.trim()) schedule(1500);   // a restored draft
 })();
