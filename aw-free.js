@@ -343,10 +343,17 @@ function fit0(){
 }
 
 /* ── undo / redo of the layer ── */
-function snap(){ const l = layer(true); S.undo.push(l.innerHTML); if (S.undo.length > 60) S.undo.shift(); S.redo.length = 0; }
-function restore(html){ const l = layer(true); l.innerHTML = html; normalise(); S.sel = []; changed(); }
-function undo(){ if (!S.undo.length) return; const l = layer(true); S.redo.push(l.innerHTML); restore(S.undo.pop()); }
-function redo(){ if (!S.redo.length) return; const l = layer(true); S.undo.push(l.innerHTML); restore(S.redo.pop()); }
+/* one undo history for everything the layer, tables and pictures do (typing keeps the browser's own undo) */
+function snap(){ if (!canvas) return; layer(true); S.undo.push(canvas.innerHTML); if (S.undo.length > 60) S.undo.shift(); S.redo.length = 0; S.lastOp = Date.now(); }
+function restoreAll(html){
+  keepScroll(() => { canvas.innerHTML = html; hydrate(canvas); });
+  S.sel = []; clearBadges();
+  const ic = document.getElementById('imgCtrl'); if (ic) ic.style.display = 'none';
+  changed(); S.lastOp = Date.now();
+  document.dispatchEvent(new Event('selectionchange'));   // the table tab looks at the caret again
+}
+function undo(){ if (!S.undo.length || !canvas) return; S.redo.push(canvas.innerHTML); restoreAll(S.undo.pop()); }
+function redo(){ if (!S.redo.length || !canvas) return; S.undo.push(canvas.innerHTML); restoreAll(S.redo.pop()); }
 function normalise(){
   const l = layer(false); if (!l) return;
   [].forEach.call(l.querySelectorAll('.aw-fb'), b => { b.setAttribute('contenteditable', 'false'); });
@@ -989,6 +996,10 @@ function onKey(e){
   // typing text (a text box, a field with letters in it) keeps the key; sliders, colour pickers and buttons do not
   const typing = ae && ((ae.isContentEditable && ae !== canvas) || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || (ae.tagName === 'INPUT' && !/^(range|color|checkbox|radio|button)$/.test(ae.type)));
   if (typing){ if (e.key === 'Escape' && ae.classList && ae.classList.contains('aw-fb')){ ae.blur(); } return; }
+  const mod0 = e.ctrlKey || e.metaKey, k0 = (e.key || '').toLowerCase();
+  if (mod0 && (k0 === 'z' || k0 === 'y') && (S.undo.length || S.redo.length) && (S.lastOp || 0) > (S.lastType || 0)){
+    e.preventDefault(); (k0 === 'y' || e.shiftKey) ? redo() : undo(); return;   // the last thing done was a move, a resize, a delete …: undo that, not the typing before it
+  }
   if (ae === canvas && S.tool === 'type'){   // a picture clicked in the text: Delete removes it
     const sl = window.getSelection(), inCell = sl.anchorNode && sl.anchorNode.parentElement && sl.anchorNode.parentElement.closest && sl.anchorNode.parentElement.closest('td,th,.aw-fb');
     if (e.key === 'Delete' && S.sel.length === 1 && isImg(S.sel[0]) && !inCell){ e.preventDefault(); del(); }
@@ -1200,7 +1211,7 @@ function wire(cv){
   }, true);
   cv.addEventListener('focusout', e => { const b = e.target.closest && e.target.closest('.aw-fb'); if (b) endEdit(b); });
   cv.addEventListener('focusin', e => { const b = e.target.closest && e.target.closest('.aw-fb'); if (b && S.tool === 'type'){ S.sel = [b]; paintSel(); } });
-  cv.addEventListener('input', () => { if (S.sel.length) paintSel(); });
+  cv.addEventListener('input', () => { S.lastType = Date.now(); if (S.sel.length) paintSel(); });
   document.addEventListener('mousedown', e => {   // click away: the frame goes
     if (S.tool !== 'type' || !S.sel.length) return;
     const t = e.target; if (t.closest && (t.closest('.aw-fb') || t.closest('table') || t.tagName === 'IMG' || t.closest('.aw-flsel') || t.closest('#tb') || t.closest('.aw-fpanel') || t.closest('.aw-colpop'))) return;
@@ -1242,5 +1253,5 @@ function selectTable(t){
   if (t){ if (S.sel.length !== 1 || S.sel[0] !== t){ S.sel = [t]; } paintSel(); }
   else if (S.sel.length === 1 && isTbl(S.sel[0])){ S.sel = []; paintSel(); }
 }
-window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit, serialize, hydrate, selectTable, selectEl };
+window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit, serialize, hydrate, selectTable, selectEl, snap, undo, redo };
 })();

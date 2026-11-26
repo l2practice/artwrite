@@ -1105,9 +1105,9 @@ function wireTables(){
   var acts={ rowA:function(){ insRow(false); }, rowB:function(){ insRow(true); }, colL:function(){ insCol(false); }, colR:function(){ insCol(true); },
              delRow:delRow, delCol:delCol, delTbl:delTable, distR:distRows, distC:distCols, merge:merge, split:split,
              borders:function(){ if(!need()) return; tCell.closest('table').classList.toggle('aw-nob'); done(); } };
-  [].forEach.call(bar.querySelectorAll('[data-ta]'),function(b){ b.onclick=function(){ acts[b.dataset.ta](); }; });
-  [].forEach.call(bar.querySelectorAll('[data-al]'),function(b){ b.onclick=function(){ var p=b.dataset.al.split(','); setAlign(p[0],p[1]); }; });
-  [].forEach.call(bar.querySelectorAll('[data-sh]'),function(b){ b.onclick=function(){ setShade(b.dataset.sh); }; });
+  [].forEach.call(bar.querySelectorAll('[data-ta]'),function(b){ b.onclick=function(){ if(window.AWFree) AWFree.snap(); acts[b.dataset.ta](); }; });
+  [].forEach.call(bar.querySelectorAll('[data-al]'),function(b){ b.onclick=function(){ if(window.AWFree) AWFree.snap(); var p=b.dataset.al.split(','); setAlign(p[0],p[1]); }; });
+  [].forEach.call(bar.querySelectorAll('[data-sh]'),function(b){ b.onclick=function(){ if(window.AWFree) AWFree.snap(); setShade(b.dataset.sh); }; });
   bar.querySelector('#tlH').onchange=function(){ var v=parseFloat(this.value); if(!(v>0)||!need()) return; var rows=[]; tCells.forEach(function(c){ if(rows.indexOf(c.parentElement)<0) rows.push(c.parentElement); }); rows.forEach(function(r){ tblSetRow(r,v*PX_CM); }); done(); };
   bar.querySelector('#tlW').onchange=function(){
     var v=parseFloat(this.value); if(!(v>0)||!need()) return;
