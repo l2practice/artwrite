@@ -22,6 +22,24 @@
   .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s,font-size .15s;overflow-wrap:break-word}
   .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-canvas img{max-width:100%;height:auto;border-radius:14px;margin:6px 0;cursor:pointer}
+  /*── tables ──*/
+  .aw-canvas table{border-collapse:collapse;table-layout:fixed;margin:8px 0;max-width:none}
+  .aw-canvas td,.aw-canvas th{border:1px solid var(--aw-ink-3,#6b7280);padding:6px 8px;vertical-align:top;overflow-wrap:anywhere;min-width:20px}
+  .aw-canvas table.aw-nob td,.aw-canvas table.aw-nob th{border-color:transparent}
+  .aw-tbl-bar{display:none;flex-wrap:wrap;gap:4px 6px;align-items:center;background:var(--aw-surface);border-radius:20px;padding:8px 12px;margin:-6px 0 14px;box-shadow:var(--aw-shadow);font-size:.78rem;color:var(--aw-ink-2)}
+  .aw-tl-lbl{font-weight:700;color:var(--aw-primary);margin-right:2px}
+  .aw-tl-b{border:none;background:var(--aw-surface-2);color:var(--aw-ink-2);border-radius:10px;padding:6px 10px;font-weight:600;font-size:.78rem;cursor:pointer}
+  .aw-tl-b:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-tl-del{color:#B42318}
+  .aw-tl-f{display:inline-flex;align-items:center;gap:4px;font-weight:600}
+  .aw-tl-f input{width:58px;border:1.5px solid var(--aw-border);border-radius:8px;padding:4px 6px;font-size:.8rem;background:var(--aw-surface);color:var(--aw-ink)}
+  .aw-tl-grid{display:inline-grid;grid-template-columns:repeat(3,30px);gap:2px}
+  .aw-tl-al{min-width:30px!important;height:28px!important;padding:0}
+  .aw-tblpick{position:fixed;z-index:900;background:var(--aw-surface);border-radius:14px;box-shadow:var(--aw-shadow-lg,0 8px 24px rgba(0,0,0,.2));padding:10px}
+  .aw-tblpick-lbl{font-size:.8rem;font-weight:700;margin-bottom:6px;color:var(--aw-ink-2)}
+  .aw-tblpick-grid{display:grid;grid-template-columns:repeat(10,20px);gap:2px}
+  .aw-tblpick-grid i{width:20px;height:20px;border:1px solid var(--aw-border);border-radius:3px;display:block;cursor:pointer}
+  .aw-tblpick-grid i.on{background:var(--aw-primary-lt);border-color:var(--aw-primary)}
   .aw-canvas img.selected{outline:2px solid var(--aw-primary);outline-offset:2px}
   .aw-img-controls{position:fixed;z-index:60;display:none;gap:3px;background:#1E2142;border-radius:14px;padding:5px 6px;box-shadow:0 4px 20px rgba(0,0,0,.4);flex-wrap:wrap;max-width:340px;align-items:center}
   /*── student help tools (raise hand / ask teacher) ──*/
@@ -255,7 +273,7 @@ function renderBoard(){
         : '<span class="aw-save-dot">View only</span>') +
       '<button class="aw-btn aw-btn-accent" style="padding:8px 16px" onclick="exportPDF()">Export PDF</button>' +
     '</div>' +
-    toolbar +
+    toolbar + (isTeacher ? tblBarHtml() : '') +
     '<div class="aw-canvas-wrap"><div class="aw-canvas" id="canvas" '+
       (isTeacher?'contenteditable="true"':'contenteditable="false"')+
       ' data-ph="'+(isTeacher?'Type here, paste text or images, format freely…':'')+'"></div></div>';
@@ -265,6 +283,7 @@ function renderBoard(){
 
   if(isTeacher){
     wireToolbar();
+    wireTables();
     document.getElementById('boardTitle').oninput=scheduleSave;
     canvas.addEventListener('input', scheduleSave);
     canvas.addEventListener('paste', onPaste);
@@ -403,6 +422,7 @@ function buildToolbar(){
     tb('insertUnorderedList','• List')+tb('justifyLeft','⇤')+tb('justifyCenter','⇔')+
     '<span class="aw-tsep"></span>' +
     '<button class="aw-tbtn" id="imgBtn" title="Insert image">🖼 Image</button>' +
+    '<button class="aw-tbtn" id="tblBtn" title="Insert table">▦ Table</button>' +
     '<input type="file" id="imgFile" accept="image/*" style="display:none">' +
     '<span class="aw-tsep"></span>' +
     '<button class="aw-tbtn" data-zoom="out" title="Zoom out">➖</button>' +
@@ -411,6 +431,246 @@ function buildToolbar(){
   '</div>';
 }
 function tb(cmd,label){ return '<button class="aw-tbtn" data-cmd="'+cmd+'">'+label+'</button>'; }
+
+/*── Tables (teacher): insert, drag to resize, Word-style Table Layout bar ──
+   Table = <table><colgroup><col style="width:Npx">…</colgroup><tr style="height:Npx">…
+   Column widths live in <colgroup>, row heights on <tr>, so the HTML stays plain and
+   the student view shows exactly what the teacher built. */
+var PX_CM = 37.795;
+function tblZoom(){ return (typeof zoom==='number' && zoom>0) ? zoom : 1; }
+function tblEnsureCols(t){
+  var cg=t.querySelector('colgroup'), first=t.rows[0];
+  if(!first) return null;
+  var n=first.cells.length;
+  if(!cg || cg.children.length!==n){
+    if(cg) cg.remove();
+    cg=document.createElement('colgroup');
+    for(var i=0;i<n;i++){ var c=document.createElement('col'); c.style.width=Math.max(30,Math.round(first.cells[i].offsetWidth))+'px'; cg.appendChild(c); }
+    t.insertBefore(cg,t.firstChild);
+  }
+  t.style.tableLayout='fixed';
+  tblSyncWidth(t);
+  return cg;
+}
+function tblWidths(t){ var cg=tblEnsureCols(t); return cg?[].map.call(cg.children,function(c){ return parseFloat(c.style.width)||60; }):[]; }
+function tblSyncWidth(t){
+  var cg=t.querySelector('colgroup'); if(!cg) return;
+  t.style.width=[].reduce.call(cg.children,function(s,c){ return s+(parseFloat(c.style.width)||0); },0)+'px';
+}
+function tblSetCol(t,i,px){ var cg=tblEnsureCols(t); if(!cg||!cg.children[i]) return; cg.children[i].style.width=Math.max(30,Math.round(px))+'px'; tblSyncWidth(t); }
+function tblSetRow(tr,px){ tr.style.height=Math.max(20,Math.round(px))+'px'; }
+function tblHtml(rows,cols){
+  var w=Math.max(60,Math.min(160,Math.floor(680/cols)));
+  var h='<table class="aw-tbl" style="table-layout:fixed;width:'+(w*cols)+'px"><colgroup>';
+  for(var c=0;c<cols;c++) h+='<col style="width:'+w+'px">';
+  h+='</colgroup><tbody>';
+  for(var r=0;r<rows;r++){ h+='<tr style="height:38px">'; for(var k=0;k<cols;k++) h+='<td><br></td>'; h+='</tr>'; }
+  return h+'</tbody></table><div><br></div>';
+}
+
+function wireTables(){
+  var canvas=document.getElementById('canvas'), bar=document.getElementById('tblBar');
+  var btn=document.getElementById('tblBtn');
+  if(!canvas||!bar||!btn) return;
+  var tCell=null, tCells=[];
+  var pick=null;
+
+  /* ── insert-table picker (Word-style grid) ── */
+  btn.addEventListener('mousedown',function(e){ e.preventDefault(); });
+  btn.onclick=function(e){
+    e.stopPropagation();
+    if(pick){ closePick(); return; }
+    pick=document.createElement('div');
+    pick.className='aw-tblpick';
+    var g='<div class="aw-tblpick-lbl" id="tpLbl">Insert table</div><div class="aw-tblpick-grid">';
+    for(var r=1;r<=8;r++) for(var c=1;c<=10;c++) g+='<i data-r="'+r+'" data-c="'+c+'"></i>';
+    pick.innerHTML=g+'</div>';
+    var rc=btn.getBoundingClientRect();
+    pick.style.left=Math.max(8,Math.min(rc.left,window.innerWidth-260))+'px'; pick.style.top=(rc.bottom+6)+'px';
+    document.body.appendChild(pick);
+    pick.addEventListener('mousedown',function(ev){ ev.preventDefault(); });
+    pick.addEventListener('mouseover',function(ev){
+      var t=ev.target; if(!t.dataset||!t.dataset.r) return;
+      var R=+t.dataset.r, C=+t.dataset.c;
+      [].forEach.call(pick.querySelectorAll('i'),function(x){ x.classList.toggle('on',+x.dataset.r<=R&&+x.dataset.c<=C); });
+      pick.querySelector('#tpLbl').textContent=C+' × '+R+' table';
+    });
+    pick.addEventListener('click',function(ev){
+      var t=ev.target; if(!t.dataset||!t.dataset.r) return;
+      closePick(); insertTable(+t.dataset.r,+t.dataset.c);
+    });
+  };
+  function closePick(){ if(pick){ pick.remove(); pick=null; } }
+  document.addEventListener('mousedown',function(e){ if(pick && !pick.contains(e.target) && e.target!==btn) closePick(); });
+  function insertTable(r,c){
+    var sel=window.getSelection();
+    if(!sel.rangeCount || !canvas.contains(sel.anchorNode)){
+      canvas.focus(); var rg=document.createRange(); rg.selectNodeContents(canvas); rg.collapse(false); sel.removeAllRanges(); sel.addRange(rg);
+    }
+    document.execCommand('insertHTML',false,tblHtml(r,c));
+    scheduleSave(); refresh();
+  }
+
+  /* ── which cells are selected ── */
+  function cellOf(n){ var el=n&&(n.nodeType===1?n:n.parentElement); var c=el&&el.closest&&el.closest('td,th'); return (c&&canvas.contains(c))?c:null; }
+  function selCells(){
+    var sel=window.getSelection(); if(!sel.rangeCount) return [];
+    var cell=cellOf(sel.anchorNode); if(!cell) return [];
+    var t=cell.closest('table'), out=[cell];
+    if(!sel.isCollapsed){
+      var r=sel.getRangeAt(0);
+      var hit=[].filter.call(t.querySelectorAll('td,th'),function(c){ try{ return r.intersectsNode(c); }catch(e){ return false; } });
+      if(hit.length>1) out=hit;
+    }
+    return out;
+  }
+  function rowsOf(cells){ var s=[]; cells.forEach(function(c){ var r=c.parentElement; if(s.indexOf(r)<0) s.push(r); }); return s; }
+  function colsOf(cells){ var s=[]; cells.forEach(function(c){ if(s.indexOf(c.cellIndex)<0) s.push(c.cellIndex); }); return s; }
+
+  /* ── the bar follows the caret ── */
+  var raf=0;
+  function refresh(){
+    if(bar.contains(document.activeElement)) return;
+    var c=selCells();
+    if(!c.length){ bar.style.display='none'; tCell=null; tCells=[]; return; }
+    tCells=c; tCell=c[0];
+    bar.style.display='flex';
+    bar.querySelector('#tlH').value=(tCell.parentElement.offsetHeight/PX_CM).toFixed(2);
+    bar.querySelector('#tlW').value=(tCell.offsetWidth/PX_CM).toFixed(2);
+  }
+  document.addEventListener('selectionchange',function(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(refresh); });
+  function done(){ scheduleSave(); var t=tCell&&tCell.closest('table'); if(t){ var w=bar.querySelector('#tlW'),h=bar.querySelector('#tlH'); if(document.activeElement!==w) w.value=(tCell.offsetWidth/PX_CM).toFixed(2); if(document.activeElement!==h) h.value=(tCell.parentElement.offsetHeight/PX_CM).toFixed(2); } }
+  bar.addEventListener('mousedown',function(e){ if(!/^(INPUT|SELECT)$/.test(e.target.tagName)) e.preventDefault(); });
+
+  function blankRowLike(tr){
+    var n=document.createElement('tr'); if(tr.style.height) n.style.height=tr.style.height;
+    [].forEach.call(tr.cells,function(c){ var d=document.createElement(c.tagName.toLowerCase()==='th'?'td':'td'); d.innerHTML='<br>'; ['textAlign','verticalAlign'].forEach(function(p){ if(c.style[p]) d.style[p]=c.style[p]; }); n.appendChild(d); });
+    return n;
+  }
+  function insRow(after){ if(!tCell) return; var tr=tCell.parentElement, n=blankRowLike(tr); tr.parentNode.insertBefore(n,after?tr.nextSibling:tr); done(); }
+  function insCol(after){
+    if(!tCell) return; var t=tCell.closest('table'), i=tCell.cellIndex+(after?1:0), cg=tblEnsureCols(t);
+    [].forEach.call(t.rows,function(r){ var d=document.createElement('td'); d.innerHTML='<br>'; var ref=r.cells[i]; if(ref) r.insertBefore(d,ref); else r.appendChild(d); });
+    var col=document.createElement('col'); col.style.width='110px'; if(cg.children[i]) cg.insertBefore(col,cg.children[i]); else cg.appendChild(col);
+    tblSyncWidth(t); done();
+  }
+  function delRow(){ if(!tCell) return; var t=tCell.closest('table'); if(t.rows.length<=1){ delTable(); return; } tCell.parentElement.remove(); tCell=null; bar.style.display='none'; scheduleSave(); }
+  function delCol(){
+    if(!tCell) return; var t=tCell.closest('table'), i=tCell.cellIndex;
+    if(t.rows[0].cells.length<=1){ delTable(); return; }
+    var cg=tblEnsureCols(t);
+    [].forEach.call(t.rows,function(r){ if(r.cells[i]) r.cells[i].remove(); });
+    if(cg.children[i]) cg.children[i].remove();
+    tblSyncWidth(t); tCell=null; bar.style.display='none'; scheduleSave();
+  }
+  function delTable(){ if(!tCell) return; if(!confirm('Xoá cả bảng này?')) return; tCell.closest('table').remove(); tCell=null; bar.style.display='none'; scheduleSave(); }
+  function distRows(){ if(!tCell) return; var t=tCell.closest('table'), tot=0; [].forEach.call(t.rows,function(r){ tot+=r.offsetHeight; }); var h=tot/t.rows.length; [].forEach.call(t.rows,function(r){ tblSetRow(r,h); }); done(); }
+  function distCols(){ if(!tCell) return; var t=tCell.closest('table'), w=tblWidths(t), tot=w.reduce(function(a,b){ return a+b; },0); w.forEach(function(_,i){ tblSetCol(t,i,tot/w.length); }); done(); }
+  function setAlign(h,v){ tCells.forEach(function(c){ c.style.textAlign=h; c.style.verticalAlign=v; }); done(); }
+  function setShade(col){ tCells.forEach(function(c){ if(col==='none') c.style.removeProperty('background-color'); else c.style.backgroundColor=col; }); done(); }
+
+  var acts={ rowA:function(){ insRow(false); }, rowB:function(){ insRow(true); }, colL:function(){ insCol(false); }, colR:function(){ insCol(true); },
+             delRow:delRow, delCol:delCol, delTbl:delTable, distR:distRows, distC:distCols,
+             borders:function(){ if(!tCell) return; tCell.closest('table').classList.toggle('aw-nob'); done(); } };
+  [].forEach.call(bar.querySelectorAll('[data-ta]'),function(b){ b.onclick=function(){ acts[b.dataset.ta](); }; });
+  [].forEach.call(bar.querySelectorAll('[data-al]'),function(b){ b.onclick=function(){ var p=b.dataset.al.split(','); setAlign(p[0],p[1]); }; });
+  [].forEach.call(bar.querySelectorAll('[data-sh]'),function(b){ b.onclick=function(){ setShade(b.dataset.sh); }; });
+  bar.querySelector('#tlH').onchange=function(){ var v=parseFloat(this.value); if(!(v>0)||!tCell) return; rowsOf(tCells).forEach(function(r){ tblSetRow(r,v*PX_CM); }); done(); };
+  bar.querySelector('#tlW').onchange=function(){ var v=parseFloat(this.value); if(!(v>0)||!tCell) return; var t=tCell.closest('table'); colsOf(tCells).forEach(function(i){ tblSetCol(t,i,v*PX_CM); }); done(); };
+
+  /* ── Tab / Shift+Tab moves between cells; Tab in the last cell adds a row ── */
+  canvas.addEventListener('keydown',function(e){
+    if(e.key!=='Tab') return;
+    var c=cellOf(window.getSelection().anchorNode); if(!c) return;
+    e.preventDefault();
+    var t=c.closest('table'), cells=[].slice.call(t.querySelectorAll('td,th')), i=cells.indexOf(c)+(e.shiftKey?-1:1);
+    if(i>=cells.length){ var n=blankRowLike(c.parentElement); c.parentElement.parentNode.appendChild(n); cells=[].slice.call(t.querySelectorAll('td,th')); scheduleSave(); }
+    if(i<0) return;
+    var rg=document.createRange(); rg.selectNodeContents(cells[i]); rg.collapse(true);
+    var s=window.getSelection(); s.removeAllRanges(); s.addRange(rg);
+  });
+
+  /* ── drag a border to resize: column / row; corner = whole table ── */
+  var EDGE=5, drag=null;
+  function hit(e){
+    var x=e.clientX, y=e.clientY, corner=null;
+    [].forEach.call(canvas.querySelectorAll('table'),function(tb){   // the corner handle can sit just outside the table
+      var r=tb.getBoundingClientRect();
+      if(!corner && Math.abs(x-r.right)<=EDGE+1 && Math.abs(y-r.bottom)<=EDGE+1) corner={ mode:'both', t:tb };
+    });
+    if(corner) return corner;
+    var t=e.target.closest&&e.target.closest('table'); if(!t||!canvas.contains(t)) return null;
+    var col=null, row=null;   // the pixel on a collapsed border belongs to the <table>, so find the cell by position
+    [].forEach.call(t.querySelectorAll('td,th'),function(c){
+      var r=c.getBoundingClientRect();
+      if(!col && y>=r.top-EDGE && y<=r.bottom+EDGE && Math.abs(x-r.right)<=EDGE) col={ mode:'col', t:t, i:c.cellIndex };
+      if(!row && x>=r.left-EDGE && x<=r.right+EDGE && Math.abs(y-r.bottom)<=EDGE) row={ mode:'row', t:t, tr:c.parentElement };
+    });
+    return col||row;
+  }
+  var CUR={ col:'col-resize', row:'row-resize', both:'nwse-resize' };
+  canvas.addEventListener('mousemove',function(e){
+    if(drag) return;
+    var h=hit(e); canvas.style.cursor=h?CUR[h.mode]:'';
+  });
+  canvas.addEventListener('mouseleave',function(){ if(!drag) canvas.style.cursor=''; });
+  canvas.addEventListener('mousedown',function(e){
+    if(e.button!==0) return;
+    var h=hit(e); if(!h) return;
+    e.preventDefault();
+    var t=h.t; tblEnsureCols(t);
+    drag={ h:h, x:e.clientX, y:e.clientY, w:tblWidths(t), hs:[].map.call(t.rows,function(r){ return r.offsetHeight; }) };
+    document.body.style.userSelect='none';
+    document.addEventListener('mousemove',onDrag); document.addEventListener('mouseup',endDrag);
+  });
+  function onDrag(e){
+    if(!drag) return;
+    var z=tblZoom(), dx=(e.clientX-drag.x)/z, dy=(e.clientY-drag.y)/z, h=drag.h, t=h.t;
+    if(h.mode==='col'){
+      var i=h.i, last=i>=drag.w.length-1;
+      if(last) tblSetCol(t,i,drag.w[i]+dx);
+      else { var d=Math.max(-(drag.w[i]-30),Math.min(dx,drag.w[i+1]-30)); tblSetCol(t,i,drag.w[i]+d); tblSetCol(t,i+1,drag.w[i+1]-d); }
+    } else if(h.mode==='row'){
+      var ri=[].indexOf.call(t.rows,h.tr); tblSetRow(h.tr,drag.hs[ri]+dy);
+    } else {
+      var tw=drag.w.reduce(function(a,b){ return a+b; },0), th=drag.hs.reduce(function(a,b){ return a+b; },0);
+      var fx=Math.max(.2,(tw+dx)/tw), fy=Math.max(.2,(th+dy)/th);
+      drag.w.forEach(function(w,i){ tblSetCol(t,i,w*fx); });
+      [].forEach.call(t.rows,function(r,i){ tblSetRow(r,drag.hs[i]*fy); });
+    }
+  }
+  function endDrag(){
+    document.removeEventListener('mousemove',onDrag); document.removeEventListener('mouseup',endDrag);
+    document.body.style.userSelect=''; canvas.style.cursor=''; drag=null;
+    scheduleSave(); refresh();
+  }
+}
+function tblBarHtml(){
+  function al(h,v,t){
+    var x={l:2,c:5,r:8}[h], y={t:2,m:6,b:10}[v];
+    var l1=h==='l'?[2,10]:h==='c'?[4,12]:[6,14];
+    return '<button class="aw-tbtn aw-tl-al" data-al="'+({l:'left',c:'center',r:'right'}[h])+','+({t:'top',m:'middle',b:'bottom'}[v])+'" title="Align '+t+'">'+
+      '<svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M'+l1[0]+' '+y+'H'+l1[1]+'M'+(l1[0]+1)+' '+(y+3)+'H'+(l1[1]-1)+'" fill="none"/></svg></button>';
+  }
+  var shades=['#FFF3A3','#B6F0C2','#BFE0FF','#FFC9D6','#E0C9FF','#E5E7EB'].map(function(c){ return '<button class="aw-tcolor-sw" data-sh="'+c+'" style="background:'+c+'" title="Shading"></button>'; }).join('')+
+    '<button class="aw-tcolor-sw" data-sh="none" style="background:#fff;color:#888;font-size:.7rem;font-weight:700" title="No shading">✕</button>';
+  var aligns=al('l','t','Top Left')+al('c','t','Top Center')+al('r','t','Top Right')+al('l','m','Center Left')+al('c','m','Center')+al('r','m','Center Right')+al('l','b','Bottom Left')+al('c','b','Bottom Center')+al('r','b','Bottom Right');
+  return '<div class="aw-tbl-bar" id="tblBar">'+
+    '<span class="aw-tl-lbl">Table</span>'+
+    '<button class="aw-tl-b" data-ta="rowA" title="Insert row above">↑ Row</button><button class="aw-tl-b" data-ta="rowB" title="Insert row below">↓ Row</button>'+
+    '<button class="aw-tl-b" data-ta="colL" title="Insert column left">← Col</button><button class="aw-tl-b" data-ta="colR" title="Insert column right">→ Col</button>'+
+    '<button class="aw-tl-b" data-ta="delRow">Delete row</button><button class="aw-tl-b" data-ta="delCol">Delete column</button><button class="aw-tl-b aw-tl-del" data-ta="delTbl">Delete table</button>'+
+    '<span class="aw-tsep"></span>'+
+    '<label class="aw-tl-f">Height <input id="tlH" type="number" step="0.1" min="0.5"> cm</label>'+
+    '<label class="aw-tl-f">Width <input id="tlW" type="number" step="0.1" min="0.8"> cm</label>'+
+    '<button class="aw-tl-b" data-ta="distR">Distribute Rows</button><button class="aw-tl-b" data-ta="distC">Distribute Columns</button>'+
+    '<span class="aw-tsep"></span>'+
+    '<span class="aw-tl-grid">'+aligns+'</span>'+
+    '<span class="aw-tsep"></span>'+
+    '<span class="aw-tl-lbl">Shading</span>'+shades+
+    '<button class="aw-tl-b" data-ta="borders" title="Show / hide borders">▦ Borders</button>'+
+  '</div>';
+}
 
 function wireToolbar(){
   var canvas=document.getElementById('canvas');
@@ -509,7 +769,12 @@ function applyZoom(){
     canvas.style.fontSize='';
     canvas.style.width='';
     canvas.style.zoom = zoom===1 ? '' : String(zoom);
+  } else if('zoom' in document.documentElement.style){
+    // zoom the whole board (text, images, tables) together
+    canvas.style.fontSize='';
+    canvas.style.zoom = zoom===1 ? '' : String(zoom);
   } else {
+    // old browser without CSS zoom: only the text can scale
     canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
   }
   var ind=document.getElementById('zoomInd');
@@ -919,7 +1184,7 @@ window.exportPDF=function(){
   var w=window.open('','_blank');
   w.document.write('<html><head><title>'+AW.esc(curBoard.title)+'</title>'+
     '<style>body{font-family:Inter,system-ui,sans-serif;padding:40px;line-height:1.7;color:#1E2142}'+
-    'img{max-width:100%;border-radius:8px}h1{font-family:Georgia,serif}</style></head><body>'+
+    'img{max-width:100%;border-radius:8px}h1{font-family:Georgia,serif}table{border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #6b7280;padding:6px 8px;vertical-align:top;overflow-wrap:anywhere}table.aw-nob td,table.aw-nob th{border-color:transparent}</style></head><body>'+
     '<h1>'+AW.esc(curBoard.title)+'</h1>'+canvas.innerHTML+'</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 400);
