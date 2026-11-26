@@ -1018,7 +1018,8 @@ function showLive(){
           '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
         '</div>'+
         '<span style="font-size:.82rem;color:var(--aw-ink-3)">'+(AW.firebaseOn?'Live':'Refreshes every 10 s')+'. Click a student to view and mark up.</span>'+
-        '<button id="clearLiveBtn" class="aw-btn aw-btn-ghost" style="margin-left:auto;padding:5px 12px;font-size:.78rem;color:var(--aw-danger);border-color:var(--aw-danger)" title="Xoá toàn bộ data cũ trong LiveSessions tab">🗑 Clear session</button>'+
+        '<a href="board.html" target="_blank" rel="noopener" class="aw-btn aw-btn-primary" style="margin-left:auto;padding:5px 14px;font-size:.8rem;text-decoration:none" title="Open the Interactive Board of this class in a new tab (this page keeps observing)">🖥 Open board</a>'+
+        '<button id="clearLiveBtn" class="aw-btn aw-btn-ghost" style="padding:5px 12px;font-size:.78rem;color:var(--aw-danger);border-color:var(--aw-danger)" title="Xoá toàn bộ data cũ trong LiveSessions tab">🗑 Clear session</button>'+
       '</div>'+
       '<div class="aw-live-wrap">' +
         '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
