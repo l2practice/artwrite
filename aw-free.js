@@ -185,6 +185,90 @@ const SHAPES = [['line', 0, 'Line'], ['arrow', 0, 'Arrow'], ['caret', 0, 'Invert
   ['rcall', 0, 'Right arrow callout'], ['lcall', 0, 'Left arrow callout'], ['dcall', 0, 'Down arrow callout'], ['ucall', 0, 'Up arrow callout'], ['lrcall', 0, 'Left-right callout'], ['quadcall', 0, 'Four-way callout'],
   null, ['lnx', 0, 'Dot to arrow'], ['lnx', 1, 'Square to arrow'], ['lnx', 2, 'Double arrow'], ['lnx', 3, 'Arrow pointing back'], ['lnx', 4, 'Arrow, dot at the end'], ['lnx', 5, 'Arrow, square at the end'], ['lnx', 6, 'Dimension line']];
 
+/* ═══════════ line styles and shape recognition (from Notes) ═══════════ */
+const LINE_STYLES = [['solid', 'Solid line', ''], ['dash', 'Dashed', '7 5'], ['long', 'Long dashes', '13 6'], ['dot', 'Dotted', '0.5 5.5'], ['dashdot', 'Dash-dot', '10 4 1 4']];
+function dashFor(ls, w, k){
+  const w1 = Math.max(w, 1.4) * k;
+  switch (ls){
+    case 'dash': return [4 * w1, 3 * w1];
+    case 'long': return [8 * w1, 3.5 * w1];
+    case 'dot': return [0.01, 2.2 * w1];
+    case 'dashdot': return [6 * w1, 2.5 * w1, 0.01, 2.5 * w1];
+  }
+  return [];
+}
+const SOLID_PARTS = { loop: [1], arrow: [1], axes: [1, 3], rtri: [1], angle: [1] };
+const isSolidPart = (st, pi) => st.k === 'line' ? pi >= 1 : (SOLID_PARTS[st.k] || []).indexOf(pi) >= 0;   // arrow heads and the right-angle mark stay solid
+function rdp(pts, eps){
+  if (pts.length < 3) return pts;
+  let dm = 0, idx = 0; const a = pts[0], b = pts[pts.length - 1];
+  for (let i = 1; i < pts.length - 1; i++){ const d = distSeg(pts[i][0], pts[i][1], a[0], a[1], b[0], b[1]); if (d > dm){ dm = d; idx = i; } }
+  if (dm > eps){ const l = rdp(pts.slice(0, idx + 1), eps), r = rdp(pts.slice(idx), eps); return l.slice(0, -1).concat(r); }
+  return [a, b];
+}
+function turnAngle(a, b, c){ // 0 = straight on, 180 = full reversal
+  const v1 = [b[0] - a[0], b[1] - a[1]], v2 = [c[0] - b[0], c[1] - b[1]];
+  const l = Math.hypot(v1[0], v1[1]) * Math.hypot(v2[0], v2[1]); if (!l) return 0;
+  return Math.acos(Math.max(-1, Math.min(1, (v1[0] * v2[0] + v1[1] * v2[1]) / l))) * 180 / Math.PI;
+}
+/* Is P an upright bracket? 0 = "[" (spine on the left), 2 = "]" (spine on the right), -1 = no */
+function brktOrient(P, minx, miny, w, h){
+  if (h < 1.25 * w || w < 4) return -1;
+  const a = P[0], b = P[P.length - 1], maxy = miny + h;
+  const topBottom = (Math.abs(a[1] - miny) < 0.18 * h && Math.abs(b[1] - maxy) < 0.18 * h) || (Math.abs(b[1] - miny) < 0.18 * h && Math.abs(a[1] - maxy) < 0.18 * h);
+  if (!topBottom) return -1;
+  for (const o of [0, 2]){
+    const sd = q => o === 0 ? q[0] - minx : minx + w - q[0];   // distance from the spine side
+    if (sd(a) < 0.6 * w || sd(b) < 0.6 * w) continue;          // both ends must be on the open side
+    let lo = 1e9, hi = -1e9, ok = true;
+    for (const q of P){
+      if (sd(q) < 0.25 * w){ lo = Math.min(lo, q[1]); hi = Math.max(hi, q[1]); }
+      else if (!(q[1] - miny < 0.16 * h || maxy - q[1] < 0.16 * h)) ok = false;
+    }
+    if (ok && hi - lo > 0.7 * h) return o;
+  }
+  return -1;
+}
+function recognize(P){
+  if (P.length < 4) return null;
+  let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9, L = 0;
+  P.forEach((q, i) => { minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]); miny = Math.min(miny, q[1]); maxy = Math.max(maxy, q[1]); if (i) L += Math.hypot(q[0] - P[i - 1][0], q[1] - P[i - 1][1]); });
+  const w = maxx - minx, h = maxy - miny, diag = Math.hypot(w, h);
+  if (L < 14 || diag < 10) return null;
+  const a = P[0], b = P[P.length - 1], chord = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const box = k => ({ t: 'shape', k, x: minx, y: miny, bw: w, bh: h });
+  if (chord >= 0.22 * L){
+    let dev = 0; P.forEach(q => { dev = Math.max(dev, distSeg(q[0], q[1], a[0], a[1], b[0], b[1])); });
+    if (dev < Math.max(4, 0.13 * chord) && L < 1.4 * chord) return { t: 'shape', k: 'line', x: a[0], y: a[1], x2: b[0], y2: b[1] };
+    // a "[" or "]" drawn in one stroke (arm, spine, arm), upright or lying down
+    const tp = P.map(q => [q[1], q[0]]);
+    let o = brktOrient(P, minx, miny, w, h); if (o >= 0) return { t: 'shape', k: 'brkt', o, x: minx, y: miny, bw: w, bh: h };
+    o = brktOrient(tp, miny, minx, h, w); if (o >= 0) return { t: 'shape', k: 'brkt', o: o === 0 ? 1 : 3, x: minx, y: miny, bw: w, bh: h };
+    return null;
+  }
+  // closed outline
+  const cx = minx + w / 2, cy = miny + h / 2, rx = Math.max(w / 2, 1), ry = Math.max(h / 2, 1);
+  const rs = P.map(q => Math.hypot((q[0] - cx) / rx, (q[1] - cy) / ry)), mean = rs.reduce((s, v) => s + v, 0) / rs.length;
+  const sd = Math.sqrt(rs.reduce((s, v) => s + (v - mean) * (v - mean), 0) / rs.length);
+  if (sd < 0.075 && mean > 0.85 && mean < 1.15){
+    const sq = Math.abs(w - h) < 0.15 * Math.max(w, h), m = (w + h) / 2;
+    return sq ? { t: 'shape', k: 'ellipse', x: cx - m / 2, y: cy - m / 2, bw: m, bh: m } : box('ellipse');
+  }
+  const star = rdp(P, 0.05 * diag);
+  if (star.length >= 5 && star.length <= 7 && L > 2.2 * diag){
+    let sharp = 0, n = 0; for (let i = 1; i < star.length - 1; i++){ sharp += turnAngle(star[i - 1], star[i], star[i + 1]); n++; }
+    if (n && sharp / n > 110) return box('star');
+  }
+  const poly = rdp(P.concat([P[0]]), 0.07 * diag), n = poly.length - 1;
+  const angs = []; for (let i = 0; i < n; i++) angs.push(turnAngle(poly[(i + n - 1) % n], poly[i], poly[(i + 1) % n]));
+  if (n === 3) return box('tri');
+  if (n === 4 && angs.every(an => Math.abs(an - 90) < 30)) return box('rect');
+  if (n >= 9 && n <= 11 && L < 4 * diag) return box('star');
+  let edge = 0; P.forEach(q => { edge += Math.min(Math.abs(q[0] - minx), Math.abs(q[0] - maxx), Math.abs(q[1] - miny), Math.abs(q[1] - maxy)); });
+  if (edge / P.length < 0.05 * diag) return box('rect');
+  return null;
+}
+
 /* ═══════════ free layer engine ═══════════
    The layer sits over the board text: <div class="aw-fl"><svg>…strokes / shapes / symbols…</svg><div class="aw-fb">text box</div>…</div>
    It is plain HTML + SVG inside the board's content, so it is saved with the board and students see exactly the same. */
@@ -203,9 +287,15 @@ const COLOURS = ['#111111', '#D45060', '#2D7495', '#2F9E44', '#F08C00', '#7048E8
 const FILLS = ['none', '#FFF3A3', '#B6F0C2', '#BFE0FF', '#FFC9D6', '#E0C9FF', '#E5E7EB'];
 const HL_COLOURS = ['#FFD43B', '#7ED957', '#FF8FB1', '#74C0FC', '#B197FC'];
 
-let canvas = null, S = { tool: 'type', stroke: '#111111', hl: '#FFD43B', fill: 'none', w: 3, shape: { k: 'rect', o: 0 }, sym: null, sel: [], undo: [], redo: [], symTab: 'syn', circ: {}, loopBend: 0.5 };
-try { S.circ = JSON.parse(localStorage.getItem('aw_sym_circ') || '{}') || {}; } catch (e) {}
-let G = null, ui = null, band = null, panels = {};
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const toast = m => { try { AW.toast(m, 'info', 2600); } catch (e) {} };
+const clone = o => JSON.parse(JSON.stringify(o));
+let canvas = null, S = { tool: 'type', stroke: '#111111', hl: '#FFD43B', fill: 'none', w: 3, ls: '', shape: { k: 'rect', o: 0 }, sym: null, sel: [], undo: [], redo: [], symTab: 'syn', circ: {}, loopBend: 0.5, angles: false, smooth: 1, finger: false, dims: {}, symDims: {}, ruler: { on: false, cx: 420, cy: 360, ang: 0, len: 560 } };
+S.circ = lsGet('aw_sym_circ', {}) || {}; S.ls = lsGet('aw_ls', '') || ''; S.angles = !!lsGet('aw_angles', false); S.smooth = lsGet('aw_smooth', 1); S.finger = !!lsGet('aw_finger', false);
+S.dims = lsGet('aw_shape_dims', {}) || {}; S.symDims = lsGet('aw_sym_dims', {}) || {}; S.loopBend = lsGet('aw_loop_bend', 0.5); S.ruler = Object.assign(S.ruler, lsGet('aw_ruler', {}) || {}, { on: false });
+const SMOOTH_EPS = [0.3, 0.7, 1.6];
+let G = null, ui = null, band = null, lassoEl = null, panels = {}, badgeEls = [], rl = null;
 const zoomF = () => (typeof zoom === 'number' && zoom > 0) ? zoom : 1;
 const uid = () => 'f' + Math.random().toString(36).slice(2, 9);
 const polysToD = polys => polys.map(poly => poly.map((q, i) => (i ? 'L' : 'M') + r1(q[0]) + ' ' + r1(q[1])).join('')).join('');
@@ -294,7 +384,8 @@ function serialize(cv){
   const l = cv.querySelector(':scope > .aw-fl'); if (!l) return cv.innerHTML;
   const c = cv.cloneNode(true), cl = c.querySelector(':scope > .aw-fl');
   cl.className = 'aw-fl';
-  [].forEach.call(cl.querySelectorAll('path[data-p]'), p => p.removeAttribute('d'));
+  [].forEach.call(cl.querySelectorAll('path[data-p]'), p => p.removeAttribute('d'));       // strokes: rebuilt from data-p
+  [].forEach.call(cl.querySelectorAll('g[data-st] path'), p => p.removeAttribute('d'));     // shapes: rebuilt from data-st
   [].forEach.call(cl.querySelectorAll('.aw-fb'), b => b.setAttribute('contenteditable', 'false'));
   return c.innerHTML;
 }
@@ -302,6 +393,7 @@ function hydrate(cv){
   const l = cv.querySelector(':scope > .aw-fl'); if (!l) return;
   l.className = 'aw-fl';
   [].forEach.call(l.querySelectorAll('path[data-p]'), p => { if (!p.getAttribute('d')) p.setAttribute('d', smoothD(decPts(p.dataset.p))); });
+  [].forEach.call(l.querySelectorAll('g[data-st]'), g => renderShape(g));
   [].forEach.call(l.querySelectorAll('.aw-fb'), b => b.setAttribute('contenteditable', 'false'));
 }
 function smoothD(pts){
@@ -311,27 +403,67 @@ function smoothD(pts){
   for (let i = 1; i < pts.length - 1; i++){ const m = [(pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2]; d += 'Q' + r1(pts[i][0]) + ' ' + r1(pts[i][1]) + ' ' + r1(m[0]) + ' ' + r1(m[1]); }
   const e = pts[pts.length - 1]; return d + 'L' + r1(e[0]) + ' ' + r1(e[1]);
 }
+const shapeKey = st => st.k + ((st.k === 'brkt' || st.k === 'brace') ? (st.o || 0) : '');
+const isLine = st => st.k === 'line' || st.k === 'arrow', isCaret = st => st.k === 'caret', isLoop = st => st.k === 'loop';
+const isPoly = st => isLine(st) || isCaret(st) || isLoop(st);
+const polyPts = st => (isCaret(st) || isLoop(st)) ? [[st.x, st.y], [st.x2, st.y2], [st.x3, st.y3]] : [[st.x, st.y], [st.x2, st.y2]];
+const isSt = o => !!(o.dataset && o.dataset.st);
+function getSt(g){ try { return JSON.parse(g.dataset.st); } catch (e) { return null; } }
+function setSt(g, st){
+  g.dataset.st = JSON.stringify(st, (k, v) => typeof v === 'number' ? Math.round(v * 10) / 10 : v);
+  renderShape(g, st);
+}
+/* a shape is saved as its few numbers (data-st); the path is rebuilt from them, with the Notes geometry */
+function renderShape(g, st){
+  st = st || getSt(g); if (!st) return;
+  const polys = shapePaths(st), main = [], solid = [];
+  polys.forEach((pl, i) => ((st.ls && isSolidPart(st, i)) ? solid : main).push(pl));   // arrow heads stay solid on dashed lines
+  let m = g.querySelector(':scope > path.m'), s = g.querySelector(':scope > path.s');
+  if (!m){ m = document.createElementNS(NS, 'path'); m.setAttribute('class', 'm'); g.appendChild(m); }
+  if (!s){ s = document.createElementNS(NS, 'path'); s.setAttribute('class', 's'); s.setAttribute('fill', 'none'); g.appendChild(s); }
+  m.setAttribute('d', polysToD(main)); s.setAttribute('d', polysToD(solid));
+  const w = parseFloat(g.getAttribute('stroke-width')) || st.sw || 2;
+  if (st.ls) m.setAttribute('stroke-dasharray', dashFor(st.ls, w, 1).map(r1).join(' ')); else m.removeAttribute('stroke-dasharray');
+}
 function makeShape(x0, y0, x1, y1, shift){
-  const sh = S.shape, s = { k: sh.k, o: sh.o, sw: S.w };
+  const sh = S.shape, s = { t: 'shape', k: sh.k, o: sh.o, sw: S.w }; if (S.ls && sh.k !== 'sym') s.ls = S.ls;
   if (s.k === 'loop'){ s.x = x0; s.y = y0; s.x2 = x1; s.y2 = y1; const dx = x1 - x0, dy = y1 - y0; s.x3 = (x0 + x1) / 2 - dy * S.loopBend; s.y3 = (y0 + y1) / 2 + dx * S.loopBend; return s; }
   if (s.k === 'lnx'){ const E = LINE_ENDS[s.o] || ['', '']; s.k = 'line'; s.o = 0; if (E[0]) s.e0 = E[0]; if (E[1]) s.e1 = E[1]; }
   if (s.k === 'line' || s.k === 'arrow'){
     let dx = x1 - x0, dy = y1 - y0; const len = Math.hypot(dx, dy);
-    if (len > 0){ const ang = Math.atan2(dy, dx), step = Math.PI / 12, sn = Math.round(ang / step) * step; if (shift || Math.abs(ang - sn) < 0.06){ dx = len * Math.cos(sn); dy = len * Math.sin(sn); } }
+    if (len > 0){
+      const ang = Math.atan2(dy, dx), step = Math.PI / 12, sn = Math.round(ang / step) * step;
+      if (shift || Math.abs(ang - sn) < 0.06){ dx = len * Math.cos(sn); dy = len * Math.sin(sn); }   // dead level / 15-degree steps
+      const d = S.dims.line; if (d && Math.abs(len - d[0]) < 4){ const f = d[0] / len; dx *= f; dy *= f; }   // same length as last time
+    }
     s.x = x0; s.y = y0; s.x2 = x0 + dx; s.y2 = y0 + dy; return s;
   }
   let w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+  const dm = S.dims[shapeKey(s)]; if (dm){ if (Math.abs(w - dm[0]) < 4) w = dm[0]; if (Math.abs(h - dm[1]) < 4) h = dm[1]; }   // sticks to the size you used last
   if (shift || ((s.k === 'ellipse' || s.k === 'rect' || s.k === 'star' || s.k === 'cube' || s.k === 'sphere') && Math.abs(w - h) < 5)){ const m = Math.max(w, h); w = h = m; }
   s.bw = w; s.bh = h; s.x = x1 >= x0 ? x0 : x0 - w; s.y = y1 >= y0 ? y0 : y0 - h;
   if (s.k === 'caret'){ s.x2 = s.x + w / 2; s.y2 = s.y; s.x3 = s.x + w; s.y3 = s.y + h; s.y = s.y + h; }
   return s;
 }
+function rememberDims(st){
+  if (isLine(st)){ S.dims.line = [Math.round(Math.hypot(st.x2 - st.x, st.y2 - st.y))]; }
+  else if (st.bw !== undefined && !isPoly(st)) S.dims[shapeKey(st)] = [Math.round(st.bw), Math.round(st.bh)];
+  lsSet('aw_shape_dims', S.dims);
+}
 function shapeEl(st, existing){
-  const d = polysToD(shapePaths(st));
-  if (existing){ existing.setAttribute('d', d); return existing; }
-  const open = OPEN_SHAPES.indexOf(st.k) >= 0;
-  const p = mkPath(d, { k: 'shape', stroke: S.stroke, w: S.w, fill: open ? 'none' : S.fill });
-  return p;
+  let g = existing;
+  if (!g){
+    const open = OPEN_SHAPES.indexOf(st.k) >= 0;
+    g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'fo'); g.dataset.k = 'shape';
+    g.setAttribute('stroke', S.stroke); g.setAttribute('stroke-width', S.w); g.setAttribute('fill', open ? 'none' : S.fill);
+  }
+  setSt(g, st); return g;
+}
+/* geometry of a shape object under a map x' = ax*x + bx, y' = ay*y + by */
+function mapSt(st, ax, bx, ay, by){
+  ['x', 'x2', 'x3'].forEach(k => { if (st[k] !== undefined) st[k] = ax * st[k] + bx; });
+  ['y', 'y2', 'y3'].forEach(k => { if (st[k] !== undefined) st[k] = ay * st[k] + by; });
+  if (st.bw !== undefined){ st.bw = Math.max(1, st.bw * Math.abs(ax)); st.bh = Math.max(1, st.bh * Math.abs(ay)); }
 }
 /* word-class / syntax symbols: text, optionally in a circle; two-tier = V over [type] */
 function symSize(txt, ring, t2){
@@ -380,35 +512,95 @@ function boxOf(list){
   list.forEach(o => { const r = o.getBoundingClientRect(); x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom); });
   return { vx: x0, vy: y0, vw: x1 - x0, vh: y1 - y0, x: (x0 - lr.left) / z, y: (y0 - lr.top) / z, w: (x1 - x0) / z, h: (y1 - y0) / z };
 }
+/* the original numbers of an object, taken when a move / resize starts */
+function snapObj(o){
+  if (isBox(o)) return { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0, w: o.offsetWidth, s: boxScale(o) };
+  if (isSt(o)) return { st: getSt(o) };
+  return T(o);
+}
+function moveObj(o, g, dx, dy){
+  if (isBox(o)){ o.style.left = r1(g.l + dx) + 'px'; o.style.top = r1(g.t + dy) + 'px'; }
+  else if (isSt(o)){ const st = clone(g.st); mapSt(st, 1, dx, 1, dy); setSt(o, st); }
+  else setT(o, { x: g.x + dx, y: g.y + dy, sx: g.sx, sy: g.sy });
+}
+const V = (x, y) => { const lr = layer(false).getBoundingClientRect(), z = zoomF(); return [lr.left + x * z, lr.top + y * z]; };
+/* ── measuring badges: length / size while you draw, the angle at every corner when ∠ Angles is on ── */
+function badge(vx, vy, text, kind){
+  const d = document.createElement('div'); d.className = 'aw-flbadge' + (kind ? ' ' + kind : ''); d.textContent = text;
+  d.style.left = vx + 'px'; d.style.top = vy + 'px'; document.body.appendChild(d); badgeEls.push(d);
+}
+function clearBadges(){ badgeEls.forEach(b => b.remove()); badgeEls = []; }
+const degOf = (dx, dy) => { let d = Math.round(Math.atan2(-dy, dx) * 180 / Math.PI); if (d < 0) d += 360; return d % 360; };
+function showBadges(st, transient){
+  clearBadges(); if (!st || !layer(false)) return;
+  if (transient){
+    if (isLine(st)){ const m = V((st.x + st.x2) / 2, Math.min(st.y, st.y2)); badge(m[0], m[1] - 26, Math.round(Math.hypot(st.x2 - st.x, st.y2 - st.y)) + ' px · ' + degOf(st.x2 - st.x, st.y2 - st.y) + '°', 'sz'); }
+    else if (st.bw !== undefined && !isPoly(st)){ const m = V(st.x + st.bw / 2, st.y); badge(m[0], m[1] - 26, Math.round(st.bw) + ' × ' + Math.round(st.bh) + ' px', 'sz'); }
+  }
+  if (S.angles) angleBadges(st);
+}
+const ANGLE_SHAPES = ['tri', 'rtri', 'rect', 'trap', 'rtrap', 'para', 'rhomb', 'pent', 'hex'];
+function angleBadges(st){
+  const polys = shapePaths(st), angAt = (a, b, c) => { const v1 = [a[0] - b[0], a[1] - b[1]], v2 = [c[0] - b[0], c[1] - b[1]], l = Math.hypot(v1[0], v1[1]) * Math.hypot(v2[0], v2[1]); return l ? Math.round(Math.acos(Math.max(-1, Math.min(1, (v1[0] * v2[0] + v1[1] * v2[1]) / l))) * 180 / Math.PI) : 0; };
+  if (ANGLE_SHAPES.indexOf(st.k) >= 0 && polys[0]){
+    const P = polys[0].slice(); if (P.length > 2 && Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1]) < .5) P.pop();
+    const n = P.length, cx = P.reduce((s, q) => s + q[0], 0) / n, cy = P.reduce((s, q) => s + q[1], 0) / n;
+    P.forEach((b, i) => { const a = P[(i + n - 1) % n], c = P[(i + 1) % n], dx = cx - b[0], dy = cy - b[1], dl = Math.hypot(dx, dy) || 1, p = V(b[0] + dx / dl * 22, b[1] + dy / dl * 22); badge(p[0], p[1], angAt(a, b, c) + '°'); });
+  } else if (isCaret(st)){
+    const p = V(st.x2, st.y2 + 22); badge(p[0], p[1], angAt([st.x, st.y], [st.x2, st.y2], [st.x3, st.y3]) + '°');
+  } else if (isLine(st)){
+    const m = V((st.x + st.x2) / 2, (st.y + st.y2) / 2); badge(m[0], m[1] - 16, degOf(st.x2 - st.x, st.y2 - st.y) + '°');
+  } else if (st.k === 'angle' && st.bw){
+    const a = Math.round(Math.atan(st.bh / (st.bw * .7)) * 180 / Math.PI), p = V(st.x + 34, st.y + st.bh - 14); badge(p[0], p[1], a + '°');
+  }
+}
 function paintSel(){
   if (!ui) return;
   S.sel = S.sel.filter(o => o.isConnected);
   const showBox = S.tool === 'select' || (S.tool === 'type' && S.sel.length === 1 && isBox(S.sel[0]));
   const b = showBox ? boxOf(S.sel) : null;
+  const one = S.sel.length === 1 && isSt(S.sel[0]) ? getSt(S.sel[0]) : null;
+  if (!G){ if (S.angles && one && showBox) showBadges(one, false); else clearBadges(); }
   if (!b){ ui.style.display = 'none'; syncStyleUI(); return; }
   ui.style.display = 'block'; ui.style.left = b.vx - 4 + 'px'; ui.style.top = b.vy - 4 + 'px'; ui.style.width = b.vw + 8 + 'px'; ui.style.height = b.vh + 8 + 'px';
+  const poly = !!(one && isPoly(one)), rot = !!(one && rotatable(one));
+  ui.classList.toggle('poly', poly); ui.classList.toggle('rotok', rot);
+  if (poly){   // a line / caret / curved arrow: its end points are the handles
+    const pts = polyPts(one);
+    [].forEach.call(ui.querySelectorAll('.vp'), (el, i) => { const q = pts[i]; if (!q){ el.style.display = 'none'; return; } const v = V(q[0], q[1]); el.style.display = 'block'; el.style.left = (v[0] - (b.vx - 4) - 6) + 'px'; el.style.top = (v[1] - (b.vy - 4) - 6) + 'px'; });
+  }
   syncStyleUI();
 }
 function buildUI(){
   if (ui) return;
   ui = document.createElement('div'); ui.className = 'aw-flsel'; ui.style.display = 'none';
-  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('') + '<i class="mv" title="Drag to move">✥ Move</i><i class="dl" title="Delete">✕</i>';
+  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('') + '<i class="vp" data-v="0"></i><i class="vp" data-v="1"></i><i class="vp mid" data-v="2"></i><i class="rt" title="Turn (snaps every 15°)">↻</i><i class="mv" title="Drag to move">✥ Move</i><i class="dl" title="Delete">✕</i>';
   document.body.appendChild(ui);
   ui.addEventListener('pointerdown', e => {
     const cl = e.target.classList; if (!cl) return;
     if (cl.contains('dl')){ e.preventDefault(); e.stopPropagation(); del(); return; }
     if (cl.contains('mv')){   // the grip: drag the selection (works while a text box is being edited too)
       e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
-      G = { kind: 'move', x0: e.clientX, y0: e.clientY, did: true, fromUi: true, origs: S.sel.map(o => isBox(o) ? { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0 } : T(o)) };
+      G = { kind: 'move', x0: e.clientX, y0: e.clientY, did: true, fromUi: true, origs: S.sel.map(snapObj) };
       return;
+    }
+    if (cl.contains('vp')){   // an end point / corner of a line, caret or curved arrow
+      e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
+      G = { kind: 'vtx', i: +e.target.dataset.v, o: S.sel[0], fromUi: true }; return;
+    }
+    if (cl.contains('rt')){
+      e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
+      const st = getSt(S.sel[0]), c = V(st.x + st.bw / 2, st.y + st.bh / 2);
+      G = { kind: 'rot', o: S.sel[0], cx: c[0], cy: c[1], fromUi: true }; return;
     }
     const h = e.target.dataset && e.target.dataset.h; if (!h) return;
     e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId);
-    snap(); G = { kind: 'resize', h, ob: boxOf(S.sel), x0: e.clientX, y0: e.clientY, origs: S.sel.map(o => isBox(o) ? { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0, w: o.offsetWidth, s: boxScale(o) } : T(o)) };
+    snap(); G = { kind: 'resize', h, ob: boxOf(S.sel), x0: e.clientX, y0: e.clientY, origs: S.sel.map(snapObj) };
   });
   ui.addEventListener('pointermove', e => { if (!G) return; if (G.kind === 'resize') resizeMove(e); else if (G.fromUi) onMove(e); });
-  ui.addEventListener('pointerup', e => { if (!G) return; if (G.kind === 'resize'){ G = null; changed(); } else if (G.fromUi) onUp(e); });
+  ui.addEventListener('pointerup', e => { if (!G) return; if (G.kind === 'resize'){ G = null; clearBadges(); changed(); } else if (G.fromUi) onUp(e); });
   band = document.createElement('div'); band.className = 'aw-flband'; band.style.display = 'none'; document.body.appendChild(band);
+  lassoEl = document.createElementNS(NS, 'svg'); lassoEl.setAttribute('class', 'aw-fllasso'); lassoEl.innerHTML = '<path d="" fill="rgba(86,97,224,.12)" stroke="#5661E0" stroke-width="1.5" stroke-dasharray="5 4"/>'; lassoEl.style.display = 'none'; document.body.appendChild(lassoEl);
   window.addEventListener('scroll', paintSel, true); window.addEventListener('resize', paintSel);
 }
 function resizeMove(e){
@@ -417,6 +609,7 @@ function resizeMove(e){
   if (h.indexOf('w') >= 0) x0 = Math.min(x1 - 8, o.x + dx); if (h.indexOf('e') >= 0) x1 = Math.max(x0 + 8, o.x + o.w + dx);
   if (h.indexOf('n') >= 0) y0 = Math.min(y1 - 8, o.y + dy); if (h.indexOf('s') >= 0) y1 = Math.max(y0 + 8, o.y + o.h + dy);
   const ax = (x1 - x0) / (o.w || 1), ay = (y1 - y0) / (o.h || 1);
+  let lastSt = null;
   S.sel.forEach((s, i) => {
     const g = G.origs[i];
     if (isBox(s)){
@@ -424,10 +617,11 @@ function resizeMove(e){
       s.style.left = r1(x0 + (g.l - o.x) * ax) + 'px'; s.style.top = r1(y0 + (g.t - o.y) * (corner ? ax : ay)) + 'px';
       if (corner) setBoxScale(s, g.s * ax);                 // corner: the whole box grows or shrinks, text included
       else s.style.width = r1(Math.max(40, g.w * ax)) + 'px'; // side: wider or narrower, the text re-wraps
-    }
+    } else if (isSt(s)){ const st = clone(g.st); mapSt(st, ax, x0 - ax * o.x, ay, y0 - ay * o.y); setSt(s, st); lastSt = st; }
     else setT(s, { x: ax * g.x + x0 - ax * o.x, y: ay * g.y + y0 - ay * o.y, sx: g.sx * ax, sy: g.sy * ay });
   });
   paintSel();
+  if (lastSt && S.sel.length === 1) showBadges(lastSt, true);
 }
 function objAt(cx, cy){
   const l = layer(false); if (!l) return null;
@@ -441,24 +635,70 @@ function objAt(cx, cy){
   return null;
 }
 
+/* ── ruler: lay it on the board, draw along its edge for a straight line (drag the middle to move, an end to turn) ── */
+const R_deg = a => { let d = ((a * 180 / Math.PI + 90) % 180 + 180) % 180 - 90; return Math.round(d * 10) / 10; };
+function renderRuler(){
+  if (!rl) return; const r = S.ruler;
+  rl.style.display = r.on ? 'block' : 'none'; rl.style.width = r.len + 'px';
+  rl.style.transform = 'translate(' + (r.cx - r.len / 2) + 'px,' + (r.cy - 23) + 'px) rotate(' + r.ang + 'rad)';
+  rl.querySelector('.rl-deg').textContent = R_deg(r.ang) + '°';
+}
+function buildRuler(){
+  if (rl) return;
+  rl = document.createElement('div'); rl.className = 'aw-ruler';
+  rl.innerHTML = '<i class="rl-end l" data-end="-1" title="Drag to turn the ruler"></i><i class="rl-mid" title="Drag to move the ruler"></i><i class="rl-end r" data-end="1" title="Drag to turn the ruler"></i><b class="rl-deg"></b>';
+  document.body.appendChild(rl);
+  rl.addEventListener('pointerdown', e => {
+    const t = e.target; if (!t.classList) return;
+    if (t.classList.contains('rl-mid')){ e.preventDefault(); t.setPointerCapture(e.pointerId); G = { kind: 'rlmove', x0: e.clientX, y0: e.clientY, cx: S.ruler.cx, cy: S.ruler.cy, fromRl: true }; }
+    else if (t.classList.contains('rl-end')){ e.preventDefault(); t.setPointerCapture(e.pointerId); G = { kind: 'rlturn', end: +t.dataset.end, fromRl: true }; }
+  });
+  rl.addEventListener('pointermove', e => {
+    if (!G || !G.fromRl) return; const r = S.ruler;
+    if (G.kind === 'rlmove'){ r.cx = G.cx + e.clientX - G.x0; r.cy = G.cy + e.clientY - G.y0; }
+    else { let a = Math.atan2(e.clientY - r.cy, e.clientX - r.cx); if (G.end < 0) a += Math.PI; const step = Math.PI / 12, sn = Math.round(a / step) * step; if (Math.abs(a - sn) < 0.05) a = sn; r.ang = a; }
+    renderRuler();
+  });
+  rl.addEventListener('pointerup', () => { if (G && G.fromRl){ G = null; lsSet('aw_ruler', S.ruler); } });
+  renderRuler();
+}
+function toggleRuler(){ buildRuler(); S.ruler.on = !S.ruler.on; renderRuler(); syncStyleUI(); }
+function rulerLock(cx, cy){
+  const r = S.ruler; if (!r.on) return null;
+  const d = [Math.cos(r.ang), Math.sin(r.ang)], n = [-Math.sin(r.ang), Math.cos(r.ang)]; let best = null;
+  [-1, 1].forEach(sg => {
+    const e0 = [r.cx + n[0] * 23 * sg, r.cy + n[1] * 23 * sg], dist = Math.abs((cx - e0[0]) * n[0] + (cy - e0[1]) * n[1]), t = (cx - e0[0]) * d[0] + (cy - e0[1]) * d[1];
+    if (dist <= 18 && Math.abs(t) <= r.len / 2 + 30 && (!best || dist < best.dist)) best = { e0, d, dist };
+  });
+  return best;
+}
+const rulerProject = (lk, x, y) => { const t = (x - lk.e0[0]) * lk.d[0] + (y - lk.e0[1]) * lk.d[1]; return [lk.e0[0] + lk.d[0] * t, lk.e0[1] + lk.d[1] * t]; };
+/* the pointer position in layer units, kept on the ruler edge when the stroke started on it */
+function P(e){
+  if (G && G.lock){ const q = rulerProject(G.lock, e.clientX, e.clientY); return pt({ clientX: q[0], clientY: q[1] }); }
+  return pt(e);
+}
+
 /* ── pointer gestures ── */
 function onDown(e){
   if (S.tool === 'type') return;
   if (!e.target.closest || !e.target.closest('.aw-fl')) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   e.preventDefault();
+  if (e.pointerType === 'touch' && !S.finger){ G = { kind: 'scroll', y0: e.clientY, x0: e.clientX }; return; }   // a finger scrolls the page, a pencil or mouse draws
   const l = layer(true); try { l.setPointerCapture(e.pointerId); } catch (er) {}
-  const p = pt(e);
+  const lk = (S.tool === 'pen' || S.tool === 'hl' || S.tool === 'shape') ? rulerLock(e.clientX, e.clientY) : null;
+  const p = lk ? pt({ clientX: rulerProject(lk, e.clientX, e.clientY)[0], clientY: rulerProject(lk, e.clientX, e.clientY)[1] }) : pt(e);
   if (S.tool === 'pen' || S.tool === 'hl'){
     snap(); const hl = S.tool === 'hl';
     const path = mkPath(smoothD([[p.x, p.y]]), { k: S.tool, stroke: hl ? S.hl : S.stroke, w: hl ? Math.max(10, S.w * 5) : S.w });
-    svgEl().appendChild(path); G = { kind: 'draw', path, pts: [[p.x, p.y]] };
+    svgEl().appendChild(path); G = { kind: 'draw', path, pts: [[p.x, p.y]], lock: lk, hl, timer: 0 };
   } else if (S.tool === 'eraser'){
     G = { kind: 'erase', did: false }; eraseAt(e);
   } else if (S.tool === 'shape'){
     snap();
     if (S.shape.k === 'sym'){ G = { kind: 'sym', x0: p.x, y0: p.y, el: null }; return; }
-    const st = makeShape(p.x, p.y, p.x, p.y); const el = shapeEl(st); svgEl().appendChild(el); G = { kind: 'shape', x0: p.x, y0: p.y, el, st };
+    const st = makeShape(p.x, p.y, p.x, p.y); const el = shapeEl(st); svgEl().appendChild(el); G = { kind: 'shape', x0: p.x, y0: p.y, el, st, lock: lk };
   } else if (S.tool === 'text'){
     G = { kind: 'text', x0: p.x, y0: p.y, vx: e.clientX, vy: e.clientY };
   } else if (S.tool === 'select'){
@@ -466,54 +706,98 @@ function onDown(e){
     if (hit){
       if (e.shiftKey){ S.sel = S.sel.indexOf(hit) >= 0 ? S.sel.filter(x => x !== hit) : S.sel.concat(hit); }
       else if (S.sel.indexOf(hit) < 0) S.sel = [hit];
-      G = { kind: 'move', x0: e.clientX, y0: e.clientY, did: false, origs: S.sel.map(o => isBox(o) ? { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0 } : T(o)) };
+      G = { kind: 'move', x0: e.clientX, y0: e.clientY, did: false, origs: S.sel.map(snapObj) };
     } else {
       if (!e.shiftKey) S.sel = [];
-      G = { kind: 'band', x0: e.clientX, y0: e.clientY, base: S.sel.slice() };
+      G = { kind: 'lasso', pts: [[e.clientX, e.clientY]], base: S.sel.slice() };
     }
     paintSel();
   }
+}
+/* hold the pen still: a rough line, circle, rectangle, triangle, star or bracket turns into the real shape (a highlighter stroke becomes a straight line) */
+function holdSnap(g){
+  if (G !== g || g.kind !== 'draw' || g.snapped || g.pts.length < 4) return;
+  if (g.hl){
+    g.snapped = true; g.hlLine = true; const a = g.pts[0], b = g.pts[g.pts.length - 1];
+    g.pts = [a, b]; g.path.setAttribute('d', smoothD(g.pts)); return;
+  }
+  const sh = recognize(g.pts); if (!sh) return;
+  const st = Object.assign({ o: 0, sw: S.w }, sh); if (S.ls && st.k !== 'sym') st.ls = S.ls;
+  g.path.remove();   // the snapshot taken at pen-down already covers this
+  const el = shapeEl(st); svgEl().appendChild(el);
+  G = { kind: 'shape', snapped: true, lineFollow: st.k === 'line', el, st, x0: st.x, y0: st.y, lock: g.lock };
+  showBadges(st, true);
 }
 function onMove(e){
   if (!G || G.kind === 'resize') return;
   const z = zoomF();
+  if (G.kind === 'scroll'){ const dy = e.clientY - G.y0, dx = e.clientX - G.x0; G.y0 = e.clientY; G.x0 = e.clientX; const wrap = canvas.closest('.aw-canvas-wrap'); window.scrollBy(-dx, -dy); if (wrap){ wrap.scrollTop -= dy; wrap.scrollLeft -= dx; } return; }
   if (G.kind === 'draw'){
-    const p = pt(e), last = G.pts[G.pts.length - 1];
+    const p = P(e), last = G.pts[G.pts.length - 1];
+    if (G.hlLine){ G.pts = [G.pts[0], [p.x, p.y]]; G.path.setAttribute('d', smoothD(G.pts)); return; }
     if (Math.hypot(p.x - last[0], p.y - last[1]) >= 1.6){ G.pts.push([p.x, p.y]); G.path.setAttribute('d', smoothD(G.pts)); }
+    clearTimeout(G.timer); const g0 = G; G.timer = setTimeout(() => holdSnap(g0), 480);
   } else if (G.kind === 'erase'){ eraseAt(e); }
-  else if (G.kind === 'shape'){ const p = pt(e); G.st = makeShape(G.x0, G.y0, p.x, p.y, e.shiftKey); shapeEl(G.st, G.el); }
-  else if (G.kind === 'sym'){ const p = pt(e); G.cur = p; }
+  else if (G.kind === 'shape'){
+    const p = P(e);
+    if (G.snapped){ if (G.lineFollow){ const st = G.st; let dx = p.x - st.x, dy = p.y - st.y; const len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), sn = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12); if (Math.abs(ang - sn) < 0.06){ dx = len * Math.cos(sn); dy = len * Math.sin(sn); } st.x2 = st.x + dx; st.y2 = st.y + dy; setSt(G.el, st); showBadges(st, true); } return; }
+    G.st = makeShape(G.x0, G.y0, p.x, p.y, e.shiftKey); shapeEl(G.st, G.el); showBadges(G.st, true);
+  }
+  else if (G.kind === 'sym'){ G.cur = pt(e); }
   else if (G.kind === 'text'){ band.style.display = 'block'; band.style.left = Math.min(G.vx, e.clientX) + 'px'; band.style.top = Math.min(G.vy, e.clientY) + 'px'; band.style.width = Math.abs(e.clientX - G.vx) + 'px'; band.style.height = Math.abs(e.clientY - G.vy) + 'px'; }
   else if (G.kind === 'move'){
     const dx = (e.clientX - G.x0) / z, dy = (e.clientY - G.y0) / z;
     if (!G.did){ if (Math.hypot(dx, dy) < 2) return; G.did = true; snap(); }
-    S.sel.forEach((o, i) => { const g = G.origs[i]; if (isBox(o)){ o.style.left = r1(g.l + dx) + 'px'; o.style.top = r1(g.t + dy) + 'px'; } else setT(o, { x: g.x + dx, y: g.y + dy, sx: g.sx, sy: g.sy }); });
+    S.sel.forEach((o, i) => moveObj(o, G.origs[i], dx, dy));
     paintSel();
-  } else if (G.kind === 'band'){
-    band.style.display = 'block'; band.style.left = Math.min(G.x0, e.clientX) + 'px'; band.style.top = Math.min(G.y0, e.clientY) + 'px'; band.style.width = Math.abs(e.clientX - G.x0) + 'px'; band.style.height = Math.abs(e.clientY - G.y0) + 'px';
+  } else if (G.kind === 'vtx'){
+    const st = getSt(G.o), p = pt(e), i = G.i, names = [['x', 'y'], ['x2', 'y2'], ['x3', 'y3']][i];
+    let x = p.x, y = p.y;
+    if (isLine(st) && !e.altKey){ const ox = i === 0 ? st.x2 : st.x, oy = i === 0 ? st.y2 : st.y, dx = x - ox, dy = y - oy, len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), sn = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12); if (len && Math.abs(ang - sn) < 0.06){ x = ox + len * Math.cos(sn); y = oy + len * Math.sin(sn); } }
+    st[names[0]] = x; st[names[1]] = y;
+    if (isLoop(st) && i === 2){ const dx = st.x2 - st.x, dy = st.y2 - st.y, c2 = dx * dx + dy * dy || 1; S.loopBend = Math.round(((st.x3 - (st.x + st.x2) / 2) * -dy + (st.y3 - (st.y + st.y2) / 2) * dx) / c2 * 100) / 100; lsSet('aw_loop_bend', S.loopBend); }
+    setSt(G.o, st); showBadges(st, true); paintSel();
+  } else if (G.kind === 'rot'){
+    const st = getSt(G.o); let a = Math.atan2(e.clientY - G.cy, e.clientX - G.cx) * 180 / Math.PI + 90;
+    if (!e.shiftKey){ const sn = Math.round(a / 15) * 15; if (Math.abs(a - sn) < 5) a = sn; }
+    a = ((a % 360) + 540) % 360 - 180; st.rot = Math.round(a * 10) / 10; if (!st.rot) delete st.rot;
+    setSt(G.o, st); paintSel(); clearBadges(); badge(e.clientX + 24, e.clientY - 18, Math.round(a) + '°', 'sz');
+  } else if (G.kind === 'lasso'){
+    G.pts.push([e.clientX, e.clientY]);
+    lassoEl.style.display = 'block'; lassoEl.firstChild.setAttribute('d', 'M' + G.pts.map(q => q[0] + ' ' + q[1]).join('L') + 'Z');
   }
 }
+function inPoly(x, y, P){
+  let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++){ if ((P[i][1] > y) !== (P[j][1] > y) && x < (P[j][0] - P[i][0]) * (y - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) c = !c; }
+  return c;
+}
 function onUp(e){
-  if (!G || G.kind === 'resize') return;
-  const g = G; G = null; band.style.display = 'none';
+  if (!G || G.kind === 'resize' || G.fromRl) return;
+  const g = G; G = null; band.style.display = 'none'; if (lassoEl) lassoEl.style.display = 'none'; clearTimeout(g.timer);
+  if (g.kind === 'scroll') return;
   if (g.kind === 'draw'){
-    const out = simplify(g.pts, 0.7);   // the board has to stay small
+    const out = simplify(g.pts, g.hlLine ? 0 : SMOOTH_EPS[S.smooth] != null ? SMOOTH_EPS[S.smooth] : 0.7);   // the board has to stay small
     g.path.setAttribute('d', smoothD(out)); g.path.dataset.p = encPts(out);
     changed();
   } else if (g.kind === 'erase'){ if (g.did) changed(); }
   else if (g.kind === 'shape'){
-    const st = g.st, tiny = (st.k === 'line' || st.k === 'arrow' || st.k === 'loop') ? Math.hypot(st.x2 - st.x, st.y2 - st.y) < 6 : (st.bw < 6 && st.bh < 6);
+    const st = g.st, tiny = g.snapped ? false : (isPoly(st) ? Math.hypot(st.x2 - st.x, st.y2 - st.y) < 6 : (st.bw < 6 && st.bh < 6));
     if (tiny){   // a plain click puts a standard-size shape
-      const p = { x: g.x0, y: g.y0 }, big = 70;
-      const s2 = makeShape(p.x, p.y, p.x + (S.shape.k === 'line' || S.shape.k === 'arrow' || S.shape.k === 'lnx' || S.shape.k === 'loop' ? 110 : big), p.y + (S.shape.k === 'line' || S.shape.k === 'arrow' || S.shape.k === 'lnx' ? 0 : (S.shape.k === 'loop' ? -40 : big * .8)));
-      shapeEl(s2, g.el);
-    }
-    changed();
+      const p = { x: g.x0, y: g.y0 }, big = 70, ln = (S.shape.k === 'line' || S.shape.k === 'arrow' || S.shape.k === 'lnx');
+      const s2 = makeShape(p.x, p.y, p.x + (ln || S.shape.k === 'loop' ? 110 : big), p.y + (ln ? 0 : (S.shape.k === 'loop' ? -40 : big * .8)));
+      shapeEl(s2, g.el); rememberDims(s2);
+    } else rememberDims(st);
+    clearBadges(); changed();
   } else if (g.kind === 'sym'){
     const sy = S.sym; if (!sy){ return; }
-    const sz = symSize(sy.txt, sy.ring, sy.txt2), p = g.cur;
+    const key = sy.ring ? (sy.txt2 ? 'ring2' : 'ring') : sy.txt2 ? 'two' : 'label', sd = S.symDims[key], sz = sd || symSize(sy.txt, sy.ring, sy.txt2), p = g.cur;
     let w = sz[0], h = sz[1], cx = g.x0, cy = g.y0;
-    if (p && Math.hypot(p.x - g.x0, p.y - g.y0) > 12){ w = Math.abs(p.x - g.x0); h = Math.abs(p.y - g.y0); cx = (p.x + g.x0) / 2; cy = (p.y + g.y0) / 2; if (sy.ring && !sy.txt2 && Math.abs(w - h) < 6) h = w; }
+    if (p && Math.hypot(p.x - g.x0, p.y - g.y0) > 12){
+      w = Math.abs(p.x - g.x0); h = Math.abs(p.y - g.y0); cx = (p.x + g.x0) / 2; cy = (p.y + g.y0) / 2;
+      if (sd){ if (Math.abs(w - sd[0]) < 4) w = sd[0]; if (Math.abs(h - sd[1]) < 4) h = sd[1]; }
+      if (sy.ring && !sy.txt2 && Math.abs(w - h) < 6) h = w;
+      S.symDims[key] = [Math.round(w), Math.round(h)]; lsSet('aw_sym_dims', S.symDims);   // the next symbols of this kind come out the same size
+    }
     svgEl().appendChild(symEl(sy, cx, cy, w, h)); changed();
   } else if (g.kind === 'text'){
     const dx = Math.abs(e.clientX - g.vx) / zoomF();
@@ -521,10 +805,14 @@ function onUp(e){
     snap(); const b = textBox(dx > 30 ? x : g.x0, dx > 30 ? y : g.y0, dx > 30 ? dx : 220);
     setTool('type'); S.sel = [b]; edit(b); changed();
   } else if (g.kind === 'move'){ if (g.did) changed(); else paintSel(); }
-  else if (g.kind === 'band'){
-    const l = layer(false), x0 = Math.min(g.x0, e.clientX), y0 = Math.min(g.y0, e.clientY), x1 = Math.max(g.x0, e.clientX), y1 = Math.max(g.y0, e.clientY);
-    if (x1 - x0 > 4 || y1 - y0 > 4){
-      const hits = [].filter.call(l.querySelectorAll('.fo,.aw-fb'), o => { const r = o.getBoundingClientRect(); return r.right >= x0 && r.left <= x1 && r.bottom >= y0 && r.top <= y1; });
+  else if (g.kind === 'vtx' || g.kind === 'rot'){ clearBadges(); changed(); }
+  else if (g.kind === 'lasso'){
+    const l = layer(false);
+    if (g.pts.length > 6){
+      const hits = [].filter.call(l.querySelectorAll('.fo,.aw-fb'), o => {
+        const r = o.getBoundingClientRect();
+        return [[r.left + r.width / 2, r.top + r.height / 2], [r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]].some(q => inPoly(q[0], q[1], g.pts));
+      });
       S.sel = g.base.concat(hits.filter(o => g.base.indexOf(o) < 0));
     }
     paintSel();
@@ -534,6 +822,47 @@ function eraseAt(e){
   const o = objAt(e.clientX, e.clientY);
   if (o && !isBox(o)){ if (!G.did){ snap(); G.did = true; } o.remove(); }
 }
+/* ── things you can do to the selected shapes ── */
+function rotateSel(d){
+  const arr = S.sel.filter(o => isSt(o) && rotatable(getSt(o))); if (!arr.length){ toast('Select a shape to turn it.'); return; }
+  snap(); arr.forEach(o => { const st = getSt(o); let a = d === 0 ? 0 : ((st.rot || 0) + d); a = ((a % 360) + 540) % 360 - 180; st.rot = Math.round(a * 10) / 10; if (!st.rot) delete st.rot; setSt(o, st); }); changed();
+}
+function flipSel(axis){
+  const arr = S.sel.filter(o => isSt(o)); if (!arr.length){ toast('Select a shape to flip it.'); return; }
+  snap();
+  arr.forEach(o => {
+    const st = getSt(o);
+    if (rotatable(st)){ const key = axis === 'x' ? 'fx' : 'fy'; if (st[key]) delete st[key]; else st[key] = 1; }
+    else if (isPoly(st)){ const pts = polyPts(st), i = axis === 'x' ? 0 : 1, lo = Math.min.apply(null, pts.map(q => q[i])), hi = Math.max.apply(null, pts.map(q => q[i])), m = lo + hi; (i ? ['y', 'y2', 'y3'] : ['x', 'x2', 'x3']).forEach(k => { if (st[k] !== undefined) st[k] = m - st[k]; }); }
+    setSt(o, st);
+  });
+  changed();
+}
+function setLS(id){
+  S.ls = id === 'solid' ? '' : id; lsSet('aw_ls', S.ls);
+  const arr = S.sel.filter(o => isSt(o) && getSt(o).k !== 'sym');
+  if (arr.length){ snap(); arr.forEach(o => { const st = getSt(o); if (S.ls) st.ls = S.ls; else delete st.ls; setSt(o, st); }); changed(); }
+  syncStyleUI();
+}
+function setSize(w, h){
+  if (S.sel.length !== 1) return; const o = S.sel[0];
+  if (isSt(o)){
+    const st = getSt(o); snap();
+    if (isLine(st)){ const len = Math.hypot(st.x2 - st.x, st.y2 - st.y) || 1, f = w / len; st.x2 = st.x + (st.x2 - st.x) * f; st.y2 = st.y + (st.y2 - st.y) * f; }
+    else if (st.bw !== undefined && !isPoly(st)){ const cx = st.x + st.bw / 2, cy = st.y + st.bh / 2; if (w > 0) st.bw = w; if (h > 0) st.bh = h; st.x = cx - st.bw / 2; st.y = cy - st.bh / 2; }
+    else return;
+    setSt(o, st); rememberDims(st); changed();
+  } else if (isBox(o) && w > 0){ snap(); o.style.width = w + 'px'; changed(); }
+}
+function alignBase(){
+  const pens = S.sel.filter(o => o.dataset && (o.dataset.k === 'pen')); if (pens.length < 2){ toast('Select two or more handwriting strokes to level them.'); return; }
+  snap(); const lr = layer(false).getBoundingClientRect(), z = zoomF();
+  const bots = pens.map(o => (o.getBoundingClientRect().bottom - lr.top) / z).sort((a, b) => a - b), base = bots[Math.floor(bots.length / 2)];
+  pens.forEach(o => { const t = T(o), b = (o.getBoundingClientRect().bottom - lr.top) / z; t.y += base - b; setT(o, t); }); changed();
+}
+function cycleSmooth(){ S.smooth = (S.smooth + 1) % 3; lsSet('aw_smooth', S.smooth); toast(['Handwriting: raw (keeps every wobble)', 'Handwriting: smooth', 'Handwriting: very smooth'][S.smooth]); syncStyleUI(); }
+function toggleAngles(){ S.angles = !S.angles; lsSet('aw_angles', S.angles); paintSel(); syncStyleUI(); }
+function toggleFinger(){ S.finger = !S.finger; lsSet('aw_finger', S.finger); toast(S.finger ? 'A finger draws too.' : 'A finger scrolls; only a pencil or mouse draws.'); syncStyleUI(); }
 
 /* ── keyboard ── */
 function onKey(e){
@@ -550,13 +879,13 @@ function onKey(e){
   else if (mod && e.key.toLowerCase() === 'd'){ e.preventDefault(); dup(); }
   else if (/^Arrow/.test(e.key)){
     e.preventDefault(); const n = e.shiftKey ? 10 : 1, dx = e.key === 'ArrowLeft' ? -n : e.key === 'ArrowRight' ? n : 0, dy = e.key === 'ArrowUp' ? -n : e.key === 'ArrowDown' ? n : 0;
-    snap(); S.sel.forEach(o => { if (isBox(o)){ o.style.left = (parseFloat(o.style.left) || 0) + dx + 'px'; o.style.top = (parseFloat(o.style.top) || 0) + dy + 'px'; } else { const t = T(o); t.x += dx; t.y += dy; setT(o, t); } }); changed();
+    snap(); S.sel.forEach(o => moveObj(o, snapObj(o), dx, dy)); changed();
   }
 }
-function del(){ if (!S.sel.length) return; snap(); S.sel.forEach(o => o.remove()); S.sel = []; changed(); }
+function del(){ if (!S.sel.length) return; snap(); S.sel.forEach(o => o.remove()); S.sel = []; clearBadges(); changed(); }
 function dup(){
   if (!S.sel.length) return; snap(); const out = [];
-  S.sel.forEach(o => { const c = o.cloneNode(true); c.dataset.id = uid(); c.setAttribute('contenteditable', 'false'); if (isBox(o)){ c.style.left = (parseFloat(o.style.left) || 0) + 14 + 'px'; c.style.top = (parseFloat(o.style.top) || 0) + 14 + 'px'; o.parentNode.appendChild(c); } else { const t = T(o); t.x += 14; t.y += 14; o.parentNode.appendChild(c); setT(c, t); } out.push(c); });
+  S.sel.forEach(o => { const c = o.cloneNode(true); c.dataset.id = uid(); c.setAttribute('contenteditable', 'false'); o.parentNode.appendChild(c); moveObj(c, snapObj(c), 14, 14); out.push(c); });
   S.sel = out; changed();
 }
 function order(front){
@@ -579,9 +908,14 @@ function applyStyle(kind, v){
         if (kind === 'w'){ o.style.borderWidth = v + 'px'; if (!o.style.borderStyle) { o.style.borderStyle = 'solid'; o.style.borderColor = S.stroke; } }
       } else if (o.dataset.k === 'sym'){
         if (kind === 'stroke'){ [].forEach.call(o.children, c => { if (c.tagName === 'text') c.setAttribute('fill', v); else c.setAttribute('stroke', v); }); }
+      } else if (isSt(o)){
+        const st = getSt(o);
+        if (kind === 'stroke') o.setAttribute('stroke', v);
+        if (kind === 'fill' && OPEN_SHAPES.indexOf(st.k) < 0) o.setAttribute('fill', v);
+        if (kind === 'w'){ o.setAttribute('stroke-width', v); st.sw = v; setSt(o, st); }
       } else {
         if (kind === 'stroke') o.setAttribute('stroke', v);
-        if (kind === 'fill' && o.dataset.k === 'shape' && o.getAttribute('fill') !== undefined){ o.setAttribute('fill', v); }
+        if (kind === 'fill' && o.dataset.k === 'shape'){ o.setAttribute('fill', v); }
         if (kind === 'w') o.setAttribute('stroke-width', o.dataset.k === 'hl' ? Math.max(10, v * 5) : v);
       }
     });
@@ -596,8 +930,19 @@ function syncStyleUI(){
   const w = document.getElementById('flW'); if (w && document.activeElement !== w) w.value = S.w;
   const wv = document.getElementById('flWv'); if (wv) wv.textContent = S.w;
   [].forEach.call(document.querySelectorAll('#tb [data-fl-tool]'), b => b.classList.toggle('on', b.dataset.flTool === S.tool));
+  [].forEach.call(document.querySelectorAll('#tb [data-ls]'), b => b.classList.toggle('on', b.dataset.ls === (S.ls || 'solid')));
+  const tg = (id, on) => { const b = document.getElementById(id); if (b) b.classList.toggle('on', !!on); };
+  tg('flAngles', S.angles); tg('flFinger', S.finger); tg('flRuler', S.ruler.on);
+  const sm = document.getElementById('flSmooth'); if (sm) sm.textContent = 'Smooth ' + ['●○○', '●●○', '●●●'][S.smooth];
   const hasUndo = document.getElementById('flUndo'); if (hasUndo) hasUndo.disabled = !S.undo.length;
   const hasRedo = document.getElementById('flRedo'); if (hasRedo) hasRedo.disabled = !S.redo.length;
+  // the size of the selected shape
+  const fw = document.getElementById('flSW'), fh = document.getElementById('flSH');
+  if (fw && fh && document.activeElement !== fw && document.activeElement !== fh){
+    const o = S.sel.length === 1 ? S.sel[0] : null, st = o && isSt(o) ? getSt(o) : null;
+    fw.value = st ? (isLine(st) ? Math.round(Math.hypot(st.x2 - st.x, st.y2 - st.y)) : (st.bw !== undefined && !isPoly(st) ? Math.round(st.bw) : '')) : (o && isBox(o) ? Math.round(o.offsetWidth) : '');
+    fh.value = st && st.bw !== undefined && !isPoly(st) ? Math.round(st.bh) : '';
+  }
 }
 function setTool(t){
   if (S.tool === 'type' && t !== 'type'){ const a = document.activeElement; if (a && a.classList && a.classList.contains('aw-fb')) a.blur(); }
@@ -636,8 +981,14 @@ function panelHtml(){
   return grp([tools.map(t => b('', 'data-fl-tool="' + t[0] + '"', TOOL_ICONS[t[0]], t[1])).join('')], 'Tools') +
     grp([b('aw-rb-big aw-fpanel-btn', 'data-panel="shapes"', TOOL_ICONS.shapes + '<span>Shapes</span>', 'Shapes, brackets, arrows, maths figures') + b('aw-rb-big aw-fpanel-btn', 'data-panel="syms"', TOOL_ICONS.syms + '<span>Symbols</span>', 'Word classes and syntax labels (N, V, NP, AdvP …)')], 'Insert') +
     '<div class="aw-rb-grp" id="flStyle"><div class="aw-rb-row"><span class="aw-rb-hint">Colour</span>' + sw + '</div><div class="aw-rb-row"><span class="aw-rb-hint">Fill</span>' + fl + '</div><div class="aw-rb-lbl">Colour &amp; fill</div></div>' +
-    grp(['<label class="aw-tl-f">Thickness <input type="range" id="flW" min="1" max="20" step="1" value="3" style="width:90px"> <b id="flWv">3</b></label>'], 'Line') +
-    grp([b('', 'id="flUndo"', TOOL_ICONS.undo, 'Undo drawing (Ctrl+Z)') + b('', 'id="flRedo"', TOOL_ICONS.redo, 'Redo drawing') + b('', 'data-fl-act="dup"', TOOL_ICONS.dup, 'Duplicate (Ctrl+D)') + b('', 'data-fl-act="del"', TOOL_ICONS.del, 'Delete (Del)') + b('', 'data-fl-act="front"', TOOL_ICONS.front, 'Bring to front') + b('', 'data-fl-act="back"', TOOL_ICONS.back, 'Send to back')], 'Arrange');
+    grp(['<label class="aw-tl-f">Thickness <input type="range" id="flW" min="1" max="20" step="1" value="3" style="width:90px"> <b id="flWv">3</b></label>',
+         LINE_STYLES.map(ls => '<button type="button" class="aw-rb-b aw-ls" data-ls="' + ls[0] + '" title="' + ls[1] + '"><svg width="30" height="10" viewBox="0 0 30 10"><path d="M2 5H28" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"' + (ls[2] ? ' stroke-dasharray="' + ls[2] + '"' : '') + '/></svg></button>').join('')], 'Line') +
+    grp([b('aw-txt', 'data-rot="-15"', '↺ 15°', 'Turn the selected shape 15° left') + b('aw-txt', 'data-rot="15"', '↻ 15°', 'Turn 15° right') + b('aw-txt', 'data-rot="90"', '↻ 90°', 'Turn 90°') + b('aw-txt', 'data-rot="0"', 'Reset', 'Turn back to upright'),
+         b('aw-txt', 'data-flip="x"', '⇋ Flip', 'Flip left-right') + b('aw-txt', 'data-flip="y"', '⇵ Flip', 'Flip upside-down') + b('aw-txt', 'id="flAngles"', '∠ Angles', 'Show the angle at every corner') +
+         '<label class="aw-tl-f">W <input type="number" id="flSW" min="4" style="width:54px"></label><label class="aw-tl-f">H <input type="number" id="flSH" min="4" style="width:54px"></label>'], 'Shape') +
+    grp([b('aw-txt', 'id="flRuler"', '📏 Ruler', 'Ruler: draw along its edge for a straight line (drag the middle to move, an end to turn)') + b('aw-txt', 'id="flSmooth"', 'Smooth ●○○', 'Handwriting smoothing') + b('aw-txt', 'id="flFinger"', '☝ Finger', 'Let a finger draw too (off: a finger scrolls, only a pencil or mouse draws)')], 'Pen') +
+    grp([b('', 'id="flUndo"', TOOL_ICONS.undo, 'Undo drawing (Ctrl+Z)') + b('', 'id="flRedo"', TOOL_ICONS.redo, 'Redo drawing') + b('', 'data-fl-act="dup"', TOOL_ICONS.dup, 'Duplicate (Ctrl+D)') + b('', 'data-fl-act="del"', TOOL_ICONS.del, 'Delete (Del)') + b('', 'data-fl-act="front"', TOOL_ICONS.front, 'Bring to front') + b('', 'data-fl-act="back"', TOOL_ICONS.back, 'Send to back'),
+         b('aw-txt', 'data-fl-act="align"', '≡ Level', 'Level the selected handwriting onto one baseline')], 'Arrange');
 }
 
 function makePanel(id, title, w){
@@ -739,7 +1090,14 @@ function wire(cv){
   // ribbon controls (built by panelHtml)
   const tb = document.getElementById('tb'); if (!tb) return;
   [].forEach.call(tb.querySelectorAll('[data-fl-tool]'), b => { b.onclick = () => setTool(b.dataset.flTool); });
-  [].forEach.call(tb.querySelectorAll('[data-fl-act]'), b => { b.onclick = () => ({ dup, del, front: () => order(true), back: () => order(false) })[b.dataset.flAct](); });
+  [].forEach.call(tb.querySelectorAll('[data-fl-act]'), b => { b.onclick = () => ({ dup, del, front: () => order(true), back: () => order(false), align: alignBase })[b.dataset.flAct](); });
+  [].forEach.call(tb.querySelectorAll('[data-rot]'), b => { b.onclick = () => rotateSel(+b.dataset.rot); });
+  [].forEach.call(tb.querySelectorAll('[data-flip]'), b => { b.onclick = () => flipSel(b.dataset.flip); });
+  [].forEach.call(tb.querySelectorAll('[data-ls]'), b => { b.onclick = () => setLS(b.dataset.ls); });
+  const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  bind('flAngles', toggleAngles); bind('flRuler', toggleRuler); bind('flSmooth', cycleSmooth); bind('flFinger', toggleFinger);
+  const sw = document.getElementById('flSW'), sh = document.getElementById('flSH');
+  const sz = () => setSize(parseFloat(sw.value) || 0, parseFloat(sh.value) || 0); if (sw) sw.onchange = sz; if (sh) sh.onchange = sz;
   [].forEach.call(tb.querySelectorAll('[data-fs]'), b => { b.onclick = () => applyStyle('stroke', b.dataset.fs); });
   [].forEach.call(tb.querySelectorAll('[data-ff]'), b => { b.onclick = () => applyStyle('fill', b.dataset.ff); });
   const cust = document.getElementById('flCust'); if (cust) cust.onchange = () => applyStyle('stroke', cust.value);
