@@ -53,12 +53,25 @@
   .aw-flsel .h[data-h="se"]{right:-6px;bottom:-6px;cursor:nwse-resize}.aw-flsel .h[data-h="s"]{left:calc(50% - 5px);bottom:-6px;cursor:ns-resize}
   .aw-flsel .h[data-h="sw"]{left:-6px;bottom:-6px;cursor:nesw-resize}.aw-flsel .h[data-h="w"]{left:-6px;top:calc(50% - 5px);cursor:ew-resize}
   .aw-flsel .mv{position:absolute;left:50%;top:-30px;transform:translateX(-50%);background:var(--aw-primary);color:#fff;font-style:normal;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;cursor:move;pointer-events:auto;white-space:nowrap;touch-action:none;user-select:none}
-  .aw-flsel .dl{position:absolute;right:-12px;top:-30px;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:#fff;color:#B42318;border:1.5px solid #B42318;font-style:normal;font-size:.75rem;font-weight:700;cursor:pointer;pointer-events:auto}
+  .aw-flsel .ic{position:absolute;width:28px;height:28px;border-radius:50%;background:#fff;border:1.5px solid var(--aw-primary);color:var(--aw-primary);display:grid;place-items:center;pointer-events:auto;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.18);touch-action:none}
+  .aw-flsel .ic svg{width:15px;height:15px;pointer-events:none}
+  .aw-flsel .ic.dl{left:-36px;top:-36px;color:#B42318;border-color:#B42318}
+  .aw-flsel .ic.dp{right:-36px;top:-36px}
+  .aw-flsel .ic.rt{left:-36px;bottom:-36px;cursor:grab;display:none}
+  .aw-flsel .ic.co{right:-36px;bottom:-36px}
+  .aw-flsel.rotok .ic.rt{display:grid}
+  .aw-flsel .fl{position:absolute;left:50%;bottom:-38px;transform:translateX(-50%);background:var(--aw-primary);color:#fff;font-style:normal;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;cursor:pointer;pointer-events:auto;white-space:nowrap;display:none}
+  .aw-flsel.free .fl{display:block}
+  .aw-flsel.tbl .h[data-h="n"],.aw-flsel.tbl .h[data-h="s"],.aw-flsel.tbl .h[data-h="e"],.aw-flsel.tbl .h[data-h="w"]{display:none}
+  .aw-tfree{box-shadow:0 0 0 1px rgba(86,97,224,.25)}
+  body.aw-fs .aw-side,body.aw-fs .aw-topbar,body.aw-fs .aw-menu-btn{display:none!important}
+  body.aw-fs .aw-shell{grid-template-columns:minmax(0,1fr);padding:8px;gap:0}
+  body.aw-fs .aw-content{padding-top:6px}
+  #fsExit{position:fixed;right:14px;bottom:14px;z-index:950;border:none;border-radius:999px;background:#15171C;color:#fff;font-weight:700;font-size:.8rem;padding:9px 16px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);opacity:.85}
+  #fsExit:hover{opacity:1}
   .aw-fb:hover{outline:1px dashed var(--aw-primary-lt)}
   .aw-flsel .vp{position:absolute;width:12px;height:12px;border-radius:50%;background:#fff;border:2.5px solid var(--aw-primary);pointer-events:auto;cursor:crosshair;display:none;touch-action:none}
   .aw-flsel .vp.mid{border-color:#F08C00}
-  .aw-flsel .rt{position:absolute;left:50%;top:-62px;transform:translateX(-50%);width:24px;height:24px;line-height:23px;text-align:center;border-radius:50%;background:var(--aw-primary);color:#fff;font-style:normal;font-size:.9rem;cursor:grab;pointer-events:auto;display:none;touch-action:none}
-  .aw-flsel.rotok .rt{display:block}
   .aw-flsel.poly .h{display:none}
   .aw-flbadge{position:fixed;z-index:70;transform:translate(-50%,-50%);background:#15171C;color:#fff;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;pointer-events:none;white-space:nowrap}
   .aw-fllasso{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:60;pointer-events:none}
@@ -487,7 +500,8 @@ function renderForStudent(html){
 }
 function studentZoomBar(){
   return '<div class="aw-board-toolbar" id="tb" style="justify-content:flex-end">' +
-    '<span style="font-size:.8rem;color:var(--aw-ink-3);margin-right:6px">Your view:</span>' +
+    '<button class="aw-tbtn" data-fs="1" title="Full screen: hides the side menu and the browser bars" style="font-size:.8rem;width:auto;padding:0 10px">⛶ Full screen</button>' +
+    '<span style="font-size:.8rem;color:var(--aw-ink-3);margin:0 6px">Your view:</span>' +
     '<button class="aw-tbtn" data-szoom="out" title="Zoom out">➖</button>' +
     '<span class="aw-zoom-ind" id="zoomInd">100%</span>' +
     '<button class="aw-tbtn" data-szoom="in" title="Zoom in">➕</button>' +
@@ -506,6 +520,23 @@ function wireStudentZoom(){
 }
 window.backList=function(){ stopPoll(); if(isTeacher)saveNow(); showList(); };
 
+/*──── full screen: the side menu, the page header and (where the browser allows) the browser bars go away ────*/
+function awFullscreen(on){
+  var b=document.body;
+  if(on===undefined) on=!b.classList.contains('aw-fs');
+  b.classList.toggle('aw-fs',on);
+  var x=document.getElementById('fsExit');
+  if(on){
+    if(!x){ x=document.createElement('button'); x.id='fsExit'; x.type='button'; x.textContent='✕ Exit full screen'; x.onclick=function(){ awFullscreen(false); }; document.body.appendChild(x); }
+    try{ var el=document.documentElement; if(!document.fullscreenElement&&el.requestFullscreen) el.requestFullscreen().catch(function(){}); else if(!document.fullscreenElement&&el.webkitRequestFullscreen) el.webkitRequestFullscreen(); }catch(e){}
+  } else {
+    if(x) x.remove();
+    try{ if(document.fullscreenElement&&document.exitFullscreen) document.exitFullscreen().catch(function(){}); else if(document.webkitFullscreenElement&&document.webkitExitFullscreen) document.webkitExitFullscreen(); }catch(e){}
+  }
+  setTimeout(function(){ if(window.AWFree) AWFree.fit(); window.dispatchEvent(new Event('resize')); },120);
+}
+document.addEventListener('fullscreenchange',function(){ if(!document.fullscreenElement&&document.body.classList.contains('aw-fs')) awFullscreen(false); });
+document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('[data-fs]'); if(t) awFullscreen(); });
 /*──── ribbon toolbar (teacher only): Home · Insert · Table Layout, like Word ────*/
 function rbIc(d){ return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>'; }
 var RB_ICONS={
@@ -573,6 +604,7 @@ function buildToolbar(){
       '<button type="button" class="aw-rb-tab" data-tab="draw">Draw</button>'+
       '<button type="button" class="aw-rb-tab aw-rb-tab-tbl" data-tab="table" id="tabTable">Table Layout</button>'+
       '<span style="flex:1"></span>'+
+      '<button type="button" class="aw-rb-b aw-txt" data-fs="1" title="Full screen: hides the side menu and the browser bars">⛶ Full screen</button>'+
       '<button type="button" class="aw-rb-b" data-zoom="out" title="Zoom out">➖</button>'+
       '<span class="aw-zoom-ind" id="zoomInd">100%</span>'+
       '<button type="button" class="aw-rb-b" data-zoom="in" title="Zoom in">➕</button>'+
@@ -946,12 +978,13 @@ function wireTables(){
   function refresh(){
     if(bar.contains(document.activeElement)) return;
     var c=selCells();
-    if(!c.length){ tCell=null; tCells=[]; tab.classList.remove('live'); bar.classList.add('idle'); paintSel(); return; }
+    if(!c.length){ tCell=null; tCells=[]; tab.classList.remove('live'); bar.classList.add('idle'); paintSel(); if(window.AWFree) AWFree.selectTable(null); return; }
     tCells=c; tCell=c[0];
     tab.classList.add('live'); bar.classList.remove('idle');
     bar.querySelector('#tlH').value=(tCell.parentElement.offsetHeight/PX_CM).toFixed(2);
     bar.querySelector('#tlW').value=(tCell.offsetWidth/PX_CM).toFixed(2);
     paintSel();
+    if(window.AWFree) AWFree.selectTable(c[0].closest('table'));
   }
   bar.classList.add('idle');
   document.addEventListener('selectionchange',function(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(refresh); });
@@ -1132,7 +1165,7 @@ function wireTables(){
   function onDrag(e){
     if(!drag) return;
     paintSel();
-    var z=tblZoom(), dx=(e.clientX-drag.x)/z, dy=(e.clientY-drag.y)/z, h=drag.h, t=h.t;
+    var h=drag.h, t=h.t, z=tblZoom()*(parseFloat(t.dataset.s)||1), dx=(e.clientX-drag.x)/z, dy=(e.clientY-drag.y)/z;
     if(h.mode==='col'){
       var i=h.i, last=i>=drag.w.length-1;
       if(last) tblSetCol(t,i,drag.w[i]+dx);

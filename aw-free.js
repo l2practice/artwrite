@@ -325,7 +325,7 @@ function changed(){ fit(); if (typeof scheduleSave === 'function') scheduleSave(
 function fit(){
   const l = layer(false); if (!l) return;
   let pad = canvas.querySelector(':scope > .aw-fl-pad');
-  const objs = [].slice.call(l.querySelectorAll('.fo,.aw-fb'));
+  const objs = [].slice.call(l.querySelectorAll('.fo,.aw-fb')).concat([].slice.call(canvas.querySelectorAll('.aw-tfree')));
   if (!objs.length){ if (pad) pad.remove(); return; }
   if (!pad){ pad = document.createElement('div'); pad.className = 'aw-fl-pad'; pad.setAttribute('contenteditable', 'false'); pad.style.height = '0px'; canvas.appendChild(pad); }
   const cr = canvas.getBoundingClientRect(), z = zoomF();
@@ -503,17 +503,29 @@ function endEdit(b){
 }
 
 /* ── selection ── */
-const isBox = o => o.classList && o.classList.contains('aw-fb');
+const isTbl = o => o.tagName === 'TABLE';
+const isBox = o => o.classList && (o.classList.contains('aw-fb') || o.tagName === 'TABLE');   // text boxes and free tables: left / top / scale
+/* a table lifts out of the text and floats: it can then be dragged anywhere, like a text box */
+function freeTable(t){
+  if (t.classList.contains('aw-tfree')) return;
+  const l = t.offsetLeft, tp = t.offsetTop;
+  t.classList.add('aw-tfree'); t.style.position = 'absolute'; t.style.left = l + 'px'; t.style.top = tp + 'px'; t.style.zIndex = '1'; t.style.margin = '0';
+}
+function unfreeTable(t){
+  t.classList.remove('aw-tfree'); t.style.position = ''; t.style.left = ''; t.style.top = ''; t.style.zIndex = ''; t.style.margin = '';
+  if (!t.getAttribute('class')) t.removeAttribute('class');
+}
 const boxScale = b => parseFloat(b.dataset.s) || 1;
 function setBoxScale(b, k){ k = Math.max(.2, Math.min(8, k)); b.style.transformOrigin = '0 0'; if (Math.abs(k - 1) < 0.002){ delete b.dataset.s; b.style.transform = ''; } else { b.dataset.s = Math.round(k * 1000) / 1000; b.style.transform = 'scale(' + b.dataset.s + ')'; } }
 function boxOf(list){
-  const l = layer(false); if (!l || !list.length) return null;
+  const l = layer(false) || canvas; if (!l || !list.length) return null;   // a table can be selected before any drawing exists
   const lr = l.getBoundingClientRect(), z = zoomF(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   list.forEach(o => { const r = o.getBoundingClientRect(); x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom); });
   return { vx: x0, vy: y0, vw: x1 - x0, vh: y1 - y0, x: (x0 - lr.left) / z, y: (y0 - lr.top) / z, w: (x1 - x0) / z, h: (y1 - y0) / z };
 }
 /* the original numbers of an object, taken when a move / resize starts */
 function snapObj(o){
+  if (isTbl(o)) freeTable(o);
   if (isBox(o)) return { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0, w: o.offsetWidth, s: boxScale(o) };
   if (isSt(o)) return { st: getSt(o) };
   return T(o);
@@ -523,7 +535,7 @@ function moveObj(o, g, dx, dy){
   else if (isSt(o)){ const st = clone(g.st); mapSt(st, 1, dx, 1, dy); setSt(o, st); }
   else setT(o, { x: g.x + dx, y: g.y + dy, sx: g.sx, sy: g.sy });
 }
-const V = (x, y) => { const lr = layer(false).getBoundingClientRect(), z = zoomF(); return [lr.left + x * z, lr.top + y * z]; };
+const V = (x, y) => { const lr = (layer(false) || canvas).getBoundingClientRect(), z = zoomF(); return [lr.left + x * z, lr.top + y * z]; };
 /* ── measuring badges: length / size while you draw, the angle at every corner when ∠ Angles is on ── */
 function badge(vx, vy, text, kind){
   const d = document.createElement('div'); d.className = 'aw-flbadge' + (kind ? ' ' + kind : ''); d.textContent = text;
@@ -557,7 +569,7 @@ function angleBadges(st){
 function paintSel(){
   if (!ui) return;
   S.sel = S.sel.filter(o => o.isConnected);
-  const showBox = S.tool === 'select' || (S.tool === 'type' && S.sel.length === 1 && isBox(S.sel[0]));
+  const showBox = S.sel.length > 0 && (S.tool === 'select' || S.tool === 'shape' || (S.tool === 'type' && S.sel.length === 1 && isBox(S.sel[0])));
   const b = showBox ? boxOf(S.sel) : null;
   const one = S.sel.length === 1 && isSt(S.sel[0]) ? getSt(S.sel[0]) : null;
   if (!G){ if (S.angles && one && showBox) showBadges(one, false); else clearBadges(); }
@@ -565,20 +577,60 @@ function paintSel(){
   ui.style.display = 'block'; ui.style.left = b.vx - 4 + 'px'; ui.style.top = b.vy - 4 + 'px'; ui.style.width = b.vw + 8 + 'px'; ui.style.height = b.vh + 8 + 'px';
   const poly = !!(one && isPoly(one)), rot = !!(one && rotatable(one));
   ui.classList.toggle('poly', poly); ui.classList.toggle('rotok', rot);
+  const allTbl = S.sel.length > 0 && S.sel.every(isTbl);
+  ui.classList.toggle('tbl', allTbl); ui.classList.toggle('free', allTbl && S.sel.every(t => t.classList.contains('aw-tfree')));
   if (poly){   // a line / caret / curved arrow: its end points are the handles
     const pts = polyPts(one);
     [].forEach.call(ui.querySelectorAll('.vp'), (el, i) => { const q = pts[i]; if (!q){ el.style.display = 'none'; return; } const v = V(q[0], q[1]); el.style.display = 'block'; el.style.left = (v[0] - (b.vx - 4) - 6) + 'px'; el.style.top = (v[1] - (b.vy - 4) - 6) + 'px'; });
   }
   syncStyleUI();
 }
+const ICO = {
+  del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>',
+  dup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+  rot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg>',
+  col: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3C8 8 5 11 5 15a7 7 0 0 0 14 0c0-4-3-7-7-12z"/></svg>'
+};
+let colPop = null;
+function openColourPop(anchor){
+  if (colPop){ colPop.remove(); colPop = null; return; }
+  colPop = document.createElement('div'); colPop.className = 'aw-pal aw-colpop';
+  colPop.innerHTML = '<div class="aw-pal-grid">' + COLOURS.concat(['#FFD43B', '#7ED957', '#FF8FB1', '#74C0FC', '#B197FC', '#FF922B', '#868E96']).map(c => '<button type="button" data-c="' + c + '" style="background:' + c + '"></button>').join('') + '</div><label class="aw-pal-row">More colors… <input type="color" value="#3366cc"></label>';
+  const r = anchor.getBoundingClientRect();
+  colPop.style.left = Math.max(8, Math.min(r.left - 60, window.innerWidth - 200)) + 'px'; colPop.style.top = Math.min(r.bottom + 6, window.innerHeight - 190) + 'px';
+  document.body.appendChild(colPop);
+  const pick = c => { if (colPop){ colPop.remove(); colPop = null; } if (S.sel.length){ snap(); applyColour(c); } };
+  colPop.addEventListener('mousedown', e => { if (e.target.tagName !== 'INPUT') e.preventDefault(); });
+  colPop.addEventListener('click', e => { const c = e.target.dataset && e.target.dataset.c; if (c) pick(c); });
+  colPop.querySelector('input').onchange = function(){ pick(this.value); };
+}
+/* colour of the selected shapes, symbols, text boxes (their lines or letters) */
+function applyColour(c){
+  S.sel.forEach(o => {
+    if (isBox(o)) o.style.color = c;
+    else if (o.dataset.k === 'sym') [].forEach.call(o.children, ch => { if (ch.tagName === 'text') ch.setAttribute('fill', c); else ch.setAttribute('stroke', c); });
+    else o.setAttribute('stroke', c);
+  });
+  S.stroke = c; changed();
+}
+document.addEventListener('mousedown', e => { if (colPop && !colPop.contains(e.target) && !(e.target.closest && e.target.closest('.aw-flsel'))){ colPop.remove(); colPop = null; } }, true);
 function buildUI(){
   if (ui) return;
   ui = document.createElement('div'); ui.className = 'aw-flsel'; ui.style.display = 'none';
-  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('') + '<i class="vp" data-v="0"></i><i class="vp" data-v="1"></i><i class="vp mid" data-v="2"></i><i class="rt" title="Turn (snaps every 15°)">↻</i><i class="mv" title="Drag to move">✥ Move</i><i class="dl" title="Delete">✕</i>';
+  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('') + '<i class="vp" data-v="0"></i><i class="vp" data-v="1"></i><i class="vp mid" data-v="2"></i><i class="mv" title="Drag to move">✥ Move</i>' +
+    '<i class="ic dl" title="Delete">' + ICO.del + '</i><i class="ic dp" title="Duplicate">' + ICO.dup + '</i><i class="ic rt" title="Turn (drag; snaps every 15°)">' + ICO.rot + '</i><i class="ic co" title="Colour">' + ICO.col + '</i><i class="fl" title="Put the table back in the text">⇩ In text</i>';
   document.body.appendChild(ui);
   ui.addEventListener('pointerdown', e => {
     const cl = e.target.classList; if (!cl) return;
-    if (cl.contains('dl')){ e.preventDefault(); e.stopPropagation(); del(); return; }
+    if (cl.contains('dl') || (e.target.closest && e.target.closest('.ic.dl'))){ e.preventDefault(); e.stopPropagation(); del(); return; }
+    if (e.target.closest && e.target.closest('.ic.dp')){ e.preventDefault(); e.stopPropagation(); dup(); return; }
+    if (e.target.closest && e.target.closest('.ic.co')){ e.preventDefault(); e.stopPropagation(); openColourPop(e.target.closest('.ic.co')); return; }
+    if (cl.contains('fl')){ e.preventDefault(); e.stopPropagation(); S.sel.filter(isTbl).forEach(unfreeTable); changed(); return; }
+    if (e.target.closest && e.target.closest('.ic.rt')){
+      e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
+      const st = getSt(S.sel[0]), c = V(st.x + st.bw / 2, st.y + st.bh / 2);
+      G = { kind: 'rot', o: S.sel[0], cx: c[0], cy: c[1], fromUi: true }; return;
+    }
     if (cl.contains('mv')){   // the grip: drag the selection (works while a text box is being edited too)
       e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
       G = { kind: 'move', x0: e.clientX, y0: e.clientY, did: true, fromUi: true, origs: S.sel.map(snapObj) };
@@ -587,11 +639,6 @@ function buildUI(){
     if (cl.contains('vp')){   // an end point / corner of a line, caret or curved arrow
       e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
       G = { kind: 'vtx', i: +e.target.dataset.v, o: S.sel[0], fromUi: true }; return;
-    }
-    if (cl.contains('rt')){
-      e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
-      const st = getSt(S.sel[0]), c = V(st.x + st.bw / 2, st.y + st.bh / 2);
-      G = { kind: 'rot', o: S.sel[0], cx: c[0], cy: c[1], fromUi: true }; return;
     }
     const h = e.target.dataset && e.target.dataset.h; if (!h) return;
     e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId);
@@ -608,7 +655,8 @@ function resizeMove(e){
   let x0 = o.x, y0 = o.y, x1 = o.x + o.w, y1 = o.y + o.h;
   if (h.indexOf('w') >= 0) x0 = Math.min(x1 - 8, o.x + dx); if (h.indexOf('e') >= 0) x1 = Math.max(x0 + 8, o.x + o.w + dx);
   if (h.indexOf('n') >= 0) y0 = Math.min(y1 - 8, o.y + dy); if (h.indexOf('s') >= 0) y1 = Math.max(y0 + 8, o.y + o.h + dy);
-  const ax = (x1 - x0) / (o.w || 1), ay = (y1 - y0) / (o.h || 1);
+  let ax = (x1 - x0) / (o.w || 1), ay = (y1 - y0) / (o.h || 1);
+  if (e.shiftKey && h.length === 2){ const k = Math.max(ax, ay); ax = ay = k; x1 = x0 + o.w * k; if (h.indexOf('n') >= 0) y0 = y1 - o.h * k; else y1 = y0 + o.h * k; if (h.indexOf('w') >= 0) x0 = x1 - o.w * k; }
   let lastSt = null;
   S.sel.forEach((s, i) => {
     const g = G.origs[i];
@@ -696,7 +744,7 @@ function onDown(e){
   } else if (S.tool === 'eraser'){
     G = { kind: 'erase', did: false }; eraseAt(e);
   } else if (S.tool === 'shape'){
-    snap();
+    S.sel = []; paintSel(); snap();
     if (S.shape.k === 'sym'){ G = { kind: 'sym', x0: p.x, y0: p.y, el: null }; return; }
     const st = makeShape(p.x, p.y, p.x, p.y); const el = shapeEl(st); svgEl().appendChild(el); G = { kind: 'shape', x0: p.x, y0: p.y, el, st, lock: lk };
   } else if (S.tool === 'text'){
@@ -787,7 +835,7 @@ function onUp(e){
       const s2 = makeShape(p.x, p.y, p.x + (ln || S.shape.k === 'loop' ? 110 : big), p.y + (ln ? 0 : (S.shape.k === 'loop' ? -40 : big * .8)));
       shapeEl(s2, g.el); rememberDims(s2);
     } else rememberDims(st);
-    clearBadges(); changed();
+    S.sel = [g.el]; clearBadges(); changed();
   } else if (g.kind === 'sym'){
     const sy = S.sym; if (!sy){ return; }
     const key = sy.ring ? (sy.txt2 ? 'ring2' : 'ring') : sy.txt2 ? 'two' : 'label', sd = S.symDims[key], sz = sd || symSize(sy.txt, sy.ring, sy.txt2), p = g.cur;
@@ -798,7 +846,7 @@ function onUp(e){
       if (sy.ring && !sy.txt2 && Math.abs(w - h) < 6) h = w;
       S.symDims[key] = [Math.round(w), Math.round(h)]; lsSet('aw_sym_dims', S.symDims);   // the next symbols of this kind come out the same size
     }
-    svgEl().appendChild(symEl(sy, cx, cy, w, h)); changed();
+    const se = svgEl().appendChild(symEl(sy, cx, cy, w, h)); S.sel = [se]; changed();
   } else if (g.kind === 'text'){
     const dx = Math.abs(e.clientX - g.vx) / zoomF();
     const x = Math.min(g.x0, pt(e).x), y = Math.min(g.y0, pt(e).y);
@@ -882,7 +930,7 @@ function onKey(e){
     snap(); S.sel.forEach(o => moveObj(o, snapObj(o), dx, dy)); changed();
   }
 }
-function del(){ if (!S.sel.length) return; snap(); S.sel.forEach(o => o.remove()); S.sel = []; clearBadges(); changed(); }
+function del(){ if (!S.sel.length) return; if (S.sel.some(isTbl) && !confirm('Xoá cả bảng này?')) return; snap(); S.sel.forEach(o => o.remove()); S.sel = []; clearBadges(); changed(); }
 function dup(){
   if (!S.sel.length) return; snap(); const out = [];
   S.sel.forEach(o => { const c = o.cloneNode(true); c.dataset.id = uid(); c.setAttribute('contenteditable', 'false'); o.parentNode.appendChild(c); moveObj(c, snapObj(c), 14, 14); out.push(c); });
@@ -895,7 +943,7 @@ function order(front){
 
 /* ── style: colours, fill, thickness (for the next object and the selection) ── */
 function applyStyle(kind, v){
-  const tgt = S.sel.length && S.tool === 'select';
+  const tgt = S.sel.length > 0 && S.tool !== 'type';
   if (kind === 'stroke'){ if (S.tool === 'hl') S.hl = v; else S.stroke = v; }
   if (kind === 'fill') S.fill = v;
   if (kind === 'w') S.w = v;
@@ -946,7 +994,7 @@ function syncStyleUI(){
 }
 function setTool(t){
   if (S.tool === 'type' && t !== 'type'){ const a = document.activeElement; if (a && a.classList && a.classList.contains('aw-fb')) a.blur(); }
-  S.tool = t; if (t !== 'select' && !(t === 'type' && S.sel.length === 1 && isBox(S.sel[0]))) S.sel = [];
+  S.tool = t; if (t !== 'select' && t !== 'shape' && !(t === 'type' && S.sel.length === 1 && isBox(S.sel[0]))) S.sel = [];
   layer(t !== 'type'); sync(); paintSel();
   if (canvas) canvas.classList.toggle('free-on', t !== 'type');
   if (t === 'shape' || t === 'pen' || t === 'hl'){ /* keep panels as they are */ }
@@ -1078,7 +1126,7 @@ function wire(cv){
   cv.addEventListener('input', () => { if (S.sel.length) paintSel(); });
   document.addEventListener('mousedown', e => {   // click away: the frame goes
     if (S.tool !== 'type' || !S.sel.length) return;
-    const t = e.target; if (t.closest && (t.closest('.aw-fb') || t.closest('.aw-flsel') || t.closest('#tb') || t.closest('.aw-fpanel'))) return;
+    const t = e.target; if (t.closest && (t.closest('.aw-fb') || t.closest('table') || t.closest('.aw-flsel') || t.closest('#tb') || t.closest('.aw-fpanel') || t.closest('.aw-colpop'))) return;
     S.sel = []; paintSel();
   }, true);
   cv.addEventListener('dblclick', e => { const b = e.target.closest && e.target.closest('.aw-fb'); if (b && S.tool === 'select'){ setTool('type'); edit(b); } });
@@ -1107,5 +1155,10 @@ function wire(cv){
   syncStyleUI();
   setTimeout(fit, 50);
 }
-window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit, serialize, hydrate };
+function selectTable(t){
+  if (!canvas || S.tool !== 'type') return;
+  if (t){ if (S.sel.length !== 1 || S.sel[0] !== t){ S.sel = [t]; } paintSel(); }
+  else if (S.sel.length === 1 && isTbl(S.sel[0])){ S.sel = []; paintSel(); }
+}
+window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit, serialize, hydrate, selectTable };
 })();
