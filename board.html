@@ -52,16 +52,21 @@
   .aw-flsel .h[data-h="ne"]{right:-6px;top:-6px;cursor:nesw-resize}.aw-flsel .h[data-h="e"]{right:-6px;top:calc(50% - 5px);cursor:ew-resize}
   .aw-flsel .h[data-h="se"]{right:-6px;bottom:-6px;cursor:nwse-resize}.aw-flsel .h[data-h="s"]{left:calc(50% - 5px);bottom:-6px;cursor:ns-resize}
   .aw-flsel .h[data-h="sw"]{left:-6px;bottom:-6px;cursor:nesw-resize}.aw-flsel .h[data-h="w"]{left:-6px;top:calc(50% - 5px);cursor:ew-resize}
-  .aw-flsel .mv{position:absolute;left:50%;top:-30px;transform:translateX(-50%);background:var(--aw-primary);color:#fff;font-style:normal;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;cursor:move;pointer-events:auto;white-space:nowrap;touch-action:none;user-select:none}
+  .aw-flsel .mv,.aw-flsel .rt{position:absolute;width:28px;height:28px;border-radius:50%;background:var(--aw-primary);color:#fff;display:grid;place-items:center;pointer-events:auto;cursor:move;box-shadow:0 2px 6px rgba(0,0,0,.25);touch-action:none;font-style:normal}
+  .aw-flsel .mv{left:-36px;bottom:-36px}
+  .aw-flsel .rt{left:50%;top:-52px;margin-left:-14px;cursor:grab;display:none}
+  .aw-flsel .rt::after{content:'';position:absolute;left:50%;top:100%;width:1.5px;height:24px;background:var(--aw-primary);transform:translateX(-50%)}
+  .aw-flsel.rotok .rt{display:grid}
+  .aw-flsel .mv svg,.aw-flsel .rt svg{width:16px;height:16px;pointer-events:none;transform:rotate(calc(-1 * var(--rot,0deg)))}
+  .aw-flsel .ic svg{transform:rotate(calc(-1 * var(--rot,0deg)))}
   .aw-flsel .ic{position:absolute;width:28px;height:28px;border-radius:50%;background:#fff;border:1.5px solid var(--aw-primary);color:var(--aw-primary);display:grid;place-items:center;pointer-events:auto;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.18);touch-action:none}
   .aw-flsel .ic svg{width:15px;height:15px;pointer-events:none}
   .aw-flsel .ic.dl{left:-36px;top:-36px;color:#B42318;border-color:#B42318}
   .aw-flsel .ic.dp{right:-36px;top:-36px}
-  .aw-flsel .ic.rt{left:-36px;bottom:-36px;cursor:grab;display:none}
   .aw-flsel .ic.co{right:-36px;bottom:-36px}
-  .aw-flsel.rotok .ic.rt{display:grid}
   .aw-flsel .fl{position:absolute;left:50%;bottom:-38px;transform:translateX(-50%);background:var(--aw-primary);color:#fff;font-style:normal;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;cursor:pointer;pointer-events:auto;white-space:nowrap;display:none}
   .aw-flsel.free .fl{display:block}
+  .aw-flsel.pic .ic.co{display:none}
   .aw-flsel.tbl .h[data-h="n"],.aw-flsel.tbl .h[data-h="s"],.aw-flsel.tbl .h[data-h="e"],.aw-flsel.tbl .h[data-h="w"]{display:none}
   .aw-tfree{box-shadow:0 0 0 1px rgba(86,97,224,.25)}
   body.aw-embed .aw-side,body.aw-embed .aw-topbar,body.aw-embed .aw-menu-btn,body.aw-embed [data-fs]{display:none!important}
@@ -1475,33 +1480,36 @@ if(isTeacher){
     if(e.target.tagName==='IMG' && document.getElementById('canvas').contains(e.target)){
       if(selectedImg) selectedImg.classList.remove('selected');
       selectedImg=e.target; selectedImg.classList.add('selected');
+      if(window.AWFree) AWFree.selectEl(selectedImg);          // the frame with handles (corners keep the ratio, sides stretch, turn, move)
+      var ir=selectedImg.getBoundingClientRect();
       imgCtrl.style.display='flex';
-      imgCtrl.style.top=(e.clientY+10)+'px';
-      imgCtrl.style.left=(e.clientX-80)+'px';
-    } else if(!imgCtrl.contains(e.target)){
+      imgCtrl.style.top=Math.min(window.innerHeight-60, ir.bottom+54)+'px';
+      imgCtrl.style.left=Math.max(8, ir.left)+'px';
+    } else if(!imgCtrl.contains(e.target) && !(e.target.closest&&e.target.closest('.aw-flsel'))){
       if(selectedImg){selectedImg.classList.remove('selected');selectedImg=null;}
       imgCtrl.style.display='none';
+      if(window.AWFree) AWFree.selectEl(null);
     }
   });
   document.getElementById('imgSmaller').onclick=function(){
     if(!selectedImg)return;
     var w=selectedImg.offsetWidth||200;
     selectedImg.style.width=Math.max(80,Math.round(w*0.75))+'px';
-    selectedImg.style.maxWidth='none'; scheduleSave();
+    selectedImg.style.maxWidth='none'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
   };
   document.getElementById('imgLarger').onclick=function(){
     if(!selectedImg)return;
     var w=selectedImg.offsetWidth||200;
     selectedImg.style.width=Math.min(1400,Math.round(w*1.33))+'px';
-    selectedImg.style.maxWidth='none'; scheduleSave();
+    selectedImg.style.maxWidth='none'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
   };
   document.getElementById('imgHalf').onclick=function(){
     if(!selectedImg)return;
-    selectedImg.style.width='50%'; selectedImg.style.maxWidth='none'; scheduleSave();
+    selectedImg.style.width='50%'; selectedImg.style.maxWidth='none'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
   };
   document.getElementById('imgFull').onclick=function(){
     if(!selectedImg)return;
-    selectedImg.style.width='100%'; selectedImg.style.maxWidth='100%'; scheduleSave();
+    selectedImg.style.width='100%'; selectedImg.style.maxWidth='100%'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
   };
 
   // Same size — match selected img to the nearest other img in the canvas
@@ -1516,7 +1524,7 @@ if(isTeacher){
     var refW = ref.offsetWidth || parseInt(ref.style.width)||200;
     selectedImg.style.width = refW+'px';
     selectedImg.style.maxWidth='none';
-    scheduleSave();
+    scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
     AW.toast('Đã đồng bộ kích thước với ảnh trên','ok',2000);
   };
 
@@ -1546,7 +1554,7 @@ if(isTeacher){
         row.appendChild(img);
       });
     }
-    scheduleSave();
+    scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
     AW.toast('Đã xếp ảnh sang 2 cột ngang','ok',2000);
   };
 
@@ -1563,7 +1571,7 @@ if(isTeacher){
       }
       row.parentNode.removeChild(row);
     });
-    scheduleSave();
+    scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
     AW.toast('Đã chuyển về bố cục dọc','ok',2000);
   };
 

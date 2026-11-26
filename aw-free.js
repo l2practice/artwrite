@@ -403,6 +403,7 @@ function smoothD(pts){
   for (let i = 1; i < pts.length - 1; i++){ const m = [(pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2]; d += 'Q' + r1(pts[i][0]) + ' ' + r1(pts[i][1]) + ' ' + r1(m[0]) + ' ' + r1(m[1]); }
   const e = pts[pts.length - 1]; return d + 'L' + r1(e[0]) + ' ' + r1(e[1]);
 }
+const symKey2 = sy => sy.ring ? (sy.txt2 ? 'ring2' : 'ring') : sy.txt2 ? 'two' : 'label';
 const shapeKey = st => st.k + ((st.k === 'brkt' || st.k === 'brace') ? (st.o || 0) : '');
 const isLine = st => st.k === 'line' || st.k === 'arrow', isCaret = st => st.k === 'caret', isLoop = st => st.k === 'loop';
 const isPoly = st => isLine(st) || isCaret(st) || isLoop(st);
@@ -504,13 +505,17 @@ function endEdit(b){
 
 /* ── selection ── */
 const isTbl = o => o.tagName === 'TABLE';
-const isBox = o => o.classList && (o.classList.contains('aw-fb') || o.tagName === 'TABLE');   // text boxes and free tables: left / top / scale
+const isImg = o => o.tagName === 'IMG';
+const isFreeable = o => isTbl(o) || isImg(o);
+const isBox = o => o.classList && (o.classList.contains('aw-fb') || o.tagName === 'TABLE' || o.tagName === 'IMG');   // text boxes and free tables: left / top / scale
 /* a table lifts out of the text and floats: it can then be dragged anywhere, like a text box */
 function freeTable(t){
   if (t.classList.contains('aw-tfree')) return;
   const l = t.offsetLeft, tp = t.offsetTop;
   t.classList.add('aw-tfree'); t.style.position = 'absolute'; t.style.left = l + 'px'; t.style.top = tp + 'px'; t.style.zIndex = '1'; t.style.margin = '0';
 }
+const imgRot = o => parseFloat(o.dataset.rot) || 0;
+function setImgRot(o, a){ a = ((a % 360) + 540) % 360 - 180; a = Math.round(a * 10) / 10; if (a){ o.dataset.rot = a; o.style.transformOrigin = '50% 50%'; o.style.transform = 'rotate(' + a + 'deg)'; } else { delete o.dataset.rot; o.style.transform = ''; } }
 function unfreeTable(t){
   t.classList.remove('aw-tfree'); t.style.position = ''; t.style.left = ''; t.style.top = ''; t.style.zIndex = ''; t.style.margin = '';
   if (!t.getAttribute('class')) t.removeAttribute('class');
@@ -525,7 +530,7 @@ function boxOf(list){
 }
 /* the original numbers of an object, taken when a move / resize starts */
 function snapObj(o){
-  if (isTbl(o)) freeTable(o);
+  if (isFreeable(o)) freeTable(o);
   if (isBox(o)) return { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0, w: o.offsetWidth, s: boxScale(o) };
   if (isSt(o)) return { st: getSt(o) };
   return T(o);
@@ -570,15 +575,28 @@ function paintSel(){
   if (!ui) return;
   S.sel = S.sel.filter(o => o.isConnected);
   const showBox = S.sel.length > 0 && (S.tool === 'select' || S.tool === 'shape' || (S.tool === 'type' && S.sel.length === 1 && isBox(S.sel[0])));
+  const pic = S.sel.length === 1 && isImg(S.sel[0]) ? S.sel[0] : null;
   const b = showBox ? boxOf(S.sel) : null;
   const one = S.sel.length === 1 && isSt(S.sel[0]) ? getSt(S.sel[0]) : null;
   if (!G){ if (S.angles && one && showBox) showBadges(one, false); else clearBadges(); }
   if (!b){ ui.style.display = 'none'; syncStyleUI(); return; }
-  ui.style.display = 'block'; ui.style.left = b.vx - 4 + 'px'; ui.style.top = b.vy - 4 + 'px'; ui.style.width = b.vw + 8 + 'px'; ui.style.height = b.vh + 8 + 'px';
-  const poly = !!(one && isPoly(one)), rot = !!(one && rotatable(one));
-  ui.classList.toggle('poly', poly); ui.classList.toggle('rotok', rot);
+  const poly = !!(one && isPoly(one)), rot = !!((one && rotatable(one)) || pic);
+  ui.style.display = 'block';
+  if (pic){   // a picture: its own box, turned with it
+    const r = pic.getBoundingClientRect(), z = zoomF(), fw = pic.offsetWidth * z + 12, fh = pic.offsetHeight * z + 12, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    ui.style.left = cx - fw / 2 + 'px'; ui.style.top = cy - fh / 2 + 'px'; ui.style.width = fw + 'px'; ui.style.height = fh + 'px';
+    ui.style.transform = 'rotate(' + imgRot(pic) + 'deg)'; ui.style.setProperty('--rot', imgRot(pic) + 'deg');
+  } else if (rot){   // a shape: the frame is its own box, turned with it (as in Notes)
+    const c = V(one.x + one.bw / 2, one.y + one.bh / 2), z = zoomF(), fw = one.bw * z + 12, fh = one.bh * z + 12;
+    ui.style.left = c[0] - fw / 2 + 'px'; ui.style.top = c[1] - fh / 2 + 'px'; ui.style.width = fw + 'px'; ui.style.height = fh + 'px';
+    ui.style.transform = 'rotate(' + (one.rot || 0) + 'deg)'; ui.style.setProperty('--rot', (one.rot || 0) + 'deg');
+  } else {
+    ui.style.left = b.vx - 4 + 'px'; ui.style.top = b.vy - 4 + 'px'; ui.style.width = b.vw + 8 + 'px'; ui.style.height = b.vh + 8 + 'px';
+    ui.style.transform = ''; ui.style.setProperty('--rot', '0deg');
+  }
+  ui.classList.toggle('poly', poly); ui.classList.toggle('rotok', rot); ui.classList.toggle('pic', !!pic);
   const allTbl = S.sel.length > 0 && S.sel.every(isTbl);
-  ui.classList.toggle('tbl', allTbl); ui.classList.toggle('free', allTbl && S.sel.every(t => t.classList.contains('aw-tfree')));
+  ui.classList.toggle('tbl', allTbl); ui.classList.toggle('free', S.sel.length > 0 && S.sel.every(isFreeable) && S.sel.every(t => t.classList.contains('aw-tfree')));
   if (poly){   // a line / caret / curved arrow: its end points are the handles
     const pts = polyPts(one);
     [].forEach.call(ui.querySelectorAll('.vp'), (el, i) => { const q = pts[i]; if (!q){ el.style.display = 'none'; return; } const v = V(q[0], q[1]); el.style.display = 'block'; el.style.left = (v[0] - (b.vx - 4) - 6) + 'px'; el.style.top = (v[1] - (b.vy - 4) - 6) + 'px'; });
@@ -589,6 +607,7 @@ const ICO = {
   del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>',
   dup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
   rot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg>',
+  move: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>',
   col: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3C8 8 5 11 5 15a7 7 0 0 0 14 0c0-4-3-7-7-12z"/></svg>'
 };
 let colPop = null;
@@ -617,21 +636,25 @@ document.addEventListener('mousedown', e => { if (colPop && !colPop.contains(e.t
 function buildUI(){
   if (ui) return;
   ui = document.createElement('div'); ui.className = 'aw-flsel'; ui.style.display = 'none';
-  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('') + '<i class="vp" data-v="0"></i><i class="vp" data-v="1"></i><i class="vp mid" data-v="2"></i><i class="mv" title="Drag to move">✥ Move</i>' +
-    '<i class="ic dl" title="Delete">' + ICO.del + '</i><i class="ic dp" title="Duplicate">' + ICO.dup + '</i><i class="ic rt" title="Turn (drag; snaps every 15°)">' + ICO.rot + '</i><i class="ic co" title="Colour">' + ICO.col + '</i><i class="fl" title="Put the table back in the text">⇩ In text</i>';
+  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('') + '<i class="vp" data-v="0"></i><i class="vp" data-v="1"></i><i class="vp mid" data-v="2"></i><i class="mv" title="Move (drag)">' + ICO.move + '</i>' +
+    '<i class="rt" title="Turn (drag; snaps every 15°)">' + ICO.rot + '</i>' +
+    '<i class="ic dl" title="Delete">' + ICO.del + '</i><i class="ic dp" title="Duplicate">' + ICO.dup + '</i><i class="ic co" title="Colour">' + ICO.col + '</i><i class="fl" title="Put the table back in the text">⇩ In text</i>';
   document.body.appendChild(ui);
   ui.addEventListener('pointerdown', e => {
     const cl = e.target.classList; if (!cl) return;
     if (cl.contains('dl') || (e.target.closest && e.target.closest('.ic.dl'))){ e.preventDefault(); e.stopPropagation(); del(); return; }
     if (e.target.closest && e.target.closest('.ic.dp')){ e.preventDefault(); e.stopPropagation(); dup(); return; }
     if (e.target.closest && e.target.closest('.ic.co')){ e.preventDefault(); e.stopPropagation(); openColourPop(e.target.closest('.ic.co')); return; }
-    if (cl.contains('fl')){ e.preventDefault(); e.stopPropagation(); S.sel.filter(isTbl).forEach(unfreeTable); changed(); return; }
-    if (e.target.closest && e.target.closest('.ic.rt')){
+    if (cl.contains('fl')){ e.preventDefault(); e.stopPropagation(); S.sel.filter(isFreeable).forEach(unfreeTable); changed(); return; }
+    if (e.target.closest && e.target.closest('.rt')){   // the turn handle: the shape turns with the handle, from where it is now
       e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
-      const st = getSt(S.sel[0]), c = V(st.x + st.bw / 2, st.y + st.bh / 2);
-      G = { kind: 'rot', o: S.sel[0], cx: c[0], cy: c[1], fromUi: true }; return;
+      const o0 = S.sel[0];
+      let c, r0;
+      if (isImg(o0)){ const r = o0.getBoundingClientRect(); c = [r.left + r.width / 2, r.top + r.height / 2]; r0 = imgRot(o0); }
+      else { const st = getSt(o0); c = V(st.x + st.bw / 2, st.y + st.bh / 2); r0 = st.rot || 0; }
+      G = { kind: 'rot', o: o0, cx: c[0], cy: c[1], a0: Math.atan2(e.clientY - c[1], e.clientX - c[0]) * 180 / Math.PI, r0, fromUi: true }; return;
     }
-    if (cl.contains('mv')){   // the grip: drag the selection (works while a text box is being edited too)
+    if (e.target.closest && e.target.closest('.mv')){   // the grip: drag the selection (works while a text box is being edited too)
       e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
       G = { kind: 'move', x0: e.clientX, y0: e.clientY, did: true, fromUi: true, origs: S.sel.map(snapObj) };
       return;
@@ -642,7 +665,11 @@ function buildUI(){
     }
     const h = e.target.dataset && e.target.dataset.h; if (!h) return;
     e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId);
-    snap(); G = { kind: 'resize', h, ob: boxOf(S.sel), x0: e.clientX, y0: e.clientY, origs: S.sel.map(snapObj) };
+    const one = S.sel.length === 1 && isSt(S.sel[0]) ? getSt(S.sel[0]) : null;
+    const img0 = S.sel.length === 1 && isImg(S.sel[0]) ? S.sel[0] : null;
+    if (img0 && isFreeable(img0)) freeTable(img0);
+    snap(); G = { kind: 'resize', h, ob: boxOf(S.sel), x0: e.clientX, y0: e.clientY, origs: S.sel.map(snapObj), turned: one && rotatable(one) ? one : null,
+      img: img0 ? { o: img0, w: img0.offsetWidth, h: img0.offsetHeight, l: parseFloat(img0.style.left) || 0, t: parseFloat(img0.style.top) || 0, rot: imgRot(img0) } : null };
   });
   ui.addEventListener('pointermove', e => { if (!G) return; if (G.kind === 'resize') resizeMove(e); else if (G.fromUi) onMove(e); });
   ui.addEventListener('pointerup', e => { if (!G) return; if (G.kind === 'resize'){ G = null; clearBadges(); changed(); } else if (G.fromUi) onUp(e); });
@@ -652,6 +679,29 @@ function buildUI(){
 }
 function resizeMove(e){
   const z = zoomF(), dx = (e.clientX - G.x0) / z, dy = (e.clientY - G.y0) / z, o = G.ob, h = G.h;
+  if (G.img){   // a picture: corners keep its proportions, sides stretch it; the opposite edge stays put (turned or not)
+    const q = G.img, th = q.rot * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th), dxl = dx * c + dy * sn, dyl = -dx * sn + dy * c;
+    let ew = h.indexOf('e') >= 0 ? dxl : h.indexOf('w') >= 0 ? -dxl : 0, ns = h.indexOf('s') >= 0 ? dyl : h.indexOf('n') >= 0 ? -dyl : 0;
+    let nw = Math.max(24, q.w + ew), nh = Math.max(24, q.h + ns);
+    if (h.length === 2){ const k = Math.max(nw / q.w, nh / q.h); nw = q.w * k; nh = q.h * k; }
+    ew = nw - q.w; ns = nh - q.h;
+    const csx = h.indexOf('e') >= 0 ? ew / 2 : h.indexOf('w') >= 0 ? -ew / 2 : 0, csy = h.indexOf('s') >= 0 ? ns / 2 : h.indexOf('n') >= 0 ? -ns / 2 : 0;
+    const cx = q.l + q.w / 2 + csx * c - csy * sn, cy = q.t + q.h / 2 + csx * sn + csy * c;
+    q.o.style.maxWidth = 'none'; q.o.style.width = r1(nw) + 'px'; q.o.style.height = r1(nh) + 'px'; q.o.style.left = r1(cx - nw / 2) + 'px'; q.o.style.top = r1(cy - nh / 2) + 'px';
+    paintSel(); return;
+  }
+  if (G.turned){   // a single shape, possibly turned: resize in its own (turned) frame, the opposite edge stays where it is
+    const st0 = G.turned, th = (st0.rot || 0) * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
+    const dxl = dx * c + dy * sn, dyl = -dx * sn + dy * c;
+    let ew = h.indexOf('e') >= 0 ? dxl : h.indexOf('w') >= 0 ? -dxl : 0, ns = h.indexOf('s') >= 0 ? dyl : h.indexOf('n') >= 0 ? -dyl : 0;
+    let nw = Math.max(8, st0.bw + ew), nh = Math.max(8, st0.bh + ns);
+    if (e.shiftKey && h.length === 2){ const k = Math.max(nw / st0.bw, nh / st0.bh); nw = st0.bw * k; nh = st0.bh * k; }
+    ew = nw - st0.bw; ns = nh - st0.bh;
+    const csx = h.indexOf('e') >= 0 ? ew / 2 : h.indexOf('w') >= 0 ? -ew / 2 : 0, csy = h.indexOf('s') >= 0 ? ns / 2 : h.indexOf('n') >= 0 ? -ns / 2 : 0;
+    const cx = st0.x + st0.bw / 2 + csx * c - csy * sn, cy = st0.y + st0.bh / 2 + csx * sn + csy * c;
+    const st = clone(st0); st.bw = nw; st.bh = nh; st.x = cx - nw / 2; st.y = cy - nh / 2;
+    setSt(S.sel[0], st); paintSel(); showBadges(st, true); return;
+  }
   let x0 = o.x, y0 = o.y, x1 = o.x + o.w, y1 = o.y + o.h;
   if (h.indexOf('w') >= 0) x0 = Math.min(x1 - 8, o.x + dx); if (h.indexOf('e') >= 0) x1 = Math.max(x0 + 8, o.x + o.w + dx);
   if (h.indexOf('n') >= 0) y0 = Math.min(y1 - 8, o.y + dy); if (h.indexOf('s') >= 0) y1 = Math.max(y0 + 8, o.y + o.h + dy);
@@ -745,7 +795,12 @@ function onDown(e){
     G = { kind: 'erase', did: false }; eraseAt(e);
   } else if (S.tool === 'shape'){
     S.sel = []; paintSel(); snap();
-    if (S.shape.k === 'sym'){ G = { kind: 'sym', x0: p.x, y0: p.y, el: null }; return; }
+    if (S.shape.k === 'sym'){
+      const sy = S.sym; if (!sy){ S.undo.pop(); return; }
+      const key = symKey2(sy), sz = S.symDims[key] || symSize(sy.txt, sy.ring, sy.txt2);
+      const el = svgEl().appendChild(symEl(sy, p.x, p.y, sz[0], sz[1]));   // the symbol is there from the first moment, so you see how big it is
+      G = { kind: 'sym', x0: p.x, y0: p.y, el, w: sz[0], h: sz[1], dragged: false, key }; return;
+    }
     const st = makeShape(p.x, p.y, p.x, p.y); const el = shapeEl(st); svgEl().appendChild(el); G = { kind: 'shape', x0: p.x, y0: p.y, el, st, lock: lk };
   } else if (S.tool === 'text'){
     G = { kind: 'text', x0: p.x, y0: p.y, vx: e.clientX, vy: e.clientY };
@@ -791,7 +846,18 @@ function onMove(e){
     if (G.snapped){ if (G.lineFollow){ const st = G.st; let dx = p.x - st.x, dy = p.y - st.y; const len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), sn = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12); if (Math.abs(ang - sn) < 0.06){ dx = len * Math.cos(sn); dy = len * Math.sin(sn); } st.x2 = st.x + dx; st.y2 = st.y + dy; setSt(G.el, st); showBadges(st, true); } return; }
     G.st = makeShape(G.x0, G.y0, p.x, p.y, e.shiftKey); shapeEl(G.st, G.el); showBadges(G.st, true);
   }
-  else if (G.kind === 'sym'){ G.cur = pt(e); }
+  else if (G.kind === 'sym'){
+    const p = pt(e), sy = S.sym, sd = S.symDims[G.key];
+    if (!G.dragged && Math.hypot(p.x - G.x0, p.y - G.y0) < 8) return;
+    G.dragged = true;
+    let w = Math.max(10, Math.abs(p.x - G.x0)), h = Math.max(10, Math.abs(p.y - G.y0));
+    if (sd){ if (Math.abs(w - sd[0]) < 4) w = sd[0]; if (Math.abs(h - sd[1]) < 4) h = sd[1]; }
+    if (sy.ring && !sy.txt2 && Math.abs(w - h) < 6) h = w;
+    const cx = G.x0 + (p.x >= G.x0 ? w / 2 : -w / 2), cy = G.y0 + (p.y >= G.y0 ? h / 2 : -h / 2);
+    const n = symEl(sy, cx, cy, w, h); G.el.replaceWith(n); G.el = n; G.w = w; G.h = h;
+    const m = V(cx, cy - h / 2); clearBadges(); badge(m[0], m[1] - 22, Math.round(w) + ' × ' + Math.round(h) + ' px', 'sz');
+    const a = V(cx - w / 2, cy - h / 2), z = zoomF(); band.style.display = 'block'; band.style.left = a[0] + 'px'; band.style.top = a[1] + 'px'; band.style.width = w * z + 'px'; band.style.height = h * z + 'px';
+  }
   else if (G.kind === 'text'){ band.style.display = 'block'; band.style.left = Math.min(G.vx, e.clientX) + 'px'; band.style.top = Math.min(G.vy, e.clientY) + 'px'; band.style.width = Math.abs(e.clientX - G.vx) + 'px'; band.style.height = Math.abs(e.clientY - G.vy) + 'px'; }
   else if (G.kind === 'move'){
     const dx = (e.clientX - G.x0) / z, dy = (e.clientY - G.y0) / z;
@@ -806,10 +872,11 @@ function onMove(e){
     if (isLoop(st) && i === 2){ const dx = st.x2 - st.x, dy = st.y2 - st.y, c2 = dx * dx + dy * dy || 1; S.loopBend = Math.round(((st.x3 - (st.x + st.x2) / 2) * -dy + (st.y3 - (st.y + st.y2) / 2) * dx) / c2 * 100) / 100; lsSet('aw_loop_bend', S.loopBend); }
     setSt(G.o, st); showBadges(st, true); paintSel();
   } else if (G.kind === 'rot'){
-    const st = getSt(G.o); let a = Math.atan2(e.clientY - G.cy, e.clientX - G.cx) * 180 / Math.PI + 90;
+    let a = G.r0 + (Math.atan2(e.clientY - G.cy, e.clientX - G.cx) * 180 / Math.PI - G.a0);
     if (!e.shiftKey){ const sn = Math.round(a / 15) * 15; if (Math.abs(a - sn) < 5) a = sn; }
-    a = ((a % 360) + 540) % 360 - 180; st.rot = Math.round(a * 10) / 10; if (!st.rot) delete st.rot;
-    setSt(G.o, st); paintSel(); clearBadges(); badge(e.clientX + 24, e.clientY - 18, Math.round(a) + '°', 'sz');
+    a = ((a % 360) + 540) % 360 - 180;
+    if (isImg(G.o)) setImgRot(G.o, a); else { const st = getSt(G.o); st.rot = Math.round(a * 10) / 10; if (!st.rot) delete st.rot; setSt(G.o, st); }
+    paintSel(); clearBadges(); badge(e.clientX + 24, e.clientY - 18, Math.round(a) + '°', 'sz');
   } else if (G.kind === 'lasso'){
     G.pts.push([e.clientX, e.clientY]);
     lassoEl.style.display = 'block'; lassoEl.firstChild.setAttribute('d', 'M' + G.pts.map(q => q[0] + ' ' + q[1]).join('L') + 'Z');
@@ -830,23 +897,14 @@ function onUp(e){
   } else if (g.kind === 'erase'){ if (g.did) changed(); }
   else if (g.kind === 'shape'){
     const st = g.st, tiny = g.snapped ? false : (isPoly(st) ? Math.hypot(st.x2 - st.x, st.y2 - st.y) < 6 : (st.bw < 6 && st.bh < 6));
-    if (tiny){   // a plain click puts a standard-size shape
-      const p = { x: g.x0, y: g.y0 }, big = 70, ln = (S.shape.k === 'line' || S.shape.k === 'arrow' || S.shape.k === 'lnx');
-      const s2 = makeShape(p.x, p.y, p.x + (ln || S.shape.k === 'loop' ? 110 : big), p.y + (ln ? 0 : (S.shape.k === 'loop' ? -40 : big * .8)));
-      shapeEl(s2, g.el); rememberDims(s2);
-    } else rememberDims(st);
+    if (tiny){ g.el.remove(); S.undo.pop(); S.sel = []; clearBadges(); paintSel(); return; }   // a plain click draws nothing (and never copies the last shape)
+    rememberDims(st);
     S.sel = [g.el]; clearBadges(); changed();
   } else if (g.kind === 'sym'){
-    const sy = S.sym; if (!sy){ return; }
-    const key = sy.ring ? (sy.txt2 ? 'ring2' : 'ring') : sy.txt2 ? 'two' : 'label', sd = S.symDims[key], sz = sd || symSize(sy.txt, sy.ring, sy.txt2), p = g.cur;
-    let w = sz[0], h = sz[1], cx = g.x0, cy = g.y0;
-    if (p && Math.hypot(p.x - g.x0, p.y - g.y0) > 12){
-      w = Math.abs(p.x - g.x0); h = Math.abs(p.y - g.y0); cx = (p.x + g.x0) / 2; cy = (p.y + g.y0) / 2;
-      if (sd){ if (Math.abs(w - sd[0]) < 4) w = sd[0]; if (Math.abs(h - sd[1]) < 4) h = sd[1]; }
-      if (sy.ring && !sy.txt2 && Math.abs(w - h) < 6) h = w;
-      S.symDims[key] = [Math.round(w), Math.round(h)]; lsSet('aw_sym_dims', S.symDims);   // the next symbols of this kind come out the same size
-    }
-    const se = svgEl().appendChild(symEl(sy, cx, cy, w, h)); S.sel = [se]; changed();
+    clearBadges();
+    if (!g.dragged){ g.el.remove(); S.undo.pop(); paintSel(); return; }   // a plain click draws nothing
+    S.symDims[g.key] = [Math.round(g.w), Math.round(g.h)]; lsSet('aw_sym_dims', S.symDims);   // the next symbols of this kind come out the same size
+    S.sel = [g.el]; changed();
   } else if (g.kind === 'text'){
     const dx = Math.abs(e.clientX - g.vx) / zoomF();
     const x = Math.min(g.x0, pt(e).x), y = Math.min(g.y0, pt(e).y);
@@ -1126,7 +1184,7 @@ function wire(cv){
   cv.addEventListener('input', () => { if (S.sel.length) paintSel(); });
   document.addEventListener('mousedown', e => {   // click away: the frame goes
     if (S.tool !== 'type' || !S.sel.length) return;
-    const t = e.target; if (t.closest && (t.closest('.aw-fb') || t.closest('table') || t.closest('.aw-flsel') || t.closest('#tb') || t.closest('.aw-fpanel') || t.closest('.aw-colpop'))) return;
+    const t = e.target; if (t.closest && (t.closest('.aw-fb') || t.closest('table') || t.tagName === 'IMG' || t.closest('.aw-flsel') || t.closest('#tb') || t.closest('.aw-fpanel') || t.closest('.aw-colpop'))) return;
     S.sel = []; paintSel();
   }, true);
   cv.addEventListener('dblclick', e => { const b = e.target.closest && e.target.closest('.aw-fb'); if (b && S.tool === 'select'){ setTool('type'); edit(b); } });
@@ -1155,10 +1213,15 @@ function wire(cv){
   syncStyleUI();
   setTimeout(fit, 50);
 }
+function selectEl(el){   // a table or a picture clicked in the text
+  if (!canvas || S.tool !== 'type') return;
+  if (el){ if (S.sel.length !== 1 || S.sel[0] !== el) S.sel = [el]; paintSel(); }
+  else if (S.sel.length === 1 && isFreeable(S.sel[0])){ S.sel = []; paintSel(); }
+}
 function selectTable(t){
   if (!canvas || S.tool !== 'type') return;
   if (t){ if (S.sel.length !== 1 || S.sel[0] !== t){ S.sel = [t]; } paintSel(); }
   else if (S.sel.length === 1 && isTbl(S.sel[0])){ S.sel = []; paintSel(); }
 }
-window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit, serialize, hydrate, selectTable };
+window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit, serialize, hydrate, selectTable, selectEl };
 })();
