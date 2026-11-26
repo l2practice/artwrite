@@ -26,6 +26,59 @@
   .aw-canvas table{border-collapse:collapse;table-layout:fixed;margin:8px 0;max-width:none}
   .aw-canvas td,.aw-canvas th{border:1px solid var(--aw-ink-3,#6b7280);padding:6px 8px;vertical-align:top;overflow-wrap:anywhere;min-width:20px}
   .aw-canvas table.aw-nob td,.aw-canvas table.aw-nob th{border-color:transparent}
+  /*── free layer (text boxes, drawing, shapes) ──*/
+  .aw-canvas{position:relative}
+  .aw-fl{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:2;user-select:none}
+  .aw-fl.t-pen,.aw-fl.t-hl,.aw-fl.t-eraser,.aw-fl.t-shape,.aw-fl.t-text,.aw-fl.t-select{pointer-events:auto;touch-action:none}
+  .aw-fl.t-pen,.aw-fl.t-hl,.aw-fl.t-shape,.aw-fl.t-text{cursor:crosshair}
+  .aw-fl.t-eraser{cursor:cell}
+  .aw-fl.t-select{cursor:default}
+  .aw-fl-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+  .aw-fl .fo{pointer-events:none}
+  .aw-fl.t-select .fo,.aw-fl.t-select .fo *,.aw-fl.t-eraser .fo,.aw-fl.t-eraser .fo *{pointer-events:visiblePainted}
+  .aw-fb{position:absolute;min-width:60px;padding:4px 6px;line-height:1.35;outline:none;overflow-wrap:anywhere;white-space:pre-wrap;box-sizing:border-box;pointer-events:auto;user-select:text;border-radius:4px}
+  .aw-fb[contenteditable="true"]{outline:2px dashed var(--aw-primary);background:rgba(255,255,255,.6);cursor:text}
+  .aw-fb[contenteditable="true"]:empty:before{content:'Type here…';color:#999}
+  .aw-fl.t-pen .aw-fb,.aw-fl.t-hl .aw-fb,.aw-fl.t-shape .aw-fb,.aw-fl.t-text .aw-fb,.aw-fl.t-eraser .aw-fb{pointer-events:none}
+  .aw-fl.t-select .aw-fb{cursor:move}
+  .aw-canvas.free-on{caret-color:transparent}
+  .aw-cols{column-gap:32px;column-rule:1px solid var(--aw-border)}
+  .aw-flsel{position:fixed;z-index:60;border:1.5px solid var(--aw-primary);pointer-events:none;box-sizing:border-box}
+  .aw-flsel .h{position:absolute;width:10px;height:10px;background:#fff;border:2px solid var(--aw-primary);border-radius:50%;pointer-events:auto;touch-action:none}
+  .aw-flsel .h[data-h="nw"]{left:-6px;top:-6px;cursor:nwse-resize}.aw-flsel .h[data-h="n"]{left:calc(50% - 5px);top:-6px;cursor:ns-resize}
+  .aw-flsel .h[data-h="ne"]{right:-6px;top:-6px;cursor:nesw-resize}.aw-flsel .h[data-h="e"]{right:-6px;top:calc(50% - 5px);cursor:ew-resize}
+  .aw-flsel .h[data-h="se"]{right:-6px;bottom:-6px;cursor:nwse-resize}.aw-flsel .h[data-h="s"]{left:calc(50% - 5px);bottom:-6px;cursor:ns-resize}
+  .aw-flsel .h[data-h="sw"]{left:-6px;bottom:-6px;cursor:nesw-resize}.aw-flsel .h[data-h="w"]{left:-6px;top:calc(50% - 5px);cursor:ew-resize}
+  .aw-flband{position:fixed;z-index:60;border:1.5px dashed var(--aw-primary);background:rgba(86,97,224,.1);pointer-events:none}
+  .aw-fpanel{position:fixed;z-index:800;background:var(--aw-surface);border-radius:16px;box-shadow:0 10px 32px rgba(0,0,0,.25);max-height:68vh;display:flex;flex-direction:column;overflow:hidden}
+  .aw-fp-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--aw-primary);color:#fff;cursor:move;user-select:none;touch-action:none}
+  .aw-fp-x{border:none;background:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1}
+  .aw-fp-body{padding:10px;overflow:auto}
+  .aw-fp-tip{font-size:.72rem;color:var(--aw-ink-3);margin-top:8px;line-height:1.4}
+  .aw-shgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:4px}
+  .aw-shsep{grid-column:1/-1;height:1px;background:var(--aw-border);margin:3px 0}
+  .aw-shbtn{height:40px;border:1px solid var(--aw-border);background:var(--aw-surface);border-radius:8px;cursor:pointer;color:var(--aw-ink-2);display:grid;place-items:center;padding:0}
+  .aw-shbtn svg{width:26px;height:26px}
+  .aw-shbtn:hover,.aw-shbtn.cur{background:var(--aw-primary-lt);color:var(--aw-primary);border-color:var(--aw-primary)}
+  .aw-symseg{display:flex;gap:4px;margin-bottom:8px}
+  .aw-symseg button{flex:1;border:none;background:var(--aw-surface-2);border-radius:8px;padding:6px;font-weight:600;cursor:pointer;color:var(--aw-ink-2)}
+  .aw-symseg button.cur{background:var(--aw-primary);color:#fff}
+  .aw-symhd{display:flex;align-items:center;justify-content:space-between;font-size:.74rem;font-weight:700;color:var(--aw-ink-2);margin:10px 0 4px}
+  .aw-symhd label{font-weight:500;color:var(--aw-ink-3);display:inline-flex;gap:3px;align-items:center}
+  .aw-symgrid{display:flex;flex-wrap:wrap;gap:4px}
+  .sym-chip{min-width:34px;height:32px;padding:0 9px;border-radius:7px;border:1px solid var(--aw-border);font-size:13px;font-weight:700;color:var(--aw-ink);background:var(--aw-surface);cursor:pointer}
+  .sym-chip.ring{width:36px;min-width:36px;height:36px;padding:0;border-radius:50%;border:1.5px solid var(--aw-ink);font-size:12px}
+  .sym-chip.two{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;height:42px;padding:0 8px;line-height:1.05}
+  .sym-chip.two small{font-size:10.5px;font-weight:600}
+  .sym-chip.it{font-style:italic;font-weight:600}
+  .sym-chip:hover,.sym-chip.cur{background:var(--aw-primary-lt);border-color:var(--aw-primary);color:var(--aw-primary)}
+  .sym-own{display:inline-flex;align-items:center;gap:1px}
+  .sym-del{border:none;background:none;color:var(--aw-ink-3);cursor:pointer;font-size:1rem}
+  .aw-symadd{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:.78rem}
+  .aw-symadd input[type=text],.aw-symadd input:not([type]){width:90px;border:1.5px solid var(--aw-border);border-radius:8px;padding:4px 6px;background:var(--aw-surface);color:var(--aw-ink)}
+  .aw-symadd button{border:none;background:var(--aw-primary);color:#fff;border-radius:8px;padding:5px 12px;font-weight:600;cursor:pointer}
+  .aw-cust{position:relative;display:inline-grid;place-items:center;font-size:.8rem;font-weight:700;color:#555;background:#fff;overflow:hidden}
+  .aw-cust input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
   /*── ribbon (Word-style) ──*/
   .aw-ribbon{position:sticky;top:8px;z-index:50;background:var(--aw-surface);border-radius:20px;box-shadow:var(--aw-shadow);margin-bottom:14px}
   .aw-rb-tabs{display:flex;align-items:center;gap:2px;padding:6px 12px 0;border-bottom:1px solid var(--aw-border)}
@@ -125,6 +178,7 @@
 </style>
 
 <script src="aw-common.js"></script>
+<script src="aw-free.js?v=1"></script>
 <script>
 if (typeof AW === 'undefined') {
   document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#1E2142"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
@@ -316,6 +370,7 @@ function renderBoard(){
   if(isTeacher){
     wireToolbar();
     wireTables();
+    if(window.AWFree) AWFree.wire(canvas);
     document.getElementById('boardTitle').oninput=scheduleSave;
     canvas.addEventListener('input', scheduleSave);
     canvas.addEventListener('paste', onPaste);
@@ -399,6 +454,7 @@ function renderForStudent(html){
   var tmp=document.createElement('div');
   tmp.innerHTML=html||'';
   tmp.querySelectorAll('[style]').forEach(function(el){
+    if(el.closest('.aw-fl')) return;   // text boxes on the free layer keep the size they were given
     el.style.removeProperty('font-size');
     if(!el.getAttribute('style')) el.removeAttribute('style');
   });
@@ -476,7 +532,8 @@ function buildToolbar(){
       b('','data-ed="outdent"',RB_ICONS.outdent,'Decrease indent')+b('','data-ed="indent"',RB_ICONS.indent,'Increase indent')+
       '<select class="aw-rb-sel" id="rbSpacing" style="width:64px" title="Line spacing"><option value="">↕</option>'+spacing+'</select>',
       b('','data-ed="justifyLeft"',RB_ICONS.left,'Align left (Ctrl+L)')+b('','data-ed="justifyCenter"',RB_ICONS.center,'Center (Ctrl+E)')+
-      b('','data-ed="justifyRight"',RB_ICONS.right,'Align right (Ctrl+R)')+b('','data-ed="justifyFull"',RB_ICONS.justify,'Justify (Ctrl+J)')
+      b('','data-ed="justifyRight"',RB_ICONS.right,'Align right (Ctrl+R)')+b('','data-ed="justifyFull"',RB_ICONS.justify,'Justify (Ctrl+J)')+
+      '<select class="aw-rb-sel" id="rbCols" style="width:92px" title="Split the selected paragraphs into columns"><option value="">Columns</option><option value="1">1 column</option><option value="2">2 columns</option><option value="3">3 columns</option></select>'
     ],'Paragraph')+
     grp([
       '<select class="aw-rb-sel" id="rbStyle" style="width:112px" title="Style"><option value="div">Normal</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option><option value="blockquote">Quote</option></select>'
@@ -490,6 +547,7 @@ function buildToolbar(){
   return '<div class="aw-ribbon" id="tb">'+
     '<div class="aw-rb-tabs">'+
       '<button type="button" class="aw-rb-tab on" data-tab="home">Home</button>'+
+      '<button type="button" class="aw-rb-tab" data-tab="draw">Draw</button>'+
       '<button type="button" class="aw-rb-tab aw-rb-tab-tbl" data-tab="table" id="tabTable">Table Layout</button>'+
       '<span style="flex:1"></span>'+
       '<button type="button" class="aw-rb-b" data-zoom="out" title="Zoom out">➖</button>'+
@@ -497,6 +555,7 @@ function buildToolbar(){
       '<button type="button" class="aw-rb-b" data-zoom="in" title="Zoom in">➕</button>'+
     '</div>'+
     '<div class="aw-rb-panel" data-panel="home">'+home+'</div>'+
+    '<div class="aw-rb-panel" data-panel="draw" hidden>'+(window.AWFree?AWFree.panelHtml():'')+'</div>'+
     '<div class="aw-rb-panel" data-panel="table" id="tblBar" hidden>'+tblPanelHtml()+'</div>'+
   '</div>';
 }
@@ -513,7 +572,9 @@ function wireRibbon(){
   // keep the caret/selection when a button or list is used
   tbar.addEventListener('mousedown',function(e){ if(!/^(INPUT|SELECT|OPTION)$/.test(e.target.tagName)) e.preventDefault(); });
   function restore(){
-    canvas.focus();
+    var host=canvas;   // a text box on the free layer is its own editing host
+    if(lastRange){ var n=lastRange.startContainer, el=n&&(n.nodeType===1?n:n.parentElement), h=el&&el.closest&&el.closest('.aw-fb'); if(h&&canvas.contains(h)) host=h; }
+    host.focus();
     if(lastRange){ var s=window.getSelection(); s.removeAllRanges(); s.addRange(lastRange); }
   }
   function changed(){ scheduleSave(); state(); }
@@ -615,6 +676,7 @@ function wireRibbon(){
     var r=s.getRangeAt(0);
     var all=[].slice.call(canvas.querySelectorAll('div,p,li,h1,h2,h3,blockquote')).filter(function(el){
       if(el.closest('table') && !el.closest('td,th')) return false;
+      if(el.closest('.aw-fl') || el.classList.contains('aw-fl-pad')) return false;
       try{ return r.intersectsNode(el); }catch(e){ return false; }
     });
     return all.filter(function(el){ return !all.some(function(o){ return o!==el && el.contains(o); }); });
@@ -624,6 +686,23 @@ function wireRibbon(){
     var bl=blocksInSel();
     if(!bl.length){ document.execCommand('formatBlock',false,'div'); bl=blocksInSel(); }
     bl.forEach(function(el){ if(v) el.style.lineHeight=v; else el.style.removeProperty('line-height'); });
+    changed();
+  };
+  document.getElementById('rbCols').onchange=function(){
+    var n=+this.value; this.value=''; if(!n) return;
+    restore();
+    var sel=window.getSelection(), an=sel.anchorNode, el=an&&(an.nodeType===1?an:an.parentElement), wrap=el&&el.closest&&el.closest('.aw-cols');
+    if(wrap&&canvas.contains(wrap)){
+      if(n===1){ while(wrap.firstChild) wrap.parentNode.insertBefore(wrap.firstChild,wrap); wrap.remove(); } else wrap.style.columnCount=n;
+      changed(); return;
+    }
+    if(n===1) return;
+    var bl=blocksInSel();
+    if(!bl.length){ document.execCommand('formatBlock',false,'div'); bl=blocksInSel(); }
+    var tops=[]; bl.forEach(function(b){ while(b.parentNode&&b.parentNode!==canvas) b=b.parentNode; if(b.parentNode===canvas&&tops.indexOf(b)<0) tops.push(b); });
+    if(!tops.length) return;
+    var w=document.createElement('div'); w.className='aw-cols'; w.style.columnCount=n;
+    tops[0].parentNode.insertBefore(w,tops[0]); tops.forEach(function(b){ w.appendChild(b); });
     changed();
   };
   document.getElementById('rbStyle').onchange=function(){
@@ -1012,13 +1091,14 @@ function wireTables(){
     return col||row;
   }
   var CUR={ col:'col-resize', row:'row-resize', both:'nwse-resize' };
+  var freeOn=function(){ return window.AWFree && AWFree.tool()!=='type'; };
   canvas.addEventListener('mousemove',function(e){
-    if(drag) return;
+    if(drag||freeOn()) return;
     var h=hit(e); canvas.style.cursor=h?CUR[h.mode]:'';
   });
   canvas.addEventListener('mouseleave',function(){ if(!drag) canvas.style.cursor=''; });
   canvas.addEventListener('mousedown',function(e){
-    if(e.button!==0) return;
+    if(e.button!==0||freeOn()) return;
     var h=hit(e); if(!h) return;
     e.preventDefault();
     var t=h.t; tblEnsureCols(t);
@@ -1518,8 +1598,8 @@ window.exportPDF=function(){
   var w=window.open('','_blank');
   w.document.write('<html><head><title>'+AW.esc(curBoard.title)+'</title>'+
     '<style>body{font-family:Inter,system-ui,sans-serif;padding:40px;line-height:1.7;color:#1E2142}'+
-    'img{max-width:100%;border-radius:8px}h1{font-family:Georgia,serif}table{border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #6b7280;padding:6px 8px;vertical-align:top;overflow-wrap:anywhere}table.aw-nob td,table.aw-nob th{border-color:transparent}</style></head><body>'+
-    '<h1>'+AW.esc(curBoard.title)+'</h1>'+canvas.innerHTML+'</body></html>');
+    'img{max-width:100%;border-radius:8px}h1{font-family:Georgia,serif}table{border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #6b7280;padding:6px 8px;vertical-align:top;overflow-wrap:anywhere}table.aw-nob td,table.aw-nob th{border-color:transparent}.aw-fl{position:absolute;left:0;top:0;right:0;bottom:0}.aw-fl-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}.aw-fb{position:absolute;padding:4px 6px;line-height:1.35;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere}.aw-cols{column-gap:32px;column-rule:1px solid #ccc}</style></head><body>'+
+    '<h1>'+AW.esc(curBoard.title)+'</h1><div style="position:relative">'+canvas.innerHTML+'</div></body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 400);
 };
