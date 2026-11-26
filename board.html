@@ -60,6 +60,9 @@
   .aw-pal-grid button:hover{outline:2px solid var(--aw-primary)}
   .aw-pal-row{display:flex;align-items:center;justify-content:space-between;width:100%;border:none;background:none;padding:6px 4px;font-size:.8rem;color:var(--aw-ink-2);cursor:pointer;border-radius:6px;text-align:left}
   .aw-pal-row:hover{background:var(--aw-surface-2)}
+  .aw-selcells{position:fixed;left:0;top:0;width:0;height:0;z-index:45;pointer-events:none}
+  .aw-selcell{position:fixed;box-sizing:border-box;border:2px solid var(--aw-primary);border-radius:2px}
+  .aw-selcell.multi{background:rgba(86,97,224,.22)}
   .aw-tl-f{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:.78rem}
   .aw-tl-f input{width:58px;border:1.5px solid var(--aw-border);border-radius:8px;padding:4px 6px;font-size:.8rem;background:var(--aw-surface);color:var(--aw-ink)}
   .aw-tl-grid{display:inline-grid;grid-template-columns:repeat(3,28px);gap:2px}
@@ -477,9 +480,7 @@ function buildToolbar(){
     ],'Paragraph')+
     grp([
       '<select class="aw-rb-sel" id="rbStyle" style="width:112px" title="Style"><option value="div">Normal</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option><option value="blockquote">Quote</option></select>'
-    ],'Styles');
-
-  var insert=
+    ],'Styles')+
     grp([ b('aw-rb-big','id="imgBtn"',RB_ICONS.image+'<span>Picture</span>','Insert picture')+
           b('aw-rb-big','id="tblBtn"',RB_ICONS.table+'<span>Table</span>','Insert table')+
           b('aw-rb-big','data-link="1"',RB_ICONS.link+'<span>Link</span>','Insert link')+
@@ -489,7 +490,6 @@ function buildToolbar(){
   return '<div class="aw-ribbon" id="tb">'+
     '<div class="aw-rb-tabs">'+
       '<button type="button" class="aw-rb-tab on" data-tab="home">Home</button>'+
-      '<button type="button" class="aw-rb-tab" data-tab="insert">Insert</button>'+
       '<button type="button" class="aw-rb-tab aw-rb-tab-tbl" data-tab="table" id="tabTable">Table Layout</button>'+
       '<span style="flex:1"></span>'+
       '<button type="button" class="aw-rb-b" data-zoom="out" title="Zoom out">➖</button>'+
@@ -497,7 +497,6 @@ function buildToolbar(){
       '<button type="button" class="aw-rb-b" data-zoom="in" title="Zoom in">➕</button>'+
     '</div>'+
     '<div class="aw-rb-panel" data-panel="home">'+home+'</div>'+
-    '<div class="aw-rb-panel" data-panel="insert" hidden>'+insert+'</div>'+
     '<div class="aw-rb-panel" data-panel="table" id="tblBar" hidden>'+tblPanelHtml()+'</div>'+
   '</div>';
 }
@@ -764,6 +763,20 @@ function wireTables(){
   var btn=document.getElementById('tblBtn');
   if(!canvas||!bar||!btn||!tab) return;
   var tCell=null, tCells=[], pick=null;
+  // the cells that are selected are outlined by an overlay (nothing is added to the board's HTML)
+  var layer=document.createElement('div'); layer.className='aw-selcells'; document.body.appendChild(layer);
+  function paintSel(){
+    layer.innerHTML='';
+    if(!tCell||!tCell.isConnected||!tab.classList.contains('live')) return;
+    var multi=tCells.length>1;
+    tCells.forEach(function(c){
+      var r=c.getBoundingClientRect(), d=document.createElement('div');
+      d.className='aw-selcell'+(multi?' multi':'');
+      d.style.cssText='left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px';
+      layer.appendChild(d);
+    });
+  }
+  window.addEventListener('scroll',paintSel,true); window.addEventListener('resize',paintSel);
 
   /* ── insert-table picker (Word-style grid) ── */
   btn.onclick=function(e){
@@ -831,16 +844,17 @@ function wireTables(){
   function refresh(){
     if(bar.contains(document.activeElement)) return;
     var c=selCells();
-    if(!c.length){ tCell=null; tCells=[]; tab.classList.remove('live'); bar.classList.add('idle'); return; }
+    if(!c.length){ tCell=null; tCells=[]; tab.classList.remove('live'); bar.classList.add('idle'); paintSel(); return; }
     tCells=c; tCell=c[0];
     tab.classList.add('live'); bar.classList.remove('idle');
     bar.querySelector('#tlH').value=(tCell.parentElement.offsetHeight/PX_CM).toFixed(2);
     bar.querySelector('#tlW').value=(tCell.offsetWidth/PX_CM).toFixed(2);
+    paintSel();
   }
   bar.classList.add('idle');
   document.addEventListener('selectionchange',function(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(refresh); });
   function done(){
-    scheduleSave();
+    scheduleSave(); paintSel();
     if(tCell && tCell.isConnected){
       var w=bar.querySelector('#tlW'),h=bar.querySelector('#tlH');
       if(document.activeElement!==w) w.value=(tCell.offsetWidth/PX_CM).toFixed(2);
@@ -848,7 +862,7 @@ function wireTables(){
     }
   }
   bar.addEventListener('mousedown',function(e){ if(!/^(INPUT|SELECT)$/.test(e.target.tagName)) e.preventDefault(); });
-  function gone(){ tCell=null; tCells=[]; tab.classList.remove('live'); bar.classList.add('idle'); scheduleSave(); }
+  function gone(){ tCell=null; tCells=[]; tab.classList.remove('live'); bar.classList.add('idle'); scheduleSave(); paintSel(); }
   function caretIn(cell){ if(!cell) return; var rg=document.createRange(); rg.selectNodeContents(cell); rg.collapse(true); var s=window.getSelection(); s.removeAllRanges(); s.addRange(rg); refresh(); }
   function need(){ if(!tCell||!tCell.isConnected){ var c=selCells(); if(c.length){ tCells=c; tCell=c[0]; } }
     if(!tCell||!tCell.isConnected){ AW.toast('Bấm vào trong một ô của bảng trước.','info',2500); return false; } return true; }
@@ -1014,6 +1028,7 @@ function wireTables(){
   });
   function onDrag(e){
     if(!drag) return;
+    paintSel();
     var z=tblZoom(), dx=(e.clientX-drag.x)/z, dy=(e.clientY-drag.y)/z, h=drag.h, t=h.t;
     if(h.mode==='col'){
       var i=h.i, last=i>=drag.w.length-1;
@@ -1027,6 +1042,7 @@ function wireTables(){
       drag.w.forEach(function(w,i){ tblSetCol(t,i,w*fx); });
       [].forEach.call(t.rows,function(r,i){ tblSetRow(r,drag.hs[i]*fy); });
     }
+    paintSel();
   }
   function endDrag(){
     document.removeEventListener('mousemove',onDrag); document.removeEventListener('mouseup',endDrag);
