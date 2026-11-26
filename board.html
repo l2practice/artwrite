@@ -64,6 +64,10 @@
   .aw-flsel .ic.dl{left:-36px;top:-36px;color:#B42318;border-color:#B42318}
   .aw-flsel .ic.dp{right:-36px;top:-36px}
   .aw-flsel .ic.co{right:-36px;bottom:-36px}
+  .aw-flsel.edge-l .ic.dl,.aw-flsel.edge-l .mv{left:6px}
+  .aw-flsel.edge-r .ic.dp,.aw-flsel.edge-r .ic.co{right:6px}
+  .aw-flsel.edge-t .ic.dl,.aw-flsel.edge-t .ic.dp{top:6px}
+  .aw-flsel.edge-b .mv,.aw-flsel.edge-b .ic.co{bottom:6px}
   .aw-flsel .fl{position:absolute;left:50%;bottom:-38px;transform:translateX(-50%);background:var(--aw-primary);color:#fff;font-style:normal;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;cursor:pointer;pointer-events:auto;white-space:nowrap;display:none}
   .aw-flsel.free .fl{display:block}
   .aw-flsel.pic .ic.co{display:none}
@@ -198,16 +202,9 @@
 <div id="app"></div>
 
 <div class="aw-img-controls" id="imgCtrl">
-  <button id="imgSmaller">Smaller</button>
-  <button id="imgLarger">Larger</button>
-  <button id="imgHalf">½ 50%</button>
-  <button id="imgFull">⇔ 100%</button>
-  <span style="width:1px;background:#ddd;align-self:stretch;margin:4px 2px"></span>
   <button id="imgMatchPrev" title="Đồng bộ kích thước với ảnh liền trước">↕ Same size</button>
   <button id="imgSideBySide" title="Xếp tất cả ảnh trong board thành 2 cột ngang">⊞ Side-by-side</button>
   <button id="imgStack" title="Back to vertical layout">Stack</button>
-  <span style="width:1px;background:#ddd;align-self:stretch;margin:4px 2px"></span>
-  <button id="imgRemove" style="color:#B42318">✕</button>
 </div>
 
 <div class="aw-modal-bg" id="boardModal"><div class="aw-modal2 bm-body"></div></div>
@@ -1112,9 +1109,9 @@ function wireTables(){
   var acts={ rowA:function(){ insRow(false); }, rowB:function(){ insRow(true); }, colL:function(){ insCol(false); }, colR:function(){ insCol(true); },
              delRow:delRow, delCol:delCol, delTbl:delTable, distR:distRows, distC:distCols, merge:merge, split:split,
              borders:function(){ if(!need()) return; tCell.closest('table').classList.toggle('aw-nob'); done(); } };
-  [].forEach.call(bar.querySelectorAll('[data-ta]'),function(b){ b.onclick=function(){ acts[b.dataset.ta](); }; });
-  [].forEach.call(bar.querySelectorAll('[data-al]'),function(b){ b.onclick=function(){ var p=b.dataset.al.split(','); setAlign(p[0],p[1]); }; });
-  [].forEach.call(bar.querySelectorAll('[data-sh]'),function(b){ b.onclick=function(){ setShade(b.dataset.sh); }; });
+  [].forEach.call(bar.querySelectorAll('[data-ta]'),function(b){ b.onclick=function(){ if(window.AWFree) AWFree.snap(); acts[b.dataset.ta](); }; });
+  [].forEach.call(bar.querySelectorAll('[data-al]'),function(b){ b.onclick=function(){ if(window.AWFree) AWFree.snap(); var p=b.dataset.al.split(','); setAlign(p[0],p[1]); }; });
+  [].forEach.call(bar.querySelectorAll('[data-sh]'),function(b){ b.onclick=function(){ if(window.AWFree) AWFree.snap(); setShade(b.dataset.sh); }; });
   bar.querySelector('#tlH').onchange=function(){ var v=parseFloat(this.value); if(!(v>0)||!need()) return; var rows=[]; tCells.forEach(function(c){ if(rows.indexOf(c.parentElement)<0) rows.push(c.parentElement); }); rows.forEach(function(r){ tblSetRow(r,v*PX_CM); }); done(); };
   bar.querySelector('#tlW').onchange=function(){
     var v=parseFloat(this.value); if(!(v>0)||!need()) return;
@@ -1491,27 +1488,9 @@ if(isTeacher){
       if(window.AWFree) AWFree.selectEl(null);
     }
   });
-  document.getElementById('imgSmaller').onclick=function(){
-    if(!selectedImg)return;
-    var w=selectedImg.offsetWidth||200;
-    selectedImg.style.width=Math.max(80,Math.round(w*0.75))+'px';
-    selectedImg.style.maxWidth='none'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
-  };
-  document.getElementById('imgLarger').onclick=function(){
-    if(!selectedImg)return;
-    var w=selectedImg.offsetWidth||200;
-    selectedImg.style.width=Math.min(1400,Math.round(w*1.33))+'px';
-    selectedImg.style.maxWidth='none'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
-  };
-  document.getElementById('imgHalf').onclick=function(){
-    if(!selectedImg)return;
-    selectedImg.style.width='50%'; selectedImg.style.maxWidth='none'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
-  };
-  document.getElementById('imgFull').onclick=function(){
-    if(!selectedImg)return;
-    selectedImg.style.width='100%'; selectedImg.style.maxWidth='100%'; scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
-  };
 
+  // pictures that were dragged free go back into the text when they are lined up
+  function unfloatImg(i){ i.classList.remove('aw-tfree'); i.style.position=''; i.style.left=''; i.style.top=''; i.style.zIndex=''; i.style.margin=''; if(!i.getAttribute('class')) i.removeAttribute('class'); }
   // Same size — match selected img to the nearest other img in the canvas
   document.getElementById('imgMatchPrev').onclick=function(){
     if(!selectedImg)return;
@@ -1522,7 +1501,7 @@ if(isTeacher){
     // Find the closest img by DOM position
     var ref = others[0];
     var refW = ref.offsetWidth || parseInt(ref.style.width)||200;
-    selectedImg.style.width = refW+'px';
+    selectedImg.style.width = refW+'px'; selectedImg.style.height='';   // the height follows, so the picture keeps its shape
     selectedImg.style.maxWidth='none';
     scheduleSave(); if(window.AWFree&&selectedImg) AWFree.selectEl(selectedImg);
     AW.toast('Đã đồng bộ kích thước với ảnh trên','ok',2000);
@@ -1533,6 +1512,7 @@ if(isTeacher){
     var canvas=document.getElementById('canvas'); if(!canvas)return;
     var imgs=Array.prototype.slice.call(canvas.querySelectorAll('img'));
     if(imgs.length<2){AW.toast('Cần ít nhất 2 ảnh để xếp ngang','err');return;}
+    imgs.forEach(unfloatImg);
     // Create a flex wrapper if not already one
     var existing=canvas.querySelector('.aw-img-row');
     if(existing){
@@ -1575,11 +1555,6 @@ if(isTeacher){
     AW.toast('Đã chuyển về bố cục dọc','ok',2000);
   };
 
-  document.getElementById('imgRemove').onclick=function(){
-    if(!selectedImg)return;
-    selectedImg.parentNode&&selectedImg.parentNode.removeChild(selectedImg);
-    selectedImg=null;imgCtrl.style.display='none';scheduleSave();
-  };
 }
 function scheduleSave(){
   // Show unsaved indicator immediately so teacher knows there are pending changes
