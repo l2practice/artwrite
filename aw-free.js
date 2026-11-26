@@ -460,6 +460,22 @@ function makeShape(x0, y0, x1, y1, shift){
   if (s.k === 'caret'){ s.x2 = s.x + w / 2; s.y2 = s.y; s.x3 = s.x + w; s.y3 = s.y + h; s.y = s.y + h; }
   return s;
 }
+/* the inverted V (caret): left foot (x,y) -> apex (x2,y2) -> right foot (x3,y3). As in Notes: draw up to the apex, PAUSE (it locks), then pull down;
+   the right side snaps to the left side's length when it comes close. Lift without pausing and you get a symmetric V. */
+const caretLens = st => [Math.hypot(st.x2 - st.x, st.y2 - st.y), Math.hypot(st.x3 - st.x2, st.y3 - st.y2)];
+const caretEqual = st => { const l = caretLens(st); return Math.abs(l[0] - l[1]) <= Math.max(1.2, 0.012 * Math.max(l[0], l[1])); };
+function caretSnapRight(st){
+  const l = caretLens(st), a = l[0], b = l[1];
+  if (b > 0 && Math.abs(a - b) <= Math.max(5, 0.04 * a)){ const f = a / b; st.x3 = st.x2 + (st.x3 - st.x2) * f; st.y3 = st.y2 + (st.y3 - st.y2) * f; }
+}
+function caretFromDrag(x0, y0, x, y, apex, sym){
+  const s = { t: 'shape', k: 'caret', o: 0, sw: S.w }; if (S.ls) s.ls = S.ls;
+  s.x = x0; s.y = y0;
+  if (apex){ s.x2 = apex[0]; s.y2 = apex[1]; s.x3 = x; s.y3 = y; caretSnapRight(s); }
+  else if (sym){ s.x2 = x; s.y2 = y; s.x3 = 2 * x - x0; s.y3 = y0; }
+  else { s.x2 = x; s.y2 = y; s.x3 = s.x2; s.y3 = s.y2; }   // before the pause only the left side exists
+  return s;
+}
 function rememberDims(st){
   if (isLine(st)){ S.dims.line = [Math.round(Math.hypot(st.x2 - st.x, st.y2 - st.y))]; }
   else if (st.bw !== undefined && !isPoly(st)) S.dims[shapeKey(st)] = [Math.round(st.bw), Math.round(st.bh)];
@@ -567,9 +583,24 @@ function badge(vx, vy, text, kind){
   d.style.left = vx + 'px'; d.style.top = vy + 'px'; document.body.appendChild(d); badgeEls.push(d);
 }
 function clearBadges(){ badgeEls.forEach(b => b.remove()); badgeEls = []; }
+function tickAt(p0, p1){   // the same small tick on two equal sides, like in geometry
+  const m = V((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2), d = document.createElement('div');
+  d.className = 'aw-fltick'; d.style.left = m[0] + 'px'; d.style.top = m[1] + 'px';
+  d.style.transform = 'translate(-50%,-50%) rotate(' + (Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * 180 / Math.PI + 90) + 'deg)';
+  document.body.appendChild(d); badgeEls.push(d);
+}
+function caretBadge(st){
+  const l = caretLens(st), a = l[0], b = l[1], xs = [st.x, st.x2, st.x3], ys = [st.y, st.y2, st.y3];
+  const m = V((Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2, Math.min.apply(null, ys));
+  if (b <= 0.5){ badge(m[0], m[1] - 26, Math.round(a) + ' px', 'sz'); return; }   // only the left side so far
+  const v1 = [st.x - st.x2, st.y - st.y2], v2 = [st.x3 - st.x2, st.y3 - st.y2], cs = (v1[0] * v2[0] + v1[1] * v2[1]) / ((a * b) || 1), deg = Math.round(Math.acos(Math.max(-1, Math.min(1, cs))) * 180 / Math.PI), eq = caretEqual(st);
+  badge(m[0], m[1] - 26, Math.round(a) + ' · ' + Math.round(b) + ' px · ' + deg + '°' + (eq ? '  =  equal' : ''), 'sz');
+  if (eq){ tickAt([st.x, st.y], [st.x2, st.y2]); tickAt([st.x2, st.y2], [st.x3, st.y3]); }
+}
 const degOf = (dx, dy) => { let d = Math.round(Math.atan2(-dy, dx) * 180 / Math.PI); if (d < 0) d += 360; return d % 360; };
 function showBadges(st, transient){
   clearBadges(); if (!st || !layer(false)) return;
+  if (isCaret(st)){ caretBadge(st); return; }
   if (transient){
     if (isLine(st)){ const m = V((st.x + st.x2) / 2, Math.min(st.y, st.y2)); badge(m[0], m[1] - 26, Math.round(Math.hypot(st.x2 - st.x, st.y2 - st.y)) + ' px · ' + degOf(st.x2 - st.x, st.y2 - st.y) + '°', 'sz'); }
     else if (st.bw !== undefined && !isPoly(st)){ const m = V(st.x + st.bw / 2, st.y); badge(m[0], m[1] - 26, Math.round(st.bw) + ' × ' + Math.round(st.bh) + ' px', 'sz'); }
@@ -598,7 +629,7 @@ function paintSel(){
   const pic = S.sel.length === 1 && isImg(S.sel[0]) ? S.sel[0] : null;
   const b = showBox ? boxOf(S.sel) : null;
   const one = S.sel.length === 1 && isSt(S.sel[0]) ? getSt(S.sel[0]) : null;
-  if (!G){ if (S.angles && one && showBox) showBadges(one, false); else clearBadges(); }
+  if (!G){ if (one && showBox && (S.angles || isCaret(one) || isLine(one))) showBadges(one, isLine(one) && !S.angles ? true : false); else clearBadges(); }
   if (!b){ ui.style.display = 'none'; syncStyleUI(); return; }
   const poly = !!(one && isPoly(one)), rot = !!((one && rotatable(one)) || pic);
   ui.style.display = 'block';
@@ -824,7 +855,7 @@ function onDown(e){
       const el = svgEl().appendChild(symEl(sy, p.x, p.y, sz[0], sz[1]));   // the symbol is there from the first moment, so you see how big it is
       G = { kind: 'sym', x0: p.x, y0: p.y, el, w: sz[0], h: sz[1], dragged: false, key }; return;
     }
-    const st = makeShape(p.x, p.y, p.x, p.y); const el = shapeEl(st); svgEl().appendChild(el); G = { kind: 'shape', x0: p.x, y0: p.y, el, st, lock: lk };
+    const st = S.shape.k === 'caret' ? caretFromDrag(p.x, p.y, p.x, p.y) : makeShape(p.x, p.y, p.x, p.y); const el = shapeEl(st); svgEl().appendChild(el); G = { kind: 'shape', x0: p.x, y0: p.y, el, st, lock: lk };
   } else if (S.tool === 'text'){
     G = { kind: 'text', x0: p.x, y0: p.y, vx: e.clientX, vy: e.clientY };
   } else if (S.tool === 'select'){
@@ -867,6 +898,14 @@ function onMove(e){
   else if (G.kind === 'shape'){
     const p = P(e);
     if (G.snapped){ if (G.lineFollow){ const st = G.st; let dx = p.x - st.x, dy = p.y - st.y; const len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), sn = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12); if (Math.abs(ang - sn) < 0.06){ dx = len * Math.cos(sn); dy = len * Math.sin(sn); } st.x2 = st.x + dx; st.y2 = st.y + dy; setSt(G.el, st); showBadges(st, true); } return; }
+    if (S.shape.k === 'caret'){   // up to the apex, hold still (it locks), then pull down to the right foot
+      G.st = caretFromDrag(G.x0, G.y0, p.x, p.y, G.apex); shapeEl(G.st, G.el);
+      if (!G.apex){
+        G.cx = p.x; G.cy = p.y; clearTimeout(G.timer); const g0 = G;
+        G.timer = setTimeout(() => { if (G === g0 && !g0.apex && Math.hypot(g0.cx - g0.x0, g0.cy - g0.y0) * zoomF() > 14){ g0.apex = [g0.cx, g0.cy]; g0.st = caretFromDrag(g0.x0, g0.y0, g0.cx, g0.cy, g0.apex); shapeEl(g0.st, g0.el); showBadges(g0.st, true); try { navigator.vibrate && navigator.vibrate(12); } catch (er) {} } }, 420);
+      }
+      showBadges(G.st, true); return;
+    }
     G.st = makeShape(G.x0, G.y0, p.x, p.y, e.shiftKey); shapeEl(G.st, G.el); showBadges(G.st, true);
   }
   else if (G.kind === 'sym'){
@@ -892,6 +931,7 @@ function onMove(e){
     let x = p.x, y = p.y;
     if (isLine(st) && !e.altKey){ const ox = i === 0 ? st.x2 : st.x, oy = i === 0 ? st.y2 : st.y, dx = x - ox, dy = y - oy, len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), sn = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12); if (len && Math.abs(ang - sn) < 0.06){ x = ox + len * Math.cos(sn); y = oy + len * Math.sin(sn); } }
     st[names[0]] = x; st[names[1]] = y;
+    if (isCaret(st) && i === 2) caretSnapRight(st);
     if (isLoop(st) && i === 2){ const dx = st.x2 - st.x, dy = st.y2 - st.y, c2 = dx * dx + dy * dy || 1; S.loopBend = Math.round(((st.x3 - (st.x + st.x2) / 2) * -dy + (st.y3 - (st.y + st.y2) / 2) * dx) / c2 * 100) / 100; lsSet('aw_loop_bend', S.loopBend); }
     setSt(G.o, st); showBadges(st, true); paintSel();
   } else if (G.kind === 'rot'){
@@ -919,6 +959,7 @@ function onUp(e){
     changed();
   } else if (g.kind === 'erase'){ if (g.did) changed(); }
   else if (g.kind === 'shape'){
+    if (g.st.k === 'caret' && !g.apex && Math.hypot(g.st.x2 - g.st.x, g.st.y2 - g.st.y) * zoomF() > 14){ g.st = caretFromDrag(g.st.x, g.st.y, g.st.x2, g.st.y2, null, true); shapeEl(g.st, g.el); }   // lifted without a pause: a symmetric inverted V
     const st = g.st, tiny = g.snapped ? false : (isPoly(st) ? Math.hypot(st.x2 - st.x, st.y2 - st.y) < 6 : (st.bw < 6 && st.bh < 6));
     if (tiny){ g.el.remove(); S.undo.pop(); S.sel = []; clearBadges(); paintSel(); return; }   // a plain click draws nothing (and never copies the last shape)
     rememberDims(st);
