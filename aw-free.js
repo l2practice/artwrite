@@ -549,12 +549,13 @@ function boxOf(list){
 }
 /* the original numbers of an object, taken when a move / resize starts */
 function snapObj(o){
-  if (isFreeable(o)) freeTable(o);
+  if (isFreeable(o) && !o.classList.contains('aw-tfree')) return { l: o.offsetLeft, t: o.offsetTop, w: o.offsetWidth, s: boxScale(o) };   // still in the text: where it is now (it floats only when it is moved)
   if (isBox(o)) return { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0, w: o.offsetWidth, s: boxScale(o) };
   if (isSt(o)) return { st: getSt(o) };
   return T(o);
 }
 function moveObj(o, g, dx, dy){
+  if (isFreeable(o)) freeTable(o);   // moving lifts a table or picture out of the text
   if (isBox(o)){ o.style.left = r1(g.l + dx) + 'px'; o.style.top = r1(g.t + dy) + 'px'; }
   else if (isSt(o)){ const st = clone(g.st); mapSt(st, 1, dx, 1, dy); setSt(o, st); }
   else setT(o, { x: g.x + dx, y: g.y + dy, sx: g.sx, sy: g.sy });
@@ -614,6 +615,9 @@ function paintSel(){
     ui.style.transform = ''; ui.style.setProperty('--rot', '0deg');
   }
   ui.classList.toggle('poly', poly); ui.classList.toggle('rotok', rot); ui.classList.toggle('pic', !!pic);
+  const fr = ui.getBoundingClientRect();   // icons that would fall off the screen move to the inside of the frame
+  ui.classList.toggle('edge-l', fr.left < 44); ui.classList.toggle('edge-r', fr.right > window.innerWidth - 44);
+  ui.classList.toggle('edge-t', fr.top < 44); ui.classList.toggle('edge-b', fr.bottom > window.innerHeight - 44);
   const allTbl = S.sel.length > 0 && S.sel.every(isTbl);
   ui.classList.toggle('tbl', allTbl); ui.classList.toggle('free', S.sel.length > 0 && S.sel.every(isFreeable) && S.sel.every(t => t.classList.contains('aw-tfree')));
   if (poly){   // a line / caret / curved arrow: its end points are the handles
@@ -686,9 +690,8 @@ function buildUI(){
     e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId);
     const one = S.sel.length === 1 && isSt(S.sel[0]) ? getSt(S.sel[0]) : null;
     const img0 = S.sel.length === 1 && isImg(S.sel[0]) ? S.sel[0] : null;
-    if (img0 && isFreeable(img0)) freeTable(img0);
     snap(); G = { kind: 'resize', h, ob: boxOf(S.sel), x0: e.clientX, y0: e.clientY, origs: S.sel.map(snapObj), turned: one && rotatable(one) ? one : null,
-      img: img0 ? { o: img0, w: img0.offsetWidth, h: img0.offsetHeight, l: parseFloat(img0.style.left) || 0, t: parseFloat(img0.style.top) || 0, rot: imgRot(img0) } : null };
+      img: img0 ? { o: img0, w: img0.offsetWidth, h: img0.offsetHeight, l: img0.classList.contains('aw-tfree') ? parseFloat(img0.style.left) || 0 : 0, t: img0.classList.contains('aw-tfree') ? parseFloat(img0.style.top) || 0 : 0, rot: imgRot(img0), free: img0.classList.contains('aw-tfree') } : null };
   });
   ui.addEventListener('pointermove', e => { if (!G) return; if (G.kind === 'resize') resizeMove(e); else if (G.fromUi) onMove(e); });
   ui.addEventListener('pointerup', e => { if (!G) return; if (G.kind === 'resize'){ G = null; clearBadges(); changed(); } else if (G.fromUi) onUp(e); });
@@ -706,7 +709,8 @@ function resizeMove(e){
     ew = nw - q.w; ns = nh - q.h;
     const csx = h.indexOf('e') >= 0 ? ew / 2 : h.indexOf('w') >= 0 ? -ew / 2 : 0, csy = h.indexOf('s') >= 0 ? ns / 2 : h.indexOf('n') >= 0 ? -ns / 2 : 0;
     const cx = q.l + q.w / 2 + csx * c - csy * sn, cy = q.t + q.h / 2 + csx * sn + csy * c;
-    q.o.style.maxWidth = 'none'; q.o.style.width = r1(nw) + 'px'; q.o.style.height = r1(nh) + 'px'; q.o.style.left = r1(cx - nw / 2) + 'px'; q.o.style.top = r1(cy - nh / 2) + 'px';
+    q.o.style.maxWidth = 'none'; q.o.style.width = r1(nw) + 'px'; q.o.style.height = r1(nh) + 'px';
+    if (q.free){ q.o.style.left = r1(cx - nw / 2) + 'px'; q.o.style.top = r1(cy - nh / 2) + 'px'; }   // in the text it stays where the text puts it
     paintSel(); return;
   }
   if (G.turned){   // a single shape, possibly turned: resize in its own (turned) frame, the opposite edge stays where it is
@@ -731,7 +735,7 @@ function resizeMove(e){
     const g = G.origs[i];
     if (isBox(s)){
       const corner = h.length === 2;
-      s.style.left = r1(x0 + (g.l - o.x) * ax) + 'px'; s.style.top = r1(y0 + (g.t - o.y) * (corner ? ax : ay)) + 'px';
+      if (!isFreeable(s) || s.classList.contains('aw-tfree')){ s.style.left = r1(x0 + (g.l - o.x) * ax) + 'px'; s.style.top = r1(y0 + (g.t - o.y) * (corner ? ax : ay)) + 'px'; }   // a table still in the text keeps its place
       if (corner) setBoxScale(s, g.s * ax);                 // corner: the whole box grows or shrinks, text included
       else s.style.width = r1(Math.max(40, g.w * ax)) + 'px'; // side: wider or narrower, the text re-wraps
     } else if (isSt(s)){ const st = clone(g.st); mapSt(st, ax, x0 - ax * o.x, ay, y0 - ay * o.y); setSt(s, st); lastSt = st; }
