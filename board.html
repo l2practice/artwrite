@@ -64,6 +64,8 @@
   .aw-flsel.free .fl{display:block}
   .aw-flsel.tbl .h[data-h="n"],.aw-flsel.tbl .h[data-h="s"],.aw-flsel.tbl .h[data-h="e"],.aw-flsel.tbl .h[data-h="w"]{display:none}
   .aw-tfree{box-shadow:0 0 0 1px rgba(86,97,224,.25)}
+  body.aw-embed .aw-side,body.aw-embed .aw-topbar,body.aw-embed .aw-menu-btn,body.aw-embed [data-fs]{display:none!important}
+  body.aw-embed .aw-shell{grid-template-columns:minmax(0,1fr);padding:8px;gap:0}
   body.aw-fs .aw-side,body.aw-fs .aw-topbar,body.aw-fs .aw-menu-btn{display:none!important}
   body.aw-fs .aw-shell{grid-template-columns:minmax(0,1fr);padding:8px;gap:0}
   body.aw-fs .aw-content{padding-top:6px}
@@ -220,9 +222,13 @@ if (typeof AW === 'undefined') {
 
 var sess = AW.session.require();
 if (!sess) throw 'redirect';
-var isTeacher = sess.role === 'teacher';
+/* ?view=1 : the teacher looks at a board read-only (as a student sees it), e.g. from Live Observation; ?embed=1 hides the page frame */
+var VIEW = /[?&]view=1/.test(location.search), EMBED = /[?&]embed=1/.test(location.search);
+var isTeacherUser = sess.role === 'teacher';
+var isTeacher = isTeacherUser && !VIEW;
+if (EMBED) document.body.classList.add('aw-embed');
 
-var nav = AW.navFor(isTeacher ? 'teacher' : 'student', 'board');
+var nav = AW.navFor(isTeacherUser ? 'teacher' : 'student', 'board');
 
 var content = AW.renderShell({
   mount:'app', nav:nav,
@@ -236,7 +242,7 @@ var BASE_CANVAS_PX = 16;  // matches .aw-canvas font-size; student zoom scales f
 // Teacher: use the class selected in the dashboard (localStorage 'aw_teacher_class')
 // Student: use their own class from session
 function myBoardClass(){
-  if (isTeacher) return localStorage.getItem('aw_teacher_class') || sess.class || '';
+  if (isTeacherUser) return localStorage.getItem('aw_teacher_class') || sess.class || '';
   return sess.class || '';
 }
 
@@ -419,7 +425,7 @@ function renderBoard(){
     });
   } else {
     wireStudentZoom();
-    mountBoardHelp();
+    if(!VIEW) mountBoardHelp();
   }
   applyZoom();
 }
