@@ -262,12 +262,47 @@ function setT(o, t){
   o.setAttribute('transform', 'translate(' + o.dataset.tx + ' ' + o.dataset.ty + ') scale(' + o.dataset.sx + ' ' + o.dataset.sy + ')');
 }
 function mkPath(d, o){
-  const p = document.createElementNS(NS, 'path'); p.setAttribute('class', 'fo'); p.dataset.id = uid();
-  p.setAttribute('d', d); p.setAttribute('fill', o.fill || 'none'); p.setAttribute('stroke', o.stroke);
-  p.setAttribute('stroke-width', o.w); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-linejoin', 'round');
-  p.setAttribute('vector-effect', 'non-scaling-stroke'); p.dataset.k = o.k;
-  if (o.k === 'hl'){ p.setAttribute('stroke-opacity', '.45'); p.style.mixBlendMode = 'multiply'; p.setAttribute('stroke-linecap', 'butt'); }
+  const p = document.createElementNS(NS, 'path'); p.setAttribute('class', 'fo');
+  p.setAttribute('d', d); if (o.k !== 'pen' && o.k !== 'hl') p.setAttribute('fill', o.fill || 'none');   // pen / highlighter: fill is none in the style sheet
+  p.setAttribute('stroke', o.stroke); p.setAttribute('stroke-width', o.w); p.dataset.k = o.k;
   return p;
+}
+/* Strokes are saved as one short text: first point, then the steps between points, all in quarter-pixels, base 36.
+   The long SVG path is rebuilt from it when the board opens, so the saved board stays small. */
+function encPts(pts){
+  const q = pts.map(a => [Math.round(a[0] * 4), Math.round(a[1] * 4)]), out = [q[0][0].toString(36), q[0][1].toString(36)];
+  for (let i = 1; i < q.length; i++){ out.push((q[i][0] - q[i - 1][0]).toString(36), (q[i][1] - q[i - 1][1]).toString(36)); }
+  return out.join(' ');
+}
+function decPts(str){
+  const v = String(str || '').split(' ').map(t => parseInt(t, 36) / 4), pts = [];
+  for (let i = 0; i + 1 < v.length; i += 2){ const l = pts[pts.length - 1]; pts.push(l ? [l[0] + v[i], l[1] + v[i + 1]] : [v[i], v[i + 1]]); }
+  return pts;
+}
+/* Douglas–Peucker: drop points that lie on the line between their neighbours */
+function simplify(pts, eps){
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1; const stack = [[0, pts.length - 1]];
+  while (stack.length){
+    const [a, b] = stack.pop(); let dm = 0, im = -1;
+    for (let i = a + 1; i < b; i++){ const d = distSeg(pts[i][0], pts[i][1], pts[a][0], pts[a][1], pts[b][0], pts[b][1]); if (d > dm){ dm = d; im = i; } }
+    if (dm > eps && im > 0){ keep[im] = 1; stack.push([a, im], [im, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function serialize(cv){
+  const l = cv.querySelector(':scope > .aw-fl'); if (!l) return cv.innerHTML;
+  const c = cv.cloneNode(true), cl = c.querySelector(':scope > .aw-fl');
+  cl.className = 'aw-fl';
+  [].forEach.call(cl.querySelectorAll('path[data-p]'), p => p.removeAttribute('d'));
+  [].forEach.call(cl.querySelectorAll('.aw-fb'), b => b.setAttribute('contenteditable', 'false'));
+  return c.innerHTML;
+}
+function hydrate(cv){
+  const l = cv.querySelector(':scope > .aw-fl'); if (!l) return;
+  l.className = 'aw-fl';
+  [].forEach.call(l.querySelectorAll('path[data-p]'), p => { if (!p.getAttribute('d')) p.setAttribute('d', smoothD(decPts(p.dataset.p))); });
+  [].forEach.call(l.querySelectorAll('.aw-fb'), b => b.setAttribute('contenteditable', 'false'));
 }
 function smoothD(pts){
   if (pts.length === 1) return 'M' + r1(pts[0][0]) + ' ' + r1(pts[0][1]) + 'L' + r1(pts[0][0] + .01) + ' ' + r1(pts[0][1]);
@@ -307,7 +342,7 @@ function symSize(txt, ring, t2){
   return [Math.max(24, txt.length * 13 + 10), 24];
 }
 function symEl(sy, cx, cy, w, h){
-  const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'fo'); g.dataset.k = 'sym'; g.dataset.id = uid();
+  const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'fo'); g.dataset.k = 'sym';
   const x = cx - w / 2, y = cy - h / 2;
   const add = (tag, at, txt) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; g.appendChild(e); return e; };
   if (sy.ring) add('ellipse', { cx: r1(cx), cy: r1(cy), rx: r1(w / 2), ry: r1(h / 2), fill: 'none', stroke: S.stroke, 'stroke-width': 1.6, 'vector-effect': 'non-scaling-stroke' });
@@ -447,10 +482,8 @@ function onUp(e){
   if (!G || G.kind === 'resize') return;
   const g = G; G = null; band.style.display = 'none';
   if (g.kind === 'draw'){
-    if (g.pts.length > 3){   // thin out the points: the board has to stay small
-      const out = [g.pts[0]]; g.pts.forEach((q, i) => { const l = out[out.length - 1]; if (i && (Math.hypot(q[0] - l[0], q[1] - l[1]) >= 2.4 || i === g.pts.length - 1)) out.push(q); });
-      g.path.setAttribute('d', smoothD(out));
-    }
+    const out = simplify(g.pts, 0.7);   // the board has to stay small
+    g.path.setAttribute('d', smoothD(out)); g.path.dataset.p = encPts(out);
     changed();
   } else if (g.kind === 'erase'){ if (g.did) changed(); }
   else if (g.kind === 'shape'){
@@ -662,7 +695,7 @@ function openSyms(){
 /* ═══════════ wiring ═══════════ */
 function wire(cv){
   canvas = cv; if (!cv) return;
-  buildUI(); normalise();
+  buildUI(); hydrate(cv); sync();
   S.sel = []; S.undo = []; S.redo = []; S.tool = 'type'; cv.classList.remove('free-on');
   cv.addEventListener('pointerdown', onDown);
   cv.addEventListener('pointermove', onMove);
@@ -694,5 +727,5 @@ function wire(cv){
   syncStyleUI();
   setTimeout(fit, 50);
 }
-window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit };
+window.AWFree = { panelHtml, wire, tool: () => S.tool, setTool, fit, serialize, hydrate };
 })();

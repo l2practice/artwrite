@@ -34,7 +34,9 @@
   .aw-fl.t-eraser{cursor:cell}
   .aw-fl.t-select{cursor:default}
   .aw-fl-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-  .aw-fl .fo{pointer-events:none}
+  .aw-fl .fo{pointer-events:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+  .aw-fl .fo[data-k="pen"],.aw-fl .fo[data-k="hl"]{fill:none}
+  .aw-fl .fo[data-k="hl"]{stroke-opacity:.45;mix-blend-mode:multiply;stroke-linecap:butt}
   .aw-fl.t-select .fo,.aw-fl.t-select .fo *,.aw-fl.t-eraser .fo,.aw-fl.t-eraser .fo *{pointer-events:visiblePainted}
   .aw-fb{position:absolute;min-width:60px;padding:4px 6px;line-height:1.35;outline:none;overflow-wrap:anywhere;white-space:pre-wrap;box-sizing:border-box;pointer-events:auto;user-select:text;border-radius:4px}
   .aw-fb[contenteditable="true"]{outline:2px dashed var(--aw-primary);background:rgba(255,255,255,.6);cursor:text}
@@ -333,6 +335,7 @@ function refreshBoard(){
       var canvas=document.getElementById('canvas');
       if(canvas){
         canvas.innerHTML = isTeacher ? (curBoard.content||'') : renderForStudent(curBoard.content||'');
+  if(isTeacher && window.AWFree) AWFree.hydrate(canvas);
         applyZoom(); // keep the student's own zoom across live updates
       }
     }
@@ -366,6 +369,7 @@ function renderBoard(){
 
   var canvas=document.getElementById('canvas');
   canvas.innerHTML = isTeacher ? (curBoard.content||'') : renderForStudent(curBoard.content||'');
+  if(isTeacher && window.AWFree) AWFree.hydrate(canvas);
 
   if(isTeacher){
     wireToolbar();
@@ -460,6 +464,7 @@ function renderForStudent(html){
   });
   // legacy <font size> tags from execCommand
   tmp.querySelectorAll('font[size]').forEach(function(el){ el.removeAttribute('size'); });
+  if(window.AWFree) AWFree.hydrate(tmp);
   return tmp.innerHTML;
 }
 function studentZoomBar(){
@@ -503,7 +508,7 @@ var RB_ICONS={
   link: rbIc('<path d="M7 9A2.5 2.5 0 0 0 10.5 9L13 6.5A2.5 2.5 0 0 0 9.5 3L8.5 4M9 7A2.5 2.5 0 0 0 5.5 7L3 9.5A2.5 2.5 0 0 0 6.5 13L7.5 12"/>'),
   line: rbIc('<path d="M2 8H14"/>')
 };
-var RB_FONTS=['Inter','Arial','Calibri','Cambria','Georgia','Times New Roman','Verdana','Tahoma','Trebuchet MS','Comic Sans MS','Courier New'];
+var RB_FONTS=['Be Vietnam Pro','Arial','Calibri','Cambria','Georgia','Times New Roman','Verdana','Tahoma','Trebuchet MS','Comic Sans MS','Courier New'];
 var RB_SIZES=[8,9,10,11,12,14,16,18,20,22,24,26,28,32,36,40,48,60,72,96];
 
 function buildToolbar(){
@@ -521,10 +526,10 @@ function buildToolbar(){
       b('','data-grow="1"','<span style="font-size:.95rem;font-weight:700">A<sup style="font-size:.6em">▲</sup></span>','Increase font size')+
       b('','data-grow="-1"','<span style="font-size:.78rem;font-weight:700">A<sup style="font-size:.6em">▼</sup></span>','Decrease font size')+
       b('','data-clearfmt="1"',RB_ICONS.clear,'Clear all formatting'),
-      b('','data-ed="bold"','<b>B</b>','Bold (Ctrl+B)')+b('','data-ed="italic"','<i style="font-family:serif">I</i>','Italic (Ctrl+I)')+
+      b('','data-ed="bold"','<b>B</b>','Bold (Ctrl+B)')+b('','data-ed="italic"','<i>I</i>','Italic (Ctrl+I)')+
       b('','data-ed="underline"','<u>U</u>','Underline (Ctrl+U)')+b('','data-ed="strikeThrough"','<s>S</s>','Strikethrough')+
       b('','data-ed="subscript"','x<sub style="font-size:.65em">2</sub>','Subscript')+b('','data-ed="superscript"','x<sup style="font-size:.65em">2</sup>','Superscript')+
-      '<span class="aw-rb-split"><button type="button" class="aw-rb-b" data-colour="fore" title="Font color"><span style="font-weight:700;font-family:serif">A</span><i class="aw-rb-bar" id="rbForeBar" style="background:#E03131"></i></button><button type="button" class="aw-rb-b aw-rb-caret" data-pal="fore" title="Font color options">▾</button></span>'+
+      '<span class="aw-rb-split"><button type="button" class="aw-rb-b" data-colour="fore" title="Font color"><span style="font-weight:700">A</span><i class="aw-rb-bar" id="rbForeBar" style="background:#E03131"></i></button><button type="button" class="aw-rb-b aw-rb-caret" data-pal="fore" title="Font color options">▾</button></span>'+
       '<span class="aw-rb-split"><button type="button" class="aw-rb-b" data-colour="back" title="Text highlight color"><span style="font-weight:700;background:#FFF3A3;padding:0 3px;border-radius:2px">ab</span><i class="aw-rb-bar" id="rbBackBar" style="background:#FFF3A3"></i></button><button type="button" class="aw-rb-b aw-rb-caret" data-pal="back" title="Highlight options">▾</button></span>'
     ],'Font')+
     grp([
@@ -1520,6 +1525,8 @@ function scheduleSave(){
   if(btn) { btn.textContent = '💾 Save'; btn.style.background = ''; }
   clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500);
 }
+/* what is saved: the board as it is, with strokes in their short form */
+function boardHtml(){ var c=document.getElementById('canvas'); return window.AWFree ? AWFree.serialize(c) : c.innerHTML; }
 function saveNow(){
   if(!curBoard||!isTeacher) return;
   var canvas = document.getElementById('canvas'); if(!canvas) return;
@@ -1529,8 +1536,9 @@ function saveNow(){
   if(dot) dot.textContent = 'Saving…';
   if(dot) dot.style.color = 'var(--aw-ink-3)';
   if(btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-  curBoard.content = canvas.innerHTML; curBoard.title = title;
-  AW.api('board.save',{boardId:curBoard.boardId, title:title, content:canvas.innerHTML}).then(function(res){
+  var html = boardHtml();
+  curBoard.content = html; curBoard.title = title;
+  AW.api('board.save',{boardId:curBoard.boardId, title:title, content:html}).then(function(res){
     var dot2 = document.getElementById('saveDot');
     var btn2 = document.getElementById('saveBtn');
     if(res && res.success){
@@ -1558,13 +1566,14 @@ function saveNowImmediate(){
   if(!curBoard||!isTeacher) return;
   var canvas=document.getElementById('canvas'); if(!canvas) return;
   var title=document.getElementById('boardTitle'); title=title?title.value:curBoard.title;
-  if(canvas.innerHTML===curBoard.content && title===curBoard.title) return; // no changes
-  curBoard.content=canvas.innerHTML; curBoard.title=title;
+  var html=boardHtml();
+  if(html===curBoard.content && title===curBoard.title) return; // no changes
+  curBoard.content=html; curBoard.title=title;
   var gasUrl = window.AW && AW._gasUrl ? AW._gasUrl : '';
   if (!gasUrl) return;
   var payload = JSON.stringify({
     action:'board.save',
-    payload:{boardId:curBoard.boardId, title:title, content:canvas.innerHTML}
+    payload:{boardId:curBoard.boardId, title:title, content:html}
   });
   // keepalive:true tells browser to complete the request even when the page is closing
   try {
@@ -1597,8 +1606,8 @@ window.exportPDF=function(){
   var canvas=document.getElementById('canvas');
   var w=window.open('','_blank');
   w.document.write('<html><head><title>'+AW.esc(curBoard.title)+'</title>'+
-    '<style>body{font-family:Inter,system-ui,sans-serif;padding:40px;line-height:1.7;color:#1E2142}'+
-    'img{max-width:100%;border-radius:8px}h1{font-family:Georgia,serif}table{border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #6b7280;padding:6px 8px;vertical-align:top;overflow-wrap:anywhere}table.aw-nob td,table.aw-nob th{border-color:transparent}.aw-fl{position:absolute;left:0;top:0;right:0;bottom:0}.aw-fl-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}.aw-fb{position:absolute;padding:4px 6px;line-height:1.35;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere}.aw-cols{column-gap:32px;column-rule:1px solid #ccc}</style></head><body>'+
+    '<style>@import url(https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap);body{font-family:\'Be Vietnam Pro\',system-ui,sans-serif;padding:40px;line-height:1.7;color:#1E2142}'+
+    'img{max-width:100%;border-radius:8px}h1{font-family:inherit}table{border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #6b7280;padding:6px 8px;vertical-align:top;overflow-wrap:anywhere}table.aw-nob td,table.aw-nob th{border-color:transparent}.aw-fl{position:absolute;left:0;top:0;right:0;bottom:0}.aw-fl-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}.fo{stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.fo[data-k=pen],.fo[data-k=hl]{fill:none}.fo[data-k=hl]{stroke-opacity:.45;mix-blend-mode:multiply;stroke-linecap:butt}.aw-fb{position:absolute;padding:4px 6px;line-height:1.35;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere}.aw-cols{column-gap:32px;column-rule:1px solid #ccc}</style></head><body>'+
     '<h1>'+AW.esc(curBoard.title)+'</h1><div style="position:relative">'+canvas.innerHTML+'</div></body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 400);
