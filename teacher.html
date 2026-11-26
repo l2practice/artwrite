@@ -1018,7 +1018,7 @@ function showLive(){
           '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
         '</div>'+
         '<span style="font-size:.82rem;color:var(--aw-ink-3)">'+(AW.firebaseOn?'Live':'Refreshes every 10 s')+'. Click a student to view and mark up.</span>'+
-        '<a href="board.html" target="_blank" rel="noopener" class="aw-btn aw-btn-primary" style="margin-left:auto;padding:5px 14px;font-size:.8rem;text-decoration:none" title="Open the Interactive Board of this class in a new tab (this page keeps observing)">🖥 Open board</a>'+
+        '<button id="openBoardBtn" class="aw-btn aw-btn-primary" style="margin-left:auto;padding:5px 14px;font-size:.8rem" title="Look at a board of this class (view only); close it to go back to observing">🖥 Open board</button>'+
         '<button id="clearLiveBtn" class="aw-btn aw-btn-ghost" style="padding:5px 12px;font-size:.78rem;color:var(--aw-danger);border-color:var(--aw-danger)" title="Xoá toàn bộ data cũ trong LiveSessions tab">🗑 Clear session</button>'+
       '</div>'+
       '<div class="aw-live-wrap">' +
@@ -1145,6 +1145,22 @@ function showLive(){
       window.stopLivePoll=function(){if(_origStop)_origStop();stopCd();};
     })();
 
+    /* a board to look at, in a window over this page: view only, close it and the observation carries on */
+    document.getElementById('openBoardBtn').onclick = function(){
+      if(document.getElementById('boardPeek')) return;
+      var w=document.createElement('div'); w.id='boardPeek';
+      w.style.cssText='position:fixed;inset:0;z-index:900;background:rgba(20,22,40,.55);display:flex;align-items:center;justify-content:center;padding:2.5vh 2.5vw';
+      w.innerHTML='<div style="background:var(--aw-surface);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'+
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--aw-primary);color:#fff"><b>Interactive Board</b><span style="font-size:.78rem;opacity:.85">view only</span>'+
+        '<button id="boardPeekX" style="margin-left:auto;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:999px;padding:5px 14px;font-weight:700;cursor:pointer">✕ Close</button></div>'+
+        '<iframe src="board.html?view=1&embed=1" style="flex:1;border:0;width:100%"></iframe></div>';
+      document.body.appendChild(w);
+      function close(){ w.remove(); document.removeEventListener('keydown',esc); }
+      function esc(e){ if(e.key==='Escape') close(); }
+      document.getElementById('boardPeekX').onclick=close;
+      w.addEventListener('mousedown',function(e){ if(e.target===w) close(); });
+      document.addEventListener('keydown',esc);
+    };
     document.getElementById('clearLiveBtn').onclick = function(){
       if (!confirm('Xoá toàn bộ data phiên học trong tab LiveSessions của lớp '+((curClassObj()&&curClassObj().className)||curClass())+'?\n\nThao tác này chỉ xoá data tracking tạm thời — không ảnh hưởng bài làm của sinh viên.')) return;
       var btn = this; btn.disabled = true;
