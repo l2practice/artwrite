@@ -372,6 +372,8 @@ function endEdit(b){
 
 /* ── selection ── */
 const isBox = o => o.classList && o.classList.contains('aw-fb');
+const boxScale = b => parseFloat(b.dataset.s) || 1;
+function setBoxScale(b, k){ k = Math.max(.2, Math.min(8, k)); b.style.transformOrigin = '0 0'; if (Math.abs(k - 1) < 0.002){ delete b.dataset.s; b.style.transform = ''; } else { b.dataset.s = Math.round(k * 1000) / 1000; b.style.transform = 'scale(' + b.dataset.s + ')'; } }
 function boxOf(list){
   const l = layer(false); if (!l || !list.length) return null;
   const lr = l.getBoundingClientRect(), z = zoomF(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -381,7 +383,8 @@ function boxOf(list){
 function paintSel(){
   if (!ui) return;
   S.sel = S.sel.filter(o => o.isConnected);
-  const b = S.tool === 'select' ? boxOf(S.sel) : null;
+  const showBox = S.tool === 'select' || (S.tool === 'type' && S.sel.length === 1 && isBox(S.sel[0]));
+  const b = showBox ? boxOf(S.sel) : null;
   if (!b){ ui.style.display = 'none'; syncStyleUI(); return; }
   ui.style.display = 'block'; ui.style.left = b.vx - 4 + 'px'; ui.style.top = b.vy - 4 + 'px'; ui.style.width = b.vw + 8 + 'px'; ui.style.height = b.vh + 8 + 'px';
   syncStyleUI();
@@ -389,15 +392,22 @@ function paintSel(){
 function buildUI(){
   if (ui) return;
   ui = document.createElement('div'); ui.className = 'aw-flsel'; ui.style.display = 'none';
-  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('');
+  ui.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => '<i class="h" data-h="' + h + '"></i>').join('') + '<i class="mv" title="Drag to move">✥ Move</i><i class="dl" title="Delete">✕</i>';
   document.body.appendChild(ui);
   ui.addEventListener('pointerdown', e => {
+    const cl = e.target.classList; if (!cl) return;
+    if (cl.contains('dl')){ e.preventDefault(); e.stopPropagation(); del(); return; }
+    if (cl.contains('mv')){   // the grip: drag the selection (works while a text box is being edited too)
+      e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId); snap();
+      G = { kind: 'move', x0: e.clientX, y0: e.clientY, did: true, fromUi: true, origs: S.sel.map(o => isBox(o) ? { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0 } : T(o)) };
+      return;
+    }
     const h = e.target.dataset && e.target.dataset.h; if (!h) return;
     e.preventDefault(); e.stopPropagation(); ui.setPointerCapture(e.pointerId);
-    snap(); G = { kind: 'resize', h, ob: boxOf(S.sel), x0: e.clientX, y0: e.clientY, origs: S.sel.map(o => isBox(o) ? { l: parseFloat(o.style.left), t: parseFloat(o.style.top), w: o.offsetWidth } : T(o)) };
+    snap(); G = { kind: 'resize', h, ob: boxOf(S.sel), x0: e.clientX, y0: e.clientY, origs: S.sel.map(o => isBox(o) ? { l: parseFloat(o.style.left) || 0, t: parseFloat(o.style.top) || 0, w: o.offsetWidth, s: boxScale(o) } : T(o)) };
   });
-  ui.addEventListener('pointermove', e => { if (G && G.kind === 'resize') resizeMove(e); });
-  ui.addEventListener('pointerup', e => { if (G && G.kind === 'resize'){ G = null; changed(); } });
+  ui.addEventListener('pointermove', e => { if (!G) return; if (G.kind === 'resize') resizeMove(e); else if (G.fromUi) onMove(e); });
+  ui.addEventListener('pointerup', e => { if (!G) return; if (G.kind === 'resize'){ G = null; changed(); } else if (G.fromUi) onUp(e); });
   band = document.createElement('div'); band.className = 'aw-flband'; band.style.display = 'none'; document.body.appendChild(band);
   window.addEventListener('scroll', paintSel, true); window.addEventListener('resize', paintSel);
 }
@@ -409,7 +419,12 @@ function resizeMove(e){
   const ax = (x1 - x0) / (o.w || 1), ay = (y1 - y0) / (o.h || 1);
   S.sel.forEach((s, i) => {
     const g = G.origs[i];
-    if (isBox(s)){ s.style.left = r1(x0 + (g.l - o.x) * ax) + 'px'; s.style.width = r1(Math.max(40, g.w * ax)) + 'px'; s.style.top = r1(y0 + (g.t - o.y) * ay) + 'px'; }
+    if (isBox(s)){
+      const corner = h.length === 2;
+      s.style.left = r1(x0 + (g.l - o.x) * ax) + 'px'; s.style.top = r1(y0 + (g.t - o.y) * (corner ? ax : ay)) + 'px';
+      if (corner) setBoxScale(s, g.s * ax);                 // corner: the whole box grows or shrinks, text included
+      else s.style.width = r1(Math.max(40, g.w * ax)) + 'px'; // side: wider or narrower, the text re-wraps
+    }
     else setT(s, { x: ax * g.x + x0 - ax * o.x, y: ay * g.y + y0 - ay * o.y, sx: g.sx * ax, sy: g.sy * ay });
   });
   paintSel();
@@ -504,7 +519,7 @@ function onUp(e){
     const dx = Math.abs(e.clientX - g.vx) / zoomF();
     const x = Math.min(g.x0, pt(e).x), y = Math.min(g.y0, pt(e).y);
     snap(); const b = textBox(dx > 30 ? x : g.x0, dx > 30 ? y : g.y0, dx > 30 ? dx : 220);
-    setTool('type'); edit(b); changed();
+    setTool('type'); S.sel = [b]; edit(b); changed();
   } else if (g.kind === 'move'){ if (g.did) changed(); else paintSel(); }
   else if (g.kind === 'band'){
     const l = layer(false), x0 = Math.min(g.x0, e.clientX), y0 = Math.min(g.y0, e.clientY), x1 = Math.max(g.x0, e.clientX), y1 = Math.max(g.y0, e.clientY);
@@ -586,7 +601,7 @@ function syncStyleUI(){
 }
 function setTool(t){
   if (S.tool === 'type' && t !== 'type'){ const a = document.activeElement; if (a && a.classList && a.classList.contains('aw-fb')) a.blur(); }
-  S.tool = t; if (t !== 'select') S.sel = [];
+  S.tool = t; if (t !== 'select' && !(t === 'type' && S.sel.length === 1 && isBox(S.sel[0]))) S.sel = [];
   layer(t !== 'type'); sync(); paintSel();
   if (canvas) canvas.classList.toggle('free-on', t !== 'type');
   if (t === 'shape' || t === 'pen' || t === 'hl'){ /* keep panels as they are */ }
@@ -708,6 +723,13 @@ function wire(cv){
     if (b && S.tool === 'type' && b.getAttribute('contenteditable') !== 'true'){ b.setAttribute('contenteditable', 'true'); }
   }, true);
   cv.addEventListener('focusout', e => { const b = e.target.closest && e.target.closest('.aw-fb'); if (b) endEdit(b); });
+  cv.addEventListener('focusin', e => { const b = e.target.closest && e.target.closest('.aw-fb'); if (b && S.tool === 'type'){ S.sel = [b]; paintSel(); } });
+  cv.addEventListener('input', () => { if (S.sel.length) paintSel(); });
+  document.addEventListener('mousedown', e => {   // click away: the frame goes
+    if (S.tool !== 'type' || !S.sel.length) return;
+    const t = e.target; if (t.closest && (t.closest('.aw-fb') || t.closest('.aw-flsel') || t.closest('#tb') || t.closest('.aw-fpanel'))) return;
+    S.sel = []; paintSel();
+  }, true);
   cv.addEventListener('dblclick', e => { const b = e.target.closest && e.target.closest('.aw-fb'); if (b && S.tool === 'select'){ setTool('type'); edit(b); } });
   cv.addEventListener('keydown', e => {   // Ctrl+A inside a text box selects that box's text only
     const b = e.target.closest && e.target.closest('.aw-fb');
