@@ -296,7 +296,7 @@
     if (document.getElementById('aw-fonts')) return;
     var l = document.createElement('link');
     l.id = 'aw-fonts'; l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap';
+    l.href = 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap';
     document.head.appendChild(l);
   })();
 
@@ -386,7 +386,7 @@
     el.querySelector('#awNtPdf').onclick = function () {
       var s = AW.session.get() || {}, w = window.open('', '_blank');
       if (!w) { AW.toast('Hãy cho phép cửa sổ bật lên để xuất PDF.', 'err'); return; }
-      w.document.write('<html><head><title>My Notes</title><style>body{font-family:system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h2{color:#5661E0;font-size:1.05rem;margin:22px 0 6px}pre{white-space:pre-wrap;font:inherit;line-height:1.6;margin:0}</style></head><body>' +
+      w.document.write('<html><head><title>My Notes</title><style>@import url(https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap);body{font-family:\'Be Vietnam Pro\',system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E2142}h2{color:#5661E0;font-size:1.05rem;margin:22px 0 6px}pre{white-space:pre-wrap;font:inherit;line-height:1.6;margin:0}</style></head><body>' +
         '<h1>My Notes</h1><p style="color:#62678A">' + AW.esc(s.name || '') + ' · ' + new Date().toLocaleDateString('vi-VN') + '</p>' +
         '<h2>Vocabulary</h2><pre>' + AW.esc(v.value) + '</pre><h2>Notes</h2><pre>' + AW.esc(n.value) + '</pre></body></html>');
       w.document.close(); setTimeout(function () { w.print(); }, 300);

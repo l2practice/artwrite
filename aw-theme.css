@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
 /*───────────────────────────────────────────────────
   ArticuWrite — shared theme  (aw-theme.css)
   "Periwinkle": lavender ground, white soft-shadow panels,
@@ -38,7 +38,9 @@
   /* type */
   --aw-font-display: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
   --aw-font-body:    'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --aw-font-essay:   'Literata', Georgia, 'Times New Roman', serif;
+  --aw-font-essay:   var(--aw-font-body);   /* one typeface across the app (set to 'Literata', serif to bring the old essay font back) */
+  --vm-font-display: var(--aw-font-display);
+  --vm-font-body:    var(--aw-font-body);
 
   /* shape + depth */
   --aw-r-sm: 12px; --aw-r: 18px; --aw-r-lg: 24px; --aw-r-pill: 999px;
@@ -454,7 +456,7 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
 .aw-tw-left{min-width:0}
 .aw-tw-right{min-width:0;display:flex;flex-direction:column;gap:13px;position:relative}
 .aw-tw-eyebrow{font-size:.6rem;letter-spacing:.15em;font-weight:700;color:#D6CCFF;margin-bottom:9px;display:flex;align-items:center;gap:5px}
-.aw-tw-word{font-family:Georgia,'Times New Roman',serif;font-size:1.65rem;font-weight:700;line-height:1;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;letter-spacing:-.01em;text-shadow:0 1px 8px rgba(0,0,0,.13)}
+.aw-tw-word{font-family:var(--aw-font-display);font-size:1.65rem;font-weight:700;line-height:1;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;letter-spacing:-.01em;text-shadow:0 1px 8px rgba(0,0,0,.13)}
 .aw-tw-ipa{font-family:var(--aw-font-body);font-size:.82rem;font-weight:400;color:#CFC3FF;letter-spacing:.02em}
 .aw-tw-band{font-size:.6rem;font-weight:600;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.14);padding:3px 10px;border-radius:14px;align-self:center;letter-spacing:.02em;backdrop-filter:blur(4px)}
 .aw-tw-mean{margin-top:10px;font-size:.85rem;font-weight:500;display:flex;align-items:center;gap:6px;color:#F3F0FF;line-height:1.35}
@@ -467,7 +469,7 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.015e
 .aw-tw-ex p{font-style:italic;color:#E9E3FF;margin:0 0 7px;font-size:.78rem;line-height:1.4;padding-left:10px;border-left:2px solid rgba(255,255,255,.25)}
 .aw-tw-prev{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:10px 14px;text-align:right;align-self:flex-end;min-width:130px;backdrop-filter:blur(6px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .aw-tw-prev-lbl{font-size:.54rem;letter-spacing:.13em;font-weight:700;color:#B9A9F5}
-.aw-tw-prev-word{font-family:Georgia,'Times New Roman',serif;font-size:1.05rem;font-weight:700;margin-top:3px}
+.aw-tw-prev-word{font-family:var(--aw-font-display);font-size:1.05rem;font-weight:700;margin-top:3px}
 .aw-tw-prev-mean{font-size:.68rem;color:#DDD4FF;margin-top:2px;font-weight:400}
 @media(max-width:820px){.aw-tw-grid{grid-template-columns:1fr;gap:13px}.aw-tw-word{font-size:1.5rem}.aw-tw-right{border-top:1px solid rgba(255,255,255,.14);padding-top:13px}.aw-tw-prev{align-self:stretch;text-align:left}}
 
