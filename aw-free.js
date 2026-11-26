@@ -321,8 +321,16 @@ function pt(e){
   return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
 }
 function changed(){ fit(); if (typeof scheduleSave === 'function') scheduleSave(); paintSel(); }
+/* run fn and put the page back where it was: layout that shrinks for a moment must not scroll the board to the top */
+function keepScroll(fn){
+  const se = document.scrollingElement || document.documentElement, y = se.scrollTop, x = se.scrollLeft;
+  fn();
+  if (se.scrollTop !== y) se.scrollTop = y;
+  if (se.scrollLeft !== x) se.scrollLeft = x;
+}
 /* the board gets as tall as the lowest object */
-function fit(){
+function fit(){ keepScroll(fit0); }
+function fit0(){
   const l = layer(false); if (!l) return;
   let pad = canvas.querySelector(':scope > .aw-fl-pad');
   const objs = [].slice.call(l.querySelectorAll('.fo,.aw-fb')).concat([].slice.call(canvas.querySelectorAll('.aw-tfree')));
@@ -330,8 +338,7 @@ function fit(){
   if (!pad){ pad = document.createElement('div'); pad.className = 'aw-fl-pad'; pad.setAttribute('contenteditable', 'false'); pad.style.height = '0px'; canvas.appendChild(pad); }
   const cr = canvas.getBoundingClientRect(), z = zoomF();
   let low = 0; objs.forEach(o => { low = Math.max(low, (o.getBoundingClientRect().bottom - cr.top) / z); });
-  pad.style.height = '0px';
-  const top = (pad.getBoundingClientRect().top - cr.top) / z;
+  const top = (pad.getBoundingClientRect().top - cr.top) / z;   // the pad is the last thing in the board: its top does not depend on its own height
   pad.style.height = Math.max(0, Math.round(low + 60 - top)) + 'px';
 }
 
@@ -511,14 +518,19 @@ const isBox = o => o.classList && (o.classList.contains('aw-fb') || o.tagName ==
 /* a table lifts out of the text and floats: it can then be dragged anywhere, like a text box */
 function freeTable(t){
   if (t.classList.contains('aw-tfree')) return;
-  const l = t.offsetLeft, tp = t.offsetTop;
-  t.classList.add('aw-tfree'); t.style.position = 'absolute'; t.style.left = l + 'px'; t.style.top = tp + 'px'; t.style.zIndex = '1'; t.style.margin = '0';
+  keepScroll(() => {
+    const l = t.offsetLeft, tp = t.offsetTop;
+    if (canvas) canvas.style.minHeight = Math.max(canvas.offsetHeight, parseFloat(canvas.style.minHeight) || 0) + 'px';   // taking it out of the text must not shorten the board
+    t.classList.add('aw-tfree'); t.style.position = 'absolute'; t.style.left = l + 'px'; t.style.top = tp + 'px'; t.style.zIndex = '1'; t.style.margin = '0';
+  });
 }
 const imgRot = o => parseFloat(o.dataset.rot) || 0;
 function setImgRot(o, a){ a = ((a % 360) + 540) % 360 - 180; a = Math.round(a * 10) / 10; if (a){ o.dataset.rot = a; o.style.transformOrigin = '50% 50%'; o.style.transform = 'rotate(' + a + 'deg)'; } else { delete o.dataset.rot; o.style.transform = ''; } }
 function unfreeTable(t){
-  t.classList.remove('aw-tfree'); t.style.position = ''; t.style.left = ''; t.style.top = ''; t.style.zIndex = ''; t.style.margin = '';
-  if (!t.getAttribute('class')) t.removeAttribute('class');
+  keepScroll(() => {
+    t.classList.remove('aw-tfree'); t.style.position = ''; t.style.left = ''; t.style.top = ''; t.style.zIndex = ''; t.style.margin = '';
+    if (!t.getAttribute('class')) t.removeAttribute('class');
+  });
 }
 const boxScale = b => parseFloat(b.dataset.s) || 1;
 function setBoxScale(b, k){ k = Math.max(.2, Math.min(8, k)); b.style.transformOrigin = '0 0'; if (Math.abs(k - 1) < 0.002){ delete b.dataset.s; b.style.transform = ''; } else { b.dataset.s = Math.round(k * 1000) / 1000; b.style.transform = 'scale(' + b.dataset.s + ')'; } }
@@ -974,7 +986,14 @@ function toggleFinger(){ S.finger = !S.finger; lsSet('aw_finger', S.finger); toa
 function onKey(e){
   if (!canvas || !canvas.isConnected) return;
   const ae = document.activeElement;
-  if (ae && (ae.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) && !(ae === canvas && S.tool !== 'type')) { if (e.key === 'Escape' && ae.classList && ae.classList.contains('aw-fb')){ ae.blur(); } return; }
+  // typing text (a text box, a field with letters in it) keeps the key; sliders, colour pickers and buttons do not
+  const typing = ae && ((ae.isContentEditable && ae !== canvas) || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || (ae.tagName === 'INPUT' && !/^(range|color|checkbox|radio|button)$/.test(ae.type)));
+  if (typing){ if (e.key === 'Escape' && ae.classList && ae.classList.contains('aw-fb')){ ae.blur(); } return; }
+  if (ae === canvas && S.tool === 'type'){   // a picture clicked in the text: Delete removes it
+    const sl = window.getSelection(), inCell = sl.anchorNode && sl.anchorNode.parentElement && sl.anchorNode.parentElement.closest && sl.anchorNode.parentElement.closest('td,th,.aw-fb');
+    if (e.key === 'Delete' && S.sel.length === 1 && isImg(S.sel[0]) && !inCell){ e.preventDefault(); del(); }
+    return;
+  }
   const mod = e.ctrlKey || e.metaKey;
   if (e.key === 'Escape'){ if (S.sel.length){ S.sel = []; paintSel(); } else setTool('type'); return; }
   if (S.tool === 'type') return;
