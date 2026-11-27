@@ -966,9 +966,8 @@ function onUp(e){
     S.sel = [g.el]; clearBadges(); changed();
   } else if (g.kind === 'sym'){
     clearBadges();
-    if (!g.dragged){ S.sel = [g.el]; changed(); return; }   // a plain click places the symbol at its usual size (a drag sizes it)
-    S.symDims[g.key] = [Math.round(g.w), Math.round(g.h)]; lsSet('aw_sym_dims', S.symDims);   // the next symbols of this kind come out the same size
-    S.sel = [g.el]; changed();
+    if (g.dragged){ S.symDims[g.key] = [Math.round(g.w), Math.round(g.h)]; lsSet('aw_sym_dims', S.symDims); }   // dragged: the next symbols of this kind come out this size
+    setTool('select'); S.sel = [g.el]; changed();   // placed (a click: its usual size). The next click selects or moves; it does not place another one
   } else if (g.kind === 'text'){
     const dx = Math.abs(e.clientX - g.vx) / zoomF();
     const x = Math.min(g.x0, pt(e).x), y = Math.min(g.y0, pt(e).y);
@@ -1180,6 +1179,19 @@ function makePanel(id, title, w){
   document.body.appendChild(p); panels[id] = p;
   p.querySelector('.aw-fp-x').onclick = () => { p.remove(); panels[id] = null; syncStyleUI(); };
   p.addEventListener('mousedown', e => { if (!/^(INPUT|SELECT)$/.test(e.target.tagName)) e.preventDefault(); });
+  // the bottom-right corner resizes the panel (the icons wrap to the new width); the size is remembered
+  const sz = lsGet('aw_fp_size_' + id, null); if (sz && sz[0] && sz[1]){ p.style.width = Math.min(innerWidth - 16, sz[0]) + 'px'; p.style.height = Math.min(innerHeight - 16, sz[1]) + 'px'; p.style.maxHeight = 'none'; }
+  p.insertAdjacentHTML('beforeend', '<div class="aw-fp-rs" title="Drag to resize" aria-hidden="true"></div>');
+  const rs = p.querySelector('.aw-fp-rs');
+  rs.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    const r = p.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+    p.style.left = r.left + 'px'; p.style.top = r.top + 'px'; p.style.right = 'auto'; p.style.maxHeight = 'none';   // the corner moves, the top-left stays
+    try { rs.setPointerCapture(e.pointerId); } catch (er) {}
+    const mv = ev => { p.style.width = Math.max(180, Math.min(innerWidth - r.left - 8, r.width + ev.clientX - x0)) + 'px'; p.style.height = Math.max(150, Math.min(innerHeight - r.top - 8, r.height + ev.clientY - y0)) + 'px'; };
+    const up = () => { rs.removeEventListener('pointermove', mv); rs.removeEventListener('pointerup', up); rs.removeEventListener('pointercancel', up); lsSet('aw_fp_size_' + id, [p.offsetWidth, p.offsetHeight]); };
+    rs.addEventListener('pointermove', mv); rs.addEventListener('pointerup', up); rs.addEventListener('pointercancel', up);
+  });
   // drag by the header
   const head = p.querySelector('.aw-fp-head');
   head.addEventListener('pointerdown', e => {
@@ -1218,7 +1230,7 @@ function openSyms(){
     const own = symOwn();
     h += '<div class="aw-symhd"><span>Your own</span></div>' + (own.length ? '<div class="aw-symgrid">' + own.map((c, i) => '<span class="sym-own">' + chip(c.t, c.ring) + '<button type="button" class="sym-del" data-del="' + i + '" title="Remove">×</button></span>').join('') + '</div>' : '') +
       '<div class="aw-symadd"><input id="symTxt" maxlength="14" placeholder="e.g. Adj"><label><input type="checkbox" id="symRing"> circle</label><button type="button" id="symAdd">Add</button></div>' +
-      '<div class="aw-fp-tip">Click the board to place a symbol, or drag to size it. It takes the current colour.</div>';
+      '<div class="aw-fp-tip">Choose a symbol, then click the board to place it (or drag to size it). Choose it again for the next one. It takes the current colour.</div>';
     body.innerHTML = h;
   }
   build();
