@@ -137,6 +137,12 @@
   .aw-rb-panel{display:flex;flex-wrap:wrap;align-items:stretch;padding:8px 10px 6px}
   .aw-rb-panel[hidden]{display:none}
   .aw-rb-panel.idle .aw-rb-grp{opacity:.5}
+  /* Shapes / Symbols panels: a thin scrollbar in the page's tint instead of the thick grey one */
+  .aw-fpanel,.aw-fpanel *{scrollbar-width:thin;scrollbar-color:rgba(86,97,224,.2) transparent}
+  .aw-fpanel *::-webkit-scrollbar{width:8px;height:8px}
+  .aw-fpanel *::-webkit-scrollbar-track{background:transparent}
+  .aw-fpanel *::-webkit-scrollbar-thumb{background:rgba(86,97,224,.2);border-radius:8px}
+  .aw-fpanel *:hover::-webkit-scrollbar-thumb{background:rgba(86,97,224,.36)}
   .aw-rb-panel.awm{position:relative;align-items:stretch;padding:8px 6px}
   .awm .awm-col{justify-content:center;gap:6px;padding:0 14px}
   .awm .awm-col:first-child{padding-left:4px}
