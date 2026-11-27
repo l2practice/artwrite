@@ -137,6 +137,22 @@
   .aw-rb-panel{display:flex;flex-wrap:wrap;align-items:stretch;padding:8px 10px 6px}
   .aw-rb-panel[hidden]{display:none}
   .aw-rb-panel.idle .aw-rb-grp{opacity:.5}
+  .aw-rb-panel.awm{position:relative;align-items:stretch;padding:8px 6px}
+  .awm .awm-col{justify-content:center;gap:6px;padding:0 14px}
+  .awm .awm-col:first-child{padding-left:4px}
+  .awm .awm-col:nth-last-child(2){border-right:0}
+  .awm .aw-rb-row{flex-wrap:wrap;min-height:36px;gap:3px}
+  @media (min-width:700px){ .awm .aw-rb-row{flex-wrap:nowrap} }
+  .awm .aw-rb-b{min-width:34px;height:34px}
+  .awm .awm-lab{gap:6px;font-size:.8rem;padding:0 7px}
+  .awm .awm-lab svg{width:18px;height:18px;flex:none}
+  .awm .aw-tcolor-sw{width:24px;height:24px;border-radius:6px;display:inline-grid;place-items:center}
+  .awm .awm-chip{width:32px;height:32px;border-radius:10px;background:var(--aw-surface-2,#f3f4fb);display:inline-grid;place-items:center;color:var(--aw-ink-2);margin-right:4px;flex:none}
+  .awm .aw-ls{min-width:42px}
+  .awm .aw-tl-f{display:inline-flex;align-items:center;gap:5px;font-weight:700}
+  .awm-pop{position:absolute;z-index:70;min-width:220px;padding:6px;background:#fff;border-radius:14px;box-shadow:0 12px 32px rgba(30,40,90,.18),0 0 0 1px var(--aw-border);display:flex;flex-direction:column;gap:2px}
+  .awm-pop[hidden]{display:none}
+  .awm-pop .aw-rb-b{width:100%;justify-content:flex-start;padding:0 12px}
   .aw-rb-grp{display:flex;flex-direction:column;justify-content:space-between;gap:4px;padding:0 12px;border-right:1px solid var(--aw-border)}
   .aw-rb-grp:last-child{border-right:none}
   .aw-rb-row{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
@@ -413,6 +429,7 @@ function renderBoard(){
   if(isTeacher && window.AWFree) AWFree.hydrate(canvas);
 
   if(isTeacher){
+    if(window.AWFree) drawMockup();
     wireToolbar();
     wireTables();
     if(window.AWFree) AWFree.wire(canvas);
@@ -628,6 +645,57 @@ function buildToolbar(){
 /*── colour palette popup (Word-style) ──*/
 var RB_PALETTE=['#000000','#404040','#7F7F7F','#BFBFBF','#FFFFFF','#C00000','#FF0000','#FFC000','#FFFF00','#92D050','#00B050','#00B0F0','#0070C0','#002060','#7030A0','#E03131','#F08C00','#2F9E44','#1971C2','#7048E8'];
 var RB_HL=['#FFF3A3','#B6F0C2','#BFE0FF','#FFC9D6','#E0C9FF','#FFD8A8','#FFFF00','#00FF00','#00FFFF','#FF00FF'];
+
+/*── Draw tab laid out like the teacher's mockup: columns of two rows, a thin line between columns, no captions.
+     Shapes Symbols Table | pen colours | thickness, line styles         | ↺15 ↻15 ↻90         | Picture Link Line
+     tools                | fills       | undo redo dup delete  W H more | flip ↔ flip ↕ angle | Front Back Level
+   The buttons are the same ones (moved, not copied), so AWFree.wire still finds them; Table, Picture, Link and Line
+   are shortcuts to the Home tab's buttons. Reset turn, ruler, smoothing and finger drawing are under "more". ──*/
+function drawMockup(){
+  var P=document.querySelector('.aw-rb-panel[data-panel="draw"]'); if(!P||P.classList.contains('awm')) return;
+  var q=function(s){ return P.querySelector(s); }, all=function(s){ return [].slice.call(P.querySelectorAll(s)); };
+  var el=function(tag,cls,html){ var e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; };
+  var ic=function(p){ return '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'; };
+  var row=function(){ var r=el('div','aw-rb-row'); [].slice.call(arguments).forEach(function(x){ if(x) r.appendChild(x); }); return r; };
+  var col=function(a,b,cls){ var c=el('div','aw-rb-grp awm-col'+(cls?' '+cls:'')); c.appendChild(a); c.appendChild(b); return c; };
+  var proxy=function(id,sel,icon,label){ var o=document.querySelector(sel); if(!o) return null; var b=el('button','aw-rb-b awm-lab',icon+'<span>'+label+'</span>'); b.type='button'; b.title=o.title||label; b.setAttribute('aria-label',b.title); b.onclick=function(){ o.click(); }; return b; };
+  var chip=function(p,t){ var c=el('span','awm-chip',ic(p)); c.title=t; c.setAttribute('role','img'); c.setAttribute('aria-label',t); return c; };
+  var lab=function(b,icon,label){ if(b){ b.classList.remove('aw-txt'); b.classList.add('awm-lab'); b.innerHTML=icon+'<span>'+label+'</span>'; } return b; };
+  // Shapes / Symbols lose their big-button look; the tools row
+  var shp=all('.aw-fpanel-btn'); shp.forEach(function(b){ b.classList.remove('aw-rb-big'); b.classList.add('awm-lab'); });
+  var c1=col(row(shp[0],shp[1],proxy('t','#tblBtn',RB_ICONS.table,'Table')), row.apply(null,all('[data-fl-tool]')));
+  // colours: #flStyle stays the colour group (the marks for the chosen colour look inside it)
+  var st=q('#flStyle'), fs=all('[data-fs]').filter(function(b){ return b.dataset.fs.toUpperCase()!=='#FFFFFF'; }), wh=q('[data-fs="#FFFFFF"]'), cu=q('.aw-cust'), ff=all('[data-ff]');
+  if(wh) wh.remove();
+  var r1=row(chip('<path d="M4.5 19.5 5.5 15 16 4.5l3.5 3.5L9 18.5z"/><path d="m14 6.5 3.5 3.5"/>','Pen and line colour')); fs.forEach(function(b){ r1.appendChild(b); }); if(cu) r1.appendChild(cu);
+  var r2=row(chip('<path d="M12 3.5c3.2 4.2 5.5 7.2 5.5 10a5.5 5.5 0 0 1-11 0c0-2.8 2.3-5.8 5.5-10z"/>','Fill colour')); ff.forEach(function(b){ r2.appendChild(b); });
+  st.innerHTML=''; st.className='aw-rb-grp awm-col'; st.appendChild(r1); st.appendChild(r2);
+  // thickness and line styles / edit, size, more
+  var th=q('#flW')&&q('#flW').closest('label'); if(th){ [].slice.call(th.childNodes).forEach(function(n){ if(n.nodeType===3) n.textContent=' '; }); th.title='Thickness'; }
+  var more=el('button','aw-rb-b awm-more',ic('<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/>'));
+  more.type='button'; more.title='More: reset turn, ruler, smoothing, finger drawing'; more.setAttribute('aria-label',more.title); more.setAttribute('aria-haspopup','menu');
+  var sw=q('#flSW'), sh=q('#flSH'); [sw,sh].forEach(function(i){ if(i) i.style.width='50px'; });
+  var c3=col(row.apply(null,[th].concat(all('[data-ls]'))),
+             row(q('#flUndo'),q('#flRedo'),q('[data-fl-act="dup"]'),q('[data-fl-act="del"]'),sw&&sw.closest('label'),sh&&sh.closest('label'),more));
+  // turning
+  var fx=q('[data-flip="x"]'), fy=q('[data-flip="y"]'), an=q('#flAngles');
+  if(fx){ fx.classList.remove('aw-txt'); fx.innerHTML=ic('<path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/>'); }
+  if(fy){ fy.classList.remove('aw-txt'); fy.innerHTML=ic('<path d="M8 20V5M4 9l4-4 4 4M16 4v15M12 15l4 4 4-4"/>'); }
+  if(an){ an.classList.remove('aw-txt'); an.innerHTML=ic('<path d="M12 4 21 20H3z"/>'); }
+  var c4=col(row(q('[data-rot="-15"]'),q('[data-rot="15"]'),q('[data-rot="90"]')), row(fx,fy,an));
+  // inserting and arranging
+  var c5=col(row(proxy('i','#imgBtn',RB_ICONS.image,'Picture'),proxy('l','[data-link]',RB_ICONS.link,'Link'),proxy('h','[data-ed="insertHorizontalRule"]',RB_ICONS.line,'Line')),
+             row(lab(q('[data-fl-act="front"]'),ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>'),'Front'),
+                 lab(q('[data-fl-act="back"]'),ic('<rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/>'),'Back'),
+                 lab(q('[data-fl-act="align"]'),ic('<path d="M4 7h10M4 12h16M4 17h12"/>'),'Level')));
+  // the "more" menu
+  var pop=el('div','awm-pop'); pop.hidden=true; pop.setAttribute('role','menu');
+  var rs=q('[data-rot="0"]'); if(rs) rs.textContent='↺ Reset turn';
+  [rs,q('#flRuler'),q('#flSmooth'),q('#flFinger')].forEach(function(b){ if(b) pop.appendChild(b); });
+  P.innerHTML=''; P.classList.add('awm'); [c1,st,c3,c4,c5,pop].forEach(function(x){ P.appendChild(x); });
+  more.onclick=function(){ pop.hidden=!pop.hidden; more.classList.toggle('on',!pop.hidden); if(!pop.hidden){ var r=more.getBoundingClientRect(), pr=P.getBoundingClientRect(); pop.style.left=(r.left-pr.left)+'px'; pop.style.top=(r.bottom-pr.top+6)+'px'; } };
+  document.addEventListener('pointerdown',function(e){ if(!pop.hidden&&!e.target.closest('.awm-pop,.awm-more')){ pop.hidden=true; more.classList.remove('on'); } },true);
+}
 
 function wireRibbon(){
   var canvas=document.getElementById('canvas'), tbar=document.getElementById('tb');
