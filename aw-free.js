@@ -966,7 +966,7 @@ function onUp(e){
     S.sel = [g.el]; clearBadges(); changed();
   } else if (g.kind === 'sym'){
     clearBadges();
-    if (!g.dragged){ g.el.remove(); S.undo.pop(); paintSel(); return; }   // a plain click draws nothing
+    if (!g.dragged){ S.sel = [g.el]; changed(); return; }   // a plain click places the symbol at its usual size (a drag sizes it)
     S.symDims[g.key] = [Math.round(g.w), Math.round(g.h)]; lsSet('aw_sym_dims', S.symDims);   // the next symbols of this kind come out the same size
     S.sel = [g.el]; changed();
   } else if (g.kind === 'text'){
